@@ -1,0 +1,32 @@
+spring:
+  datasource:
+    url: ${BITPET_DB_URL}
+    username: ${BITPET_DB_USERNAME}
+    password: ${BITPET_DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${BITPET_DB_POOL_MAX:20}
+      minimum-idle: ${BITPET_DB_POOL_MIN:5}
+  data:
+    redis:
+      host: ${BITPET_REDIS_HOST}
+      port: ${BITPET_REDIS_PORT:6379}
+      password: ${BITPET_REDIS_PASSWORD:}
+      timeout: 2s
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        physical_naming_strategy: org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy
+
+logging:
+  level:
+    root: INFO
+    io.bitpet: INFO
+    org.hibernate.SQL: WARN
+
+bitpet:
+  jwt:
+    secret: ${BITPET_JWT_SECRET}

@@ -1,0 +1,73 @@
+spring:
+  application:
+    name: bit-pet
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+  jackson:
+    time-zone: Asia/Seoul
+    serialization:
+      write-dates-as-timestamps: false
+  jpa:
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: Asia/Seoul
+
+server:
+  port: 8080
+  error:
+    include-message: always
+    include-binding-errors: always
+  forward-headers-strategy: framework
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: alpha
+    tags-sorter: alpha
+
+logging:
+  level:
+    root: INFO
+    io.bitpet: DEBUG
+
+# === Application-specific config (Bit-Pet) ===
+bitpet:
+  jwt:
+    # Override per-profile. Must be at least 32 bytes (256-bit) for HS256.
+    secret: ${BITPET_JWT_SECRET:change-me-in-each-profile}
+    access-token-validity: PT30M     # 30 minutes
+    refresh-token-validity: P14D     # 14 days
+    issuer: bit-pet
+  serial-number:
+    # Pool excludes ambiguous chars (0/O/I/1) → 32 chars
+    pool: "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
+    initial-length: 6
+    expansion-threshold: 0.8         # 80% saturation triggers length+1
+    max-length: 10
+  security:
+    cors:
+      allowed-origins: ${BITPET_CORS_ORIGINS:http://localhost:3000,http://localhost:8081}
+      allowed-methods: GET,POST,PUT,PATCH,DELETE,OPTIONS
+      allowed-headers: "*"
+      allow-credentials: true
+    public-paths:
+      - /actuator/health
+      - /actuator/info
+      - /v3/api-docs/**
+      - /swagger-ui/**
+      - /swagger-ui.html
+      - /api/v1/auth/**
