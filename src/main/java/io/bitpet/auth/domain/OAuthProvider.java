@@ -1,7 +1,6 @@
 package io.bitpet.auth.domain;
 
-public enum AuthProvider {
-    LOCAL,
+public enum OAuthProvider {
     GOOGLE,
     KAKAO,
     NAVER

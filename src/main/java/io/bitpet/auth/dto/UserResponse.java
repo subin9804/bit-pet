@@ -1,6 +1,6 @@
 package io.bitpet.auth.dto;
 
-import io.bitpet.auth.domain.User;
+import io.bitpet.auth.domain.UserMst;
 
 import java.time.Instant;
 
@@ -8,17 +8,17 @@ public record UserResponse(
         Long id,
         String email,
         String nickname,
-        String role,
-        String provider,
+        String userType,
+        String profileImageUrl,
         Instant createdAt
 ) {
-    public static UserResponse from(User user) {
+    public static UserResponse from(UserMst user) {
         return new UserResponse(
                 user.getId(),
                 user.getEmail(),
-                user.getNickname(),
-                user.getRole().name(),
-                user.getProvider().name(),
+                user.getName(),
+                user.getUserType().name(),
+                user.getProfileImageUrl(),
                 user.getCreatedAt()
         );
     }

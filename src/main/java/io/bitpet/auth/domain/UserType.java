@@ -1,6 +1,6 @@
 package io.bitpet.auth.domain;
 
-public enum Role {
-    USER,
+public enum UserType {
+    GENERAL,
     ADMIN
 }

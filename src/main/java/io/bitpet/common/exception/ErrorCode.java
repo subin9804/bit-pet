@@ -22,6 +22,8 @@ public enum ErrorCode {
     AUTH_INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "Invalid or expired token"),
     AUTH_REFRESH_TOKEN_NOT_FOUND(HttpStatus.UNAUTHORIZED, "Refresh token not found"),
     AUTH_USER_NOT_FOUND(HttpStatus.NOT_FOUND, "User not found"),
+    AUTH_OAUTH_PROVIDER_NOT_SUPPORTED(HttpStatus.BAD_REQUEST, "Unsupported OAuth provider"),
+    AUTH_OAUTH_USER_INFO_MISSING(HttpStatus.BAD_REQUEST, "OAuth provider returned insufficient user info"),
 
     // --- Pet ---
     PET_NOT_FOUND(HttpStatus.NOT_FOUND, "Pet not found"),

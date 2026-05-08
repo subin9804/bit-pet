@@ -1,0 +1,18 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+bitpet:
+  jwt:
+    secret: "test-environment-secret-please-change-only-test-32b"
+    access-token-validity: PT30M
+    refresh-token-validity: P14D
+    issuer: bit-pet-test
+  oauth2:
+    success-redirect-uri: http://localhost:3000/oauth/callback
+    failure-redirect-uri: http://localhost:3000/oauth/error

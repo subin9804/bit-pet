@@ -2,10 +2,14 @@ package io.bitpet.common.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.bitpet.auth.jwt.JwtAuthenticationFilter;
+import io.bitpet.auth.oauth.CustomOAuth2UserService;
+import io.bitpet.auth.oauth.OAuth2FailureHandler;
+import io.bitpet.auth.oauth.OAuth2SuccessHandler;
 import io.bitpet.common.exception.ErrorCode;
 import io.bitpet.common.response.ApiResponse;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;
@@ -17,6 +21,7 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -31,6 +36,10 @@ public class SecurityConfig {
     private final SecurityProperties securityProperties;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final ObjectMapper objectMapper;
+    private final CustomOAuth2UserService customOAuth2UserService;
+    private final OAuth2SuccessHandler oAuth2SuccessHandler;
+    private final OAuth2FailureHandler oAuth2FailureHandler;
+    private final ObjectProvider<ClientRegistrationRepository> clientRegistrationRepositoryProvider;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -49,6 +58,14 @@ public class SecurityConfig {
                         .accessDeniedHandler((req, res, ex) ->
                                 writeError(res, ErrorCode.FORBIDDEN, ex.getMessage())))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
+        // OAuth2 클라이언트 등록이 있을 때만 oauth2Login 활성화
+        if (clientRegistrationRepositoryProvider.getIfAvailable() != null) {
+            http.oauth2Login(oauth2 -> oauth2
+                    .userInfoEndpoint(ui -> ui.userService(customOAuth2UserService))
+                    .successHandler(oAuth2SuccessHandler)
+                    .failureHandler(oAuth2FailureHandler));
+        }
 
         return http.build();
     }
