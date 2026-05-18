@@ -28,6 +28,17 @@ public enum ErrorCode {
     // --- Pet ---
     PET_NOT_FOUND(HttpStatus.NOT_FOUND, "Pet not found"),
     PET_SERIAL_GENERATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to generate a unique pet serial number"),
+    PET_ACCESS_DENIED(HttpStatus.FORBIDDEN, "You do not own this pet"),
+
+    // --- Species ---
+    SPECIES_NOT_FOUND(HttpStatus.NOT_FOUND, "Species not found"),
+
+    // --- Pet Relation ---
+    PET_RELATION_NOT_FOUND(HttpStatus.NOT_FOUND, "Pet relation not found"),
+    PET_RELATION_DUPLICATE(HttpStatus.CONFLICT, "Pet relation already exists"),
+
+    // --- Mating ---
+    MATING_NOT_FOUND(HttpStatus.NOT_FOUND, "Mating record not found"),
     ;
 
     private final HttpStatus status;

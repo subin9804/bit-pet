@@ -10,7 +10,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -23,11 +22,8 @@ import java.time.Instant;
 @Getter
 @Table(
         name = "user_mst",
-        uniqueConstraints = {
-                @UniqueConstraint(name = "uk_user_mst_email", columnNames = "email")
-        },
         indexes = {
-                @Index(name = "idx_user_mst_email", columnList = "email")
+                @Index(name = "idx_user_mst_email_active", columnList = "email")
         }
 )
 @SQLRestriction("deleted_at IS NULL")

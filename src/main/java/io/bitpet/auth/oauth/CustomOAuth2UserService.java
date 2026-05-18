@@ -5,6 +5,7 @@ import io.bitpet.auth.domain.UserMst;
 import io.bitpet.auth.domain.UserOAuthRls;
 import io.bitpet.auth.repository.UserMstRepository;
 import io.bitpet.auth.repository.UserOAuthRlsRepository;
+import io.bitpet.auth.service.TokenEncryptor;
 import io.bitpet.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +30,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
     private final UserMstRepository userMstRepository;
     private final UserOAuthRlsRepository userOAuthRlsRepository;
     private final PasswordEncoder passwordEncoder;
+    private final TokenEncryptor tokenEncryptor;
     private final DefaultOAuth2UserService delegate = new DefaultOAuth2UserService();
 
     @Override
@@ -36,6 +38,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
         OAuth2User oauth2User = delegate.loadUser(userRequest);
         String registrationId = userRequest.getClientRegistration().getRegistrationId();
+        String rawAccessToken = userRequest.getAccessToken().getTokenValue();
         Map<String, Object> attributes = oauth2User.getAttributes();
 
         OAuth2UserInfo info = OAuth2UserInfoFactory.from(registrationId, attributes);
@@ -45,10 +48,11 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
                             "providerUserId is missing", null));
         }
 
+        String encryptedAccessToken = tokenEncryptor.encrypt(rawAccessToken);
         UserMst user = userOAuthRlsRepository
                 .findByProviderAndProviderUserId(info.provider(), info.providerUserId())
-                .map(rls -> updateOnLogin(rls, info))
-                .orElseGet(() -> linkOrCreate(info));
+                .map(rls -> updateOnLogin(rls, info, encryptedAccessToken))
+                .orElseGet(() -> linkOrCreate(info, encryptedAccessToken));
 
         user.markLoggedIn();
         String nameAttributeKey = userRequest.getClientRegistration()
@@ -56,12 +60,12 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         return new OAuth2UserPrincipal(user, attributes, nameAttributeKey);
     }
 
-    private UserMst updateOnLogin(UserOAuthRls rls, OAuth2UserInfo info) {
-        // 토큰 정보는 SuccessHandler에서 채울 수도 있으나, 이 단계에서 providerEmail 갱신 정도만.
+    private UserMst updateOnLogin(UserOAuthRls rls, OAuth2UserInfo info, String encryptedAccessToken) {
+        rls.updateTokens(encryptedAccessToken, rls.getRefreshToken(), rls.getTokenExpiresAt());
         return rls.getUser();
     }
 
-    private UserMst linkOrCreate(OAuth2UserInfo info) {
+    private UserMst linkOrCreate(OAuth2UserInfo info, String encryptedAccessToken) {
         OAuthProvider provider = info.provider();
         String email = info.email() != null && !info.email().isBlank()
                 ? info.email()
@@ -83,6 +87,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
                 .provider(provider)
                 .providerUserId(info.providerUserId())
                 .providerEmail(info.email())
+                .accessToken(encryptedAccessToken)
                 .build();
         userOAuthRlsRepository.save(rls);
         log.info("OAuth linked: provider={}, providerUserId={}, userId={}",

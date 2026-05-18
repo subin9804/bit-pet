@@ -2,5 +2,5 @@ package io.bitpet.auth.domain;
 
 public enum UserType {
     GENERAL,
-    ADMIN
+    BREEDER
 }

@@ -101,12 +101,13 @@ bitpet:
     access-token-validity: PT30M     # 30 minutes
     refresh-token-validity: P14D     # 14 days
     issuer: bit-pet
+  token-enc-key: ${BITPET_TOKEN_ENC_KEY:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}
   serial-number:
     # Pool excludes ambiguous chars (0/O/I/1) → 32 chars
     pool: "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
     initial-length: 6
     expansion-threshold: 0.8         # 80% saturation triggers length+1
-    max-length: 10
+    max-length: 8
   security:
     cors:
       allowed-origins: ${BITPET_CORS_ORIGINS:http://localhost:3000,http://localhost:8081}
@@ -120,6 +121,7 @@ bitpet:
       - /swagger-ui/**
       - /swagger-ui.html
       - /api/v1/auth/**
+      - /api/v1/species
       - /oauth2/authorization/**
       - /login/oauth2/code/**
   oauth2:

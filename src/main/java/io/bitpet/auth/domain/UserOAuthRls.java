@@ -59,9 +59,11 @@ public class UserOAuthRls extends BaseTimeEntity {
     @Column(name = "provider_email", length = 255)
     private String providerEmail;
 
+    /** AES-256-GCM 암호화 저장 (TokenEncryptor 사용) */
     @Column(name = "access_token", columnDefinition = "TEXT")
     private String accessToken;
 
+    /** AES-256-GCM 암호화 저장 (TokenEncryptor 사용) */
     @Column(name = "refresh_token", columnDefinition = "TEXT")
     private String refreshToken;
 

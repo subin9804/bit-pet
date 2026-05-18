@@ -53,4 +53,11 @@ public class AuthController {
         authService.logout(principal.userId());
         return ApiResponse.ok();
     }
+
+    @Operation(summary = "회원탈퇴 (Soft Delete + 30일 유예)")
+    @PostMapping("/withdraw")
+    public ApiResponse<Void> withdraw(@AuthenticationPrincipal AuthPrincipal principal) {
+        authService.withdraw(principal.userId());
+        return ApiResponse.ok();
+    }
 }

@@ -75,6 +75,15 @@ public class AuthService {
         refreshTokenStore.delete(userId);
     }
 
+    @Transactional
+    public void withdraw(Long userId) {
+        UserMst user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.AUTH_USER_NOT_FOUND));
+        user.softDelete();
+        refreshTokenStore.delete(userId);
+        log.info("User withdrew: id={}, deletedAt={}", userId, user.getDeletedAt());
+    }
+
     private TokenResponse issueTokens(UserMst user) {
         String access = tokenProvider.issueAccessToken(user.getId(), user.getEmail(), user.getUserType().name());
         String refresh = tokenProvider.issueRefreshToken(user.getId());

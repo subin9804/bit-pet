@@ -2,7 +2,7 @@ package io.bitpet.pet.service;
 
 import io.bitpet.common.exception.BusinessException;
 import io.bitpet.common.exception.ErrorCode;
-import io.bitpet.pet.repository.PetRepository;
+import io.bitpet.pet.repository.PetMstRepository;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -11,8 +11,10 @@ import org.springframework.stereotype.Component;
 import java.security.SecureRandom;
 
 /**
- * 6자리 일련번호 발급기. 풀(0/O/I/1 제외, 32자) 사용.
- * 발급된 개수가 현재 길이 공간의 expansionThreshold(기본 80%)에 도달하면 길이 +1로 확장.
+ * 개체 일련번호 발급기 (v3 기준).
+ * - 32자 풀 (0/O/I/1 제외)
+ * - 초기 6자리, 풀 80% 도달 시 7자리로 자동 확장, 최대 8자리
+ * - 현재 길이에서 32회 충돌 시 강제로 길이 +1 확장
  */
 @Slf4j
 @Component
@@ -22,7 +24,7 @@ public class SerialNumberGenerator {
     private static final int MAX_ATTEMPTS_PER_LENGTH = 32;
 
     private final SerialNumberProperties properties;
-    private final PetRepository petRepository;
+    private final PetMstRepository petRepository;
     private final SecureRandom random = new SecureRandom();
 
     private char[] poolChars;
@@ -43,19 +45,14 @@ public class SerialNumberGenerator {
                 poolChars.length, properties.initialLength(), properties.expansionThreshold(), properties.maxLength());
     }
 
-    /**
-     * 새 일련번호를 생성한다. DB에 중복이 없을 때까지 재시도하며,
-     * 현재 길이 공간이 expansionThreshold 이상으로 채워졌으면 길이를 +1 한다.
-     */
     public String generate() {
         int length = currentLength();
         for (int attempt = 0; attempt < MAX_ATTEMPTS_PER_LENGTH; attempt++) {
             String candidate = randomCode(length);
-            if (!petRepository.existsBySerialNumber(candidate)) {
+            if (!petRepository.existsBySerialNo(candidate)) {
                 return candidate;
             }
         }
-        // 모든 시도가 충돌 → 한 단계 길이 확장 후 재시도
         int expanded = Math.min(length + 1, properties.maxLength());
         if (expanded == length) {
             throw new BusinessException(ErrorCode.PET_SERIAL_GENERATION_FAILED);
@@ -63,7 +60,7 @@ public class SerialNumberGenerator {
         log.warn("Serial collision threshold reached at length {}, expanding to {}", length, expanded);
         for (int attempt = 0; attempt < MAX_ATTEMPTS_PER_LENGTH; attempt++) {
             String candidate = randomCode(expanded);
-            if (!petRepository.existsBySerialNumber(candidate)) {
+            if (!petRepository.existsBySerialNo(candidate)) {
                 return candidate;
             }
         }
@@ -88,7 +85,7 @@ public class SerialNumberGenerator {
         long capacity = 1L;
         for (int i = 0; i < length; i++) {
             capacity *= poolChars.length;
-            if (capacity < 0) return Long.MAX_VALUE; // overflow guard
+            if (capacity < 0) return Long.MAX_VALUE;
         }
         return capacity;
     }

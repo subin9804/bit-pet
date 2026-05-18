@@ -13,6 +13,7 @@ bitpet:
     access-token-validity: PT30M
     refresh-token-validity: P14D
     issuer: bit-pet-test
+  token-enc-key: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
   oauth2:
     success-redirect-uri: http://localhost:3000/oauth/callback
     failure-redirect-uri: http://localhost:3000/oauth/error
