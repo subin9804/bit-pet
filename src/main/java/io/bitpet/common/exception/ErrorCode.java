@@ -39,6 +39,13 @@ public enum ErrorCode {
 
     // --- Mating ---
     MATING_NOT_FOUND(HttpStatus.NOT_FOUND, "Mating record not found"),
+
+    // --- Record ---
+    WEIGHT_NOT_FOUND(HttpStatus.NOT_FOUND, "Weight record not found"),
+    FEEDING_NOT_FOUND(HttpStatus.NOT_FOUND, "Feeding record not found"),
+    CLEANING_NOT_FOUND(HttpStatus.NOT_FOUND, "Cleaning record not found"),
+    HEALTH_LOG_NOT_FOUND(HttpStatus.NOT_FOUND, "Health log not found"),
+    RECORD_ACCESS_DENIED(HttpStatus.FORBIDDEN, "You do not own this record"),
     ;
 
     private final HttpStatus status;

@@ -14,6 +14,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -48,14 +49,14 @@ public class AuthController {
     }
 
     @Operation(summary = "로그아웃 (refresh 무효화)")
-    @PostMapping("/logout")
+    @DeleteMapping("/logout")
     public ApiResponse<Void> logout(@AuthenticationPrincipal AuthPrincipal principal) {
         authService.logout(principal.userId());
         return ApiResponse.ok();
     }
 
     @Operation(summary = "회원탈퇴 (Soft Delete + 30일 유예)")
-    @PostMapping("/withdraw")
+    @DeleteMapping("/withdraw")
     public ApiResponse<Void> withdraw(@AuthenticationPrincipal AuthPrincipal principal) {
         authService.withdraw(principal.userId());
         return ApiResponse.ok();
