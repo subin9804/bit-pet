@@ -19,7 +19,7 @@ android {
         applicationId = "io.bitpet.bitpet_app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        minSdk = 21 // flutter_secure_storage + sqlite3_flutter_libs 요구사항
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
