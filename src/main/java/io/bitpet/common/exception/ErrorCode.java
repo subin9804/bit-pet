@@ -50,6 +50,17 @@ public enum ErrorCode {
     CLEANING_NOT_FOUND(HttpStatus.NOT_FOUND, "Cleaning record not found"),
     HEALTH_LOG_NOT_FOUND(HttpStatus.NOT_FOUND, "Health log not found"),
     RECORD_ACCESS_DENIED(HttpStatus.FORBIDDEN, "You do not own this record"),
+
+    // --- Routine / Alarm ---
+    ROUTINE_NOT_FOUND(HttpStatus.NOT_FOUND, "Routine not found"),
+    ALARM_NOT_FOUND(HttpStatus.NOT_FOUND, "Alarm not found"),
+    ROUTINE_ACCESS_DENIED(HttpStatus.FORBIDDEN, "You do not own this routine"),
+
+    // --- Notification ---
+    NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "Notification not found"),
+
+    // --- Photo ---
+    PHOTO_NOT_FOUND(HttpStatus.NOT_FOUND, "Photo not found"),
     ;
 
     private final HttpStatus status;
