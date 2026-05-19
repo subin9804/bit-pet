@@ -10,9 +10,11 @@ import java.time.LocalDate;
 public record PetCreateRequest(
         @NotBlank @Size(min = 1, max = 50) String name,
         Long speciesId,
+        Long morphId,
         PetGender gender,
         @Pattern(regexp = "^#[0-9A-Fa-f]{6}$", message = "색상 코드는 #RRGGBB 형식이어야 합니다") String colorCode,
         String environmentMemo,
+        String description,
         LocalDate breedingDate,
         LocalDate hatchingDate,
         LocalDate adoptionDate

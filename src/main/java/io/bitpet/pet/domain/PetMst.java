@@ -50,6 +50,11 @@ public class PetMst extends BaseTimeEntity {
             foreignKey = @jakarta.persistence.ForeignKey(name = "fk_pet_mst_species"))
     private SpeciesCd species;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "morph_id",
+            foreignKey = @jakarta.persistence.ForeignKey(name = "fk_pet_mst_morph"))
+    private MorphCd morph;
+
     @Column(nullable = false, length = 50)
     private String name;
 
@@ -72,6 +77,9 @@ public class PetMst extends BaseTimeEntity {
     @Column(name = "adoption_date")
     private LocalDate adoptionDate;
 
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
     @Column(name = "profile_photo_id")
     private Long profilePhotoId;
 
@@ -79,29 +87,34 @@ public class PetMst extends BaseTimeEntity {
     private Instant deletedAt;
 
     @Builder
-    private PetMst(String serialNo, Long userId, SpeciesCd species, String name,
-                   PetGender gender, String colorCode, String environmentMemo,
-                   LocalDate breedingDate, LocalDate hatchingDate, LocalDate adoptionDate) {
+    private PetMst(String serialNo, Long userId, SpeciesCd species, MorphCd morph,
+                   String name, PetGender gender, String colorCode, String environmentMemo,
+                   String description, LocalDate breedingDate, LocalDate hatchingDate,
+                   LocalDate adoptionDate) {
         this.serialNo = serialNo;
         this.userId = userId;
         this.species = species;
+        this.morph = morph;
         this.name = name;
         this.gender = gender != null ? gender : PetGender.UNKNOWN;
         this.colorCode = colorCode;
         this.environmentMemo = environmentMemo;
+        this.description = description;
         this.breedingDate = breedingDate;
         this.hatchingDate = hatchingDate;
         this.adoptionDate = adoptionDate;
     }
 
-    public void updateProfile(String name, SpeciesCd species, PetGender gender,
-                              String colorCode, String environmentMemo,
+    public void updateProfile(String name, SpeciesCd species, MorphCd morph, PetGender gender,
+                              String colorCode, String environmentMemo, String description,
                               LocalDate breedingDate, LocalDate hatchingDate, LocalDate adoptionDate) {
         if (name != null) this.name = name;
         if (species != null) this.species = species;
+        if (morph != null) this.morph = morph;
         if (gender != null) this.gender = gender;
         if (colorCode != null) this.colorCode = colorCode;
         if (environmentMemo != null) this.environmentMemo = environmentMemo;
+        if (description != null) this.description = description;
         if (breedingDate != null) this.breedingDate = breedingDate;
         if (hatchingDate != null) this.hatchingDate = hatchingDate;
         if (adoptionDate != null) this.adoptionDate = adoptionDate;

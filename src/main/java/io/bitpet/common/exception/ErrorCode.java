@@ -33,6 +33,10 @@ public enum ErrorCode {
     // --- Species ---
     SPECIES_NOT_FOUND(HttpStatus.NOT_FOUND, "Species not found"),
 
+    // --- Morph ---
+    MORPH_NOT_FOUND(HttpStatus.NOT_FOUND, "Morph not found"),
+    MORPH_SPECIES_MISMATCH(HttpStatus.BAD_REQUEST, "Morph does not belong to the given species"),
+
     // --- Pet Relation ---
     PET_RELATION_NOT_FOUND(HttpStatus.NOT_FOUND, "Pet relation not found"),
     PET_RELATION_DUPLICATE(HttpStatus.CONFLICT, "Pet relation already exists"),
