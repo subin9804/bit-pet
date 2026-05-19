@@ -52,6 +52,10 @@ dependencies {
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")
 
+    // --- AWS SDK v2 (S3 + LocalStack) ---
+    implementation(platform("software.amazon.awssdk:bom:2.26.12"))
+    implementation("software.amazon.awssdk:s3")
+
     // --- Test ---
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.security:spring-security-test")

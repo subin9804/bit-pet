@@ -35,6 +35,26 @@ services:
       timeout: 3s
       retries: 10
 
+  localstack:
+    image: localstack/localstack:3
+    container_name: bitpet-localstack
+    restart: unless-stopped
+    environment:
+      SERVICES: s3
+      DEFAULT_REGION: ap-northeast-2
+      AWS_DEFAULT_REGION: ap-northeast-2
+    ports:
+      - "4566:4566"
+    volumes:
+      - bitpet-localstack-data:/var/lib/localstack
+      - ./localstack-init:/etc/localstack/init/ready.d
+    healthcheck:
+      test: ["CMD-SHELL", "awslocal s3 ls || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
 volumes:
   bitpet-postgres-data:
   bitpet-redis-data:
+  bitpet-localstack-data:
