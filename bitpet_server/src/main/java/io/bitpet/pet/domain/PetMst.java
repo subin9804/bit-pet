@@ -1,6 +1,6 @@
 package io.bitpet.pet.domain;
 
-import io.bitpet.common.entity.BaseTimeEntity;
+import io.bitpet.common.entity.BaseSyncEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -33,7 +33,7 @@ import java.time.LocalDate;
 )
 @SQLRestriction("deleted_at IS NULL")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class PetMst extends BaseTimeEntity {
+public class PetMst extends BaseSyncEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

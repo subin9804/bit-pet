@@ -8,10 +8,13 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 public interface PetMstRepository extends JpaRepository<PetMst, Long> {
 
     boolean existsBySerialNo(String serialNo);
+
+    Optional<PetMst> findByClientIdAndClientChangeId(String clientId, UUID clientChangeId);
 
     Optional<PetMst> findBySerialNo(String serialNo);
 

@@ -1,6 +1,6 @@
 package io.bitpet.record.domain;
 
-import io.bitpet.common.entity.BaseTimeEntity;
+import io.bitpet.common.entity.BaseSyncEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -27,7 +27,7 @@ import java.time.Instant;
 )
 @SQLRestriction("deleted_at IS NULL")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class WeightDtl extends BaseTimeEntity {
+public class WeightDtl extends BaseSyncEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -60,6 +60,13 @@ public class WeightDtl extends BaseTimeEntity {
         this.measuredAt = measuredAt;
         this.source = source != null ? source : WeightSource.MANUAL;
         this.memo = memo;
+    }
+
+    public void update(BigDecimal weightG, Instant measuredAt, WeightSource source, String memo) {
+        if (weightG != null)    this.weightG = weightG;
+        if (measuredAt != null) this.measuredAt = measuredAt;
+        if (source != null)     this.source = source;
+        if (memo != null)       this.memo = memo;
     }
 
     public void softDelete() {

@@ -1,6 +1,6 @@
 package io.bitpet.community.domain;
 
-import io.bitpet.common.entity.BaseTimeEntity;
+import io.bitpet.common.entity.BaseSyncEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -22,7 +22,7 @@ import lombok.NoArgsConstructor;
         uniqueConstraints = @UniqueConstraint(name = "uk_post_like_rls", columnNames = {"post_id", "user_id"})
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class PostLikeRls extends BaseTimeEntity {
+public class PostLikeRls extends BaseSyncEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

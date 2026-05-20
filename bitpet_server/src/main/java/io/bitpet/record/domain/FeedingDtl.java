@@ -1,6 +1,6 @@
 package io.bitpet.record.domain;
 
-import io.bitpet.common.entity.BaseTimeEntity;
+import io.bitpet.common.entity.BaseSyncEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -25,7 +25,7 @@ import java.time.Instant;
 )
 @SQLRestriction("deleted_at IS NULL")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class FeedingDtl extends BaseTimeEntity {
+public class FeedingDtl extends BaseSyncEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
