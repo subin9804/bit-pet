@@ -27,7 +27,7 @@ class BitPetApp extends ConsumerWidget {
       title: 'bit-pet',
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
-      themeMode: ThemeMode.dark,
+      themeMode: ThemeMode.light,
       routerConfig: router,
       debugShowCheckedModeBanner: false,
     );

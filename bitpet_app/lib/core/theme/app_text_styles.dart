@@ -7,16 +7,16 @@ abstract final class AppTextStyles {
     letterSpacing: 0.3,
   );
 
-  static final h1 = _base.copyWith(fontSize: 24, fontWeight: FontWeight.w700);
-  static final h2 = _base.copyWith(fontSize: 20, fontWeight: FontWeight.w700);
-  static final h3 = _base.copyWith(fontSize: 16, fontWeight: FontWeight.w600);
-  static final body = _base.copyWith(fontSize: 14);
+  static final h1       = _base.copyWith(fontSize: 24, fontWeight: FontWeight.w700);
+  static final h2       = _base.copyWith(fontSize: 20, fontWeight: FontWeight.w700);
+  static final h3       = _base.copyWith(fontSize: 16, fontWeight: FontWeight.w600);
+  static final body     = _base.copyWith(fontSize: 14);
   static final bodyBold = _base.copyWith(fontSize: 14, fontWeight: FontWeight.w600);
-  static final caption = _base.copyWith(fontSize: 12, color: AppColors.textSecondary);
-  static final label = _base.copyWith(
+  static final caption  = _base.copyWith(fontSize: 12, color: AppColors.textSecondary);
+  static final label    = _base.copyWith(
     fontSize: 11,
-    color: AppColors.textSecondary,
-    letterSpacing: 0.8,
+    color: AppColors.textDisabled,
+    letterSpacing: 1.5,
     fontWeight: FontWeight.w500,
   );
   static final button = _base.copyWith(

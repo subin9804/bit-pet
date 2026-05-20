@@ -31,12 +31,21 @@ class AuthRepository {
           statusCode: res.statusCode ?? 0,
           message: apiRes.message ?? '로그인에 실패했습니다.');
     }
-    final tokens = AuthTokens.fromJson(apiRes.data!['tokens'] as Map<String, dynamic>);
+    final data = apiRes.data!;
+    // API 응답: data 루트에 accessToken/refreshToken 직접 위치
+    final tokenData = data.containsKey('accessToken')
+        ? data
+        : data['tokens'] as Map<String, dynamic>;
+    final tokens = AuthTokens.fromJson(tokenData);
     await _tokenStorage.saveTokens(
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
     );
-    return UserProfile.fromJson(apiRes.data!['user'] as Map<String, dynamic>);
+    if (data.containsKey('user')) {
+      return UserProfile.fromJson(data['user'] as Map<String, dynamic>);
+    }
+    // 로그인 응답에 user 정보 없을 경우 최소 프로필 반환 (/auth/me 연동 시 교체)
+    return UserProfile(id: 0, email: request.email, name: '', userType: 'GENERAL');
   }
 
   Future<UserProfile> signup(SignupRequest request) async {
@@ -50,12 +59,19 @@ class AuthRepository {
           statusCode: res.statusCode ?? 0,
           message: apiRes.message ?? '회원가입에 실패했습니다.');
     }
-    final tokens = AuthTokens.fromJson(apiRes.data!['tokens'] as Map<String, dynamic>);
+    final data = apiRes.data!;
+    final tokenData = data.containsKey('accessToken')
+        ? data
+        : data['tokens'] as Map<String, dynamic>;
+    final tokens = AuthTokens.fromJson(tokenData);
     await _tokenStorage.saveTokens(
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
     );
-    return UserProfile.fromJson(apiRes.data!['user'] as Map<String, dynamic>);
+    if (data.containsKey('user')) {
+      return UserProfile.fromJson(data['user'] as Map<String, dynamic>);
+    }
+    return UserProfile(id: 0, email: request.email, name: request.name, userType: 'GENERAL');
   }
 
   Future<void> logout() async {
