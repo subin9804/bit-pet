@@ -61,6 +61,14 @@ public enum ErrorCode {
 
     // --- Photo ---
     PHOTO_NOT_FOUND(HttpStatus.NOT_FOUND, "Photo not found"),
+
+    // --- Community ---
+    POST_NOT_FOUND(HttpStatus.NOT_FOUND, "Post not found"),
+    POST_ACCESS_DENIED(HttpStatus.FORBIDDEN, "You do not own this post"),
+    COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "Comment not found"),
+    COMMENT_ACCESS_DENIED(HttpStatus.FORBIDDEN, "You do not own this comment"),
+    POST_PHOTO_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "Post can have at most 5 photos"),
+    CATEGORY_NOT_FOUND(HttpStatus.NOT_FOUND, "Category not found"),
     ;
 
     private final HttpStatus status;
