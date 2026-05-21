@@ -38,12 +38,13 @@ public class NotificationService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void createRoutineNotification(Long userId, Long petId, Long routineId,
-                                           String title, String body) {
+    public void createRoutineNotification(Long userId, Long representativePetId, Long routineId,
+                                           int petCount, String title, String body) {
         NotificationLogDtl log = NotificationLogDtl.builder()
                 .userId(userId)
-                .petId(petId)
+                .petId(representativePetId)
                 .routineId(routineId)
+                .petCount(petCount)
                 .title(title)
                 .body(body)
                 .sentAt(Instant.now())

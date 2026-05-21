@@ -8,21 +8,24 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalTime;
-
 @Entity
 @Getter
 @Table(
-        name = "alarm_mst",
-        indexes = @Index(name = "idx_alarm_mst_routine", columnList = "routine_id, is_enabled")
+        name = "routine_pet_rls",
+        uniqueConstraints = @UniqueConstraint(name = "uq_routine_pet_rls", columnNames = {"routine_id", "pet_id"}),
+        indexes = {
+                @Index(name = "idx_routine_pet_rls_routine", columnList = "routine_id"),
+                @Index(name = "idx_routine_pet_rls_pet",     columnList = "pet_id")
+        }
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class AlarmMst extends BaseTimeEntity {
+public class RoutinePetRls extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -31,21 +34,12 @@ public class AlarmMst extends BaseTimeEntity {
     @Column(name = "routine_id", nullable = false)
     private Long routineId;
 
-    @Column(name = "alarm_time", nullable = false, columnDefinition = "TIME")
-    private LocalTime alarmTime;
-
-    @Column(name = "is_enabled", nullable = false)
-    private boolean enabled;
+    @Column(name = "pet_id", nullable = false)
+    private Long petId;
 
     @Builder
-    private AlarmMst(Long routineId, LocalTime alarmTime, boolean enabled) {
+    private RoutinePetRls(Long routineId, Long petId) {
         this.routineId = routineId;
-        this.alarmTime = alarmTime;
-        this.enabled   = enabled;
-    }
-
-    public void update(LocalTime alarmTime, boolean enabled) {
-        this.alarmTime = alarmTime;
-        this.enabled   = enabled;
+        this.petId     = petId;
     }
 }

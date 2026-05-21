@@ -20,6 +20,7 @@ part 'app_database.g.dart';
   FeedingTable,
   HealthMemoTable,
   RoutineTable,
+  RoutinePetTable,
   RoutineLogTable,
   PendingOpTable,
 ])

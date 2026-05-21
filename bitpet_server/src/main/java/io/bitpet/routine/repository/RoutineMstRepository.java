@@ -10,8 +10,16 @@ import java.util.List;
 
 public interface RoutineMstRepository extends JpaRepository<RoutineMst, Long> {
 
-    List<RoutineMst> findAllByPetIdOrderByCreatedAtDesc(Long petId);
+    List<RoutineMst> findAllByUserIdOrderByCreatedAtDesc(Long userId);
 
-    @Query("SELECT r FROM RoutineMst r WHERE r.active = true AND r.nextDueAt IS NOT NULL AND r.nextDueAt <= :now")
+    List<RoutineMst> findAllByUserIdAndActiveOrderByCreatedAtDesc(Long userId, boolean active);
+
+    @Query("""
+            SELECT r FROM RoutineMst r
+            WHERE r.active = true
+              AND r.alarmEnabled = true
+              AND r.nextDueAt IS NOT NULL
+              AND r.nextDueAt <= :now
+            """)
     List<RoutineMst> findOverdueRoutines(@Param("now") Instant now);
 }

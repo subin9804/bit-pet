@@ -89,6 +89,7 @@ public class RecordService {
                 .foodType(req.foodType())
                 .amount(req.amount())
                 .unit(req.unit())
+                .feedResponse(req.feedResponse())
                 .fedAt(req.fedAt())
                 .memo(req.memo())
                 .build());
@@ -100,7 +101,7 @@ public class RecordService {
         FeedingDtl feeding = feedingRepository.findById(feedingId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.FEEDING_NOT_FOUND));
         verifyPetOwnership(userId, feeding.getPetId());
-        feeding.update(req.foodType(), req.amount(), req.unit(), req.fedAt(), req.memo());
+        feeding.update(req.foodType(), req.amount(), req.unit(), req.feedResponse(), req.fedAt(), req.memo());
         return FeedingResponse.from(feeding);
     }
 

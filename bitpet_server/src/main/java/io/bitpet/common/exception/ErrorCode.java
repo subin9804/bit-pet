@@ -51,10 +51,11 @@ public enum ErrorCode {
     HEALTH_LOG_NOT_FOUND(HttpStatus.NOT_FOUND, "Health log not found"),
     RECORD_ACCESS_DENIED(HttpStatus.FORBIDDEN, "You do not own this record"),
 
-    // --- Routine / Alarm ---
+    // --- Routine ---
     ROUTINE_NOT_FOUND(HttpStatus.NOT_FOUND, "Routine not found"),
-    ALARM_NOT_FOUND(HttpStatus.NOT_FOUND, "Alarm not found"),
     ROUTINE_ACCESS_DENIED(HttpStatus.FORBIDDEN, "You do not own this routine"),
+    ROUTINE_NO_PETS(HttpStatus.BAD_REQUEST, "No pets subscribed to this routine"),
+    ROUTINE_LOG_NOT_FOUND(HttpStatus.NOT_FOUND, "Routine log not found"),
 
     // --- Notification ---
     NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "Notification not found"),

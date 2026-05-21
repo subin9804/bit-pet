@@ -25,19 +25,23 @@ class WeightRecord {
       );
 }
 
+enum FeedResponse { COMPLETE, PARTIAL, REFUSED }
+
 class FeedingRecord {
   final int id;
   final int petId;
+  final int? routineId;
   final String foodType;
   final double? amount;
   final String? unit;
-  final String? feedResponse;
+  final FeedResponse? feedResponse;
   final DateTime fedAt;
   final String? memo;
 
   const FeedingRecord({
     required this.id,
     required this.petId,
+    this.routineId,
     required this.foodType,
     this.amount,
     this.unit,
@@ -49,10 +53,16 @@ class FeedingRecord {
   factory FeedingRecord.fromJson(Map<String, dynamic> json) => FeedingRecord(
         id: json['id'] as int,
         petId: json['petId'] as int,
+        routineId: json['routineId'] as int?,
         foodType: json['foodType'] as String,
         amount: (json['amount'] as num?)?.toDouble(),
         unit: json['unit'] as String?,
-        feedResponse: json['feedResponse'] as String?,
+        feedResponse: json['feedResponse'] != null
+            ? FeedResponse.values.firstWhere(
+                (e) => e.name == json['feedResponse'],
+                orElse: () => FeedResponse.COMPLETE,
+              )
+            : null,
         fedAt: DateTime.parse(json['fedAt'] as String),
         memo: json['memo'] as String?,
       );

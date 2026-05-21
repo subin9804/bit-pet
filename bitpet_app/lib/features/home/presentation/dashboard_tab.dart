@@ -6,6 +6,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/pet_profile_card.dart';
 import '../../pet/providers/pet_provider.dart';
+import '../../record/presentation/fab_record_sheet.dart';
 
 class DashboardTab extends ConsumerWidget {
   const DashboardTab({super.key});
@@ -25,6 +26,17 @@ class DashboardTab extends ConsumerWidget {
             onPressed: () {},
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          ),
+          builder: (_) => const FabRecordSheet(),
+        ),
+        child: const Icon(Icons.add),
       ),
       body: SingleChildScrollView(
         child: Column(

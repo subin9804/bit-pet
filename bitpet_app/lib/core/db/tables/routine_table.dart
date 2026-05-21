@@ -6,8 +6,7 @@ class RoutineTable extends Table {
   String get tableName => 'routine_mst';
 
   IntColumn get id => integer().autoIncrement()();
-  IntColumn get petId =>
-      integer().references(PetTable, #id)();
+  IntColumn get userId => integer()(); // v3.1: pet_id → user_id
   // FEEDING / CLEANING / WEIGHT / CUSTOM
   TextColumn get routineType => text()();
   TextColumn get title => text().withLength(max: 100)();
@@ -23,5 +22,19 @@ class RoutineTable extends Table {
   DateTimeColumn get createdAt =>
       dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt =>
+      dateTime().withDefault(currentDateAndTime)();
+}
+
+// 루틴-개체 다대다 (routine_pet_rls)
+class RoutinePetTable extends Table {
+  @override
+  String get tableName => 'routine_pet_rls';
+
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get routineId =>
+      integer().references(RoutineTable, #id)();
+  IntColumn get petId =>
+      integer().references(PetTable, #id)();
+  DateTimeColumn get createdAt =>
       dateTime().withDefault(currentDateAndTime)();
 }

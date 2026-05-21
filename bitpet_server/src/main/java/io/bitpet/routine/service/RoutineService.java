@@ -4,163 +4,305 @@ import io.bitpet.common.exception.BusinessException;
 import io.bitpet.common.exception.ErrorCode;
 import io.bitpet.pet.domain.PetMst;
 import io.bitpet.pet.repository.PetMstRepository;
-import io.bitpet.routine.domain.AlarmMst;
+import io.bitpet.record.domain.FeedingDtl;
+import io.bitpet.record.domain.WeightDtl;
+import io.bitpet.record.domain.WeightSource;
+import io.bitpet.record.repository.FeedingDtlRepository;
+import io.bitpet.record.repository.WeightDtlRepository;
+import io.bitpet.routine.domain.RoutineLogDtl;
+import RoutineLogStatus;
 import io.bitpet.routine.domain.RoutineMst;
-import io.bitpet.routine.dto.AlarmCreateRequest;
-import io.bitpet.routine.dto.AlarmResponse;
-import io.bitpet.routine.dto.AlarmUpdateRequest;
+import io.bitpet.routine.domain.RoutinePetRls;
+import io.bitpet.routine.domain.RoutineType;
+import io.bitpet.routine.dto.RoutineCompleteBatchRequest;
+import io.bitpet.routine.dto.RoutineCompleteIndividualRequest;
 import io.bitpet.routine.dto.RoutineCreateRequest;
+import io.bitpet.routine.dto.RoutineLogResponse;
 import io.bitpet.routine.dto.RoutineResponse;
 import io.bitpet.routine.dto.RoutineUpdateRequest;
-import io.bitpet.routine.repository.AlarmMstRepository;
+import io.bitpet.routine.repository.RoutineLogDtlRepository;
 import io.bitpet.routine.repository.RoutineMstRepository;
+import io.bitpet.routine.repository.RoutinePetRlsRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class RoutineService {
 
-    private final PetMstRepository petRepository;
     private final RoutineMstRepository routineRepository;
-    private final AlarmMstRepository alarmRepository;
+    private final RoutinePetRlsRepository routinePetRepository;
+    private final RoutineLogDtlRepository routineLogRepository;
+    private final PetMstRepository petRepository;
+    private final FeedingDtlRepository feedingRepository;
+    private final WeightDtlRepository weightRepository;
 
     // -------------------------------------------------------------------------
-    // Routine CRUD
+    // Routine CRUD (user-owned)
     // -------------------------------------------------------------------------
 
-    public List<RoutineResponse> listRoutines(Long userId, Long petId) {
-        verifyPetOwnership(userId, petId);
-        return routineRepository.findAllByPetIdOrderByCreatedAtDesc(petId)
-                .stream().map(RoutineResponse::from).toList();
+    public List<RoutineResponse> listRoutines(Long userId) {
+        List<RoutineMst> routines = routineRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
+        return routines.stream().map(r -> {
+            List<Long> petIds = routinePetRepository.findPetIdsByRoutineId(r.getId());
+            return RoutineResponse.from(r, petIds);
+        }).toList();
     }
 
-    public RoutineResponse getRoutine(Long userId, Long petId, Long routineId) {
-        verifyPetOwnership(userId, petId);
-        RoutineMst routine = findRoutineOfPet(routineId, petId);
-        return RoutineResponse.from(routine);
+    public RoutineResponse getRoutine(Long userId, Long routineId) {
+        RoutineMst routine = findOwnedRoutine(userId, routineId);
+        List<Long> petIds = routinePetRepository.findPetIdsByRoutineId(routineId);
+        return RoutineResponse.from(routine, petIds);
     }
 
     @Transactional
-    public RoutineResponse createRoutine(Long userId, Long petId, RoutineCreateRequest req) {
-        verifyPetOwnership(userId, petId);
+    public RoutineResponse createRoutine(Long userId, RoutineCreateRequest req) {
         Instant nextDueAt = req.startAt() != null
                 ? req.startAt()
                 : Instant.now().plus(req.cycleDays(), ChronoUnit.DAYS);
 
         RoutineMst saved = routineRepository.save(RoutineMst.builder()
-                .petId(petId)
+                .userId(userId)
                 .routineType(req.routineType())
                 .title(req.title())
                 .cycleDays(req.cycleDays())
+                .alarmTime(req.alarmTime())
+                .alarmEnabled(req.alarmEnabled())
                 .nextDueAt(nextDueAt)
                 .memo(req.memo())
                 .build());
-        return RoutineResponse.from(saved);
+
+        List<Long> petIds = new ArrayList<>();
+        if (req.petIds() != null) {
+            for (Long petId : req.petIds()) {
+                verifyPetOwnership(userId, petId);
+                routinePetRepository.save(RoutinePetRls.builder()
+                        .routineId(saved.getId())
+                        .petId(petId)
+                        .build());
+                petIds.add(petId);
+            }
+        }
+        return RoutineResponse.from(saved, petIds);
     }
 
     @Transactional
-    public RoutineResponse updateRoutine(Long userId, Long petId, Long routineId,
-                                         RoutineUpdateRequest req) {
-        verifyPetOwnership(userId, petId);
-        RoutineMst routine = findRoutineOfPet(routineId, petId);
-        routine.update(req.routineType(), req.title(), req.cycleDays(), req.active(), req.memo());
-        return RoutineResponse.from(routine);
+    public RoutineResponse updateRoutine(Long userId, Long routineId, RoutineUpdateRequest req) {
+        RoutineMst routine = findOwnedRoutine(userId, routineId);
+        routine.update(req.routineType(), req.title(), req.cycleDays(),
+                req.alarmTime(), req.alarmEnabled(), req.active(), req.memo());
+        List<Long> petIds = routinePetRepository.findPetIdsByRoutineId(routineId);
+        return RoutineResponse.from(routine, petIds);
     }
 
     @Transactional
-    public void deleteRoutine(Long userId, Long petId, Long routineId) {
-        verifyPetOwnership(userId, petId);
-        RoutineMst routine = findRoutineOfPet(routineId, petId);
+    public void deleteRoutine(Long userId, Long routineId) {
+        RoutineMst routine = findOwnedRoutine(userId, routineId);
         routineRepository.delete(routine);
     }
 
+    // -------------------------------------------------------------------------
+    // Pet subscription (routine_pet_rls)
+    // -------------------------------------------------------------------------
+
     @Transactional
-    public RoutineResponse executeRoutine(Long userId, Long petId, Long routineId) {
+    public void subscribePet(Long userId, Long routineId, Long petId) {
+        findOwnedRoutine(userId, routineId);
         verifyPetOwnership(userId, petId);
-        RoutineMst routine = findRoutineOfPet(routineId, petId);
-        routine.markExecuted(Instant.now());
-        return RoutineResponse.from(routine);
-    }
-
-    // -------------------------------------------------------------------------
-    // Alarm CRUD
-    // -------------------------------------------------------------------------
-
-    public List<AlarmResponse> listAlarms(Long userId, Long routineId) {
-        RoutineMst routine = findRoutine(routineId);
-        verifyPetOwnership(userId, routine.getPetId());
-        return alarmRepository.findAllByRoutineIdOrderByAlarmTime(routineId)
-                .stream().map(AlarmResponse::from).toList();
-    }
-
-    @Transactional
-    public AlarmResponse addAlarm(Long userId, Long routineId, AlarmCreateRequest req) {
-        RoutineMst routine = findRoutine(routineId);
-        verifyPetOwnership(userId, routine.getPetId());
-        AlarmMst saved = alarmRepository.save(AlarmMst.builder()
-                .routineId(routineId)
-                .alarmTime(req.alarmTime())
-                .enabled(req.enabled())
-                .build());
-        return AlarmResponse.from(saved);
-    }
-
-    @Transactional
-    public AlarmResponse updateAlarm(Long userId, Long routineId, Long alarmId,
-                                      AlarmUpdateRequest req) {
-        RoutineMst routine = findRoutine(routineId);
-        verifyPetOwnership(userId, routine.getPetId());
-        AlarmMst alarm = findAlarmOfRoutine(alarmId, routineId);
-        alarm.update(req.alarmTime(), req.enabled());
-        return AlarmResponse.from(alarm);
-    }
-
-    @Transactional
-    public void deleteAlarm(Long userId, Long routineId, Long alarmId) {
-        RoutineMst routine = findRoutine(routineId);
-        verifyPetOwnership(userId, routine.getPetId());
-        AlarmMst alarm = findAlarmOfRoutine(alarmId, routineId);
-        alarmRepository.delete(alarm);
-    }
-
-    // -------------------------------------------------------------------------
-    // Helpers
-    // -------------------------------------------------------------------------
-
-    private void verifyPetOwnership(Long userId, Long petId) {
-        PetMst pet = petRepository.findById(petId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.PET_NOT_FOUND));
-        if (!pet.getUserId().equals(userId)) {
-            throw new BusinessException(ErrorCode.ROUTINE_ACCESS_DENIED);
+        if (!routinePetRepository.existsByRoutineIdAndPetId(routineId, petId)) {
+            routinePetRepository.save(RoutinePetRls.builder()
+                    .routineId(routineId)
+                    .petId(petId)
+                    .build());
         }
     }
 
-    private RoutineMst findRoutine(Long routineId) {
-        return routineRepository.findById(routineId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ROUTINE_NOT_FOUND));
+    @Transactional
+    public void unsubscribePet(Long userId, Long routineId, Long petId) {
+        findOwnedRoutine(userId, routineId);
+        routinePetRepository.deleteByRoutineIdAndPetId(routineId, petId);
     }
 
-    private RoutineMst findRoutineOfPet(Long routineId, Long petId) {
-        RoutineMst routine = findRoutine(routineId);
-        if (!routine.getPetId().equals(petId)) {
+    public List<Long> listSubscribedPets(Long userId, Long routineId) {
+        findOwnedRoutine(userId, routineId);
+        return routinePetRepository.findPetIdsByRoutineId(routineId);
+    }
+
+    // -------------------------------------------------------------------------
+    // Pet view: routines with subscription status
+    // -------------------------------------------------------------------------
+
+    public List<RoutineWithSubscriptionResponse> listRoutinesForPet(Long userId, Long petId) {
+        verifyPetOwnership(userId, petId);
+        List<RoutineMst> routines = routineRepository.findAllByUserIdAndActiveOrderByCreatedAtDesc(userId, true);
+        return routines.stream().map(r -> {
+            boolean subscribed = routinePetRepository.existsByRoutineIdAndPetId(r.getId(), petId);
+            List<Long> petIds = routinePetRepository.findPetIdsByRoutineId(r.getId());
+            return new RoutineWithSubscriptionResponse(RoutineResponse.from(r, petIds), subscribed);
+        }).toList();
+    }
+
+    public record RoutineWithSubscriptionResponse(RoutineResponse routine, boolean subscribed) {}
+
+    // -------------------------------------------------------------------------
+    // Routine completion — batch (all pets, same data)
+    // -------------------------------------------------------------------------
+
+    @Transactional
+    public List<RoutineLogResponse> completeBatch(Long userId, Long routineId,
+                                                   RoutineCompleteBatchRequest req) {
+        RoutineMst routine = findOwnedRoutine(userId, routineId);
+        List<Long> petIds = routinePetRepository.findPetIdsByRoutineId(routineId);
+        if (petIds.isEmpty()) {
+            throw new BusinessException(ErrorCode.ROUTINE_NO_PETS);
+        }
+
+        Instant executedAt = req.executedAt() != null ? req.executedAt() : Instant.now();
+        List<RoutineLogResponse> logs = new ArrayList<>();
+
+        for (Long petId : petIds) {
+            RoutineLogResponse log = saveSingleLog(routine, petId,
+                    RoutineLogStatus.COMPLETED, executedAt, req);
+            logs.add(log);
+        }
+        routine.markExecuted(executedAt);
+        return logs;
+    }
+
+    // -------------------------------------------------------------------------
+    // Routine completion — individual pet
+    // -------------------------------------------------------------------------
+
+    @Transactional
+    public RoutineLogResponse completeIndividual(Long userId, Long routineId,
+                                                  RoutineCompleteIndividualRequest req) {
+        RoutineMst routine = findOwnedRoutine(userId, routineId);
+        verifyPetOwnership(userId, req.petId());
+
+        Instant executedAt = req.executedAt() != null ? req.executedAt() : Instant.now();
+
+        if (req.status() == RoutineLogStatus.REFUSED) {
+            if (req.memo() == null || req.memo().isBlank()) {
+                return null; // REFUSED without memo → no record
+            }
+            RoutineLogDtl log = routineLogRepository.save(RoutineLogDtl.builder()
+                    .routineId(routineId)
+                    .petId(req.petId())
+                    .status(RoutineLogStatus.REFUSED)
+                    .executedAt(executedAt)
+                    .memo(req.memo())
+                    .build());
+            return RoutineLogResponse.from(log);
+        }
+
+        RoutineCompleteBatchRequest batchReq = new RoutineCompleteBatchRequest(
+                executedAt, req.foodType(), req.amount(), req.unit(), req.feedResponse(),
+                req.cleaningType(), req.weightG(), req.memo()
+        );
+        return saveSingleLog(routine, req.petId(),
+                RoutineLogStatus.COMPLETED, executedAt, batchReq);
+    }
+
+    // -------------------------------------------------------------------------
+    // Routine logs
+    // -------------------------------------------------------------------------
+
+    public List<RoutineLogResponse> listLogs(Long userId, Long routineId) {
+        findOwnedRoutine(userId, routineId);
+        return routineLogRepository.findAllByRoutineId(routineId)
+                .stream().map(RoutineLogResponse::from).toList();
+    }
+
+    @Transactional
+    public void deleteLog(Long userId, Long logId) {
+        RoutineLogDtl log = routineLogRepository.findById(logId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ROUTINE_LOG_NOT_FOUND));
+        RoutineMst routine = routineRepository.findById(log.getRoutineId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.ROUTINE_NOT_FOUND));
+        if (!routine.getUserId().equals(userId)) {
+            throw new BusinessException(ErrorCode.ROUTINE_ACCESS_DENIED);
+        }
+        log.softDelete();
+    }
+
+    // -------------------------------------------------------------------------
+    // Internal helpers
+    // -------------------------------------------------------------------------
+
+    private RoutineMst findOwnedRoutine(Long userId, Long routineId) {
+        RoutineMst routine = routineRepository.findById(routineId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ROUTINE_NOT_FOUND));
+        if (!routine.getUserId().equals(userId)) {
             throw new BusinessException(ErrorCode.ROUTINE_ACCESS_DENIED);
         }
         return routine;
     }
 
-    private AlarmMst findAlarmOfRoutine(Long alarmId, Long routineId) {
-        AlarmMst alarm = alarmRepository.findById(alarmId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ALARM_NOT_FOUND));
-        if (!alarm.getRoutineId().equals(routineId)) {
-            throw new BusinessException(ErrorCode.ROUTINE_ACCESS_DENIED);
+    private void verifyPetOwnership(Long userId, Long petId) {
+        PetMst pet = petRepository.findById(petId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PET_NOT_FOUND));
+        if (!pet.getUserId().equals(userId)) {
+            throw new BusinessException(ErrorCode.PET_ACCESS_DENIED);
         }
-        return alarm;
+    }
+
+    private RoutineLogResponse saveSingleLog(RoutineMst routine, Long petId,
+                                              RoutineLogStatus status,
+                                              Instant executedAt, RoutineCompleteBatchRequest req) {
+        if (routine.getRoutineType() == RoutineType.FEEDING) {
+            FeedingDtl feeding = feedingRepository.save(FeedingDtl.builder()
+                    .petId(petId)
+                    .routineId(routine.getId())
+                    .foodType(req.foodType() != null ? req.foodType() : "")
+                    .amount(req.amount())
+                    .unit(req.unit())
+                    .feedResponse(req.feedResponse())
+                    .fedAt(executedAt)
+                    .memo(req.memo())
+                    .build());
+            // Return a synthetic log response for consistency
+            RoutineLogDtl log = routineLogRepository.save(RoutineLogDtl.builder()
+                    .routineId(routine.getId())
+                    .petId(petId)
+                    .status(status)
+                    .executedAt(executedAt)
+                    .memo(req.memo())
+                    .build());
+            return RoutineLogResponse.from(log);
+        }
+
+        Map<String, Object> extraData = new HashMap<>();
+        if (routine.getRoutineType() == RoutineType.CLEANING && req.cleaningType() != null) {
+            extraData.put("cleaning_type", req.cleaningType());
+        }
+        if (routine.getRoutineType() == RoutineType.WEIGHT && req.weightG() != null) {
+            extraData.put("weight_g", req.weightG());
+            weightRepository.save(WeightDtl.builder()
+                    .petId(petId)
+                    .weightG(req.weightG())
+                    .measuredAt(executedAt)
+                    .source(WeightSource.MANUAL)
+                    .memo(req.memo())
+                    .build());
+        }
+
+        RoutineLogDtl log = routineLogRepository.save(RoutineLogDtl.builder()
+                .routineId(routine.getId())
+                .petId(petId)
+                .status(status)
+                .executedAt(executedAt)
+                .extraData(extraData.isEmpty() ? null : extraData)
+                .memo(req.memo())
+                .build());
+        return RoutineLogResponse.from(log);
     }
 }

@@ -11,8 +11,11 @@ class RoutineLogTable extends Table {
       integer().references(RoutineTable, #id)();
   IntColumn get petId =>
       integer().references(PetTable, #id)();
+  // COMPLETED / REFUSED
+  TextColumn get status =>
+      text().withDefault(const Constant('COMPLETED'))();
   DateTimeColumn get executedAt => dateTime()();
-  TextColumn get extraData => text().nullable()(); // JSON
+  TextColumn get extraData => text().nullable()(); // JSON string
   TextColumn get memo => text().nullable()();
   DateTimeColumn get deletedAt => dateTime().nullable()();
   DateTimeColumn get createdAt =>

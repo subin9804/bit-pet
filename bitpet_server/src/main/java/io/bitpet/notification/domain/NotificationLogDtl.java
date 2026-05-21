@@ -42,6 +42,9 @@ public class NotificationLogDtl extends BaseTimeEntity {
     @Column(name = "routine_id")
     private Long routineId;
 
+    @Column(name = "pet_count")
+    private Integer petCount;
+
     @Column(name = "template_code", length = 50)
     private String templateCode;
 
@@ -62,12 +65,13 @@ public class NotificationLogDtl extends BaseTimeEntity {
     private String errorMessage;
 
     @Builder
-    private NotificationLogDtl(Long userId, Long petId, Long routineId,
+    private NotificationLogDtl(Long userId, Long petId, Long routineId, Integer petCount,
                                 String templateCode, String title, String body,
                                 Instant sentAt, NotificationStatus status) {
         this.userId       = userId;
         this.petId        = petId;
         this.routineId    = routineId;
+        this.petCount     = petCount;
         this.templateCode = templateCode;
         this.title        = title;
         this.body         = body;

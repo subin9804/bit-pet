@@ -16,6 +16,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
+import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 
 @Entity
@@ -23,8 +24,8 @@ import java.time.temporal.ChronoUnit;
 @Table(
         name = "routine_mst",
         indexes = {
-                @Index(name = "idx_routine_mst_pet_active", columnList = "pet_id, is_active"),
-                @Index(name = "idx_routine_mst_next_due",   columnList = "next_due_at")
+                @Index(name = "idx_routine_mst_user_active", columnList = "user_id, is_active"),
+                @Index(name = "idx_routine_mst_next_due",    columnList = "next_due_at")
         }
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -34,8 +35,8 @@ public class RoutineMst extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "pet_id", nullable = false)
-    private Long petId;
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "routine_type", nullable = false, length = 20)
@@ -46,6 +47,12 @@ public class RoutineMst extends BaseTimeEntity {
 
     @Column(name = "cycle_days", nullable = false)
     private int cycleDays;
+
+    @Column(name = "alarm_time", columnDefinition = "TIME")
+    private LocalTime alarmTime;
+
+    @Column(name = "is_alarm_enabled", nullable = false)
+    private boolean alarmEnabled;
 
     @Column(name = "last_executed_at")
     private Instant lastExecutedAt;
@@ -60,24 +67,30 @@ public class RoutineMst extends BaseTimeEntity {
     private String memo;
 
     @Builder
-    private RoutineMst(Long petId, RoutineType routineType, String title,
-                       int cycleDays, Instant nextDueAt, String memo) {
-        this.petId       = petId;
-        this.routineType = routineType;
-        this.title       = title;
-        this.cycleDays   = cycleDays;
-        this.nextDueAt   = nextDueAt;
-        this.active      = true;
-        this.memo        = memo;
+    private RoutineMst(Long userId, RoutineType routineType, String title,
+                       int cycleDays, LocalTime alarmTime, boolean alarmEnabled,
+                       Instant nextDueAt, String memo) {
+        this.userId       = userId;
+        this.routineType  = routineType;
+        this.title        = title;
+        this.cycleDays    = cycleDays;
+        this.alarmTime    = alarmTime;
+        this.alarmEnabled = alarmEnabled;
+        this.nextDueAt    = nextDueAt;
+        this.active       = true;
+        this.memo         = memo;
     }
 
     public void update(RoutineType routineType, String title, int cycleDays,
+                       LocalTime alarmTime, boolean alarmEnabled,
                        Boolean active, String memo) {
-        this.routineType = routineType;
-        this.title       = title;
-        this.cycleDays   = cycleDays;
+        this.routineType  = routineType;
+        this.title        = title;
+        this.cycleDays    = cycleDays;
+        this.alarmTime    = alarmTime;
+        this.alarmEnabled = alarmEnabled;
         if (active != null) this.active = active;
-        this.memo        = memo;
+        this.memo         = memo;
     }
 
     public void markExecuted(Instant at) {
