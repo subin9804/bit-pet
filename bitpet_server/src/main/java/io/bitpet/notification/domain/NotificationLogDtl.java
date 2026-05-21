@@ -23,7 +23,8 @@ import java.time.Instant;
         name = "notification_log_dtl",
         indexes = {
                 @Index(name = "idx_notification_log_user_time", columnList = "user_id, sent_at"),
-                @Index(name = "idx_notification_log_status",    columnList = "status, sent_at")
+                @Index(name = "idx_notification_log_status",    columnList = "status, sent_at"),
+                @Index(name = "idx_notification_log_type",      columnList = "user_id, notification_type, sent_at")
         }
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -36,14 +37,25 @@ public class NotificationLogDtl extends BaseTimeEntity {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
+    // ROUTINE_ALARM: 대표 개체, AI_CONSULTING: 해당 개체
     @Column(name = "pet_id")
     private Long petId;
 
+    // ROUTINE_ALARM 전용
     @Column(name = "routine_id")
     private Long routineId;
 
+    // ROUTINE_ALARM 전용 (연결된 전체 개체 수)
     @Column(name = "pet_count")
     private Integer petCount;
+
+    // COMMUNITY_COMMENT: comment_id / COMMUNITY_LIKE: post_id / AI_CONSULTING: pet_id
+    @Column(name = "reference_id")
+    private Long referenceId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "notification_type", nullable = false, length = 30)
+    private NotificationType notificationType;
 
     @Column(name = "template_code", length = 50)
     private String templateCode;
@@ -66,17 +78,20 @@ public class NotificationLogDtl extends BaseTimeEntity {
 
     @Builder
     private NotificationLogDtl(Long userId, Long petId, Long routineId, Integer petCount,
+                                Long referenceId, NotificationType notificationType,
                                 String templateCode, String title, String body,
                                 Instant sentAt, NotificationStatus status) {
-        this.userId       = userId;
-        this.petId        = petId;
-        this.routineId    = routineId;
-        this.petCount     = petCount;
-        this.templateCode = templateCode;
-        this.title        = title;
-        this.body         = body;
-        this.sentAt       = sentAt != null ? sentAt : Instant.now();
-        this.status       = status != null ? status : NotificationStatus.PENDING;
+        this.userId           = userId;
+        this.petId            = petId;
+        this.routineId        = routineId;
+        this.petCount         = petCount;
+        this.referenceId      = referenceId;
+        this.notificationType = notificationType != null ? notificationType : NotificationType.SYSTEM;
+        this.templateCode     = templateCode;
+        this.title            = title;
+        this.body             = body;
+        this.sentAt           = sentAt != null ? sentAt : Instant.now();
+        this.status           = status != null ? status : NotificationStatus.PENDING;
     }
 
     public void markRead() {
