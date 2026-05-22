@@ -29,7 +29,25 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (m) async {
+          await m.createAll();
+        },
+        onUpgrade: (m, from, to) async {
+          // v1 → v2: RoutinePetTable 신설 + RoutineLogTable.status 컬럼 추가
+          if (from < 2) {
+            await m.createTable(routinePetTable);
+            await m.addColumn(routineLogTable, routineLogTable.status);
+          }
+        },
+        beforeOpen: (details) async {
+          // SQLite 외래키 제약 활성화
+          await customStatement('PRAGMA foreign_keys = ON');
+        },
+      );
 }
 
 LazyDatabase _openConnection() {
