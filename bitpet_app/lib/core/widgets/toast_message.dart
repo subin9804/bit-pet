@@ -4,6 +4,13 @@ import '../theme/app_text_styles.dart';
 
 enum ToastType { success, error, info, warning }
 
+void showToast(
+  BuildContext context,
+  String message, {
+  ToastType type = ToastType.info,
+}) =>
+    ToastMessage.show(context, message, type: type);
+
 class ToastMessage {
   static void show(
     BuildContext context,
