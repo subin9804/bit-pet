@@ -17,6 +17,7 @@ import io.bitpet.record.dto.FeedingUpdateRequest;
 import io.bitpet.record.dto.HealthLogCreateRequest;
 import io.bitpet.record.dto.HealthLogResponse;
 import io.bitpet.record.dto.HealthLogUpdateRequest;
+import io.bitpet.record.dto.RecentRecordResponse;
 import io.bitpet.record.dto.WeightCreateRequest;
 import io.bitpet.record.dto.WeightResponse;
 import io.bitpet.record.repository.CleaningDtlRepository;
@@ -24,10 +25,15 @@ import io.bitpet.record.repository.FeedingDtlRepository;
 import io.bitpet.record.repository.HealthMemoDtlRepository;
 import io.bitpet.record.repository.WeightDtlRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -190,6 +196,54 @@ public class RecordService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.HEALTH_LOG_NOT_FOUND));
         verifyPetOwnership(userId, log.getPetId());
         log.softDelete();
+    }
+
+    // -------------------------------------------------------------------------
+    // Recent records — aggregated feed
+    // -------------------------------------------------------------------------
+
+    public List<RecentRecordResponse> getRecentRecords(Long userId, int limit) {
+        List<PetMst> pets = petRepository.findAllByUserId(userId);
+        if (pets.isEmpty()) return List.of();
+
+        List<Long> petIds = pets.stream().map(PetMst::getId).toList();
+        Map<Long, String> petNameMap = pets.stream()
+                .collect(Collectors.toMap(PetMst::getId, PetMst::getName));
+
+        PageRequest page = PageRequest.of(0, limit);
+        List<RecentRecordResponse> all = new ArrayList<>();
+
+        feedingRepository.findAllByPetIdInOrderByFedAtDesc(petIds, page).forEach(f ->
+                all.add(new RecentRecordResponse("FEEDING", f.getId(), f.getPetId(),
+                        petNameMap.getOrDefault(f.getPetId(), ""),
+                        f.getFedAt(), buildFeedingSummary(f))));
+
+        weightRepository.findAllByPetIdInOrderByMeasuredAtDesc(petIds, page).forEach(w ->
+                all.add(new RecentRecordResponse("WEIGHT", w.getId(), w.getPetId(),
+                        petNameMap.getOrDefault(w.getPetId(), ""),
+                        w.getMeasuredAt(), w.getWeightG() + "g")));
+
+        cleaningRepository.findAllByPetIdInOrderByCleanedAtDesc(petIds, page).forEach(c ->
+                all.add(new RecentRecordResponse("CLEANING", c.getId(), c.getPetId(),
+                        petNameMap.getOrDefault(c.getPetId(), ""),
+                        c.getCleanedAt(), c.getCleaningType() != null ? c.getCleaningType().name() : "")));
+
+        healthLogRepository.findAllByPetIdInOrderByRecordedAtDesc(petIds, page).forEach(h ->
+                all.add(new RecentRecordResponse("HEALTH", h.getId(), h.getPetId(),
+                        petNameMap.getOrDefault(h.getPetId(), ""),
+                        h.getRecordedAt(), h.getSymptom() != null ? h.getSymptom() : "")));
+
+        all.sort(Comparator.comparing(RecentRecordResponse::occurredAt).reversed());
+        return all.subList(0, Math.min(limit, all.size()));
+    }
+
+    private String buildFeedingSummary(FeedingDtl f) {
+        StringBuilder sb = new StringBuilder(f.getFoodType() != null ? f.getFoodType() : "");
+        if (f.getAmount() != null) {
+            sb.append(" ").append(f.getAmount().stripTrailingZeros().toPlainString());
+            if (f.getUnit() != null) sb.append(f.getUnit());
+        }
+        return sb.toString().trim();
     }
 
     // -------------------------------------------------------------------------

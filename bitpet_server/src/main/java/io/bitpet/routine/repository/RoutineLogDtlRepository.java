@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 
 public interface RoutineLogDtlRepository extends JpaRepository<RoutineLogDtl, Long> {
@@ -32,4 +33,19 @@ public interface RoutineLogDtlRepository extends JpaRepository<RoutineLogDtl, Lo
                                        @Param("to") Instant to);
 
     long countByRoutineIdAndStatusAndDeletedAtIsNull(Long routineId, RoutineLogStatus status);
+
+    @Query("""
+            SELECT r FROM RoutineLogDtl r
+            WHERE r.routineId = :routineId
+              AND r.petId IN :petIds
+              AND r.executedAt >= :from
+              AND r.executedAt < :to
+              AND r.status = io.bitpet.routine.domain.RoutineLogStatus.COMPLETED
+              AND r.deletedAt IS NULL
+            ORDER BY r.executedAt DESC
+            """)
+    List<RoutineLogDtl> findTodayCompletedLogs(@Param("routineId") Long routineId,
+                                                @Param("petIds") Collection<Long> petIds,
+                                                @Param("from") Instant from,
+                                                @Param("to") Instant to);
 }

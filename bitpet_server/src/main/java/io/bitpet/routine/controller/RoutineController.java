@@ -7,6 +7,7 @@ import io.bitpet.routine.dto.RoutineCompleteIndividualRequest;
 import io.bitpet.routine.dto.RoutineCreateRequest;
 import io.bitpet.routine.dto.RoutineLogResponse;
 import io.bitpet.routine.dto.RoutineResponse;
+import io.bitpet.routine.dto.TodayRoutineResponse;
 import io.bitpet.routine.dto.RoutineUpdateRequest;
 import io.bitpet.routine.service.RoutineService;
 import jakarta.validation.Valid;
@@ -71,6 +72,23 @@ public class RoutineController {
             @AuthenticationPrincipal AuthPrincipal principal,
             @PathVariable Long routineId) {
         routineService.deleteRoutine(principal.userId(), routineId);
+    }
+
+    // -------------------------------------------------------------------------
+    // Today's routines
+    // -------------------------------------------------------------------------
+
+    @GetMapping("/routines/today")
+    public ApiResponse<List<TodayRoutineResponse>> listTodayRoutines(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return ApiResponse.ok(routineService.listTodayRoutines(principal.userId()));
+    }
+
+    @GetMapping("/routines/{routineId}/today")
+    public ApiResponse<TodayRoutineResponse> getTodayRoutineStatus(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @PathVariable Long routineId) {
+        return ApiResponse.ok(routineService.getTodayRoutineStatus(principal.userId(), routineId));
     }
 
     // -------------------------------------------------------------------------

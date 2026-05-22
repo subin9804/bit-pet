@@ -10,7 +10,7 @@ import io.bitpet.record.domain.WeightSource;
 import io.bitpet.record.repository.FeedingDtlRepository;
 import io.bitpet.record.repository.WeightDtlRepository;
 import io.bitpet.routine.domain.RoutineLogDtl;
-import RoutineLogStatus;
+import io.bitpet.routine.domain.RoutineLogStatus;
 import io.bitpet.routine.domain.RoutineMst;
 import io.bitpet.routine.domain.RoutinePetRls;
 import io.bitpet.routine.domain.RoutineType;
@@ -19,6 +19,7 @@ import io.bitpet.routine.dto.RoutineCompleteIndividualRequest;
 import io.bitpet.routine.dto.RoutineCreateRequest;
 import io.bitpet.routine.dto.RoutineLogResponse;
 import io.bitpet.routine.dto.RoutineResponse;
+import io.bitpet.routine.dto.TodayRoutineResponse;
 import io.bitpet.routine.dto.RoutineUpdateRequest;
 import io.bitpet.routine.repository.RoutineLogDtlRepository;
 import io.bitpet.routine.repository.RoutineMstRepository;
@@ -28,11 +29,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -135,6 +139,50 @@ public class RoutineService {
     public List<Long> listSubscribedPets(Long userId, Long routineId) {
         findOwnedRoutine(userId, routineId);
         return routinePetRepository.findPetIdsByRoutineId(routineId);
+    }
+
+    // -------------------------------------------------------------------------
+    // Today's routines — completion status per pet
+    // -------------------------------------------------------------------------
+
+    public List<TodayRoutineResponse> listTodayRoutines(Long userId) {
+        Instant[] todayRange = todayRange();
+        List<RoutineMst> routines = routineRepository.findAllByUserIdAndActiveOrderByCreatedAtDesc(userId, true);
+        return routines.stream().map(r -> {
+            List<Long> petIds = routinePetRepository.findPetIdsByRoutineId(r.getId());
+            return TodayRoutineResponse.from(r, buildPetTodayStatuses(r.getId(), petIds, todayRange[0], todayRange[1]));
+        }).toList();
+    }
+
+    public TodayRoutineResponse getTodayRoutineStatus(Long userId, Long routineId) {
+        RoutineMst routine = findOwnedRoutine(userId, routineId);
+        Instant[] todayRange = todayRange();
+        List<Long> petIds = routinePetRepository.findPetIdsByRoutineId(routineId);
+        return TodayRoutineResponse.from(routine, buildPetTodayStatuses(routineId, petIds, todayRange[0], todayRange[1]));
+    }
+
+    private List<TodayRoutineResponse.PetTodayStatus> buildPetTodayStatuses(Long routineId, List<Long> petIds,
+                                                                              Instant from, Instant to) {
+        if (petIds.isEmpty()) return List.of();
+        List<RoutineLogDtl> todayLogs = routineLogRepository.findTodayCompletedLogs(routineId, petIds, from, to);
+        Map<Long, RoutineLogDtl> logByPetId = todayLogs.stream()
+                .collect(Collectors.toMap(RoutineLogDtl::getPetId, l -> l, (a, b) -> a));
+        return petIds.stream().map(petId -> {
+            PetMst pet = petRepository.findById(petId).orElse(null);
+            String petName = pet != null ? pet.getName() : "";
+            RoutineLogDtl log = logByPetId.get(petId);
+            return new TodayRoutineResponse.PetTodayStatus(
+                    petId, petName, log != null,
+                    log != null ? log.getId() : null,
+                    log != null ? log.getExecutedAt() : null
+            );
+        }).toList();
+    }
+
+    private static Instant[] todayRange() {
+        Instant from = LocalDate.now(ZoneOffset.UTC).atStartOfDay(ZoneOffset.UTC).toInstant();
+        Instant to = from.plus(1, ChronoUnit.DAYS);
+        return new Instant[]{from, to};
     }
 
     // -------------------------------------------------------------------------
