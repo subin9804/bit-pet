@@ -24,4 +24,5 @@ abstract final class AppTextStyles {
     fontWeight: FontWeight.w700,
     letterSpacing: 0.5,
   );
+  static final title = _base.copyWith(fontSize: 18, fontWeight: FontWeight.w700);
 }

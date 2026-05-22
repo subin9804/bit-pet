@@ -103,4 +103,15 @@ class RecordRepository {
   Future<void> deleteHealthMemo(int id) async {
     await _dio.delete('/health-logs/$id');
   }
+
+  Future<List<RecentRecord>> getRecentRecords({int limit = 5}) async {
+    final res = await _dio.get('/records/recent', queryParameters: {'limit': limit});
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => (d as List)
+          .map((e) => RecentRecord.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+    return apiRes.data ?? [];
+  }
 }

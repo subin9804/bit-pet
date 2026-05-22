@@ -3245,17 +3245,14 @@ class $RoutineTableTable extends RoutineTable
       'PRIMARY KEY AUTOINCREMENT',
     ),
   );
-  static const VerificationMeta _petIdMeta = const VerificationMeta('petId');
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
   @override
-  late final GeneratedColumn<int> petId = GeneratedColumn<int>(
-    'pet_id',
+  late final GeneratedColumn<int> userId = GeneratedColumn<int>(
+    'user_id',
     aliasedName,
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES pet_mst (id)',
-    ),
   );
   static const VerificationMeta _routineTypeMeta = const VerificationMeta(
     'routineType',
@@ -3389,7 +3386,7 @@ class $RoutineTableTable extends RoutineTable
   @override
   List<GeneratedColumn> get $columns => [
     id,
-    petId,
+    userId,
     routineType,
     title,
     cycleDays,
@@ -3417,13 +3414,13 @@ class $RoutineTableTable extends RoutineTable
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     }
-    if (data.containsKey('pet_id')) {
+    if (data.containsKey('user_id')) {
       context.handle(
-        _petIdMeta,
-        petId.isAcceptableOrUnknown(data['pet_id']!, _petIdMeta),
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
       );
     } else if (isInserting) {
-      context.missing(_petIdMeta);
+      context.missing(_userIdMeta);
     }
     if (data.containsKey('routine_type')) {
       context.handle(
@@ -3519,9 +3516,9 @@ class $RoutineTableTable extends RoutineTable
         DriftSqlType.int,
         data['${effectivePrefix}id'],
       )!,
-      petId: attachedDatabase.typeMapping.read(
+      userId: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
-        data['${effectivePrefix}pet_id'],
+        data['${effectivePrefix}user_id'],
       )!,
       routineType: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
@@ -3579,7 +3576,7 @@ class $RoutineTableTable extends RoutineTable
 class RoutineTableData extends DataClass
     implements Insertable<RoutineTableData> {
   final int id;
-  final int petId;
+  final int userId;
   final String routineType;
   final String title;
   final int cycleDays;
@@ -3593,7 +3590,7 @@ class RoutineTableData extends DataClass
   final DateTime updatedAt;
   const RoutineTableData({
     required this.id,
-    required this.petId,
+    required this.userId,
     required this.routineType,
     required this.title,
     required this.cycleDays,
@@ -3610,7 +3607,7 @@ class RoutineTableData extends DataClass
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
-    map['pet_id'] = Variable<int>(petId);
+    map['user_id'] = Variable<int>(userId);
     map['routine_type'] = Variable<String>(routineType);
     map['title'] = Variable<String>(title);
     map['cycle_days'] = Variable<int>(cycleDays);
@@ -3636,7 +3633,7 @@ class RoutineTableData extends DataClass
   RoutineTableCompanion toCompanion(bool nullToAbsent) {
     return RoutineTableCompanion(
       id: Value(id),
-      petId: Value(petId),
+      userId: Value(userId),
       routineType: Value(routineType),
       title: Value(title),
       cycleDays: Value(cycleDays),
@@ -3664,7 +3661,7 @@ class RoutineTableData extends DataClass
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return RoutineTableData(
       id: serializer.fromJson<int>(json['id']),
-      petId: serializer.fromJson<int>(json['petId']),
+      userId: serializer.fromJson<int>(json['userId']),
       routineType: serializer.fromJson<String>(json['routineType']),
       title: serializer.fromJson<String>(json['title']),
       cycleDays: serializer.fromJson<int>(json['cycleDays']),
@@ -3683,7 +3680,7 @@ class RoutineTableData extends DataClass
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
-      'petId': serializer.toJson<int>(petId),
+      'userId': serializer.toJson<int>(userId),
       'routineType': serializer.toJson<String>(routineType),
       'title': serializer.toJson<String>(title),
       'cycleDays': serializer.toJson<int>(cycleDays),
@@ -3700,7 +3697,7 @@ class RoutineTableData extends DataClass
 
   RoutineTableData copyWith({
     int? id,
-    int? petId,
+    int? userId,
     String? routineType,
     String? title,
     int? cycleDays,
@@ -3714,7 +3711,7 @@ class RoutineTableData extends DataClass
     DateTime? updatedAt,
   }) => RoutineTableData(
     id: id ?? this.id,
-    petId: petId ?? this.petId,
+    userId: userId ?? this.userId,
     routineType: routineType ?? this.routineType,
     title: title ?? this.title,
     cycleDays: cycleDays ?? this.cycleDays,
@@ -3732,7 +3729,7 @@ class RoutineTableData extends DataClass
   RoutineTableData copyWithCompanion(RoutineTableCompanion data) {
     return RoutineTableData(
       id: data.id.present ? data.id.value : this.id,
-      petId: data.petId.present ? data.petId.value : this.petId,
+      userId: data.userId.present ? data.userId.value : this.userId,
       routineType: data.routineType.present
           ? data.routineType.value
           : this.routineType,
@@ -3757,7 +3754,7 @@ class RoutineTableData extends DataClass
   String toString() {
     return (StringBuffer('RoutineTableData(')
           ..write('id: $id, ')
-          ..write('petId: $petId, ')
+          ..write('userId: $userId, ')
           ..write('routineType: $routineType, ')
           ..write('title: $title, ')
           ..write('cycleDays: $cycleDays, ')
@@ -3776,7 +3773,7 @@ class RoutineTableData extends DataClass
   @override
   int get hashCode => Object.hash(
     id,
-    petId,
+    userId,
     routineType,
     title,
     cycleDays,
@@ -3794,7 +3791,7 @@ class RoutineTableData extends DataClass
       identical(this, other) ||
       (other is RoutineTableData &&
           other.id == this.id &&
-          other.petId == this.petId &&
+          other.userId == this.userId &&
           other.routineType == this.routineType &&
           other.title == this.title &&
           other.cycleDays == this.cycleDays &&
@@ -3810,7 +3807,7 @@ class RoutineTableData extends DataClass
 
 class RoutineTableCompanion extends UpdateCompanion<RoutineTableData> {
   final Value<int> id;
-  final Value<int> petId;
+  final Value<int> userId;
   final Value<String> routineType;
   final Value<String> title;
   final Value<int> cycleDays;
@@ -3824,7 +3821,7 @@ class RoutineTableCompanion extends UpdateCompanion<RoutineTableData> {
   final Value<DateTime> updatedAt;
   const RoutineTableCompanion({
     this.id = const Value.absent(),
-    this.petId = const Value.absent(),
+    this.userId = const Value.absent(),
     this.routineType = const Value.absent(),
     this.title = const Value.absent(),
     this.cycleDays = const Value.absent(),
@@ -3839,7 +3836,7 @@ class RoutineTableCompanion extends UpdateCompanion<RoutineTableData> {
   });
   RoutineTableCompanion.insert({
     this.id = const Value.absent(),
-    required int petId,
+    required int userId,
     required String routineType,
     required String title,
     required int cycleDays,
@@ -3851,13 +3848,13 @@ class RoutineTableCompanion extends UpdateCompanion<RoutineTableData> {
     this.memo = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
-  }) : petId = Value(petId),
+  }) : userId = Value(userId),
        routineType = Value(routineType),
        title = Value(title),
        cycleDays = Value(cycleDays);
   static Insertable<RoutineTableData> custom({
     Expression<int>? id,
-    Expression<int>? petId,
+    Expression<int>? userId,
     Expression<String>? routineType,
     Expression<String>? title,
     Expression<int>? cycleDays,
@@ -3872,7 +3869,7 @@ class RoutineTableCompanion extends UpdateCompanion<RoutineTableData> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
-      if (petId != null) 'pet_id': petId,
+      if (userId != null) 'user_id': userId,
       if (routineType != null) 'routine_type': routineType,
       if (title != null) 'title': title,
       if (cycleDays != null) 'cycle_days': cycleDays,
@@ -3889,7 +3886,7 @@ class RoutineTableCompanion extends UpdateCompanion<RoutineTableData> {
 
   RoutineTableCompanion copyWith({
     Value<int>? id,
-    Value<int>? petId,
+    Value<int>? userId,
     Value<String>? routineType,
     Value<String>? title,
     Value<int>? cycleDays,
@@ -3904,7 +3901,7 @@ class RoutineTableCompanion extends UpdateCompanion<RoutineTableData> {
   }) {
     return RoutineTableCompanion(
       id: id ?? this.id,
-      petId: petId ?? this.petId,
+      userId: userId ?? this.userId,
       routineType: routineType ?? this.routineType,
       title: title ?? this.title,
       cycleDays: cycleDays ?? this.cycleDays,
@@ -3925,8 +3922,8 @@ class RoutineTableCompanion extends UpdateCompanion<RoutineTableData> {
     if (id.present) {
       map['id'] = Variable<int>(id.value);
     }
-    if (petId.present) {
-      map['pet_id'] = Variable<int>(petId.value);
+    if (userId.present) {
+      map['user_id'] = Variable<int>(userId.value);
     }
     if (routineType.present) {
       map['routine_type'] = Variable<String>(routineType.value);
@@ -3968,7 +3965,7 @@ class RoutineTableCompanion extends UpdateCompanion<RoutineTableData> {
   String toString() {
     return (StringBuffer('RoutineTableCompanion(')
           ..write('id: $id, ')
-          ..write('petId: $petId, ')
+          ..write('userId: $userId, ')
           ..write('routineType: $routineType, ')
           ..write('title: $title, ')
           ..write('cycleDays: $cycleDays, ')
@@ -3980,6 +3977,309 @@ class RoutineTableCompanion extends UpdateCompanion<RoutineTableData> {
           ..write('memo: $memo, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $RoutinePetTableTable extends RoutinePetTable
+    with TableInfo<$RoutinePetTableTable, RoutinePetTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RoutinePetTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _routineIdMeta = const VerificationMeta(
+    'routineId',
+  );
+  @override
+  late final GeneratedColumn<int> routineId = GeneratedColumn<int>(
+    'routine_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES routine_mst (id)',
+    ),
+  );
+  static const VerificationMeta _petIdMeta = const VerificationMeta('petId');
+  @override
+  late final GeneratedColumn<int> petId = GeneratedColumn<int>(
+    'pet_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES pet_mst (id)',
+    ),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, routineId, petId, createdAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'routine_pet_rls';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<RoutinePetTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('routine_id')) {
+      context.handle(
+        _routineIdMeta,
+        routineId.isAcceptableOrUnknown(data['routine_id']!, _routineIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_routineIdMeta);
+    }
+    if (data.containsKey('pet_id')) {
+      context.handle(
+        _petIdMeta,
+        petId.isAcceptableOrUnknown(data['pet_id']!, _petIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_petIdMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  RoutinePetTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return RoutinePetTableData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      routineId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}routine_id'],
+      )!,
+      petId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}pet_id'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $RoutinePetTableTable createAlias(String alias) {
+    return $RoutinePetTableTable(attachedDatabase, alias);
+  }
+}
+
+class RoutinePetTableData extends DataClass
+    implements Insertable<RoutinePetTableData> {
+  final int id;
+  final int routineId;
+  final int petId;
+  final DateTime createdAt;
+  const RoutinePetTableData({
+    required this.id,
+    required this.routineId,
+    required this.petId,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['routine_id'] = Variable<int>(routineId);
+    map['pet_id'] = Variable<int>(petId);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  RoutinePetTableCompanion toCompanion(bool nullToAbsent) {
+    return RoutinePetTableCompanion(
+      id: Value(id),
+      routineId: Value(routineId),
+      petId: Value(petId),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory RoutinePetTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return RoutinePetTableData(
+      id: serializer.fromJson<int>(json['id']),
+      routineId: serializer.fromJson<int>(json['routineId']),
+      petId: serializer.fromJson<int>(json['petId']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'routineId': serializer.toJson<int>(routineId),
+      'petId': serializer.toJson<int>(petId),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  RoutinePetTableData copyWith({
+    int? id,
+    int? routineId,
+    int? petId,
+    DateTime? createdAt,
+  }) => RoutinePetTableData(
+    id: id ?? this.id,
+    routineId: routineId ?? this.routineId,
+    petId: petId ?? this.petId,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  RoutinePetTableData copyWithCompanion(RoutinePetTableCompanion data) {
+    return RoutinePetTableData(
+      id: data.id.present ? data.id.value : this.id,
+      routineId: data.routineId.present ? data.routineId.value : this.routineId,
+      petId: data.petId.present ? data.petId.value : this.petId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RoutinePetTableData(')
+          ..write('id: $id, ')
+          ..write('routineId: $routineId, ')
+          ..write('petId: $petId, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, routineId, petId, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is RoutinePetTableData &&
+          other.id == this.id &&
+          other.routineId == this.routineId &&
+          other.petId == this.petId &&
+          other.createdAt == this.createdAt);
+}
+
+class RoutinePetTableCompanion extends UpdateCompanion<RoutinePetTableData> {
+  final Value<int> id;
+  final Value<int> routineId;
+  final Value<int> petId;
+  final Value<DateTime> createdAt;
+  const RoutinePetTableCompanion({
+    this.id = const Value.absent(),
+    this.routineId = const Value.absent(),
+    this.petId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  RoutinePetTableCompanion.insert({
+    this.id = const Value.absent(),
+    required int routineId,
+    required int petId,
+    this.createdAt = const Value.absent(),
+  }) : routineId = Value(routineId),
+       petId = Value(petId);
+  static Insertable<RoutinePetTableData> custom({
+    Expression<int>? id,
+    Expression<int>? routineId,
+    Expression<int>? petId,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (routineId != null) 'routine_id': routineId,
+      if (petId != null) 'pet_id': petId,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  RoutinePetTableCompanion copyWith({
+    Value<int>? id,
+    Value<int>? routineId,
+    Value<int>? petId,
+    Value<DateTime>? createdAt,
+  }) {
+    return RoutinePetTableCompanion(
+      id: id ?? this.id,
+      routineId: routineId ?? this.routineId,
+      petId: petId ?? this.petId,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (routineId.present) {
+      map['routine_id'] = Variable<int>(routineId.value);
+    }
+    if (petId.present) {
+      map['pet_id'] = Variable<int>(petId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RoutinePetTableCompanion(')
+          ..write('id: $id, ')
+          ..write('routineId: $routineId, ')
+          ..write('petId: $petId, ')
+          ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
   }
@@ -4029,6 +4329,16 @@ class $RoutineLogTableTable extends RoutineLogTable
     defaultConstraints: GeneratedColumn.constraintIsAlways(
       'REFERENCES pet_mst (id)',
     ),
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('COMPLETED'),
   );
   static const VerificationMeta _executedAtMeta = const VerificationMeta(
     'executedAt',
@@ -4101,6 +4411,7 @@ class $RoutineLogTableTable extends RoutineLogTable
     id,
     routineId,
     petId,
+    status,
     executedAt,
     extraData,
     memo,
@@ -4138,6 +4449,12 @@ class $RoutineLogTableTable extends RoutineLogTable
       );
     } else if (isInserting) {
       context.missing(_petIdMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
     }
     if (data.containsKey('executed_at')) {
       context.handle(
@@ -4198,6 +4515,10 @@ class $RoutineLogTableTable extends RoutineLogTable
         DriftSqlType.int,
         data['${effectivePrefix}pet_id'],
       )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
       executedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}executed_at'],
@@ -4236,6 +4557,7 @@ class RoutineLogTableData extends DataClass
   final int id;
   final int routineId;
   final int petId;
+  final String status;
   final DateTime executedAt;
   final String? extraData;
   final String? memo;
@@ -4246,6 +4568,7 @@ class RoutineLogTableData extends DataClass
     required this.id,
     required this.routineId,
     required this.petId,
+    required this.status,
     required this.executedAt,
     this.extraData,
     this.memo,
@@ -4259,6 +4582,7 @@ class RoutineLogTableData extends DataClass
     map['id'] = Variable<int>(id);
     map['routine_id'] = Variable<int>(routineId);
     map['pet_id'] = Variable<int>(petId);
+    map['status'] = Variable<String>(status);
     map['executed_at'] = Variable<DateTime>(executedAt);
     if (!nullToAbsent || extraData != null) {
       map['extra_data'] = Variable<String>(extraData);
@@ -4279,6 +4603,7 @@ class RoutineLogTableData extends DataClass
       id: Value(id),
       routineId: Value(routineId),
       petId: Value(petId),
+      status: Value(status),
       executedAt: Value(executedAt),
       extraData: extraData == null && nullToAbsent
           ? const Value.absent()
@@ -4301,6 +4626,7 @@ class RoutineLogTableData extends DataClass
       id: serializer.fromJson<int>(json['id']),
       routineId: serializer.fromJson<int>(json['routineId']),
       petId: serializer.fromJson<int>(json['petId']),
+      status: serializer.fromJson<String>(json['status']),
       executedAt: serializer.fromJson<DateTime>(json['executedAt']),
       extraData: serializer.fromJson<String?>(json['extraData']),
       memo: serializer.fromJson<String?>(json['memo']),
@@ -4316,6 +4642,7 @@ class RoutineLogTableData extends DataClass
       'id': serializer.toJson<int>(id),
       'routineId': serializer.toJson<int>(routineId),
       'petId': serializer.toJson<int>(petId),
+      'status': serializer.toJson<String>(status),
       'executedAt': serializer.toJson<DateTime>(executedAt),
       'extraData': serializer.toJson<String?>(extraData),
       'memo': serializer.toJson<String?>(memo),
@@ -4329,6 +4656,7 @@ class RoutineLogTableData extends DataClass
     int? id,
     int? routineId,
     int? petId,
+    String? status,
     DateTime? executedAt,
     Value<String?> extraData = const Value.absent(),
     Value<String?> memo = const Value.absent(),
@@ -4339,6 +4667,7 @@ class RoutineLogTableData extends DataClass
     id: id ?? this.id,
     routineId: routineId ?? this.routineId,
     petId: petId ?? this.petId,
+    status: status ?? this.status,
     executedAt: executedAt ?? this.executedAt,
     extraData: extraData.present ? extraData.value : this.extraData,
     memo: memo.present ? memo.value : this.memo,
@@ -4351,6 +4680,7 @@ class RoutineLogTableData extends DataClass
       id: data.id.present ? data.id.value : this.id,
       routineId: data.routineId.present ? data.routineId.value : this.routineId,
       petId: data.petId.present ? data.petId.value : this.petId,
+      status: data.status.present ? data.status.value : this.status,
       executedAt: data.executedAt.present
           ? data.executedAt.value
           : this.executedAt,
@@ -4368,6 +4698,7 @@ class RoutineLogTableData extends DataClass
           ..write('id: $id, ')
           ..write('routineId: $routineId, ')
           ..write('petId: $petId, ')
+          ..write('status: $status, ')
           ..write('executedAt: $executedAt, ')
           ..write('extraData: $extraData, ')
           ..write('memo: $memo, ')
@@ -4383,6 +4714,7 @@ class RoutineLogTableData extends DataClass
     id,
     routineId,
     petId,
+    status,
     executedAt,
     extraData,
     memo,
@@ -4397,6 +4729,7 @@ class RoutineLogTableData extends DataClass
           other.id == this.id &&
           other.routineId == this.routineId &&
           other.petId == this.petId &&
+          other.status == this.status &&
           other.executedAt == this.executedAt &&
           other.extraData == this.extraData &&
           other.memo == this.memo &&
@@ -4409,6 +4742,7 @@ class RoutineLogTableCompanion extends UpdateCompanion<RoutineLogTableData> {
   final Value<int> id;
   final Value<int> routineId;
   final Value<int> petId;
+  final Value<String> status;
   final Value<DateTime> executedAt;
   final Value<String?> extraData;
   final Value<String?> memo;
@@ -4419,6 +4753,7 @@ class RoutineLogTableCompanion extends UpdateCompanion<RoutineLogTableData> {
     this.id = const Value.absent(),
     this.routineId = const Value.absent(),
     this.petId = const Value.absent(),
+    this.status = const Value.absent(),
     this.executedAt = const Value.absent(),
     this.extraData = const Value.absent(),
     this.memo = const Value.absent(),
@@ -4430,6 +4765,7 @@ class RoutineLogTableCompanion extends UpdateCompanion<RoutineLogTableData> {
     this.id = const Value.absent(),
     required int routineId,
     required int petId,
+    this.status = const Value.absent(),
     required DateTime executedAt,
     this.extraData = const Value.absent(),
     this.memo = const Value.absent(),
@@ -4443,6 +4779,7 @@ class RoutineLogTableCompanion extends UpdateCompanion<RoutineLogTableData> {
     Expression<int>? id,
     Expression<int>? routineId,
     Expression<int>? petId,
+    Expression<String>? status,
     Expression<DateTime>? executedAt,
     Expression<String>? extraData,
     Expression<String>? memo,
@@ -4454,6 +4791,7 @@ class RoutineLogTableCompanion extends UpdateCompanion<RoutineLogTableData> {
       if (id != null) 'id': id,
       if (routineId != null) 'routine_id': routineId,
       if (petId != null) 'pet_id': petId,
+      if (status != null) 'status': status,
       if (executedAt != null) 'executed_at': executedAt,
       if (extraData != null) 'extra_data': extraData,
       if (memo != null) 'memo': memo,
@@ -4467,6 +4805,7 @@ class RoutineLogTableCompanion extends UpdateCompanion<RoutineLogTableData> {
     Value<int>? id,
     Value<int>? routineId,
     Value<int>? petId,
+    Value<String>? status,
     Value<DateTime>? executedAt,
     Value<String?>? extraData,
     Value<String?>? memo,
@@ -4478,6 +4817,7 @@ class RoutineLogTableCompanion extends UpdateCompanion<RoutineLogTableData> {
       id: id ?? this.id,
       routineId: routineId ?? this.routineId,
       petId: petId ?? this.petId,
+      status: status ?? this.status,
       executedAt: executedAt ?? this.executedAt,
       extraData: extraData ?? this.extraData,
       memo: memo ?? this.memo,
@@ -4498,6 +4838,9 @@ class RoutineLogTableCompanion extends UpdateCompanion<RoutineLogTableData> {
     }
     if (petId.present) {
       map['pet_id'] = Variable<int>(petId.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
     }
     if (executedAt.present) {
       map['executed_at'] = Variable<DateTime>(executedAt.value);
@@ -4526,6 +4869,7 @@ class RoutineLogTableCompanion extends UpdateCompanion<RoutineLogTableData> {
           ..write('id: $id, ')
           ..write('routineId: $routineId, ')
           ..write('petId: $petId, ')
+          ..write('status: $status, ')
           ..write('executedAt: $executedAt, ')
           ..write('extraData: $extraData, ')
           ..write('memo: $memo, ')
@@ -5058,6 +5402,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     this,
   );
   late final $RoutineTableTable routineTable = $RoutineTableTable(this);
+  late final $RoutinePetTableTable routinePetTable = $RoutinePetTableTable(
+    this,
+  );
   late final $RoutineLogTableTable routineLogTable = $RoutineLogTableTable(
     this,
   );
@@ -5072,6 +5419,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     feedingTable,
     healthMemoTable,
     routineTable,
+    routinePetTable,
     routineLogTable,
     pendingOpTable,
   ];
@@ -5184,19 +5532,21 @@ final class $$PetTableTableReferences
     );
   }
 
-  static MultiTypedResultKey<$RoutineTableTable, List<RoutineTableData>>
-  _routineTableRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
-    db.routineTable,
-    aliasName: $_aliasNameGenerator(db.petTable.id, db.routineTable.petId),
+  static MultiTypedResultKey<$RoutinePetTableTable, List<RoutinePetTableData>>
+  _routinePetTableRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.routinePetTable,
+    aliasName: $_aliasNameGenerator(db.petTable.id, db.routinePetTable.petId),
   );
 
-  $$RoutineTableTableProcessedTableManager get routineTableRefs {
-    final manager = $$RoutineTableTableTableManager(
+  $$RoutinePetTableTableProcessedTableManager get routinePetTableRefs {
+    final manager = $$RoutinePetTableTableTableManager(
       $_db,
-      $_db.routineTable,
+      $_db.routinePetTable,
     ).filter((f) => f.petId.id.sqlEquals($_itemColumn<int>('id')!));
 
-    final cache = $_typedResult.readTableOrNull(_routineTableRefsTable($_db));
+    final cache = $_typedResult.readTableOrNull(
+      _routinePetTableRefsTable($_db),
+    );
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -5407,22 +5757,22 @@ class $$PetTableTableFilterComposer
     return f(composer);
   }
 
-  Expression<bool> routineTableRefs(
-    Expression<bool> Function($$RoutineTableTableFilterComposer f) f,
+  Expression<bool> routinePetTableRefs(
+    Expression<bool> Function($$RoutinePetTableTableFilterComposer f) f,
   ) {
-    final $$RoutineTableTableFilterComposer composer = $composerBuilder(
+    final $$RoutinePetTableTableFilterComposer composer = $composerBuilder(
       composer: this,
       getCurrentColumn: (t) => t.id,
-      referencedTable: $db.routineTable,
+      referencedTable: $db.routinePetTable,
       getReferencedColumn: (t) => t.petId,
       builder:
           (
             joinBuilder, {
             $addJoinBuilderToRootComposer,
             $removeJoinBuilderFromRootComposer,
-          }) => $$RoutineTableTableFilterComposer(
+          }) => $$RoutinePetTableTableFilterComposer(
             $db: $db,
-            $table: $db.routineTable,
+            $table: $db.routinePetTable,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -5728,22 +6078,22 @@ class $$PetTableTableAnnotationComposer
     return f(composer);
   }
 
-  Expression<T> routineTableRefs<T extends Object>(
-    Expression<T> Function($$RoutineTableTableAnnotationComposer a) f,
+  Expression<T> routinePetTableRefs<T extends Object>(
+    Expression<T> Function($$RoutinePetTableTableAnnotationComposer a) f,
   ) {
-    final $$RoutineTableTableAnnotationComposer composer = $composerBuilder(
+    final $$RoutinePetTableTableAnnotationComposer composer = $composerBuilder(
       composer: this,
       getCurrentColumn: (t) => t.id,
-      referencedTable: $db.routineTable,
+      referencedTable: $db.routinePetTable,
       getReferencedColumn: (t) => t.petId,
       builder:
           (
             joinBuilder, {
             $addJoinBuilderToRootComposer,
             $removeJoinBuilderFromRootComposer,
-          }) => $$RoutineTableTableAnnotationComposer(
+          }) => $$RoutinePetTableTableAnnotationComposer(
             $db: $db,
-            $table: $db.routineTable,
+            $table: $db.routinePetTable,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -5796,7 +6146,7 @@ class $$PetTableTableTableManager
             bool weightTableRefs,
             bool feedingTableRefs,
             bool healthMemoTableRefs,
-            bool routineTableRefs,
+            bool routinePetTableRefs,
             bool routineLogTableRefs,
           })
         > {
@@ -5912,7 +6262,7 @@ class $$PetTableTableTableManager
                 weightTableRefs = false,
                 feedingTableRefs = false,
                 healthMemoTableRefs = false,
-                routineTableRefs = false,
+                routinePetTableRefs = false,
                 routineLogTableRefs = false,
               }) {
                 return PrefetchHooks(
@@ -5921,7 +6271,7 @@ class $$PetTableTableTableManager
                     if (weightTableRefs) db.weightTable,
                     if (feedingTableRefs) db.feedingTable,
                     if (healthMemoTableRefs) db.healthMemoTable,
-                    if (routineTableRefs) db.routineTable,
+                    if (routinePetTableRefs) db.routinePetTable,
                     if (routineLogTableRefs) db.routineLogTable,
                   ],
                   addJoins: null,
@@ -5990,21 +6340,21 @@ class $$PetTableTableTableManager
                               ),
                           typedResults: items,
                         ),
-                      if (routineTableRefs)
+                      if (routinePetTableRefs)
                         await $_getPrefetchedData<
                           PetTableData,
                           $PetTableTable,
-                          RoutineTableData
+                          RoutinePetTableData
                         >(
                           currentTable: table,
                           referencedTable: $$PetTableTableReferences
-                              ._routineTableRefsTable(db),
+                              ._routinePetTableRefsTable(db),
                           managerFromTypedResult: (p0) =>
                               $$PetTableTableReferences(
                                 db,
                                 table,
                                 p0,
-                              ).routineTableRefs,
+                              ).routinePetTableRefs,
                           referencedItemsForCurrentItem:
                               (item, referencedItems) => referencedItems.where(
                                 (e) => e.petId == item.id,
@@ -6056,7 +6406,7 @@ typedef $$PetTableTableProcessedTableManager =
         bool weightTableRefs,
         bool feedingTableRefs,
         bool healthMemoTableRefs,
-        bool routineTableRefs,
+        bool routinePetTableRefs,
         bool routineLogTableRefs,
       })
     >;
@@ -7425,7 +7775,7 @@ typedef $$HealthMemoTableTableProcessedTableManager =
 typedef $$RoutineTableTableCreateCompanionBuilder =
     RoutineTableCompanion Function({
       Value<int> id,
-      required int petId,
+      required int userId,
       required String routineType,
       required String title,
       required int cycleDays,
@@ -7441,7 +7791,7 @@ typedef $$RoutineTableTableCreateCompanionBuilder =
 typedef $$RoutineTableTableUpdateCompanionBuilder =
     RoutineTableCompanion Function({
       Value<int> id,
-      Value<int> petId,
+      Value<int> userId,
       Value<String> routineType,
       Value<String> title,
       Value<int> cycleDays,
@@ -7460,20 +7810,26 @@ final class $$RoutineTableTableReferences
         BaseReferences<_$AppDatabase, $RoutineTableTable, RoutineTableData> {
   $$RoutineTableTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
-  static $PetTableTable _petIdTable(_$AppDatabase db) => db.petTable
-      .createAlias($_aliasNameGenerator(db.routineTable.petId, db.petTable.id));
+  static MultiTypedResultKey<$RoutinePetTableTable, List<RoutinePetTableData>>
+  _routinePetTableRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.routinePetTable,
+    aliasName: $_aliasNameGenerator(
+      db.routineTable.id,
+      db.routinePetTable.routineId,
+    ),
+  );
 
-  $$PetTableTableProcessedTableManager get petId {
-    final $_column = $_itemColumn<int>('pet_id')!;
-
-    final manager = $$PetTableTableTableManager(
+  $$RoutinePetTableTableProcessedTableManager get routinePetTableRefs {
+    final manager = $$RoutinePetTableTableTableManager(
       $_db,
-      $_db.petTable,
-    ).filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_petIdTable($_db));
-    if (item == null) return manager;
+      $_db.routinePetTable,
+    ).filter((f) => f.routineId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _routinePetTableRefsTable($_db),
+    );
     return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: [item]),
+      manager.$state.copyWith(prefetchedData: cache),
     );
   }
 
@@ -7512,6 +7868,11 @@ class $$RoutineTableTableFilterComposer
   });
   ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get userId => $composableBuilder(
+    column: $table.userId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7570,27 +7931,29 @@ class $$RoutineTableTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  $$PetTableTableFilterComposer get petId {
-    final $$PetTableTableFilterComposer composer = $composerBuilder(
+  Expression<bool> routinePetTableRefs(
+    Expression<bool> Function($$RoutinePetTableTableFilterComposer f) f,
+  ) {
+    final $$RoutinePetTableTableFilterComposer composer = $composerBuilder(
       composer: this,
-      getCurrentColumn: (t) => t.petId,
-      referencedTable: $db.petTable,
-      getReferencedColumn: (t) => t.id,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.routinePetTable,
+      getReferencedColumn: (t) => t.routineId,
       builder:
           (
             joinBuilder, {
             $addJoinBuilderToRootComposer,
             $removeJoinBuilderFromRootComposer,
-          }) => $$PetTableTableFilterComposer(
+          }) => $$RoutinePetTableTableFilterComposer(
             $db: $db,
-            $table: $db.petTable,
+            $table: $db.routinePetTable,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
                 $removeJoinBuilderFromRootComposer,
           ),
     );
-    return composer;
+    return f(composer);
   }
 
   Expression<bool> routineLogTableRefs(
@@ -7630,6 +7993,11 @@ class $$RoutineTableTableOrderingComposer
   });
   ColumnOrderings<int> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get userId => $composableBuilder(
+    column: $table.userId,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -7687,29 +8055,6 @@ class $$RoutineTableTableOrderingComposer
     column: $table.updatedAt,
     builder: (column) => ColumnOrderings(column),
   );
-
-  $$PetTableTableOrderingComposer get petId {
-    final $$PetTableTableOrderingComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.petId,
-      referencedTable: $db.petTable,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$PetTableTableOrderingComposer(
-            $db: $db,
-            $table: $db.petTable,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
 }
 
 class $$RoutineTableTableAnnotationComposer
@@ -7723,6 +8068,9 @@ class $$RoutineTableTableAnnotationComposer
   });
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
 
   GeneratedColumn<String> get routineType => $composableBuilder(
     column: $table.routineType,
@@ -7763,27 +8111,29 @@ class $$RoutineTableTableAnnotationComposer
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 
-  $$PetTableTableAnnotationComposer get petId {
-    final $$PetTableTableAnnotationComposer composer = $composerBuilder(
+  Expression<T> routinePetTableRefs<T extends Object>(
+    Expression<T> Function($$RoutinePetTableTableAnnotationComposer a) f,
+  ) {
+    final $$RoutinePetTableTableAnnotationComposer composer = $composerBuilder(
       composer: this,
-      getCurrentColumn: (t) => t.petId,
-      referencedTable: $db.petTable,
-      getReferencedColumn: (t) => t.id,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.routinePetTable,
+      getReferencedColumn: (t) => t.routineId,
       builder:
           (
             joinBuilder, {
             $addJoinBuilderToRootComposer,
             $removeJoinBuilderFromRootComposer,
-          }) => $$PetTableTableAnnotationComposer(
+          }) => $$RoutinePetTableTableAnnotationComposer(
             $db: $db,
-            $table: $db.petTable,
+            $table: $db.routinePetTable,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
                 $removeJoinBuilderFromRootComposer,
           ),
     );
-    return composer;
+    return f(composer);
   }
 
   Expression<T> routineLogTableRefs<T extends Object>(
@@ -7825,7 +8175,10 @@ class $$RoutineTableTableTableManager
           $$RoutineTableTableUpdateCompanionBuilder,
           (RoutineTableData, $$RoutineTableTableReferences),
           RoutineTableData,
-          PrefetchHooks Function({bool petId, bool routineLogTableRefs})
+          PrefetchHooks Function({
+            bool routinePetTableRefs,
+            bool routineLogTableRefs,
+          })
         > {
   $$RoutineTableTableTableManager(_$AppDatabase db, $RoutineTableTable table)
     : super(
@@ -7841,7 +8194,7 @@ class $$RoutineTableTableTableManager
           updateCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
-                Value<int> petId = const Value.absent(),
+                Value<int> userId = const Value.absent(),
                 Value<String> routineType = const Value.absent(),
                 Value<String> title = const Value.absent(),
                 Value<int> cycleDays = const Value.absent(),
@@ -7855,7 +8208,7 @@ class $$RoutineTableTableTableManager
                 Value<DateTime> updatedAt = const Value.absent(),
               }) => RoutineTableCompanion(
                 id: id,
-                petId: petId,
+                userId: userId,
                 routineType: routineType,
                 title: title,
                 cycleDays: cycleDays,
@@ -7871,7 +8224,7 @@ class $$RoutineTableTableTableManager
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
-                required int petId,
+                required int userId,
                 required String routineType,
                 required String title,
                 required int cycleDays,
@@ -7885,7 +8238,7 @@ class $$RoutineTableTableTableManager
                 Value<DateTime> updatedAt = const Value.absent(),
               }) => RoutineTableCompanion.insert(
                 id: id,
-                petId: petId,
+                userId: userId,
                 routineType: routineType,
                 title: title,
                 cycleDays: cycleDays,
@@ -7907,48 +8260,37 @@ class $$RoutineTableTableTableManager
               )
               .toList(),
           prefetchHooksCallback:
-              ({petId = false, routineLogTableRefs = false}) {
+              ({routinePetTableRefs = false, routineLogTableRefs = false}) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
+                    if (routinePetTableRefs) db.routinePetTable,
                     if (routineLogTableRefs) db.routineLogTable,
                   ],
-                  addJoins:
-                      <
-                        T extends TableManagerState<
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic
-                        >
-                      >(state) {
-                        if (petId) {
-                          state =
-                              state.withJoin(
-                                    currentTable: table,
-                                    currentColumn: table.petId,
-                                    referencedTable:
-                                        $$RoutineTableTableReferences
-                                            ._petIdTable(db),
-                                    referencedColumn:
-                                        $$RoutineTableTableReferences
-                                            ._petIdTable(db)
-                                            .id,
-                                  )
-                                  as T;
-                        }
-
-                        return state;
-                      },
+                  addJoins: null,
                   getPrefetchedDataCallback: (items) async {
                     return [
+                      if (routinePetTableRefs)
+                        await $_getPrefetchedData<
+                          RoutineTableData,
+                          $RoutineTableTable,
+                          RoutinePetTableData
+                        >(
+                          currentTable: table,
+                          referencedTable: $$RoutineTableTableReferences
+                              ._routinePetTableRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$RoutineTableTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).routinePetTableRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.routineId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                       if (routineLogTableRefs)
                         await $_getPrefetchedData<
                           RoutineTableData,
@@ -7990,13 +8332,414 @@ typedef $$RoutineTableTableProcessedTableManager =
       $$RoutineTableTableUpdateCompanionBuilder,
       (RoutineTableData, $$RoutineTableTableReferences),
       RoutineTableData,
-      PrefetchHooks Function({bool petId, bool routineLogTableRefs})
+      PrefetchHooks Function({
+        bool routinePetTableRefs,
+        bool routineLogTableRefs,
+      })
+    >;
+typedef $$RoutinePetTableTableCreateCompanionBuilder =
+    RoutinePetTableCompanion Function({
+      Value<int> id,
+      required int routineId,
+      required int petId,
+      Value<DateTime> createdAt,
+    });
+typedef $$RoutinePetTableTableUpdateCompanionBuilder =
+    RoutinePetTableCompanion Function({
+      Value<int> id,
+      Value<int> routineId,
+      Value<int> petId,
+      Value<DateTime> createdAt,
+    });
+
+final class $$RoutinePetTableTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $RoutinePetTableTable,
+          RoutinePetTableData
+        > {
+  $$RoutinePetTableTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $RoutineTableTable _routineIdTable(_$AppDatabase db) =>
+      db.routineTable.createAlias(
+        $_aliasNameGenerator(db.routinePetTable.routineId, db.routineTable.id),
+      );
+
+  $$RoutineTableTableProcessedTableManager get routineId {
+    final $_column = $_itemColumn<int>('routine_id')!;
+
+    final manager = $$RoutineTableTableTableManager(
+      $_db,
+      $_db.routineTable,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_routineIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $PetTableTable _petIdTable(_$AppDatabase db) =>
+      db.petTable.createAlias(
+        $_aliasNameGenerator(db.routinePetTable.petId, db.petTable.id),
+      );
+
+  $$PetTableTableProcessedTableManager get petId {
+    final $_column = $_itemColumn<int>('pet_id')!;
+
+    final manager = $$PetTableTableTableManager(
+      $_db,
+      $_db.petTable,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_petIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$RoutinePetTableTableFilterComposer
+    extends Composer<_$AppDatabase, $RoutinePetTableTable> {
+  $$RoutinePetTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$RoutineTableTableFilterComposer get routineId {
+    final $$RoutineTableTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.routineId,
+      referencedTable: $db.routineTable,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$RoutineTableTableFilterComposer(
+            $db: $db,
+            $table: $db.routineTable,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$PetTableTableFilterComposer get petId {
+    final $$PetTableTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.petId,
+      referencedTable: $db.petTable,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PetTableTableFilterComposer(
+            $db: $db,
+            $table: $db.petTable,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$RoutinePetTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $RoutinePetTableTable> {
+  $$RoutinePetTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$RoutineTableTableOrderingComposer get routineId {
+    final $$RoutineTableTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.routineId,
+      referencedTable: $db.routineTable,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$RoutineTableTableOrderingComposer(
+            $db: $db,
+            $table: $db.routineTable,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$PetTableTableOrderingComposer get petId {
+    final $$PetTableTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.petId,
+      referencedTable: $db.petTable,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PetTableTableOrderingComposer(
+            $db: $db,
+            $table: $db.petTable,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$RoutinePetTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $RoutinePetTableTable> {
+  $$RoutinePetTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$RoutineTableTableAnnotationComposer get routineId {
+    final $$RoutineTableTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.routineId,
+      referencedTable: $db.routineTable,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$RoutineTableTableAnnotationComposer(
+            $db: $db,
+            $table: $db.routineTable,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$PetTableTableAnnotationComposer get petId {
+    final $$PetTableTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.petId,
+      referencedTable: $db.petTable,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PetTableTableAnnotationComposer(
+            $db: $db,
+            $table: $db.petTable,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$RoutinePetTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $RoutinePetTableTable,
+          RoutinePetTableData,
+          $$RoutinePetTableTableFilterComposer,
+          $$RoutinePetTableTableOrderingComposer,
+          $$RoutinePetTableTableAnnotationComposer,
+          $$RoutinePetTableTableCreateCompanionBuilder,
+          $$RoutinePetTableTableUpdateCompanionBuilder,
+          (RoutinePetTableData, $$RoutinePetTableTableReferences),
+          RoutinePetTableData,
+          PrefetchHooks Function({bool routineId, bool petId})
+        > {
+  $$RoutinePetTableTableTableManager(
+    _$AppDatabase db,
+    $RoutinePetTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$RoutinePetTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$RoutinePetTableTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$RoutinePetTableTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> routineId = const Value.absent(),
+                Value<int> petId = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => RoutinePetTableCompanion(
+                id: id,
+                routineId: routineId,
+                petId: petId,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int routineId,
+                required int petId,
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => RoutinePetTableCompanion.insert(
+                id: id,
+                routineId: routineId,
+                petId: petId,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$RoutinePetTableTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({routineId = false, petId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (routineId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.routineId,
+                                referencedTable:
+                                    $$RoutinePetTableTableReferences
+                                        ._routineIdTable(db),
+                                referencedColumn:
+                                    $$RoutinePetTableTableReferences
+                                        ._routineIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+                    if (petId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.petId,
+                                referencedTable:
+                                    $$RoutinePetTableTableReferences
+                                        ._petIdTable(db),
+                                referencedColumn:
+                                    $$RoutinePetTableTableReferences
+                                        ._petIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$RoutinePetTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $RoutinePetTableTable,
+      RoutinePetTableData,
+      $$RoutinePetTableTableFilterComposer,
+      $$RoutinePetTableTableOrderingComposer,
+      $$RoutinePetTableTableAnnotationComposer,
+      $$RoutinePetTableTableCreateCompanionBuilder,
+      $$RoutinePetTableTableUpdateCompanionBuilder,
+      (RoutinePetTableData, $$RoutinePetTableTableReferences),
+      RoutinePetTableData,
+      PrefetchHooks Function({bool routineId, bool petId})
     >;
 typedef $$RoutineLogTableTableCreateCompanionBuilder =
     RoutineLogTableCompanion Function({
       Value<int> id,
       required int routineId,
       required int petId,
+      Value<String> status,
       required DateTime executedAt,
       Value<String?> extraData,
       Value<String?> memo,
@@ -8009,6 +8752,7 @@ typedef $$RoutineLogTableTableUpdateCompanionBuilder =
       Value<int> id,
       Value<int> routineId,
       Value<int> petId,
+      Value<String> status,
       Value<DateTime> executedAt,
       Value<String?> extraData,
       Value<String?> memo,
@@ -8080,6 +8824,11 @@ class $$RoutineLogTableTableFilterComposer
   });
   ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -8174,6 +8923,11 @@ class $$RoutineLogTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get executedAt => $composableBuilder(
     column: $table.executedAt,
     builder: (column) => ColumnOrderings(column),
@@ -8262,6 +9016,9 @@ class $$RoutineLogTableTableAnnotationComposer
   });
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
 
   GeneratedColumn<DateTime> get executedAt => $composableBuilder(
     column: $table.executedAt,
@@ -8363,6 +9120,7 @@ class $$RoutineLogTableTableTableManager
                 Value<int> id = const Value.absent(),
                 Value<int> routineId = const Value.absent(),
                 Value<int> petId = const Value.absent(),
+                Value<String> status = const Value.absent(),
                 Value<DateTime> executedAt = const Value.absent(),
                 Value<String?> extraData = const Value.absent(),
                 Value<String?> memo = const Value.absent(),
@@ -8373,6 +9131,7 @@ class $$RoutineLogTableTableTableManager
                 id: id,
                 routineId: routineId,
                 petId: petId,
+                status: status,
                 executedAt: executedAt,
                 extraData: extraData,
                 memo: memo,
@@ -8385,6 +9144,7 @@ class $$RoutineLogTableTableTableManager
                 Value<int> id = const Value.absent(),
                 required int routineId,
                 required int petId,
+                Value<String> status = const Value.absent(),
                 required DateTime executedAt,
                 Value<String?> extraData = const Value.absent(),
                 Value<String?> memo = const Value.absent(),
@@ -8395,6 +9155,7 @@ class $$RoutineLogTableTableTableManager
                 id: id,
                 routineId: routineId,
                 petId: petId,
+                status: status,
                 executedAt: executedAt,
                 extraData: extraData,
                 memo: memo,
@@ -8763,6 +9524,8 @@ class $AppDatabaseManager {
       $$HealthMemoTableTableTableManager(_db, _db.healthMemoTable);
   $$RoutineTableTableTableManager get routineTable =>
       $$RoutineTableTableTableManager(_db, _db.routineTable);
+  $$RoutinePetTableTableTableManager get routinePetTable =>
+      $$RoutinePetTableTableTableManager(_db, _db.routinePetTable);
   $$RoutineLogTableTableTableManager get routineLogTable =>
       $$RoutineLogTableTableTableManager(_db, _db.routineLogTable);
   $$PendingOpTableTableTableManager get pendingOpTable =>

@@ -10,10 +10,12 @@ import '../../features/pet/presentation/pet_list_screen.dart';
 import '../../features/pet/presentation/pet_detail_screen.dart';
 import '../../features/pet/presentation/pet_form_screen.dart';
 import '../../features/record/presentation/record_screen.dart';
-import '../../features/routine/presentation/routine_screen.dart';
 import '../../features/community/presentation/community_feed_screen.dart';
 import '../../features/community/presentation/post_detail_screen.dart';
 import '../../features/my/presentation/my_screen.dart';
+import '../../features/notification/data/notification_repository.dart';
+import '../../features/notification/data/models/notification_models.dart';
+import '../../features/notification/providers/notification_provider.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -58,7 +60,15 @@ final routerProvider = Provider<GoRouter>((ref) {
               recordType: state.pathParameters['type']!,
             ),
           ),
-          GoRoute(path: '/records', builder: (_, __) => const RoutineScreen()),
+          // /records → /pets로 리다이렉트 (루틴은 내 개체 관리 탭에서 관리)
+          GoRoute(
+            path: '/records',
+            redirect: (_, __) => '/pets',
+          ),
+          GoRoute(
+            path: '/notifications',
+            builder: (_, __) => const _NotificationScreen(),
+          ),
           GoRoute(
               path: '/community',
               builder: (_, __) => const CommunityFeedScreen()),
@@ -107,5 +117,58 @@ class _PostFormPlaceholder extends StatelessWidget {
       appBar: AppBar(title: const Text('게시글 작성')),
       body: const Center(child: Text('게시글 작성 화면 (STEP 9에서 구현)')),
     );
+  }
+}
+
+// 알림 목록 화면
+class _NotificationScreen extends ConsumerWidget {
+  const _NotificationScreen();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final notifsAsync = ref.watch(notificationListProvider);
+    return Scaffold(
+      appBar: AppBar(title: const Text('알림')),
+      body: notifsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (_, __) => const Center(child: Text('알림을 불러올 수 없어요')),
+        data: (list) {
+          if (list.isEmpty) {
+            return const Center(child: Text('알림이 없어요'));
+          }
+          return ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: list.length,
+            separatorBuilder: (_, __) => const Divider(height: 1),
+            itemBuilder: (_, i) {
+              final n = list[i];
+              return ListTile(
+                leading: Icon(
+                  n.isRead ? Icons.notifications_none : Icons.notifications,
+                  color: n.isRead ? Colors.grey : Colors.blue,
+                ),
+                title: Text(n.title),
+                subtitle: Text(n.body),
+                trailing: Text(
+                  _ago(n.sentAt),
+                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                ),
+                onTap: () {
+                  ref.read(notificationRepositoryProvider).markRead(n.id);
+                  ref.invalidate(notificationListProvider);
+                },
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  String _ago(DateTime dt) {
+    final d = DateTime.now().difference(dt);
+    if (d.inMinutes < 60) return '${d.inMinutes}분 전';
+    if (d.inHours < 24) return '${d.inHours}시간 전';
+    return '${d.inDays}일 전';
   }
 }

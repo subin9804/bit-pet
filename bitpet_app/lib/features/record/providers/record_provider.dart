@@ -16,3 +16,7 @@ final healthMemoListProvider =
     FutureProvider.family<List<HealthMemo>, int>((ref, petId) {
   return ref.watch(recordRepositoryProvider).getHealthLogs(petId);
 });
+
+final recentRecordsProvider = FutureProvider<List<RecentRecord>>((ref) {
+  return ref.watch(recordRepositoryProvider).getRecentRecords();
+});

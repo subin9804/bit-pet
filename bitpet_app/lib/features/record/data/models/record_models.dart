@@ -68,6 +68,34 @@ class FeedingRecord {
       );
 }
 
+// 홈 화면 최근 기록 통합 피드
+class RecentRecord {
+  final int id;
+  final String petName;
+  final String? colorCode;
+  final String recordType; // FEEDING, WEIGHT, CLEANING, HEALTH
+  final String summary;
+  final DateTime createdAt;
+
+  const RecentRecord({
+    required this.id,
+    required this.petName,
+    this.colorCode,
+    required this.recordType,
+    required this.summary,
+    required this.createdAt,
+  });
+
+  factory RecentRecord.fromJson(Map<String, dynamic> json) => RecentRecord(
+        id: json['id'] as int,
+        petName: json['petName'] as String,
+        colorCode: json['colorCode'] as String?,
+        recordType: json['recordType'] as String,
+        summary: json['summary'] as String,
+        createdAt: DateTime.parse(json['createdAt'] as String),
+      );
+}
+
 class HealthMemo {
   final int id;
   final int petId;

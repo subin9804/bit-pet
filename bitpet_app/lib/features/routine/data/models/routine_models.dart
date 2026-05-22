@@ -7,6 +7,106 @@ enum RoutineType { FEEDING, CLEANING, WEIGHT, CUSTOM }
 enum RoutineLogStatus { COMPLETED, REFUSED }
 
 // -----------------------------------------------------------------------
+// Today's routine status (per-pet completion for today)
+// -----------------------------------------------------------------------
+class TodayRoutine {
+  final int id;
+  final String title;
+  final RoutineType routineType;
+  final String? alarmTime;
+  final bool isAlarmEnabled;
+  final int totalPetCount;
+  final int completedPetCount;
+  final List<TodayPetStatus> petStatuses;
+
+  const TodayRoutine({
+    required this.id,
+    required this.title,
+    required this.routineType,
+    this.alarmTime,
+    required this.isAlarmEnabled,
+    required this.totalPetCount,
+    required this.completedPetCount,
+    required this.petStatuses,
+  });
+
+  bool get isAllCompleted =>
+      totalPetCount > 0 && completedPetCount >= totalPetCount;
+
+  factory TodayRoutine.fromJson(Map<String, dynamic> json) => TodayRoutine(
+        id: json['id'] as int,
+        title: json['title'] as String,
+        routineType: RoutineType.values.firstWhere(
+          (e) => e.name == json['routineType'],
+          orElse: () => RoutineType.CUSTOM,
+        ),
+        alarmTime: json['alarmTime'] as String?,
+        isAlarmEnabled: json['alarmEnabled'] as bool? ?? false,
+        totalPetCount: json['totalPetCount'] as int? ?? 0,
+        completedPetCount: json['completedPetCount'] as int? ?? 0,
+        petStatuses: (json['petStatuses'] as List<dynamic>? ?? [])
+            .map((e) => TodayPetStatus.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+
+  TodayRoutine copyWithPetStatus(int petId, bool isCompleted) {
+    final updated = petStatuses.map((s) {
+      if (s.petId != petId) return s;
+      return TodayPetStatus(
+        petId: s.petId,
+        petName: s.petName,
+        speciesName: s.speciesName,
+        colorCode: s.colorCode,
+        imageUrl: s.imageUrl,
+        isCompleted: isCompleted,
+        logId: s.logId,
+      );
+    }).toList();
+    final newCompleted = updated.where((s) => s.isCompleted).length;
+    return TodayRoutine(
+      id: id,
+      title: title,
+      routineType: routineType,
+      alarmTime: alarmTime,
+      isAlarmEnabled: isAlarmEnabled,
+      totalPetCount: totalPetCount,
+      completedPetCount: newCompleted,
+      petStatuses: updated,
+    );
+  }
+}
+
+class TodayPetStatus {
+  final int petId;
+  final String petName;
+  final String speciesName;
+  final String? colorCode;
+  final String? imageUrl;
+  final bool isCompleted;
+  final int? logId;
+
+  const TodayPetStatus({
+    required this.petId,
+    required this.petName,
+    required this.speciesName,
+    this.colorCode,
+    this.imageUrl,
+    required this.isCompleted,
+    this.logId,
+  });
+
+  factory TodayPetStatus.fromJson(Map<String, dynamic> json) => TodayPetStatus(
+        petId: json['petId'] as int,
+        petName: json['petName'] as String,
+        speciesName: json['speciesName'] as String? ?? '',
+        colorCode: json['colorCode'] as String?,
+        imageUrl: json['imageUrl'] as String?,
+        isCompleted: json['completed'] as bool? ?? false,
+        logId: json['logId'] as int?,
+      );
+}
+
+// -----------------------------------------------------------------------
 // Routine (user-owned, may be linked to multiple pets)
 // -----------------------------------------------------------------------
 class Routine {

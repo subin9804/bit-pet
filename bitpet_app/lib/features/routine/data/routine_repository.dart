@@ -138,6 +138,34 @@ class RoutineRepository {
   }
 
   // ---------------------------------------------------------------------------
+  // Today's status
+  // ---------------------------------------------------------------------------
+
+  Future<List<TodayRoutine>> getTodayRoutines() async {
+    final res = await _dio.get('/routines/today');
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => (d as List)
+          .map((e) => TodayRoutine.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+    return apiRes.data ?? [];
+  }
+
+  Future<TodayRoutine?> getTodayStatus(int routineId) async {
+    final res = await _dio.get('/routines/$routineId/today');
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => d != null ? TodayRoutine.fromJson(d as Map<String, dynamic>) : null,
+    );
+    return apiRes.data;
+  }
+
+  Future<void> completeAllPetsToday(int routineId) async {
+    await _dio.post('/routines/$routineId/complete/all');
+  }
+
+  // ---------------------------------------------------------------------------
   // Routine logs
   // ---------------------------------------------------------------------------
 
