@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 
@@ -48,7 +48,7 @@ class ToastMessage {
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
-            side: BorderSide(color: color.withOpacity(0.5)),
+            side: BorderSide(color: color.withValues(alpha: 0.5)),
           ),
           duration: const Duration(seconds: 3),
         ),

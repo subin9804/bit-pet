@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 
@@ -69,7 +69,7 @@ class PetProfileCard extends StatelessWidget {
       height: 64,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: _accentColor.withOpacity(0.2),
+        color: _accentColor.withValues(alpha: 0.2),
         border: Border.all(color: _accentColor, width: 2),
       ),
       child: imageUrl != null

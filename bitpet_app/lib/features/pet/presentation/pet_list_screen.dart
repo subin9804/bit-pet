@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
@@ -111,7 +111,7 @@ class _PetListScreenState extends ConsumerState<PetListScreen>
                   borderRadius: BorderRadius.circular(8),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.border.withOpacity(0.5),
+                      color: AppColors.border.withValues(alpha: 0.5),
                       blurRadius: 4,
                       offset: const Offset(0, 1),
                     ),
@@ -393,7 +393,7 @@ class _PetCard extends StatelessWidget {
                       width: 22,
                       height: 22,
                       decoration: BoxDecoration(
-                        color: AppColors.surface.withOpacity(0.85),
+                        color: AppColors.surface.withValues(alpha: 0.85),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(_genderIcon,
@@ -447,7 +447,7 @@ class _PetCard extends StatelessWidget {
   Widget _spriteIcon() {
     return Center(
       child: Icon(Icons.pets,
-          size: 48, color: AppColors.primary.withOpacity(0.3)),
+          size: 48, color: AppColors.primary.withValues(alpha: 0.3)),
     );
   }
 }
@@ -512,9 +512,9 @@ class _PetAvatarSmall extends StatelessWidget {
           ? ClipOval(
               child: Image.network(pet.profileImageUrl!, fit: BoxFit.cover,
                   errorBuilder: (_, __, ___) =>
-                      Icon(Icons.pets, color: AppColors.primary.withOpacity(0.4), size: 22)))
+                      Icon(Icons.pets, color: AppColors.primary.withValues(alpha: 0.4), size: 22)))
           : Icon(Icons.pets,
-              color: AppColors.primary.withOpacity(0.4), size: 22),
+              color: AppColors.primary.withValues(alpha: 0.4), size: 22),
     );
   }
 }

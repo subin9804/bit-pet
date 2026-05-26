@@ -1,4 +1,4 @@
-// Screen 06e: 피딩 기록 바텀시트 (per-pet navigation)
+﻿// Screen 06e: 피딩 기록 바텀시트 (per-pet navigation)
 // - 상단 개체 탭 칩
 // - 현재 개체 카드 (컬러 bg, 이름, 종, 체중)
 // - 급여 종류 드롭다운 (이전 입력값 선택 포함)
@@ -223,7 +223,7 @@ class _FeedingRecordSheetState extends ConsumerState<FeedingRecordSheet> {
                             BorderRadius.circular(20),
                         border: Border.all(
                           color: isActive
-                              ? _petBg(s).withOpacity(0.6)
+                              ? _petBg(s).withValues(alpha: 0.6)
                               : AppColors.border,
                         ),
                       ),
@@ -233,7 +233,7 @@ class _FeedingRecordSheetState extends ConsumerState<FeedingRecordSheet> {
                           Icon(Icons.pets,
                               size: 13,
                               color: AppColors.primary
-                                  .withOpacity(0.5)),
+                                  .withValues(alpha: 0.5)),
                           const SizedBox(width: 4),
                           Text(s.petName,
                               style: AppTextStyles.caption
@@ -461,7 +461,7 @@ class _CurrentPetCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: bgColor.withOpacity(0.35),
+        color: bgColor.withValues(alpha: 0.35),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -481,11 +481,11 @@ class _CurrentPetCard extends StatelessWidget {
                         errorBuilder: (_, __, ___) => Icon(
                             Icons.pets,
                             size: 22,
-                            color: AppColors.primary.withOpacity(0.4))),
+                            color: AppColors.primary.withValues(alpha: 0.4))),
                   )
                 : Icon(Icons.pets,
                     size: 22,
-                    color: AppColors.primary.withOpacity(0.4)),
+                    color: AppColors.primary.withValues(alpha: 0.4)),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -726,7 +726,7 @@ class _QuickAmountChips extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
                 color: isSelected
-                    ? AppColors.primary.withOpacity(0.4)
+                    ? AppColors.primary.withValues(alpha: 0.4)
                     : AppColors.border,
               ),
             ),

@@ -1,4 +1,4 @@
-// Screen 02b: 내 개체 관리 - 루틴 탭 (v3.2)
+﻿// Screen 02b: 내 개체 관리 - 루틴 탭 (v3.2)
 // - 타입 필터칩, 드롭다운 아코디언
 // - 루틴 헤더: 아이콘, 제목, 주기, 알람, 토글
 // - 루틴 바디: 설정, 오늘의 진행, 캘린더
@@ -533,7 +533,7 @@ class _PetStatusChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: status.isCompleted
-              ? _bg.withOpacity(0.5)
+              ? _bg.withValues(alpha: 0.5)
               : AppColors.border,
         ),
       ),
@@ -550,7 +550,7 @@ class _PetStatusChip extends StatelessWidget {
             child: Icon(
               status.isCompleted ? Icons.check : Icons.pets,
               size: 12,
-              color: AppColors.primary.withOpacity(0.6),
+              color: AppColors.primary.withValues(alpha: 0.6),
             ),
           ),
           const SizedBox(width: 4),
@@ -582,7 +582,7 @@ class _SectionHeader extends StatelessWidget {
           width: 3,
           height: 12,
           decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.4),
+            color: AppColors.primary.withValues(alpha: 0.4),
             borderRadius: BorderRadius.circular(2),
           ),
         ),
@@ -741,7 +741,7 @@ class _MiniCalendarState extends State<_MiniCalendar> {
                   color: isSelected
                       ? AppColors.primary
                       : isToday
-                          ? AppColors.primary.withOpacity(0.15)
+                          ? AppColors.primary.withValues(alpha: 0.15)
                           : null,
                   shape: BoxShape.circle,
                 ),

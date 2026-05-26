@@ -1,4 +1,4 @@
-// Screen 02c: TODAY'S CHECK 바텀시트
+﻿// Screen 02c: TODAY'S CHECK 바텀시트
 // 루틴에 연결된 개체 목록 + 개별 완료 처리
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -365,12 +365,12 @@ class _PetCheckCard extends StatelessWidget {
         duration: const Duration(milliseconds: 180),
         decoration: BoxDecoration(
           color: status.isCompleted
-              ? _bg.withOpacity(0.5)
+              ? _bg.withValues(alpha: 0.5)
               : AppColors.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: status.isCompleted
-                ? AppColors.secondary.withOpacity(0.5)
+                ? AppColors.secondary.withValues(alpha: 0.5)
                 : AppColors.border,
             width: status.isCompleted ? 1.5 : 1,
           ),
@@ -398,11 +398,11 @@ class _PetCheckCard extends StatelessWidget {
                                     Icon(Icons.pets,
                                         size: 24,
                                         color: AppColors.primary
-                                            .withOpacity(0.4))),
+                                            .withValues(alpha: 0.4))),
                           )
                         : Icon(Icons.pets,
                             size: 24,
-                            color: AppColors.primary.withOpacity(0.4)),
+                            color: AppColors.primary.withValues(alpha: 0.4)),
                   ),
                   const SizedBox(height: 6),
                   Text(

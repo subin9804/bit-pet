@@ -8,6 +8,7 @@ import '../../../core/widgets/skeleton_loader.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../../pet/providers/pet_provider.dart';
 import '../providers/record_provider.dart';
+import '../data/models/record_models.dart';
 import '../data/record_repository.dart';
 
 class RecordScreen extends ConsumerStatefulWidget {
@@ -159,16 +160,16 @@ class _FeedingList extends ConsumerWidget {
           itemBuilder: (_, i) {
             final r = records[i];
             final responseColor = switch (r.feedResponse) {
-              'COMPLETE' => AppColors.success,
-              'PARTIAL' => AppColors.warning,
-              'REFUSED' => AppColors.error,
-              _ => AppColors.textSecondary,
+              FeedResponse.COMPLETE => AppColors.success,
+              FeedResponse.PARTIAL => AppColors.warning,
+              FeedResponse.REFUSED => AppColors.error,
+              null => AppColors.textSecondary,
             };
             final responseLabel = switch (r.feedResponse) {
-              'COMPLETE' => '완식',
-              'PARTIAL' => '부분',
-              'REFUSED' => '거절',
-              _ => '-',
+              FeedResponse.COMPLETE => '완식',
+              FeedResponse.PARTIAL => '부분',
+              FeedResponse.REFUSED => '거절',
+              null => '-',
             };
             return Container(
               padding: const EdgeInsets.all(16),

@@ -1,4 +1,4 @@
-// SCR-12: 루틴 완료 모달 (v3.2 신규)
+﻿// SCR-12: 루틴 완료 모달 (v3.2 신규)
 // 1단계: 일괄/개별 분기 (2마리 이상일 때)
 // 2단계-A: 일괄 입력 (단일 폼)
 // 2단계-B: 개별 입력 (카드 슬라이더)
@@ -409,7 +409,7 @@ class _FeedResponsePicker extends StatelessWidget {
           child: ChoiceChip(
             label: Text(o.$2),
             selected: selected,
-            selectedColor: o.$3.withOpacity(0.2),
+            selectedColor: o.$3.withValues(alpha: 0.2),
             onSelected: (_) => onChanged(o.$1),
           ),
         );
@@ -439,7 +439,7 @@ class _CleaningTypePicker extends StatelessWidget {
           child: ChoiceChip(
             label: Text(o.$2),
             selected: selected,
-            selectedColor: o.$3.withOpacity(0.2),
+            selectedColor: o.$3.withValues(alpha: 0.2),
             onSelected: (_) => onChanged(o.$1),
           ),
         );

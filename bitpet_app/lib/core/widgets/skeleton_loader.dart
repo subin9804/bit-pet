@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 
 class SkeletonBox extends StatefulWidget {
@@ -46,7 +46,7 @@ class _SkeletonBoxState extends State<SkeletonBox>
         width: widget.width,
         height: widget.height,
         decoration: BoxDecoration(
-          color: AppColors.card.withOpacity(_animation.value),
+          color: AppColors.card.withValues(alpha: _animation.value),
           borderRadius: BorderRadius.circular(widget.borderRadius),
         ),
       ),

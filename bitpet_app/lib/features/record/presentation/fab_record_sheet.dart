@@ -1,4 +1,4 @@
-// SCR-11: FAB 기록 바텀시트 (v3.2)
+﻿// SCR-11: FAB 기록 바텀시트 (v3.2)
 // 4단계 플로우:
 //   1단계: 기록 유형 선택 (급여/청소/체중/건강)
 //   2단계: 개체 선택 (복합 선택: 개별 OR 전체)
@@ -442,7 +442,7 @@ class _FeedResponsePicker extends StatelessWidget {
           child: ChoiceChip(
             label: Text(o.$2),
             selected: selected,
-            selectedColor: o.$3.withOpacity(0.2),
+            selectedColor: o.$3.withValues(alpha: 0.2),
             onSelected: (_) => onChanged(o.$1),
           ),
         );

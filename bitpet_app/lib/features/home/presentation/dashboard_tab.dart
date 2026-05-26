@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
@@ -488,7 +488,7 @@ class _RoutineCard extends ConsumerWidget {
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
                       color: routine.isAllCompleted
-                          ? AppColors.primary.withOpacity(0.15)
+                          ? AppColors.primary.withValues(alpha: 0.15)
                           : AppColors.surface,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
@@ -571,7 +571,7 @@ class _PetChip extends StatelessWidget {
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => Icon(
                         Icons.pets,
-                        color: _color.withOpacity(0.6),
+                        color: _color.withValues(alpha: 0.6),
                         size: 32,
                       ),
                     ),
@@ -599,12 +599,9 @@ class _PetChip extends StatelessWidget {
   }
 
   Color get _colorForeground {
-    final r = _color.red;
-    final g = _color.green;
-    final b = _color.blue;
-    final luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    final luminance = 0.299 * _color.r + 0.587 * _color.g + 0.114 * _color.b;
     return luminance > 0.6
-        ? AppColors.primary.withOpacity(0.6)
+        ? AppColors.primary.withValues(alpha: 0.6)
         : Colors.white70;
   }
 }
@@ -689,7 +686,7 @@ class _PetSprite extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: _bgColor.withOpacity(0.6),
+        color: _bgColor.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(size * 0.25),
       ),
       child: imageUrl != null
@@ -704,6 +701,6 @@ class _PetSprite extends StatelessWidget {
 
   Widget _icon() {
     return Icon(Icons.pets,
-        size: size * 0.5, color: AppColors.primary.withOpacity(0.5));
+        size: size * 0.5, color: AppColors.primary.withValues(alpha: 0.5));
   }
 }
