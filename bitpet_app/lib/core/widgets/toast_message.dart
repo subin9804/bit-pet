@@ -44,7 +44,7 @@ class ToastMessage {
               ),
             ],
           ),
-          backgroundColor: AppColors.card,
+          backgroundColor: AppColors.textPrimary, // 0xFF14140F 다크 브라운
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
