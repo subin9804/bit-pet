@@ -2,7 +2,6 @@ package io.bitpet.pet.service;
 
 import io.bitpet.common.exception.BusinessException;
 import io.bitpet.common.exception.ErrorCode;
-import io.bitpet.pet.domain.MatingRls;
 import io.bitpet.pet.domain.MorphCd;
 import io.bitpet.pet.domain.PetGender;
 import io.bitpet.pet.domain.PetMst;
@@ -10,14 +9,11 @@ import io.bitpet.pet.domain.PetRelationRls;
 import io.bitpet.pet.domain.RelationType;
 import io.bitpet.pet.domain.SpeciesCd;
 import io.bitpet.pet.dto.GenealogyResponse;
-import io.bitpet.pet.dto.MatingRequest;
-import io.bitpet.pet.dto.MatingResponse;
 import io.bitpet.pet.dto.PetCreateRequest;
 import io.bitpet.pet.dto.PetRelationRequest;
 import io.bitpet.pet.dto.PetRelationResponse;
 import io.bitpet.pet.dto.PetResponse;
 import io.bitpet.pet.dto.PetUpdateRequest;
-import io.bitpet.pet.repository.MatingRlsRepository;
 import io.bitpet.pet.repository.MorphCdRepository;
 import io.bitpet.pet.repository.PetMstRepository;
 import io.bitpet.pet.repository.PetRelationRlsRepository;
@@ -37,7 +33,6 @@ public class PetService {
     private final SpeciesCdRepository speciesRepository;
     private final MorphCdRepository morphRepository;
     private final PetRelationRlsRepository relationRepository;
-    private final MatingRlsRepository matingRepository;
     private final SerialNumberGenerator serialNumberGenerator;
 
     // -------------------------------------------------------------------------
@@ -155,38 +150,6 @@ public class PetService {
                 parents.stream().map(PetResponse::from).toList(),
                 children.stream().map(PetResponse::from).toList()
         );
-    }
-
-    // -------------------------------------------------------------------------
-    // D3: 메이팅 기록
-    // -------------------------------------------------------------------------
-
-    @Transactional
-    public MatingResponse addMating(Long userId, MatingRequest req) {
-        PetMst male   = loadOwnedPet(userId, req.malePetId());
-        PetMst female = loadOwnedPet(userId, req.femalePetId());
-        MatingRls mating = MatingRls.builder()
-                .malePet(male)
-                .femalePet(female)
-                .matingDate(req.matingDate())
-                .memo(req.memo())
-                .build();
-        return MatingResponse.from(matingRepository.save(mating));
-    }
-
-    public List<MatingResponse> listMatings(Long userId, Long petId) {
-        loadOwnedPet(userId, petId);
-        return matingRepository.findAllByPetId(petId).stream()
-                .map(MatingResponse::from)
-                .toList();
-    }
-
-    @Transactional
-    public void deleteMating(Long userId, Long matingId) {
-        MatingRls mating = matingRepository.findById(matingId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.MATING_NOT_FOUND));
-        loadOwnedPet(userId, mating.getMalePet().getId());
-        matingRepository.delete(mating);
     }
 
     // -------------------------------------------------------------------------

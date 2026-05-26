@@ -7,12 +7,12 @@ import io.bitpet.pet.repository.PetMstRepository;
 import io.bitpet.record.domain.CleaningDtl;
 import io.bitpet.record.domain.CleaningType;
 import io.bitpet.record.domain.FeedingDtl;
-import io.bitpet.record.domain.HealthMemoDtl;
 import io.bitpet.record.domain.WeightDtl;
 import io.bitpet.record.domain.WeightSource;
+import io.bitpet.record.memo.domain.MemoDtl;
+import io.bitpet.record.memo.repository.MemoDtlRepository;
 import io.bitpet.record.repository.CleaningDtlRepository;
 import io.bitpet.record.repository.FeedingDtlRepository;
-import io.bitpet.record.repository.HealthMemoDtlRepository;
 import io.bitpet.record.repository.WeightDtlRepository;
 import io.bitpet.sync.dto.PushOperation;
 import io.bitpet.sync.dto.PushResult;
@@ -41,7 +41,8 @@ import java.util.UUID;
 public class SyncService {
 
     private static final Set<String> ALL_RESOURCES = Set.of(
-            "pet", "weight", "feeding", "cleaning", "health_memo",
+            "pet", "weight", "feeding", "cleaning", "memo",
+            "mating", "laying", "laying_hatch",
             "post", "comment", "like"
     );
     private static final int DEFAULT_LIMIT = 200;
@@ -52,7 +53,7 @@ public class SyncService {
     private final WeightDtlRepository weightRepo;
     private final FeedingDtlRepository feedingRepo;
     private final CleaningDtlRepository cleaningRepo;
-    private final HealthMemoDtlRepository healthMemoRepo;
+    private final MemoDtlRepository memoRepo;
 
     // -------------------------------------------------------------------------
     // Pull
@@ -119,9 +120,21 @@ public class SyncService {
                 table = "cleaning_dtl";
                 ownerCondition = "EXISTS (SELECT 1 FROM pet_mst p WHERE p.id = t.pet_id AND p.user_id = ?)";
             }
-            case "health_memo" -> {
-                table = "health_memo_dtl";
+            case "memo" -> {
+                table = "memo_dtl";
                 ownerCondition = "EXISTS (SELECT 1 FROM pet_mst p WHERE p.id = t.pet_id AND p.user_id = ?)";
+            }
+            case "mating" -> {
+                table = "mating_dtl";
+                ownerCondition = "EXISTS (SELECT 1 FROM pet_mst p WHERE (p.id = t.male_pet_id OR p.id = t.female_pet_id) AND p.user_id = ?)";
+            }
+            case "laying" -> {
+                table = "laying_dtl";
+                ownerCondition = "EXISTS (SELECT 1 FROM pet_mst p WHERE p.id = t.pet_id AND p.user_id = ?)";
+            }
+            case "laying_hatch" -> {
+                table = "laying_hatch_dtl";
+                ownerCondition = "EXISTS (SELECT 1 FROM laying_dtl l JOIN pet_mst p ON p.id = l.pet_id WHERE l.id = t.laying_id AND p.user_id = ?)";
             }
             case "post" -> {
                 table = "post_mst";
@@ -172,7 +185,11 @@ public class SyncService {
             case "weight"       -> handleWeight(userId, clientId, op);
             case "feeding"      -> handleFeeding(userId, clientId, op);
             case "cleaning"     -> handleCleaning(userId, clientId, op);
-            case "health_memo"  -> handleHealthMemo(userId, clientId, op);
+            case "memo"         -> handleMemo(userId, clientId, op);
+            // mating/laying/laying_hatch push는 REST API를 통해서만 지원 (복잡한 도메인 검증 포함)
+            case "mating", "laying", "laying_hatch" ->
+                    PushResult.rejected(op.clientChangeId(),
+                            "push_not_supported_via_sync: use REST API for " + op.resource());
             default -> PushResult.rejected(op.clientChangeId(), "unsupported_resource: " + op.resource());
         };
     }
@@ -406,61 +423,59 @@ public class SyncService {
     }
 
     // -------------------------------------------------------------------------
-    // HealthMemo push handlers
+    // Memo push handlers (v5: health_memo → memo)
     // -------------------------------------------------------------------------
 
-    private PushResult handleHealthMemo(Long userId, String clientId, PushOperation op) {
+    private PushResult handleMemo(Long userId, String clientId, PushOperation op) {
         Map<String, Object> data = op.data();
         UUID changeId = op.clientChangeId();
 
         if (changeId != null) {
-            var existing = healthMemoRepo.findByClientIdAndClientChangeId(clientId, changeId);
+            var existing = memoRepo.findByClientIdAndClientChangeId(clientId, changeId);
             if (existing.isPresent()) {
-                HealthMemoDtl h = existing.get();
-                return PushResult.applied(changeId, h.getId(), h.getUpdatedAt(), h.getSyncVersion());
+                MemoDtl m = existing.get();
+                return PushResult.applied(changeId, m.getId(), m.getUpdatedAt(), m.getSyncVersion());
             }
         }
 
         if ("delete".equals(op.op())) {
             Long id = toLong(data.get("id"));
-            HealthMemoDtl h = healthMemoRepo.findById(id)
-                    .orElseThrow(() -> new BusinessException(ErrorCode.HEALTH_LOG_NOT_FOUND));
-            verifyPetOwner(h.getPetId(), userId);
-            h.softDelete();
-            healthMemoRepo.save(h);
-            return PushResult.applied(changeId, id, h.getUpdatedAt(), h.getSyncVersion());
+            MemoDtl m = memoRepo.findById(id)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.MEMO_NOT_FOUND));
+            verifyPetOwner(m.getPetId(), userId);
+            m.softDelete();
+            memoRepo.save(m);
+            return PushResult.applied(changeId, id, m.getUpdatedAt(), m.getSyncVersion());
         }
 
         Long id = toLong(data.get("id"));
         if (id == null) {
             Long petId = toLong(data.get("petId"));
             verifyPetOwner(petId, userId);
-            HealthMemoDtl h = HealthMemoDtl.builder()
+            MemoDtl m = MemoDtl.builder()
                     .petId(petId)
-                    .symptom(str(data.get("symptom")))
-                    .treatment(str(data.get("treatment")))
-                    .memo(str(data.get("memo")))
-                    .recordedAt(toInstant(data.get("recordedAt")))
+                    .content(str(data.get("content")))
+                    .loggedAt(toInstant(data.get("loggedAt")))
                     .build();
-            if (changeId != null) h.stampClientChange(clientId, changeId);
-            h = healthMemoRepo.save(h);
-            return PushResult.applied(changeId, h.getId(), h.getUpdatedAt(), h.getSyncVersion());
+            if (changeId != null) m.stampClientChange(clientId, changeId);
+            m = memoRepo.save(m);
+            return PushResult.applied(changeId, m.getId(), m.getUpdatedAt(), m.getSyncVersion());
         }
 
-        HealthMemoDtl h = healthMemoRepo.findById(id)
-                .orElseThrow(() -> new BusinessException(ErrorCode.HEALTH_LOG_NOT_FOUND));
-        verifyPetOwner(h.getPetId(), userId);
+        MemoDtl m = memoRepo.findById(id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMO_NOT_FOUND));
+        verifyPetOwner(m.getPetId(), userId);
 
         Instant localUpdatedAt = toInstant(data.get("localUpdatedAt"));
-        if (localUpdatedAt != null && !h.getUpdatedAt().isBefore(localUpdatedAt)) {
-            return PushResult.conflict(changeId, Map.of("id", h.getId(), "updatedAt", h.getUpdatedAt()));
+        if (localUpdatedAt != null && !m.getUpdatedAt().isBefore(localUpdatedAt)) {
+            return PushResult.conflict(changeId,
+                    Map.of("id", m.getId(), "content", m.getContent(), "updatedAt", m.getUpdatedAt()));
         }
 
-        h.update(str(data.get("symptom")), str(data.get("treatment")),
-                str(data.get("memo")), toInstant(data.get("recordedAt")));
-        if (changeId != null) h.stampClientChange(clientId, changeId);
-        healthMemoRepo.save(h);
-        return PushResult.applied(changeId, h.getId(), h.getUpdatedAt(), h.getSyncVersion());
+        m.update(str(data.get("content")), toInstant(data.get("loggedAt")));
+        if (changeId != null) m.stampClientChange(clientId, changeId);
+        memoRepo.save(m);
+        return PushResult.applied(changeId, m.getId(), m.getUpdatedAt(), m.getSyncVersion());
     }
 
     // -------------------------------------------------------------------------

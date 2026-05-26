@@ -43,6 +43,25 @@ public enum ErrorCode {
 
     // --- Mating ---
     MATING_NOT_FOUND(HttpStatus.NOT_FOUND, "Mating record not found"),
+    MATING_OWNER_REQUIRED(HttpStatus.BAD_REQUEST, "At least one pet must be owned by you"),
+    MATING_PET_NOT_FEMALE(HttpStatus.BAD_REQUEST, "petIdFemale must be a female pet"),
+    MATING_PET_NOT_MALE(HttpStatus.BAD_REQUEST, "petIdMale must be a male pet"),
+
+    // --- Laying ---
+    LAYING_NOT_FOUND(HttpStatus.NOT_FOUND, "Laying record not found"),
+    LAYING_PET_NOT_FEMALE(HttpStatus.BAD_REQUEST, "Laying pet must be female"),
+    LAYING_FERTILE_EXCEEDS_TOTAL(HttpStatus.BAD_REQUEST, "Fertile egg count exceeds total egg count"),
+    LAYING_MATING_MISMATCH(HttpStatus.BAD_REQUEST, "Mating female pet does not match laying pet"),
+    HATCH_NOT_FOUND(HttpStatus.NOT_FOUND, "Hatch record not found"),
+    HATCH_INVALID_STATUS_TRANSITION(HttpStatus.BAD_REQUEST, "Invalid hatch status transition"),
+
+    // --- Memo ---
+    MEMO_NOT_FOUND(HttpStatus.NOT_FOUND, "Memo not found"),
+    MEMO_VET_EXT_REQUIRED(HttpStatus.BAD_REQUEST, "VET tag memo requires vetExt fields"),
+    MEMO_TAG_INVALID(HttpStatus.BAD_REQUEST, "Invalid tag code"),
+
+    // --- Calendar ---
+    CALENDAR_MONTH_INVALID(HttpStatus.BAD_REQUEST, "yearMonth format must be YYYY-MM"),
 
     // --- Record ---
     WEIGHT_NOT_FOUND(HttpStatus.NOT_FOUND, "Weight record not found"),
@@ -62,6 +81,7 @@ public enum ErrorCode {
 
     // --- Photo ---
     PHOTO_NOT_FOUND(HttpStatus.NOT_FOUND, "Photo not found"),
+    PHOTO_ENTITY_TYPE_INVALID(HttpStatus.BAD_REQUEST, "Invalid entityType"),
 
     // --- Community ---
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "Post not found"),

@@ -1,17 +1,9 @@
 package io.bitpet.record.controller;
 
-import io.bitpet.auth.jwt.AuthPrincipal;
 import io.bitpet.common.response.ApiResponse;
-import io.bitpet.record.dto.HealthLogCreateRequest;
-import io.bitpet.record.dto.HealthLogResponse;
-import io.bitpet.record.dto.HealthLogUpdateRequest;
-import io.bitpet.record.service.RecordService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -21,48 +13,45 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-
-@Tag(name = "HealthLog", description = "건강 기록 CRUD — /pets/:id/health-logs")
+/**
+ * @deprecated v5에서 410 Gone 처리.
+ * 대체: /api/v1/pets/{petId}/memos 사용
+ */
+@Tag(name = "HealthLog (Deprecated)", description = "⚠️ 410 Gone — /api/v1/pets/{petId}/memos 로 이전")
 @RestController
-@RequiredArgsConstructor
+@Deprecated
 public class HealthLogController {
 
-    private final RecordService recordService;
+    private static final ApiResponse<Void> GONE_RESPONSE = ApiResponse.fail(
+            io.bitpet.common.exception.ErrorCode.HEALTH_LOG_NOT_FOUND,
+            "이 엔드포인트는 더 이상 지원되지 않습니다. /api/v1/pets/{petId}/memos 를 사용하세요."
+    );
 
-    @Operation(summary = "건강 기록 목록")
+    @Operation(summary = "⚠️ Deprecated — 410 Gone")
     @GetMapping("/api/v1/pets/{petId}/health-logs")
-    public ApiResponse<List<HealthLogResponse>> list(
-            @AuthenticationPrincipal AuthPrincipal principal,
-            @PathVariable Long petId) {
-        return ApiResponse.ok(recordService.listHealthLogs(principal.userId(), petId));
+    @ResponseStatus(HttpStatus.GONE)
+    public ApiResponse<Void> list(@PathVariable Long petId) {
+        return GONE_RESPONSE;
     }
 
-    @Operation(summary = "건강 기록 등록")
+    @Operation(summary = "⚠️ Deprecated — 410 Gone")
     @PostMapping("/api/v1/pets/{petId}/health-logs")
-    @ResponseStatus(HttpStatus.CREATED)
-    public ApiResponse<HealthLogResponse> create(
-            @AuthenticationPrincipal AuthPrincipal principal,
-            @PathVariable Long petId,
-            @Valid @RequestBody HealthLogCreateRequest request) {
-        return ApiResponse.ok(recordService.addHealthLog(principal.userId(), petId, request));
+    @ResponseStatus(HttpStatus.GONE)
+    public ApiResponse<Void> create(@PathVariable Long petId, @RequestBody Object ignored) {
+        return GONE_RESPONSE;
     }
 
-    @Operation(summary = "건강 기록 수정")
+    @Operation(summary = "⚠️ Deprecated — 410 Gone")
     @PatchMapping("/api/v1/health-logs/{logId}")
-    public ApiResponse<HealthLogResponse> update(
-            @AuthenticationPrincipal AuthPrincipal principal,
-            @PathVariable Long logId,
-            @Valid @RequestBody HealthLogUpdateRequest request) {
-        return ApiResponse.ok(recordService.updateHealthLog(principal.userId(), logId, request));
+    @ResponseStatus(HttpStatus.GONE)
+    public ApiResponse<Void> update(@PathVariable Long logId, @RequestBody Object ignored) {
+        return GONE_RESPONSE;
     }
 
-    @Operation(summary = "건강 기록 삭제")
+    @Operation(summary = "⚠️ Deprecated — 410 Gone")
     @DeleteMapping("/api/v1/health-logs/{logId}")
-    public ApiResponse<Void> delete(
-            @AuthenticationPrincipal AuthPrincipal principal,
-            @PathVariable Long logId) {
-        recordService.deleteHealthLog(principal.userId(), logId);
-        return ApiResponse.ok();
+    @ResponseStatus(HttpStatus.GONE)
+    public ApiResponse<Void> delete(@PathVariable Long logId) {
+        return GONE_RESPONSE;
     }
 }

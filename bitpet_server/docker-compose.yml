@@ -36,7 +36,7 @@ services:
       retries: 10
 
   localstack:
-    image: localstack/localstack:3
+    image: localstack/localstack:3.8
     container_name: bitpet-localstack
     restart: unless-stopped
     environment:

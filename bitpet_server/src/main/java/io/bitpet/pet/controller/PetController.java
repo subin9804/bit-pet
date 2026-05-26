@@ -1,11 +1,10 @@
 package io.bitpet.pet.controller;
 
 import io.bitpet.auth.jwt.AuthPrincipal;
+import io.bitpet.common.exception.ErrorCode;
 import io.bitpet.common.response.ApiResponse;
 import io.bitpet.pet.domain.PetGender;
 import io.bitpet.pet.dto.GenealogyResponse;
-import io.bitpet.pet.dto.MatingRequest;
-import io.bitpet.pet.dto.MatingResponse;
 import io.bitpet.pet.dto.PetCreateRequest;
 import io.bitpet.pet.dto.PetRelationRequest;
 import io.bitpet.pet.dto.PetRelationResponse;
@@ -31,13 +30,19 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-@Tag(name = "Pet", description = "개체 관리 CRUD + 관계 + 메이팅")
+@Tag(name = "Pet", description = "개체 관리 CRUD + 관계")
 @RestController
 @RequestMapping("/api/v1/pets")
 @RequiredArgsConstructor
 public class PetController {
 
     private final PetService petService;
+
+    /** POST /api/v1/pets/matings 구 엔드포인트 — 410 Gone 처리 (v5에서 /api/v1/pets/{petId}/matings 로 이전) */
+    private static final ApiResponse<Void> MATING_GONE = ApiResponse.fail(
+            ErrorCode.MATING_NOT_FOUND,
+            "이 엔드포인트는 더 이상 지원되지 않습니다. POST /api/v1/pets/{petId}/matings 를 사용하세요."
+    );
 
     // -------------------------------------------------------------------------
     // D2: 기본 CRUD
@@ -115,7 +120,7 @@ public class PetController {
         return ApiResponse.ok(petService.listRelations(principal.userId(), petId));
     }
 
-    @Operation(summary = "부모-자식 관계 등록 (mating 이후 수동 등록)")
+    @Operation(summary = "부모-자식 관계 등록")
     @PostMapping("/relations")
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<PetRelationResponse> addRelation(
@@ -134,32 +139,34 @@ public class PetController {
     }
 
     // -------------------------------------------------------------------------
-    // D3: 메이팅 기록
+    // Deprecated — 구 메이팅 엔드포인트 (v5에서 410 Gone)
     // -------------------------------------------------------------------------
 
-    @Operation(summary = "메이팅 기록 등록")
+    /**
+     * @deprecated v5에서 410 Gone.
+     * 대체: POST /api/v1/pets/{petId}/matings
+     */
+    @Operation(summary = "⚠️ Deprecated — 410 Gone. POST /api/v1/pets/{petId}/matings 사용")
     @PostMapping("/matings")
-    @ResponseStatus(HttpStatus.CREATED)
-    public ApiResponse<MatingResponse> addMating(
+    @ResponseStatus(HttpStatus.GONE)
+    @Deprecated
+    public ApiResponse<Void> addMatingDeprecated(
             @AuthenticationPrincipal AuthPrincipal principal,
-            @Valid @RequestBody MatingRequest request) {
-        return ApiResponse.ok(petService.addMating(principal.userId(), request));
+            @RequestBody Object ignored) {
+        return MATING_GONE;
     }
 
-    @Operation(summary = "개체별 메이팅 기록 목록")
-    @GetMapping("/{petId}/matings")
-    public ApiResponse<List<MatingResponse>> listMatings(
-            @AuthenticationPrincipal AuthPrincipal principal,
-            @PathVariable Long petId) {
-        return ApiResponse.ok(petService.listMatings(principal.userId(), petId));
-    }
-
-    @Operation(summary = "메이팅 기록 삭제")
+    /**
+     * @deprecated v5에서 410 Gone.
+     * 대체: DELETE /api/v1/matings/{matingId}
+     */
+    @Operation(summary = "⚠️ Deprecated — 410 Gone. DELETE /api/v1/matings/{matingId} 사용")
     @DeleteMapping("/matings/{matingId}")
-    public ApiResponse<Void> deleteMating(
+    @ResponseStatus(HttpStatus.GONE)
+    @Deprecated
+    public ApiResponse<Void> deleteMatingDeprecated(
             @AuthenticationPrincipal AuthPrincipal principal,
             @PathVariable Long matingId) {
-        petService.deleteMating(principal.userId(), matingId);
-        return ApiResponse.ok();
+        return MATING_GONE;
     }
 }

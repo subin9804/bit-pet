@@ -4,11 +4,12 @@ import io.bitpet.common.exception.BusinessException;
 import io.bitpet.common.exception.ErrorCode;
 import io.bitpet.pet.domain.PetMst;
 import io.bitpet.pet.repository.PetMstRepository;
-import io.bitpet.photo.domain.PetPhotoDtl;
+import io.bitpet.photo.domain.EntityType;
+import io.bitpet.photo.domain.PhotoDtl;
 import io.bitpet.photo.dto.PetPhotoResponse;
 import io.bitpet.photo.dto.PhotoUploadCompleteRequest;
 import io.bitpet.photo.dto.PresignedUploadResponse;
-import io.bitpet.photo.repository.PetPhotoDtlRepository;
+import io.bitpet.photo.repository.PhotoDtlRepository;
 import io.bitpet.storage.S3Service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,13 +19,17 @@ import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequ
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * 기존 /api/v1/pets/{petId}/photos/** 하위 호환 서비스
+ * 내부적으로 EntityType=PET으로 photo_dtl 처리
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class PetPhotoService {
 
     private final PetMstRepository petRepository;
-    private final PetPhotoDtlRepository photoRepository;
+    private final PhotoDtlRepository photoRepository;
     private final S3Service s3Service;
 
     public PresignedUploadResponse generatePresignedUrl(Long userId, Long petId, String filename) {
@@ -46,13 +51,15 @@ public class PetPhotoService {
     public PetPhotoResponse registerPhoto(Long userId, Long petId, PhotoUploadCompleteRequest req) {
         verifyPetOwnership(userId, petId);
 
-        PetPhotoDtl saved = photoRepository.save(PetPhotoDtl.builder()
-                .petId(petId)
+        PhotoDtl saved = photoRepository.save(PhotoDtl.builder()
+                .entityType(EntityType.PET)
+                .entityId(petId)
                 .s3Key(req.s3Key())
                 .fileSize(req.fileSize())
                 .mimeType(req.mimeType())
                 .width(req.width())
                 .height(req.height())
+                .displayOrder(0)
                 .takenAt(req.takenAt())
                 .caption(req.caption())
                 .build());
@@ -62,7 +69,8 @@ public class PetPhotoService {
 
     public List<PetPhotoResponse> listPhotos(Long userId, Long petId) {
         verifyPetOwnership(userId, petId);
-        return photoRepository.findAllByPetIdOrderByTakenAtDesc(petId)
+        return photoRepository.findAllByEntityTypeAndEntityIdOrderByDisplayOrderAscTakenAtDesc(
+                        EntityType.PET, petId)
                 .stream()
                 .map(p -> PetPhotoResponse.of(p, s3Service.presignGet(p.getS3Key()).url().toString()))
                 .toList();
@@ -71,22 +79,21 @@ public class PetPhotoService {
     @Transactional
     public void deletePhoto(Long userId, Long petId, Long photoId) {
         verifyPetOwnership(userId, petId);
-        PetPhotoDtl photo = findPhotoOfPet(photoId, petId);
+        PhotoDtl photo = findPhotoOfPet(photoId, petId);
 
-        // 해당 사진이 프로필 사진이면 pet_mst.profile_photo_id 초기화
         PetMst pet = petRepository.findById(petId).orElseThrow();
         if (photoId.equals(pet.getProfilePhotoId())) {
             pet.setProfilePhoto(null);
         }
 
-        photoRepository.delete(photo);
+        photo.softDelete();
         s3Service.deleteObject(photo.getS3Key());
     }
 
     @Transactional
     public PetPhotoResponse setProfilePhoto(Long userId, Long petId, Long photoId) {
         verifyPetOwnership(userId, petId);
-        PetPhotoDtl photo = findPhotoOfPet(photoId, petId);
+        PhotoDtl photo = findPhotoOfPet(photoId, petId);
 
         PetMst pet = petRepository.findById(petId).orElseThrow();
         pet.setProfilePhoto(photo.getId());
@@ -106,10 +113,10 @@ public class PetPhotoService {
         }
     }
 
-    private PetPhotoDtl findPhotoOfPet(Long photoId, Long petId) {
-        PetPhotoDtl photo = photoRepository.findById(photoId)
+    private PhotoDtl findPhotoOfPet(Long photoId, Long petId) {
+        PhotoDtl photo = photoRepository.findByIdAndEntityType(photoId, EntityType.PET)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PHOTO_NOT_FOUND));
-        if (!photo.getPetId().equals(petId)) {
+        if (!photo.getEntityId().equals(petId)) {
             throw new BusinessException(ErrorCode.PET_ACCESS_DENIED);
         }
         return photo;

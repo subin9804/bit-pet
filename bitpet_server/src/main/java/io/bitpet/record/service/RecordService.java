@@ -6,7 +6,6 @@ import io.bitpet.pet.domain.PetMst;
 import io.bitpet.pet.repository.PetMstRepository;
 import io.bitpet.record.domain.CleaningDtl;
 import io.bitpet.record.domain.FeedingDtl;
-import io.bitpet.record.domain.HealthMemoDtl;
 import io.bitpet.record.domain.WeightDtl;
 import io.bitpet.record.dto.CleaningCreateRequest;
 import io.bitpet.record.dto.CleaningResponse;
@@ -14,15 +13,13 @@ import io.bitpet.record.dto.CleaningUpdateRequest;
 import io.bitpet.record.dto.FeedingCreateRequest;
 import io.bitpet.record.dto.FeedingResponse;
 import io.bitpet.record.dto.FeedingUpdateRequest;
-import io.bitpet.record.dto.HealthLogCreateRequest;
-import io.bitpet.record.dto.HealthLogResponse;
-import io.bitpet.record.dto.HealthLogUpdateRequest;
 import io.bitpet.record.dto.RecentRecordResponse;
 import io.bitpet.record.dto.WeightCreateRequest;
 import io.bitpet.record.dto.WeightResponse;
+import io.bitpet.record.memo.domain.MemoDtl;
+import io.bitpet.record.memo.repository.MemoDtlRepository;
 import io.bitpet.record.repository.CleaningDtlRepository;
 import io.bitpet.record.repository.FeedingDtlRepository;
-import io.bitpet.record.repository.HealthMemoDtlRepository;
 import io.bitpet.record.repository.WeightDtlRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -44,7 +41,7 @@ public class RecordService {
     private final WeightDtlRepository weightRepository;
     private final FeedingDtlRepository feedingRepository;
     private final CleaningDtlRepository cleaningRepository;
-    private final HealthMemoDtlRepository healthLogRepository;
+    private final MemoDtlRepository memoRepository;
 
     // -------------------------------------------------------------------------
     // Weight
@@ -159,46 +156,6 @@ public class RecordService {
     }
 
     // -------------------------------------------------------------------------
-    // Health Log (health_memo_dtl)
-    // -------------------------------------------------------------------------
-
-    public List<HealthLogResponse> listHealthLogs(Long userId, Long petId) {
-        verifyPetOwnership(userId, petId);
-        return healthLogRepository.findAllByPetIdOrderByRecordedAtDesc(petId)
-                .stream().map(HealthLogResponse::from).toList();
-    }
-
-    @Transactional
-    public HealthLogResponse addHealthLog(Long userId, Long petId, HealthLogCreateRequest req) {
-        verifyPetOwnership(userId, petId);
-        HealthMemoDtl saved = healthLogRepository.save(HealthMemoDtl.builder()
-                .petId(petId)
-                .symptom(req.symptom())
-                .treatment(req.treatment())
-                .memo(req.memo())
-                .recordedAt(req.recordedAt())
-                .build());
-        return HealthLogResponse.from(saved);
-    }
-
-    @Transactional
-    public HealthLogResponse updateHealthLog(Long userId, Long logId, HealthLogUpdateRequest req) {
-        HealthMemoDtl log = healthLogRepository.findById(logId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.HEALTH_LOG_NOT_FOUND));
-        verifyPetOwnership(userId, log.getPetId());
-        log.update(req.symptom(), req.treatment(), req.memo(), req.recordedAt());
-        return HealthLogResponse.from(log);
-    }
-
-    @Transactional
-    public void deleteHealthLog(Long userId, Long logId) {
-        HealthMemoDtl log = healthLogRepository.findById(logId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.HEALTH_LOG_NOT_FOUND));
-        verifyPetOwnership(userId, log.getPetId());
-        log.softDelete();
-    }
-
-    // -------------------------------------------------------------------------
     // Recent records — aggregated feed
     // -------------------------------------------------------------------------
 
@@ -228,10 +185,14 @@ public class RecordService {
                         petNameMap.getOrDefault(c.getPetId(), ""),
                         c.getCleanedAt(), c.getCleaningType() != null ? c.getCleaningType().name() : "")));
 
-        healthLogRepository.findAllByPetIdInOrderByRecordedAtDesc(petIds, page).forEach(h ->
-                all.add(new RecentRecordResponse("HEALTH", h.getId(), h.getPetId(),
-                        petNameMap.getOrDefault(h.getPetId(), ""),
-                        h.getRecordedAt(), h.getSymptom() != null ? h.getSymptom() : "")));
+        // v5: health_memo → memo
+        memoRepository.findAllByPetIdInOrderByLoggedAtDesc(petIds, page).forEach(m ->
+                all.add(new RecentRecordResponse("MEMO", m.getId(), m.getPetId(),
+                        petNameMap.getOrDefault(m.getPetId(), ""),
+                        m.getLoggedAt(),
+                        m.getContent() != null && m.getContent().length() > 50
+                                ? m.getContent().substring(0, 50) + "…"
+                                : m.getContent())));
 
         all.sort(Comparator.comparing(RecentRecordResponse::occurredAt).reversed());
         return all.subList(0, Math.min(limit, all.size()));
