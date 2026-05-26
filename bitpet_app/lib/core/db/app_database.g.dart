@@ -2676,12 +2676,12 @@ class FeedingTableCompanion extends UpdateCompanion<FeedingTableData> {
   }
 }
 
-class $HealthMemoTableTable extends HealthMemoTable
-    with TableInfo<$HealthMemoTableTable, HealthMemoTableData> {
+class $MemoTableTable extends MemoTable
+    with TableInfo<$MemoTableTable, MemoTableData> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
-  $HealthMemoTableTable(this.attachedDatabase, [this._alias]);
+  $MemoTableTable(this.attachedDatabase, [this._alias]);
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
@@ -2707,43 +2707,23 @@ class $HealthMemoTableTable extends HealthMemoTable
       'REFERENCES pet_mst (id)',
     ),
   );
-  static const VerificationMeta _symptomMeta = const VerificationMeta(
-    'symptom',
+  static const VerificationMeta _contentMeta = const VerificationMeta(
+    'content',
   );
   @override
-  late final GeneratedColumn<String> symptom = GeneratedColumn<String>(
-    'symptom',
+  late final GeneratedColumn<String> content = GeneratedColumn<String>(
+    'content',
     aliasedName,
-    true,
+    false,
     type: DriftSqlType.string,
-    requiredDuringInsert: false,
+    requiredDuringInsert: true,
   );
-  static const VerificationMeta _treatmentMeta = const VerificationMeta(
-    'treatment',
+  static const VerificationMeta _loggedAtMeta = const VerificationMeta(
+    'loggedAt',
   );
   @override
-  late final GeneratedColumn<String> treatment = GeneratedColumn<String>(
-    'treatment',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _memoMeta = const VerificationMeta('memo');
-  @override
-  late final GeneratedColumn<String> memo = GeneratedColumn<String>(
-    'memo',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _recordedAtMeta = const VerificationMeta(
-    'recordedAt',
-  );
-  @override
-  late final GeneratedColumn<DateTime> recordedAt = GeneratedColumn<DateTime>(
-    'recorded_at',
+  late final GeneratedColumn<DateTime> loggedAt = GeneratedColumn<DateTime>(
+    'logged_at',
     aliasedName,
     false,
     type: DriftSqlType.dateTime,
@@ -2788,10 +2768,8 @@ class $HealthMemoTableTable extends HealthMemoTable
   List<GeneratedColumn> get $columns => [
     id,
     petId,
-    symptom,
-    treatment,
-    memo,
-    recordedAt,
+    content,
+    loggedAt,
     deletedAt,
     createdAt,
     updatedAt,
@@ -2800,10 +2778,10 @@ class $HealthMemoTableTable extends HealthMemoTable
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
-  static const String $name = 'health_memo_dtl';
+  static const String $name = 'memo_dtl';
   @override
   VerificationContext validateIntegrity(
-    Insertable<HealthMemoTableData> instance, {
+    Insertable<MemoTableData> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
@@ -2819,31 +2797,21 @@ class $HealthMemoTableTable extends HealthMemoTable
     } else if (isInserting) {
       context.missing(_petIdMeta);
     }
-    if (data.containsKey('symptom')) {
+    if (data.containsKey('content')) {
       context.handle(
-        _symptomMeta,
-        symptom.isAcceptableOrUnknown(data['symptom']!, _symptomMeta),
-      );
-    }
-    if (data.containsKey('treatment')) {
-      context.handle(
-        _treatmentMeta,
-        treatment.isAcceptableOrUnknown(data['treatment']!, _treatmentMeta),
-      );
-    }
-    if (data.containsKey('memo')) {
-      context.handle(
-        _memoMeta,
-        memo.isAcceptableOrUnknown(data['memo']!, _memoMeta),
-      );
-    }
-    if (data.containsKey('recorded_at')) {
-      context.handle(
-        _recordedAtMeta,
-        recordedAt.isAcceptableOrUnknown(data['recorded_at']!, _recordedAtMeta),
+        _contentMeta,
+        content.isAcceptableOrUnknown(data['content']!, _contentMeta),
       );
     } else if (isInserting) {
-      context.missing(_recordedAtMeta);
+      context.missing(_contentMeta);
+    }
+    if (data.containsKey('logged_at')) {
+      context.handle(
+        _loggedAtMeta,
+        loggedAt.isAcceptableOrUnknown(data['logged_at']!, _loggedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_loggedAtMeta);
     }
     if (data.containsKey('deleted_at')) {
       context.handle(
@@ -2869,9 +2837,9 @@ class $HealthMemoTableTable extends HealthMemoTable
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  HealthMemoTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+  MemoTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return HealthMemoTableData(
+    return MemoTableData(
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
@@ -2880,21 +2848,13 @@ class $HealthMemoTableTable extends HealthMemoTable
         DriftSqlType.int,
         data['${effectivePrefix}pet_id'],
       )!,
-      symptom: attachedDatabase.typeMapping.read(
+      content: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}symptom'],
-      ),
-      treatment: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}treatment'],
-      ),
-      memo: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}memo'],
-      ),
-      recordedAt: attachedDatabase.typeMapping.read(
+        data['${effectivePrefix}content'],
+      )!,
+      loggedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
-        data['${effectivePrefix}recorded_at'],
+        data['${effectivePrefix}logged_at'],
       )!,
       deletedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
@@ -2912,29 +2872,24 @@ class $HealthMemoTableTable extends HealthMemoTable
   }
 
   @override
-  $HealthMemoTableTable createAlias(String alias) {
-    return $HealthMemoTableTable(attachedDatabase, alias);
+  $MemoTableTable createAlias(String alias) {
+    return $MemoTableTable(attachedDatabase, alias);
   }
 }
 
-class HealthMemoTableData extends DataClass
-    implements Insertable<HealthMemoTableData> {
+class MemoTableData extends DataClass implements Insertable<MemoTableData> {
   final int id;
   final int petId;
-  final String? symptom;
-  final String? treatment;
-  final String? memo;
-  final DateTime recordedAt;
+  final String content;
+  final DateTime loggedAt;
   final DateTime? deletedAt;
   final DateTime createdAt;
   final DateTime updatedAt;
-  const HealthMemoTableData({
+  const MemoTableData({
     required this.id,
     required this.petId,
-    this.symptom,
-    this.treatment,
-    this.memo,
-    required this.recordedAt,
+    required this.content,
+    required this.loggedAt,
     this.deletedAt,
     required this.createdAt,
     required this.updatedAt,
@@ -2944,16 +2899,8 @@ class HealthMemoTableData extends DataClass
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
     map['pet_id'] = Variable<int>(petId);
-    if (!nullToAbsent || symptom != null) {
-      map['symptom'] = Variable<String>(symptom);
-    }
-    if (!nullToAbsent || treatment != null) {
-      map['treatment'] = Variable<String>(treatment);
-    }
-    if (!nullToAbsent || memo != null) {
-      map['memo'] = Variable<String>(memo);
-    }
-    map['recorded_at'] = Variable<DateTime>(recordedAt);
+    map['content'] = Variable<String>(content);
+    map['logged_at'] = Variable<DateTime>(loggedAt);
     if (!nullToAbsent || deletedAt != null) {
       map['deleted_at'] = Variable<DateTime>(deletedAt);
     }
@@ -2962,18 +2909,12 @@ class HealthMemoTableData extends DataClass
     return map;
   }
 
-  HealthMemoTableCompanion toCompanion(bool nullToAbsent) {
-    return HealthMemoTableCompanion(
+  MemoTableCompanion toCompanion(bool nullToAbsent) {
+    return MemoTableCompanion(
       id: Value(id),
       petId: Value(petId),
-      symptom: symptom == null && nullToAbsent
-          ? const Value.absent()
-          : Value(symptom),
-      treatment: treatment == null && nullToAbsent
-          ? const Value.absent()
-          : Value(treatment),
-      memo: memo == null && nullToAbsent ? const Value.absent() : Value(memo),
-      recordedAt: Value(recordedAt),
+      content: Value(content),
+      loggedAt: Value(loggedAt),
       deletedAt: deletedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(deletedAt),
@@ -2982,18 +2923,16 @@ class HealthMemoTableData extends DataClass
     );
   }
 
-  factory HealthMemoTableData.fromJson(
+  factory MemoTableData.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return HealthMemoTableData(
+    return MemoTableData(
       id: serializer.fromJson<int>(json['id']),
       petId: serializer.fromJson<int>(json['petId']),
-      symptom: serializer.fromJson<String?>(json['symptom']),
-      treatment: serializer.fromJson<String?>(json['treatment']),
-      memo: serializer.fromJson<String?>(json['memo']),
-      recordedAt: serializer.fromJson<DateTime>(json['recordedAt']),
+      content: serializer.fromJson<String>(json['content']),
+      loggedAt: serializer.fromJson<DateTime>(json['loggedAt']),
       deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -3005,47 +2944,37 @@ class HealthMemoTableData extends DataClass
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'petId': serializer.toJson<int>(petId),
-      'symptom': serializer.toJson<String?>(symptom),
-      'treatment': serializer.toJson<String?>(treatment),
-      'memo': serializer.toJson<String?>(memo),
-      'recordedAt': serializer.toJson<DateTime>(recordedAt),
+      'content': serializer.toJson<String>(content),
+      'loggedAt': serializer.toJson<DateTime>(loggedAt),
       'deletedAt': serializer.toJson<DateTime?>(deletedAt),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
   }
 
-  HealthMemoTableData copyWith({
+  MemoTableData copyWith({
     int? id,
     int? petId,
-    Value<String?> symptom = const Value.absent(),
-    Value<String?> treatment = const Value.absent(),
-    Value<String?> memo = const Value.absent(),
-    DateTime? recordedAt,
+    String? content,
+    DateTime? loggedAt,
     Value<DateTime?> deletedAt = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
-  }) => HealthMemoTableData(
+  }) => MemoTableData(
     id: id ?? this.id,
     petId: petId ?? this.petId,
-    symptom: symptom.present ? symptom.value : this.symptom,
-    treatment: treatment.present ? treatment.value : this.treatment,
-    memo: memo.present ? memo.value : this.memo,
-    recordedAt: recordedAt ?? this.recordedAt,
+    content: content ?? this.content,
+    loggedAt: loggedAt ?? this.loggedAt,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
-  HealthMemoTableData copyWithCompanion(HealthMemoTableCompanion data) {
-    return HealthMemoTableData(
+  MemoTableData copyWithCompanion(MemoTableCompanion data) {
+    return MemoTableData(
       id: data.id.present ? data.id.value : this.id,
       petId: data.petId.present ? data.petId.value : this.petId,
-      symptom: data.symptom.present ? data.symptom.value : this.symptom,
-      treatment: data.treatment.present ? data.treatment.value : this.treatment,
-      memo: data.memo.present ? data.memo.value : this.memo,
-      recordedAt: data.recordedAt.present
-          ? data.recordedAt.value
-          : this.recordedAt,
+      content: data.content.present ? data.content.value : this.content,
+      loggedAt: data.loggedAt.present ? data.loggedAt.value : this.loggedAt,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -3054,13 +2983,11 @@ class HealthMemoTableData extends DataClass
 
   @override
   String toString() {
-    return (StringBuffer('HealthMemoTableData(')
+    return (StringBuffer('MemoTableData(')
           ..write('id: $id, ')
           ..write('petId: $petId, ')
-          ..write('symptom: $symptom, ')
-          ..write('treatment: $treatment, ')
-          ..write('memo: $memo, ')
-          ..write('recordedAt: $recordedAt, ')
+          ..write('content: $content, ')
+          ..write('loggedAt: $loggedAt, ')
           ..write('deletedAt: $deletedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -3072,10 +2999,8 @@ class HealthMemoTableData extends DataClass
   int get hashCode => Object.hash(
     id,
     petId,
-    symptom,
-    treatment,
-    memo,
-    recordedAt,
+    content,
+    loggedAt,
     deletedAt,
     createdAt,
     updatedAt,
@@ -3083,58 +3008,49 @@ class HealthMemoTableData extends DataClass
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is HealthMemoTableData &&
+      (other is MemoTableData &&
           other.id == this.id &&
           other.petId == this.petId &&
-          other.symptom == this.symptom &&
-          other.treatment == this.treatment &&
-          other.memo == this.memo &&
-          other.recordedAt == this.recordedAt &&
+          other.content == this.content &&
+          other.loggedAt == this.loggedAt &&
           other.deletedAt == this.deletedAt &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
 
-class HealthMemoTableCompanion extends UpdateCompanion<HealthMemoTableData> {
+class MemoTableCompanion extends UpdateCompanion<MemoTableData> {
   final Value<int> id;
   final Value<int> petId;
-  final Value<String?> symptom;
-  final Value<String?> treatment;
-  final Value<String?> memo;
-  final Value<DateTime> recordedAt;
+  final Value<String> content;
+  final Value<DateTime> loggedAt;
   final Value<DateTime?> deletedAt;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
-  const HealthMemoTableCompanion({
+  const MemoTableCompanion({
     this.id = const Value.absent(),
     this.petId = const Value.absent(),
-    this.symptom = const Value.absent(),
-    this.treatment = const Value.absent(),
-    this.memo = const Value.absent(),
-    this.recordedAt = const Value.absent(),
+    this.content = const Value.absent(),
+    this.loggedAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
-  HealthMemoTableCompanion.insert({
+  MemoTableCompanion.insert({
     this.id = const Value.absent(),
     required int petId,
-    this.symptom = const Value.absent(),
-    this.treatment = const Value.absent(),
-    this.memo = const Value.absent(),
-    required DateTime recordedAt,
+    required String content,
+    required DateTime loggedAt,
     this.deletedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   }) : petId = Value(petId),
-       recordedAt = Value(recordedAt);
-  static Insertable<HealthMemoTableData> custom({
+       content = Value(content),
+       loggedAt = Value(loggedAt);
+  static Insertable<MemoTableData> custom({
     Expression<int>? id,
     Expression<int>? petId,
-    Expression<String>? symptom,
-    Expression<String>? treatment,
-    Expression<String>? memo,
-    Expression<DateTime>? recordedAt,
+    Expression<String>? content,
+    Expression<DateTime>? loggedAt,
     Expression<DateTime>? deletedAt,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -3142,34 +3058,28 @@ class HealthMemoTableCompanion extends UpdateCompanion<HealthMemoTableData> {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (petId != null) 'pet_id': petId,
-      if (symptom != null) 'symptom': symptom,
-      if (treatment != null) 'treatment': treatment,
-      if (memo != null) 'memo': memo,
-      if (recordedAt != null) 'recorded_at': recordedAt,
+      if (content != null) 'content': content,
+      if (loggedAt != null) 'logged_at': loggedAt,
       if (deletedAt != null) 'deleted_at': deletedAt,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
   }
 
-  HealthMemoTableCompanion copyWith({
+  MemoTableCompanion copyWith({
     Value<int>? id,
     Value<int>? petId,
-    Value<String?>? symptom,
-    Value<String?>? treatment,
-    Value<String?>? memo,
-    Value<DateTime>? recordedAt,
+    Value<String>? content,
+    Value<DateTime>? loggedAt,
     Value<DateTime?>? deletedAt,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
   }) {
-    return HealthMemoTableCompanion(
+    return MemoTableCompanion(
       id: id ?? this.id,
       petId: petId ?? this.petId,
-      symptom: symptom ?? this.symptom,
-      treatment: treatment ?? this.treatment,
-      memo: memo ?? this.memo,
-      recordedAt: recordedAt ?? this.recordedAt,
+      content: content ?? this.content,
+      loggedAt: loggedAt ?? this.loggedAt,
       deletedAt: deletedAt ?? this.deletedAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -3185,17 +3095,11 @@ class HealthMemoTableCompanion extends UpdateCompanion<HealthMemoTableData> {
     if (petId.present) {
       map['pet_id'] = Variable<int>(petId.value);
     }
-    if (symptom.present) {
-      map['symptom'] = Variable<String>(symptom.value);
+    if (content.present) {
+      map['content'] = Variable<String>(content.value);
     }
-    if (treatment.present) {
-      map['treatment'] = Variable<String>(treatment.value);
-    }
-    if (memo.present) {
-      map['memo'] = Variable<String>(memo.value);
-    }
-    if (recordedAt.present) {
-      map['recorded_at'] = Variable<DateTime>(recordedAt.value);
+    if (loggedAt.present) {
+      map['logged_at'] = Variable<DateTime>(loggedAt.value);
     }
     if (deletedAt.present) {
       map['deleted_at'] = Variable<DateTime>(deletedAt.value);
@@ -3211,13 +3115,11 @@ class HealthMemoTableCompanion extends UpdateCompanion<HealthMemoTableData> {
 
   @override
   String toString() {
-    return (StringBuffer('HealthMemoTableCompanion(')
+    return (StringBuffer('MemoTableCompanion(')
           ..write('id: $id, ')
           ..write('petId: $petId, ')
-          ..write('symptom: $symptom, ')
-          ..write('treatment: $treatment, ')
-          ..write('memo: $memo, ')
-          ..write('recordedAt: $recordedAt, ')
+          ..write('content: $content, ')
+          ..write('loggedAt: $loggedAt, ')
           ..write('deletedAt: $deletedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -5398,9 +5300,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $PetTableTable petTable = $PetTableTable(this);
   late final $WeightTableTable weightTable = $WeightTableTable(this);
   late final $FeedingTableTable feedingTable = $FeedingTableTable(this);
-  late final $HealthMemoTableTable healthMemoTable = $HealthMemoTableTable(
-    this,
-  );
+  late final $MemoTableTable memoTable = $MemoTableTable(this);
   late final $RoutineTableTable routineTable = $RoutineTableTable(this);
   late final $RoutinePetTableTable routinePetTable = $RoutinePetTableTable(
     this,
@@ -5417,7 +5317,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     petTable,
     weightTable,
     feedingTable,
-    healthMemoTable,
+    memoTable,
     routineTable,
     routinePetTable,
     routineLogTable,
@@ -5512,21 +5412,19 @@ final class $$PetTableTableReferences
     );
   }
 
-  static MultiTypedResultKey<$HealthMemoTableTable, List<HealthMemoTableData>>
-  _healthMemoTableRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
-    db.healthMemoTable,
-    aliasName: $_aliasNameGenerator(db.petTable.id, db.healthMemoTable.petId),
+  static MultiTypedResultKey<$MemoTableTable, List<MemoTableData>>
+  _memoTableRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.memoTable,
+    aliasName: $_aliasNameGenerator(db.petTable.id, db.memoTable.petId),
   );
 
-  $$HealthMemoTableTableProcessedTableManager get healthMemoTableRefs {
-    final manager = $$HealthMemoTableTableTableManager(
+  $$MemoTableTableProcessedTableManager get memoTableRefs {
+    final manager = $$MemoTableTableTableManager(
       $_db,
-      $_db.healthMemoTable,
+      $_db.memoTable,
     ).filter((f) => f.petId.id.sqlEquals($_itemColumn<int>('id')!));
 
-    final cache = $_typedResult.readTableOrNull(
-      _healthMemoTableRefsTable($_db),
-    );
+    final cache = $_typedResult.readTableOrNull(_memoTableRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -5732,22 +5630,22 @@ class $$PetTableTableFilterComposer
     return f(composer);
   }
 
-  Expression<bool> healthMemoTableRefs(
-    Expression<bool> Function($$HealthMemoTableTableFilterComposer f) f,
+  Expression<bool> memoTableRefs(
+    Expression<bool> Function($$MemoTableTableFilterComposer f) f,
   ) {
-    final $$HealthMemoTableTableFilterComposer composer = $composerBuilder(
+    final $$MemoTableTableFilterComposer composer = $composerBuilder(
       composer: this,
       getCurrentColumn: (t) => t.id,
-      referencedTable: $db.healthMemoTable,
+      referencedTable: $db.memoTable,
       getReferencedColumn: (t) => t.petId,
       builder:
           (
             joinBuilder, {
             $addJoinBuilderToRootComposer,
             $removeJoinBuilderFromRootComposer,
-          }) => $$HealthMemoTableTableFilterComposer(
+          }) => $$MemoTableTableFilterComposer(
             $db: $db,
-            $table: $db.healthMemoTable,
+            $table: $db.memoTable,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -6053,22 +5951,22 @@ class $$PetTableTableAnnotationComposer
     return f(composer);
   }
 
-  Expression<T> healthMemoTableRefs<T extends Object>(
-    Expression<T> Function($$HealthMemoTableTableAnnotationComposer a) f,
+  Expression<T> memoTableRefs<T extends Object>(
+    Expression<T> Function($$MemoTableTableAnnotationComposer a) f,
   ) {
-    final $$HealthMemoTableTableAnnotationComposer composer = $composerBuilder(
+    final $$MemoTableTableAnnotationComposer composer = $composerBuilder(
       composer: this,
       getCurrentColumn: (t) => t.id,
-      referencedTable: $db.healthMemoTable,
+      referencedTable: $db.memoTable,
       getReferencedColumn: (t) => t.petId,
       builder:
           (
             joinBuilder, {
             $addJoinBuilderToRootComposer,
             $removeJoinBuilderFromRootComposer,
-          }) => $$HealthMemoTableTableAnnotationComposer(
+          }) => $$MemoTableTableAnnotationComposer(
             $db: $db,
-            $table: $db.healthMemoTable,
+            $table: $db.memoTable,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -6145,7 +6043,7 @@ class $$PetTableTableTableManager
           PrefetchHooks Function({
             bool weightTableRefs,
             bool feedingTableRefs,
-            bool healthMemoTableRefs,
+            bool memoTableRefs,
             bool routinePetTableRefs,
             bool routineLogTableRefs,
           })
@@ -6261,7 +6159,7 @@ class $$PetTableTableTableManager
               ({
                 weightTableRefs = false,
                 feedingTableRefs = false,
-                healthMemoTableRefs = false,
+                memoTableRefs = false,
                 routinePetTableRefs = false,
                 routineLogTableRefs = false,
               }) {
@@ -6270,7 +6168,7 @@ class $$PetTableTableTableManager
                   explicitlyWatchedTables: [
                     if (weightTableRefs) db.weightTable,
                     if (feedingTableRefs) db.feedingTable,
-                    if (healthMemoTableRefs) db.healthMemoTable,
+                    if (memoTableRefs) db.memoTable,
                     if (routinePetTableRefs) db.routinePetTable,
                     if (routineLogTableRefs) db.routineLogTable,
                   ],
@@ -6319,21 +6217,21 @@ class $$PetTableTableTableManager
                               ),
                           typedResults: items,
                         ),
-                      if (healthMemoTableRefs)
+                      if (memoTableRefs)
                         await $_getPrefetchedData<
                           PetTableData,
                           $PetTableTable,
-                          HealthMemoTableData
+                          MemoTableData
                         >(
                           currentTable: table,
                           referencedTable: $$PetTableTableReferences
-                              ._healthMemoTableRefsTable(db),
+                              ._memoTableRefsTable(db),
                           managerFromTypedResult: (p0) =>
                               $$PetTableTableReferences(
                                 db,
                                 table,
                                 p0,
-                              ).healthMemoTableRefs,
+                              ).memoTableRefs,
                           referencedItemsForCurrentItem:
                               (item, referencedItems) => referencedItems.where(
                                 (e) => e.petId == item.id,
@@ -6405,7 +6303,7 @@ typedef $$PetTableTableProcessedTableManager =
       PrefetchHooks Function({
         bool weightTableRefs,
         bool feedingTableRefs,
-        bool healthMemoTableRefs,
+        bool memoTableRefs,
         bool routinePetTableRefs,
         bool routineLogTableRefs,
       })
@@ -7368,48 +7266,33 @@ typedef $$FeedingTableTableProcessedTableManager =
       FeedingTableData,
       PrefetchHooks Function({bool petId})
     >;
-typedef $$HealthMemoTableTableCreateCompanionBuilder =
-    HealthMemoTableCompanion Function({
+typedef $$MemoTableTableCreateCompanionBuilder =
+    MemoTableCompanion Function({
       Value<int> id,
       required int petId,
-      Value<String?> symptom,
-      Value<String?> treatment,
-      Value<String?> memo,
-      required DateTime recordedAt,
+      required String content,
+      required DateTime loggedAt,
       Value<DateTime?> deletedAt,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
     });
-typedef $$HealthMemoTableTableUpdateCompanionBuilder =
-    HealthMemoTableCompanion Function({
+typedef $$MemoTableTableUpdateCompanionBuilder =
+    MemoTableCompanion Function({
       Value<int> id,
       Value<int> petId,
-      Value<String?> symptom,
-      Value<String?> treatment,
-      Value<String?> memo,
-      Value<DateTime> recordedAt,
+      Value<String> content,
+      Value<DateTime> loggedAt,
       Value<DateTime?> deletedAt,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
     });
 
-final class $$HealthMemoTableTableReferences
-    extends
-        BaseReferences<
-          _$AppDatabase,
-          $HealthMemoTableTable,
-          HealthMemoTableData
-        > {
-  $$HealthMemoTableTableReferences(
-    super.$_db,
-    super.$_table,
-    super.$_typedResult,
-  );
+final class $$MemoTableTableReferences
+    extends BaseReferences<_$AppDatabase, $MemoTableTable, MemoTableData> {
+  $$MemoTableTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
-  static $PetTableTable _petIdTable(_$AppDatabase db) =>
-      db.petTable.createAlias(
-        $_aliasNameGenerator(db.healthMemoTable.petId, db.petTable.id),
-      );
+  static $PetTableTable _petIdTable(_$AppDatabase db) => db.petTable
+      .createAlias($_aliasNameGenerator(db.memoTable.petId, db.petTable.id));
 
   $$PetTableTableProcessedTableManager get petId {
     final $_column = $_itemColumn<int>('pet_id')!;
@@ -7426,9 +7309,9 @@ final class $$HealthMemoTableTableReferences
   }
 }
 
-class $$HealthMemoTableTableFilterComposer
-    extends Composer<_$AppDatabase, $HealthMemoTableTable> {
-  $$HealthMemoTableTableFilterComposer({
+class $$MemoTableTableFilterComposer
+    extends Composer<_$AppDatabase, $MemoTableTable> {
+  $$MemoTableTableFilterComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -7440,23 +7323,13 @@ class $$HealthMemoTableTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get symptom => $composableBuilder(
-    column: $table.symptom,
+  ColumnFilters<String> get content => $composableBuilder(
+    column: $table.content,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get treatment => $composableBuilder(
-    column: $table.treatment,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get memo => $composableBuilder(
-    column: $table.memo,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get recordedAt => $composableBuilder(
-    column: $table.recordedAt,
+  ColumnFilters<DateTime> get loggedAt => $composableBuilder(
+    column: $table.loggedAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7499,9 +7372,9 @@ class $$HealthMemoTableTableFilterComposer
   }
 }
 
-class $$HealthMemoTableTableOrderingComposer
-    extends Composer<_$AppDatabase, $HealthMemoTableTable> {
-  $$HealthMemoTableTableOrderingComposer({
+class $$MemoTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $MemoTableTable> {
+  $$MemoTableTableOrderingComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -7513,23 +7386,13 @@ class $$HealthMemoTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get symptom => $composableBuilder(
-    column: $table.symptom,
+  ColumnOrderings<String> get content => $composableBuilder(
+    column: $table.content,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get treatment => $composableBuilder(
-    column: $table.treatment,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get memo => $composableBuilder(
-    column: $table.memo,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get recordedAt => $composableBuilder(
-    column: $table.recordedAt,
+  ColumnOrderings<DateTime> get loggedAt => $composableBuilder(
+    column: $table.loggedAt,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -7572,9 +7435,9 @@ class $$HealthMemoTableTableOrderingComposer
   }
 }
 
-class $$HealthMemoTableTableAnnotationComposer
-    extends Composer<_$AppDatabase, $HealthMemoTableTable> {
-  $$HealthMemoTableTableAnnotationComposer({
+class $$MemoTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $MemoTableTable> {
+  $$MemoTableTableAnnotationComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -7584,19 +7447,11 @@ class $$HealthMemoTableTableAnnotationComposer
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<String> get symptom =>
-      $composableBuilder(column: $table.symptom, builder: (column) => column);
+  GeneratedColumn<String> get content =>
+      $composableBuilder(column: $table.content, builder: (column) => column);
 
-  GeneratedColumn<String> get treatment =>
-      $composableBuilder(column: $table.treatment, builder: (column) => column);
-
-  GeneratedColumn<String> get memo =>
-      $composableBuilder(column: $table.memo, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get recordedAt => $composableBuilder(
-    column: $table.recordedAt,
-    builder: (column) => column,
-  );
+  GeneratedColumn<DateTime> get loggedAt =>
+      $composableBuilder(column: $table.loggedAt, builder: (column) => column);
 
   GeneratedColumn<DateTime> get deletedAt =>
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
@@ -7631,52 +7486,46 @@ class $$HealthMemoTableTableAnnotationComposer
   }
 }
 
-class $$HealthMemoTableTableTableManager
+class $$MemoTableTableTableManager
     extends
         RootTableManager<
           _$AppDatabase,
-          $HealthMemoTableTable,
-          HealthMemoTableData,
-          $$HealthMemoTableTableFilterComposer,
-          $$HealthMemoTableTableOrderingComposer,
-          $$HealthMemoTableTableAnnotationComposer,
-          $$HealthMemoTableTableCreateCompanionBuilder,
-          $$HealthMemoTableTableUpdateCompanionBuilder,
-          (HealthMemoTableData, $$HealthMemoTableTableReferences),
-          HealthMemoTableData,
+          $MemoTableTable,
+          MemoTableData,
+          $$MemoTableTableFilterComposer,
+          $$MemoTableTableOrderingComposer,
+          $$MemoTableTableAnnotationComposer,
+          $$MemoTableTableCreateCompanionBuilder,
+          $$MemoTableTableUpdateCompanionBuilder,
+          (MemoTableData, $$MemoTableTableReferences),
+          MemoTableData,
           PrefetchHooks Function({bool petId})
         > {
-  $$HealthMemoTableTableTableManager(
-    _$AppDatabase db,
-    $HealthMemoTableTable table,
-  ) : super(
+  $$MemoTableTableTableManager(_$AppDatabase db, $MemoTableTable table)
+    : super(
         TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
-              $$HealthMemoTableTableFilterComposer($db: db, $table: table),
+              $$MemoTableTableFilterComposer($db: db, $table: table),
           createOrderingComposer: () =>
-              $$HealthMemoTableTableOrderingComposer($db: db, $table: table),
+              $$MemoTableTableOrderingComposer($db: db, $table: table),
           createComputedFieldComposer: () =>
-              $$HealthMemoTableTableAnnotationComposer($db: db, $table: table),
+              $$MemoTableTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
                 Value<int> petId = const Value.absent(),
-                Value<String?> symptom = const Value.absent(),
-                Value<String?> treatment = const Value.absent(),
-                Value<String?> memo = const Value.absent(),
-                Value<DateTime> recordedAt = const Value.absent(),
+                Value<String> content = const Value.absent(),
+                Value<DateTime> loggedAt = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
-              }) => HealthMemoTableCompanion(
+              }) => MemoTableCompanion(
                 id: id,
                 petId: petId,
-                symptom: symptom,
-                treatment: treatment,
-                memo: memo,
-                recordedAt: recordedAt,
+                content: content,
+                loggedAt: loggedAt,
                 deletedAt: deletedAt,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -7685,20 +7534,16 @@ class $$HealthMemoTableTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 required int petId,
-                Value<String?> symptom = const Value.absent(),
-                Value<String?> treatment = const Value.absent(),
-                Value<String?> memo = const Value.absent(),
-                required DateTime recordedAt,
+                required String content,
+                required DateTime loggedAt,
                 Value<DateTime?> deletedAt = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
-              }) => HealthMemoTableCompanion.insert(
+              }) => MemoTableCompanion.insert(
                 id: id,
                 petId: petId,
-                symptom: symptom,
-                treatment: treatment,
-                memo: memo,
-                recordedAt: recordedAt,
+                content: content,
+                loggedAt: loggedAt,
                 deletedAt: deletedAt,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -7707,7 +7552,7 @@ class $$HealthMemoTableTableTableManager
               .map(
                 (e) => (
                   e.readTable(table),
-                  $$HealthMemoTableTableReferences(db, table, e),
+                  $$MemoTableTableReferences(db, table, e),
                 ),
               )
               .toList(),
@@ -7736,13 +7581,11 @@ class $$HealthMemoTableTableTableManager
                           state.withJoin(
                                 currentTable: table,
                                 currentColumn: table.petId,
-                                referencedTable:
-                                    $$HealthMemoTableTableReferences
-                                        ._petIdTable(db),
-                                referencedColumn:
-                                    $$HealthMemoTableTableReferences
-                                        ._petIdTable(db)
-                                        .id,
+                                referencedTable: $$MemoTableTableReferences
+                                    ._petIdTable(db),
+                                referencedColumn: $$MemoTableTableReferences
+                                    ._petIdTable(db)
+                                    .id,
                               )
                               as T;
                     }
@@ -7758,18 +7601,18 @@ class $$HealthMemoTableTableTableManager
       );
 }
 
-typedef $$HealthMemoTableTableProcessedTableManager =
+typedef $$MemoTableTableProcessedTableManager =
     ProcessedTableManager<
       _$AppDatabase,
-      $HealthMemoTableTable,
-      HealthMemoTableData,
-      $$HealthMemoTableTableFilterComposer,
-      $$HealthMemoTableTableOrderingComposer,
-      $$HealthMemoTableTableAnnotationComposer,
-      $$HealthMemoTableTableCreateCompanionBuilder,
-      $$HealthMemoTableTableUpdateCompanionBuilder,
-      (HealthMemoTableData, $$HealthMemoTableTableReferences),
-      HealthMemoTableData,
+      $MemoTableTable,
+      MemoTableData,
+      $$MemoTableTableFilterComposer,
+      $$MemoTableTableOrderingComposer,
+      $$MemoTableTableAnnotationComposer,
+      $$MemoTableTableCreateCompanionBuilder,
+      $$MemoTableTableUpdateCompanionBuilder,
+      (MemoTableData, $$MemoTableTableReferences),
+      MemoTableData,
       PrefetchHooks Function({bool petId})
     >;
 typedef $$RoutineTableTableCreateCompanionBuilder =
@@ -9520,8 +9363,8 @@ class $AppDatabaseManager {
       $$WeightTableTableTableManager(_db, _db.weightTable);
   $$FeedingTableTableTableManager get feedingTable =>
       $$FeedingTableTableTableManager(_db, _db.feedingTable);
-  $$HealthMemoTableTableTableManager get healthMemoTable =>
-      $$HealthMemoTableTableTableManager(_db, _db.healthMemoTable);
+  $$MemoTableTableTableManager get memoTable =>
+      $$MemoTableTableTableManager(_db, _db.memoTable);
   $$RoutineTableTableTableManager get routineTable =>
       $$RoutineTableTableTableManager(_db, _db.routineTable);
   $$RoutinePetTableTableTableManager get routinePetTable =>
