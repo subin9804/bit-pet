@@ -12,9 +12,29 @@ final feedingListProvider =
   return ref.watch(recordRepositoryProvider).getFeedings(petId);
 });
 
-final healthMemoListProvider =
-    FutureProvider.family<List<HealthMemo>, int>((ref, petId) {
-  return ref.watch(recordRepositoryProvider).getHealthLogs(petId);
+final cleaningListProvider =
+    FutureProvider.family<List<CleaningRecord>, int>((ref, petId) {
+  return ref.watch(recordRepositoryProvider).getCleanings(petId);
+});
+
+// v5: health_memo → memo
+final memoListProvider =
+    FutureProvider.family<List<Memo>, int>((ref, petId) {
+  return ref.watch(recordRepositoryProvider).getMemos(petId);
+});
+
+final memoTagsProvider = FutureProvider<List<MemoTag>>((ref) {
+  return ref.watch(recordRepositoryProvider).getMemoTags();
+});
+
+final matingListProvider =
+    FutureProvider.family<List<MatingRecord>, int>((ref, petId) {
+  return ref.watch(recordRepositoryProvider).getMatings(petId);
+});
+
+final layingListProvider =
+    FutureProvider.family<List<LayingRecord>, int>((ref, petId) {
+  return ref.watch(recordRepositoryProvider).getLayings(petId);
 });
 
 final recentRecordsProvider = FutureProvider<List<RecentRecord>>((ref) {

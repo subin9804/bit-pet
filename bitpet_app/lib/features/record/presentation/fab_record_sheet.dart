@@ -1,6 +1,6 @@
-﻿// SCR-11: FAB 기록 바텀시트 (v3.2)
+﻿// SCR-11: FAB 기록 바텀시트 (v5)
 // 4단계 플로우:
-//   1단계: 기록 유형 선택 (급여/청소/체중/건강)
+//   1단계: 기록 유형 선택 (급여/청소/체중/메모)
 //   2단계: 개체 선택 (복합 선택: 개별 OR 전체)
 //   3단계: 상세 입력 (유형별 폼)
 //   4단계: 완료 확인
@@ -15,7 +15,7 @@ import '../../pet/providers/pet_provider.dart';
 import '../../record/data/models/record_models.dart';
 import '../../record/data/record_repository.dart';
 
-enum _RecordType { feeding, weight, cleaning, health }
+enum _RecordType { feeding, weight, cleaning, memo }
 
 class FabRecordSheet extends ConsumerStatefulWidget {
   const FabRecordSheet({super.key});
@@ -37,13 +37,20 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
   // 체중 폼
   final _weightController = TextEditingController();
 
-  // 공통
+  // 메모 폼
+  final _contentController = TextEditingController();
+
+  // 공통 메모
   final _memoController = TextEditingController();
+
+  // 청소 유형
+  CleaningType _cleaningType = CleaningType.FULL;
 
   @override
   void dispose() {
     _foodTypeController.dispose();
     _weightController.dispose();
+    _contentController.dispose();
     _memoController.dispose();
     super.dispose();
   }
@@ -139,7 +146,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
       (_RecordType.feeding, Icons.restaurant_outlined, '급여', '먹이를 급여했어요'),
       (_RecordType.weight, Icons.monitor_weight_outlined, '체중', '몸무게를 측정했어요'),
       (_RecordType.cleaning, Icons.cleaning_services_outlined, '청소', '사육장 청소를 했어요'),
-      (_RecordType.health, Icons.favorite_outline, '건강', '건강 메모를 남겨요'),
+      (_RecordType.memo, Icons.note_alt_outlined, '메모', '일지·건강 메모를 남겨요'),
     ];
     return Column(
       children: types.map((t) {
@@ -275,16 +282,32 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                 const InputDecoration(hintText: '0.00', suffixText: 'g'),
           ),
         ] else if (_selectedType == _RecordType.cleaning) ...[
-          Text('청소 정보를 메모에 남겨주세요', style: AppTextStyles.caption),
+          Text('청소 유형', style: AppTextStyles.label),
+          const SizedBox(height: 4),
+          _CleaningTypePicker(
+            value: _cleaningType,
+            onChanged: (v) => setState(() => _cleaningType = v),
+          ),
+        ] else if (_selectedType == _RecordType.memo) ...[
+          Text('메모 내용 *', style: AppTextStyles.label),
+          const SizedBox(height: 4),
+          TextField(
+            controller: _contentController,
+            decoration:
+                const InputDecoration(hintText: '오늘의 상태, 특이사항을 기록하세요'),
+            maxLines: 3,
+          ),
         ],
         const SizedBox(height: 12),
-        Text('메모 (선택)', style: AppTextStyles.label),
-        const SizedBox(height: 4),
-        TextField(
-          controller: _memoController,
-          decoration: const InputDecoration(hintText: '특이사항을 입력하세요'),
-          maxLines: 3,
-        ),
+        if (_selectedType != _RecordType.memo) ...[
+          Text('메모 (선택)', style: AppTextStyles.label),
+          const SizedBox(height: 4),
+          TextField(
+            controller: _memoController,
+            decoration: const InputDecoration(hintText: '특이사항을 입력하세요'),
+            maxLines: 3,
+          ),
+        ],
         const SizedBox(height: 24),
         SizedBox(
           width: double.infinity,
@@ -333,6 +356,11 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
       showToast(context, '몸무게를 입력해주세요');
       return;
     }
+    if (_selectedType == _RecordType.memo &&
+        _contentController.text.trim().isEmpty) {
+      showToast(context, '메모 내용을 입력해주세요');
+      return;
+    }
 
     setState(() => _loading = true);
     final repo = ref.read(recordRepositoryProvider);
@@ -357,15 +385,11 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
               await repo.addWeight(petId, w, now, memo);
             }
           case _RecordType.cleaning:
-            // TODO: 청소 전용 API 구현 후 연결 — 현재 건강 메모로 임시 저장
-            await repo.addHealthMemo(petId, {
-              'memo': '[청소]${memo != null ? ' $memo' : ''}',
-              'recordedAt': now.toIso8601String(),
-            });
-          case _RecordType.health:
-            await repo.addHealthMemo(petId, {
-              if (memo != null) 'memo': memo,
-              'recordedAt': now.toIso8601String(),
+            await repo.addCleaning(petId, _cleaningType, now, memo);
+          case _RecordType.memo:
+            await repo.addMemo(petId, {
+              'content': _contentController.text.trim(),
+              'loggedAt': now.toIso8601String(),
             });
         }
       }
@@ -417,6 +441,34 @@ class _PetSelectTile extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _CleaningTypePicker extends StatelessWidget {
+  final CleaningType value;
+  final ValueChanged<CleaningType> onChanged;
+
+  const _CleaningTypePicker({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    const options = [
+      (CleaningType.FULL, '전체 청소'),
+      (CleaningType.PARTIAL, '부분 청소'),
+      (CleaningType.WATER_CHANGE, '물 교체'),
+    ];
+    return Wrap(
+      spacing: 8,
+      children: options.map((o) {
+        final selected = value == o.$1;
+        return ChoiceChip(
+          label: Text(o.$2),
+          selected: selected,
+          selectedColor: AppColors.primary.withValues(alpha: 0.2),
+          onSelected: (_) => onChanged(o.$1),
+        );
+      }).toList(),
     );
   }
 }

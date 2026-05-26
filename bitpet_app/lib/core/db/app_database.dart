@@ -7,7 +7,7 @@ import 'package:path/path.dart' as p;
 import 'tables/pet_table.dart';
 import 'tables/weight_table.dart';
 import 'tables/feeding_table.dart';
-import 'tables/health_memo_table.dart';
+import 'tables/memo_table.dart';
 import 'tables/routine_table.dart';
 import 'tables/routine_log_table.dart';
 import 'tables/pending_op_table.dart';
@@ -18,7 +18,7 @@ part 'app_database.g.dart';
   PetTable,
   WeightTable,
   FeedingTable,
-  HealthMemoTable,
+  MemoTable,
   RoutineTable,
   RoutinePetTable,
   RoutineLogTable,
@@ -29,7 +29,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -41,6 +41,11 @@ class AppDatabase extends _$AppDatabase {
           if (from < 2) {
             await m.createTable(routinePetTable);
             await m.addColumn(routineLogTable, routineLogTable.status);
+          }
+          // v2 → v3: health_memo_dtl → memo_dtl (v5 서버 마이그레이션 V15 대응)
+          if (from < 3) {
+            await customStatement('DROP TABLE IF EXISTS health_memo_dtl');
+            await m.createTable(memoTable);
           }
         },
         beforeOpen: (details) async {
