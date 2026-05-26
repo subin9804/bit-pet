@@ -74,7 +74,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     );
     if (!mounted) return;
     ref.read(authStateProvider).whenOrNull(
-      error: (e, _) => ToastMessage.show(context, '에러입니다', type: ToastType.error),
+      error: (e, _) => ToastMessage.show(context, e.toString(), type: ToastType.error),
     );
   }
 

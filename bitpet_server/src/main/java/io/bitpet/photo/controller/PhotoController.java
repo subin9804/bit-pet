@@ -72,12 +72,4 @@ public class PhotoController {
         return ApiResponse.ok();
     }
 
-    @Operation(summary = "개체 프로필 사진 설정 (PET 한정)")
-    @PatchMapping("/api/v1/pets/{petId}/photos/{photoId}/profile")
-    public ApiResponse<PhotoResponse> setProfile(
-            @AuthenticationPrincipal AuthPrincipal principal,
-            @PathVariable Long petId,
-            @PathVariable Long photoId) {
-        return ApiResponse.ok(photoService.setProfilePhoto(principal.userId(), petId, photoId));
-    }
 }

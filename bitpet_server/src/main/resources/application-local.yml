@@ -28,6 +28,8 @@ logging:
     org.hibernate.SQL: DEBUG
     org.hibernate.orm.jdbc.bind: TRACE
     org.springframework.security: DEBUG
+    org.springframework.web.servlet.DispatcherServlet: DEBUG   # 요청 진입·매핑 로그
+    org.springframework.web.filter: DEBUG                      # 필터 체인 통과 여부
 
 bitpet:
   jwt:
