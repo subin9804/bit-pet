@@ -20,6 +20,8 @@ class AuthRepository {
       : _dio = dio,
         _tokenStorage = tokenStorage;
 
+  // ── 로그인 ────────────────────────────────────────────────
+  // 서버 응답: { success, data: { accessToken, refreshToken, tokenType } }
   Future<UserProfile> login(LoginRequest request) async {
     final res = await _dio.post('/auth/login', data: request.toJson());
     final apiRes = ApiResponse.fromJson(
@@ -32,23 +34,25 @@ class AuthRepository {
           message: apiRes.message ?? '로그인에 실패했습니다.');
     }
     final data = apiRes.data!;
-    // API 응답: data 루트에 accessToken/refreshToken 직접 위치
-    final tokenData = data.containsKey('accessToken')
-        ? data
-        : data['tokens'] as Map<String, dynamic>;
-    final tokens = AuthTokens.fromJson(tokenData);
     await _tokenStorage.saveTokens(
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
+      accessToken: data['accessToken'] as String,
+      refreshToken: data['refreshToken'] as String,
     );
-    if (data.containsKey('user')) {
-      return UserProfile.fromJson(data['user'] as Map<String, dynamic>);
-    }
-    // 로그인 응답에 user 정보 없을 경우 최소 프로필 반환 (/auth/me 연동 시 교체)
-    return UserProfile(id: 0, email: request.email, name: '', userType: 'GENERAL');
+    // TokenResponse에 유저 정보 없음 → 최소 프로필 반환 (추후 /auth/me 연동)
+    return UserProfile(
+      id: 0,
+      email: request.email,
+      name: '',
+      userType: 'GENERAL',
+    );
   }
 
+  // ── 회원가입 ──────────────────────────────────────────────
+  // 서버 흐름:
+  //   1) POST /auth/signup → UserResponse (토큰 없음)
+  //   2) POST /auth/login  → TokenResponse → 토큰 저장
   Future<UserProfile> signup(SignupRequest request) async {
+    // 1. 회원가입
     final res = await _dio.post('/auth/signup', data: request.toJson());
     final apiRes = ApiResponse.fromJson(
       res.data as Map<String, dynamic>,
@@ -59,21 +63,16 @@ class AuthRepository {
           statusCode: res.statusCode ?? 0,
           message: apiRes.message ?? '회원가입에 실패했습니다.');
     }
-    final data = apiRes.data!;
-    final tokenData = data.containsKey('accessToken')
-        ? data
-        : data['tokens'] as Map<String, dynamic>;
-    final tokens = AuthTokens.fromJson(tokenData);
-    await _tokenStorage.saveTokens(
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-    );
-    if (data.containsKey('user')) {
-      return UserProfile.fromJson(data['user'] as Map<String, dynamic>);
-    }
-    return UserProfile(id: 0, email: request.email, name: request.name, userType: 'GENERAL');
+    final userData = apiRes.data!;
+
+    // 2. 자동 로그인 → 토큰 발급
+    await login(LoginRequest(email: request.email, password: request.password));
+
+    // 3. 가입 응답(UserResponse)으로 프로필 반환
+    return UserProfile.fromJson(userData);
   }
 
+  // ── 로그아웃 ──────────────────────────────────────────────
   Future<void> logout() async {
     try {
       await _dio.delete('/auth/logout');
@@ -82,6 +81,7 @@ class AuthRepository {
     }
   }
 
+  // ── 회원탈퇴 ──────────────────────────────────────────────
   Future<void> withdraw() async {
     await _dio.delete('/auth/withdraw');
     await _tokenStorage.clearTokens();
