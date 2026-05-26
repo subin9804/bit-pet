@@ -30,6 +30,7 @@ class Pet {
   final String serialNo;
   final int speciesId;
   final String speciesName;
+  final String? morphName; // 모프명 (백엔드에서 제공 시)
   final String name;
   final String gender;
   final String? colorCode;
@@ -45,6 +46,7 @@ class Pet {
     required this.serialNo,
     required this.speciesId,
     required this.speciesName,
+    this.morphName,
     required this.name,
     required this.gender,
     this.colorCode,
@@ -61,6 +63,7 @@ class Pet {
         serialNo: json['serialNo'] as String,
         speciesId: json['speciesId'] as int,
         speciesName: json['speciesName'] as String? ?? '',
+        morphName: json['morphName'] as String?,
         name: json['name'] as String,
         gender: json['gender'] as String? ?? 'UNKNOWN',
         colorCode: json['colorCode'] as String?,
@@ -85,8 +88,12 @@ class CreatePetRequest {
   final String? description;
   final String? environmentMemo;
   final int? morphId;
+  final String? morphText;      // 직접 입력 모프
   final String? hatchingDate;
   final String? adoptionDate;
+  final double? currentWeightG; // 초기 몸무게 (g 기준)
+  final int? fatherPetId;       // 부개체 연결
+  final int? motherPetId;       // 모개체 연결
 
   const CreatePetRequest({
     required this.speciesId,
@@ -96,8 +103,12 @@ class CreatePetRequest {
     this.description,
     this.environmentMemo,
     this.morphId,
+    this.morphText,
     this.hatchingDate,
     this.adoptionDate,
+    this.currentWeightG,
+    this.fatherPetId,
+    this.motherPetId,
   });
 
   Map<String, dynamic> toJson() => {
@@ -108,7 +119,11 @@ class CreatePetRequest {
         if (description != null) 'description': description,
         if (environmentMemo != null) 'environmentMemo': environmentMemo,
         if (morphId != null) 'morphId': morphId,
+        if (morphText != null && morphId == null) 'morphText': morphText,
         if (hatchingDate != null) 'hatchingDate': hatchingDate,
         if (adoptionDate != null) 'adoptionDate': adoptionDate,
+        if (currentWeightG != null) 'currentWeightG': currentWeightG,
+        if (fatherPetId != null) 'fatherPetId': fatherPetId,
+        if (motherPetId != null) 'motherPetId': motherPetId,
       };
 }
