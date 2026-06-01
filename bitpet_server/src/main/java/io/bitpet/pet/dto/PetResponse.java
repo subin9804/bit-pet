@@ -5,6 +5,7 @@ import io.bitpet.pet.domain.PetMst;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 
 public record PetResponse(
         Long id,
@@ -13,12 +14,10 @@ public record PetResponse(
         Long speciesId,
         String speciesNameKo,
         String speciesCategory,
-        Long morphId,
-        String morphNameKo,
+        List<MorphCdResponse> morphs,
         String name,
         PetGender gender,
         String colorCode,
-        String environmentMemo,
         String description,
         LocalDate breedingDate,
         LocalDate hatchingDate,
@@ -28,6 +27,9 @@ public record PetResponse(
         Instant updatedAt
 ) {
     public static PetResponse from(PetMst pet) {
+        List<MorphCdResponse> morphList = pet.getMorphs().stream()
+                .map(rls -> MorphCdResponse.from(rls.getMorph()))
+                .toList();
         return new PetResponse(
                 pet.getId(),
                 pet.getSerialNo(),
@@ -35,12 +37,10 @@ public record PetResponse(
                 pet.getSpecies() != null ? pet.getSpecies().getId() : null,
                 pet.getSpecies() != null ? pet.getSpecies().getNameKo() : null,
                 pet.getSpecies() != null ? pet.getSpecies().getCategory() : null,
-                pet.getMorph() != null ? pet.getMorph().getId() : null,
-                pet.getMorph() != null ? pet.getMorph().getNameKo() : null,
+                morphList,
                 pet.getName(),
                 pet.getGender(),
                 pet.getColorCode(),
-                pet.getEnvironmentMemo(),
                 pet.getDescription(),
                 pet.getBreedingDate(),
                 pet.getHatchingDate(),

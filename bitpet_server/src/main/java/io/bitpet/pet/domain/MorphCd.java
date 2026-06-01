@@ -25,11 +25,17 @@ public class MorphCd extends BaseTimeEntity {
     @Column(name = "species_id", nullable = false)
     private Long speciesId;
 
-    @Column(name = "name_ko", nullable = false, length = 50)
+    @Column(name = "name_ko", nullable = false, length = 100)
     private String nameKo;
 
-    @Column(name = "name_en", length = 50)
+    @Column(name = "name_en", length = 100)
     private String nameEn;
+
+    @Column(name = "alias_list", length = 300)
+    private String aliasList;
+
+    @Column(name = "has_health_concern", nullable = false)
+    private Boolean hasHealthConcern;
 
     @Column(name = "display_order", nullable = false)
     private Short displayOrder;

@@ -236,8 +236,7 @@ public class SyncService {
 
         pet.updateProfile(
                 str(data.get("name")), null, null,
-                null, str(data.get("colorCode")),
-                str(data.get("environmentMemo")), str(data.get("description")),
+                str(data.get("colorCode")), str(data.get("description")),
                 null, null, null
         );
         if (changeId != null) pet.stampClientChange(clientId, changeId);

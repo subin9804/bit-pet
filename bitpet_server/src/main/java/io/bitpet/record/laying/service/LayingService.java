@@ -2,12 +2,13 @@ package io.bitpet.record.laying.service;
 
 import io.bitpet.common.exception.BusinessException;
 import io.bitpet.common.exception.ErrorCode;
+import io.bitpet.pet.domain.MorphCd;
 import io.bitpet.pet.domain.PetGender;
+import io.bitpet.pet.domain.PetMorphRls;
 import io.bitpet.pet.domain.PetMst;
 import io.bitpet.pet.domain.PetRelationRls;
 import io.bitpet.pet.domain.RelationType;
 import io.bitpet.pet.domain.SpeciesCd;
-import io.bitpet.pet.domain.MorphCd;
 import io.bitpet.pet.repository.MorphCdRepository;
 import io.bitpet.pet.repository.PetMstRepository;
 import io.bitpet.pet.repository.PetRelationRlsRepository;
@@ -220,12 +221,15 @@ public class LayingService {
                 .serialNo(serial)
                 .userId(userId)
                 .species(species)
-                .morph(morph)
                 .name(req.name())
                 .gender(req.gender())
                 .hatchingDate(req.birthDate())
                 .description(req.memo())
                 .build());
+
+        if (morph != null) {
+            newPet.getMorphs().add(PetMorphRls.of(newPet, morph));
+        }
 
         hatch.linkPet(newPet.getId());
         createLineage(layingId, newPet.getId());

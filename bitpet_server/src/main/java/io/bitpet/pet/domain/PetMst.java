@@ -1,6 +1,7 @@
 package io.bitpet.pet.domain;
 
 import io.bitpet.common.entity.BaseSyncEntity;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -12,6 +13,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -21,6 +23,8 @@ import org.hibernate.annotations.SQLRestriction;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Getter
@@ -50,10 +54,8 @@ public class PetMst extends BaseSyncEntity {
             foreignKey = @jakarta.persistence.ForeignKey(name = "fk_pet_mst_species"))
     private SpeciesCd species;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "morph_id",
-            foreignKey = @jakarta.persistence.ForeignKey(name = "fk_pet_mst_morph"))
-    private MorphCd morph;
+    @OneToMany(mappedBy = "pet", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<PetMorphRls> morphs = new ArrayList<>();
 
     @Column(nullable = false, length = 50)
     private String name;
@@ -64,9 +66,6 @@ public class PetMst extends BaseSyncEntity {
 
     @Column(name = "color_code", length = 7)
     private String colorCode;
-
-    @Column(name = "environment_memo", columnDefinition = "TEXT")
-    private String environmentMemo;
 
     @Column(name = "breeding_date")
     private LocalDate breedingDate;
@@ -87,33 +86,29 @@ public class PetMst extends BaseSyncEntity {
     private Instant deletedAt;
 
     @Builder
-    private PetMst(String serialNo, Long userId, SpeciesCd species, MorphCd morph,
-                   String name, PetGender gender, String colorCode, String environmentMemo,
+    private PetMst(String serialNo, Long userId, SpeciesCd species,
+                   String name, PetGender gender, String colorCode,
                    String description, LocalDate breedingDate, LocalDate hatchingDate,
                    LocalDate adoptionDate) {
         this.serialNo = serialNo;
         this.userId = userId;
         this.species = species;
-        this.morph = morph;
         this.name = name;
         this.gender = gender != null ? gender : PetGender.UNKNOWN;
         this.colorCode = colorCode;
-        this.environmentMemo = environmentMemo;
         this.description = description;
         this.breedingDate = breedingDate;
         this.hatchingDate = hatchingDate;
         this.adoptionDate = adoptionDate;
     }
 
-    public void updateProfile(String name, SpeciesCd species, MorphCd morph, PetGender gender,
-                              String colorCode, String environmentMemo, String description,
+    public void updateProfile(String name, SpeciesCd species, PetGender gender,
+                              String colorCode, String description,
                               LocalDate breedingDate, LocalDate hatchingDate, LocalDate adoptionDate) {
         if (name != null) this.name = name;
         if (species != null) this.species = species;
-        if (morph != null) this.morph = morph;
         if (gender != null) this.gender = gender;
         if (colorCode != null) this.colorCode = colorCode;
-        if (environmentMemo != null) this.environmentMemo = environmentMemo;
         if (description != null) this.description = description;
         if (breedingDate != null) this.breedingDate = breedingDate;
         if (hatchingDate != null) this.hatchingDate = hatchingDate;

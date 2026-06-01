@@ -137,8 +137,10 @@ features/
 | V19 | laying_dtl, laying_hatch_dtl 신설 |
 | V20 | photo_dtl 폴리모픽 신설, pet_photo_dtl 데이터 이전(ID 보존), pet_photo_dtl 삭제 |
 | V21 | weight_dtl/feeding_dtl/cleaning_dtl 캘린더용 부분 인덱스 추가 |
+| V22 | (이전 작업) |
+| V23 | morph_cd v3.1/v3.2 — alias_list·has_health_concern 컬럼 추가, name_ko/name_en 100자 확장, pet_morph_rls 신설(N:N), pet_mst.morph_id·environment_memo 제거 |
 
-> **다음 마이그레이션은 V22부터 작성.**
+> **다음 마이그레이션은 V24부터 작성.**
 
 ---
 

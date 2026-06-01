@@ -4,9 +4,9 @@ import io.bitpet.common.exception.BusinessException;
 import io.bitpet.common.exception.ErrorCode;
 import io.bitpet.pet.domain.MorphCd;
 import io.bitpet.pet.domain.PetGender;
+import io.bitpet.pet.domain.PetMorphRls;
 import io.bitpet.pet.domain.PetMst;
 import io.bitpet.pet.domain.PetRelationRls;
-import io.bitpet.pet.domain.RelationType;
 import io.bitpet.pet.domain.SpeciesCd;
 import io.bitpet.pet.dto.GenealogyResponse;
 import io.bitpet.pet.dto.PetCreateRequest;
@@ -45,24 +45,24 @@ public class PetService {
                 ? speciesRepository.findById(req.speciesId())
                         .orElseThrow(() -> new BusinessException(ErrorCode.SPECIES_NOT_FOUND))
                 : null;
-        MorphCd morph = resolveMorph(req.morphId(), species);
 
         String serial = serialNumberGenerator.generate();
         PetMst pet = PetMst.builder()
                 .serialNo(serial)
                 .userId(userId)
                 .species(species)
-                .morph(morph)
                 .name(req.name())
                 .gender(req.gender())
                 .colorCode(req.colorCode())
-                .environmentMemo(req.environmentMemo())
                 .description(req.description())
                 .breedingDate(req.breedingDate())
                 .hatchingDate(req.hatchingDate())
                 .adoptionDate(req.adoptionDate())
                 .build();
-        return PetResponse.from(petRepository.save(pet));
+        petRepository.save(pet);
+
+        attachMorphs(pet, req.morphIds(), species);
+        return PetResponse.from(pet);
     }
 
     public PetResponse get(Long userId, Long petId) {
@@ -88,12 +88,14 @@ public class PetService {
                 ? speciesRepository.findById(req.speciesId())
                         .orElseThrow(() -> new BusinessException(ErrorCode.SPECIES_NOT_FOUND))
                 : null;
-        // morph 검증 시 effective species = 요청에 명시된 species 우선, 없으면 기존 pet의 species
         SpeciesCd effectiveSpecies = species != null ? species : pet.getSpecies();
-        MorphCd morph = resolveMorph(req.morphId(), effectiveSpecies);
-        pet.updateProfile(req.name(), species, morph, req.gender(), req.colorCode(),
-                req.environmentMemo(), req.description(),
-                req.breedingDate(), req.hatchingDate(), req.adoptionDate());
+        pet.updateProfile(req.name(), species, req.gender(), req.colorCode(),
+                req.description(), req.breedingDate(), req.hatchingDate(), req.adoptionDate());
+
+        if (req.morphIds() != null) {
+            pet.getMorphs().clear();
+            attachMorphs(pet, req.morphIds(), effectiveSpecies);
+        }
         return PetResponse.from(pet);
     }
 
@@ -165,13 +167,15 @@ public class PetService {
         return pet;
     }
 
-    private MorphCd resolveMorph(Long morphId, SpeciesCd species) {
-        if (morphId == null) return null;
-        MorphCd morph = morphRepository.findById(morphId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.MORPH_NOT_FOUND));
-        if (species != null && !morph.getSpeciesId().equals(species.getId())) {
-            throw new BusinessException(ErrorCode.MORPH_SPECIES_MISMATCH);
+    private void attachMorphs(PetMst pet, List<Long> morphIds, SpeciesCd species) {
+        if (morphIds == null || morphIds.isEmpty()) return;
+        for (Long morphId : morphIds) {
+            MorphCd morph = morphRepository.findById(morphId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.MORPH_NOT_FOUND));
+            if (species != null && !morph.getSpeciesId().equals(species.getId())) {
+                throw new BusinessException(ErrorCode.MORPH_SPECIES_MISMATCH);
+            }
+            pet.getMorphs().add(PetMorphRls.of(pet, morph));
         }
-        return morph;
     }
 }

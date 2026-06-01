@@ -7,11 +7,14 @@ public record MorphCdResponse(
         Long speciesId,
         String nameKo,
         String nameEn,
+        String aliasList,
+        Boolean hasHealthConcern,
         Short displayOrder
 ) {
     public static MorphCdResponse from(MorphCd m) {
         return new MorphCdResponse(
-                m.getId(), m.getSpeciesId(), m.getNameKo(), m.getNameEn(), m.getDisplayOrder()
+                m.getId(), m.getSpeciesId(), m.getNameKo(), m.getNameEn(),
+                m.getAliasList(), m.getHasHealthConcern(), m.getDisplayOrder()
         );
     }
 }

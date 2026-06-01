@@ -45,4 +45,18 @@ public class SpeciesController {
                 .stream().map(MorphCdResponse::from).toList();
         return ApiResponse.ok(result);
     }
+
+    @Operation(summary = "모프 autocomplete 검색 (name_ko / name_en / alias_list LIKE)")
+    @GetMapping("/morphs/autocomplete")
+    public ApiResponse<List<MorphCdResponse>> morphAutocomplete(
+            @RequestParam Long speciesId,
+            @RequestParam String q) {
+        if (q == null || q.isBlank()) {
+            return ApiResponse.ok(List.of());
+        }
+        List<MorphCdResponse> result = morphRepository
+                .searchAutocomplete(speciesId, q)
+                .stream().map(MorphCdResponse::from).toList();
+        return ApiResponse.ok(result);
+    }
 }
