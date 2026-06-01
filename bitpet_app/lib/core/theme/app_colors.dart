@@ -54,6 +54,38 @@ abstract final class AppColors {
     petColorRose,
   ];
 
+  // ── PALE 디자인 시스템 토큰 (개체 상세 화면 기준) ──────────────
+  static const paleBg       = Color(0xFFFBF7EE); // 아이보리 배경
+  static const paleBgAlt    = Color(0xFFF5EFE2); // 칩/선택 배경
+  static const paleInk2     = Color(0xFF8A8073); // 보조 텍스트
+  static const paleInk3     = Color(0xFFBFB6A8); // 비활성/힌트
+  static const paleLine     = Color(0xFFE6DFD0); // 테두리/구분선
+  static const paleLineSoft = Color(0xFFEFEADC); // 인라인 구분선
+
+  // Pet 식별색 (pale 배경) — oklch pale ≈ sRGB 근사
+  static const petSage   = Color(0xFFE8F2DC);
+  static const petPeach  = Color(0xFFFFE3CE);
+  static const petSky    = Color(0xFFD5F0FF);
+  static const petLilac  = Color(0xFFF1E5FF);
+  static const petButter = Color(0xFFFCF2CD);
+  static const petCoral  = Color(0xFFFFD8D4);
+
+  // Pet 식별색 (ink — pale 위 텍스트/점) — oklch ink ≈ sRGB 근사
+  static const petSageInk   = Color(0xFF39553E);
+  static const petPeachInk  = Color(0xFF6A442C);
+  static const petSkyInk    = Color(0xFF315265);
+  static const petLilacInk  = Color(0xFF554568);
+  static const petButterInk = Color(0xFF5C4B1A);
+  static const petCoralInk  = Color(0xFF733A36);
+
+  // 카테고리 식별 (pale/ink)
+  static const catWeight  = petSky;    static const catWeightInk  = petSkyInk;
+  static const catFeed    = petSage;   static const catFeedInk    = petSageInk;
+  static const catClean   = petButter; static const catCleanInk   = petButterInk;
+  static const catMemo    = petLilac;  static const catMemoInk    = petLilacInk;
+  static const catMating  = petCoral;  static const catMatingInk  = petCoralInk;
+  static const catLaying  = petPeach;  static const catLayingInk  = petPeachInk;
+
   // ── 다크 테마 (추후 정의 예정) ─────────────────────────────
   static const darkBg          = Color(0xFF0F0F14);
   static const darkSurface     = Color(0xFF1A1A24);

@@ -16,6 +16,8 @@ import '../../features/my/presentation/my_screen.dart';
 import '../../features/notification/data/notification_repository.dart';
 import '../../features/notification/data/models/notification_models.dart';
 import '../../features/notification/providers/notification_provider.dart';
+import '../../features/record/presentation/weight_screen.dart';
+import '../../features/record/presentation/feed_detail_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -58,6 +60,20 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (_, state) => RecordScreen(
               petId: int.parse(state.pathParameters['id']!),
               recordType: state.pathParameters['type']!,
+            ),
+          ),
+          // 05 몸무게 추이 화면
+          GoRoute(
+            path: '/pets/:id/weight',
+            builder: (_, state) => WeightScreen(
+              petId: int.parse(state.pathParameters['id']!),
+            ),
+          ),
+          // 05b 급여 기록 상세 화면
+          GoRoute(
+            path: '/pets/:id/feeding',
+            builder: (_, state) => FeedDetailScreen(
+              petId: int.parse(state.pathParameters['id']!),
             ),
           ),
           // /records → /pets로 리다이렉트 (루틴은 내 개체 관리 탭에서 관리)
