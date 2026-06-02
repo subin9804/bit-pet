@@ -540,7 +540,33 @@ class MockRoutineRepository extends RoutineRepository {
   Future<void> completeAllPetsToday(int routineId) async {}
 
   @override
-  Future<List<RoutineLog>> getLogs(int routineId) async => [];
+  Future<List<RoutineLog>> getLogs(int routineId) async {
+    final now = DateTime.now();
+    DateTime ago(int days, int hour, int min) =>
+        DateTime(now.year, now.month, now.day - days, hour, min);
+
+    // 루틴 id별 현실감 있는 mock 로그 (최신순)
+    final logs = <int, List<RoutineLog>>{
+      1: [ // 주 2회 피딩
+        RoutineLog(id:11, routineId:1, petId:1, status:RoutineLogStatus.COMPLETED, executedAt:ago(2,9,32), memo:'귀뚜라미 5마리 · 완식', createdAt:ago(2,9,32)),
+        RoutineLog(id:12, routineId:1, petId:1, status:RoutineLogStatus.COMPLETED, executedAt:ago(5,9,28), memo:'귀뚜라미 5마리 · 1마리 남김', createdAt:ago(5,9,28)),
+        RoutineLog(id:13, routineId:1, petId:1, status:RoutineLogStatus.REFUSED,   executedAt:ago(8,9,15), memo:'거부 · 다음날 재시도', createdAt:ago(8,9,15)),
+        RoutineLog(id:14, routineId:1, petId:1, status:RoutineLogStatus.COMPLETED, executedAt:ago(12,9,40), memo:'귀뚜라미 5마리 · 완식', createdAt:ago(12,9,40)),
+        RoutineLog(id:15, routineId:1, petId:1, status:RoutineLogStatus.COMPLETED, executedAt:ago(15,9,55), memo:'슈퍼웜 2 · 귀뚜라미 3', createdAt:ago(15,9,55)),
+      ],
+      2: [ // 케이지 청소
+        RoutineLog(id:21, routineId:2, petId:3, status:RoutineLogStatus.COMPLETED, executedAt:ago(3,11,20), memo:'바닥재 전체 교체 · 환기', createdAt:ago(3,11,20)),
+        RoutineLog(id:22, routineId:2, petId:3, status:RoutineLogStatus.COMPLETED, executedAt:ago(10,11,5), memo:'바닥재 교체', createdAt:ago(10,11,5)),
+        RoutineLog(id:23, routineId:2, petId:3, status:RoutineLogStatus.COMPLETED, executedAt:ago(17,11,32), memo:'부분 청소만', createdAt:ago(17,11,32)),
+      ],
+      3: [ // 월 1회 체중 측정
+        RoutineLog(id:31, routineId:3, petId:1, status:RoutineLogStatus.COMPLETED, executedAt:ago(7,19,4), memo:'76g · 전주 대비 +1g', createdAt:ago(7,19,4)),
+        RoutineLog(id:32, routineId:3, petId:1, status:RoutineLogStatus.COMPLETED, executedAt:ago(14,19,10), memo:'75g', createdAt:ago(14,19,10)),
+        RoutineLog(id:33, routineId:3, petId:2, status:RoutineLogStatus.COMPLETED, executedAt:ago(7,19,8), memo:'320g', createdAt:ago(7,19,8)),
+      ],
+    };
+    return logs[routineId] ?? [];
+  }
 
   @override
   Future<void> deleteLog(int logId) async {}
