@@ -9,6 +9,8 @@ import '../../features/notification/data/notification_repository.dart';
 import '../../features/notification/data/models/notification_models.dart';
 import '../../features/pet/data/pet_repository.dart';
 import '../../features/pet/data/models/pet_models.dart';
+import '../../features/pet/data/models/photo_models.dart';
+import '../../features/pet/data/photo_repository.dart';
 import '../../features/record/data/record_repository.dart';
 import '../../features/record/data/models/record_models.dart';
 import '../../features/routine/data/routine_repository.dart';
@@ -407,13 +409,51 @@ class MockRecordRepository extends RecordRepository {
 
   @override
   Future<List<CalendarDay>> getCalendar(
-          int petId, String yearMonth, List<String> categories) async =>
-      [];
+      int petId, String yearMonth, List<String> categories) async {
+    // 이번 달 mock 달력 데이터
+    final now = DateTime.now();
+    final ym  = '${now.year}-${now.month.toString().padLeft(2,'0')}';
+    if (yearMonth != ym) return [];
+    String dayStr(int d) => d.clamp(1, 28).toString().padLeft(2, '0');
+    return [
+      CalendarDay(date: '$ym-${dayStr(now.day - 4)}',
+          categories: ['WEIGHT', 'FEEDING']),
+      CalendarDay(date: '$ym-${dayStr(now.day - 1)}',
+          categories: ['FEEDING']),
+      CalendarDay(date: '$ym-${dayStr(now.day)}',
+          categories: ['WEIGHT', 'FEEDING', 'CLEANING']),
+    ];
+  }
 
   @override
   Future<List<TimelineItem>> getTimeline(int petId,
-          {String? from, String? to, List<String>? categories, int limit = 20}) async =>
-      [];
+      {String? from, String? to, List<String>? categories, int limit = 20}) async {
+    final now = DateTime.now();
+    // 선택일 필터 (from == to일 때 당일 기록만)
+    if (from != null && from == to) {
+      final todayStr = '${now.year}-${now.month.toString().padLeft(2,'0')}-${now.day.toString().padLeft(2,'0')}';
+      if (from != todayStr) return [];
+      return [
+        TimelineItem(id: 1, category: 'WEIGHT',
+            summary: '${_mockPets[1].latestWeightG?.toStringAsFixed(0)}g 측정',
+            recordedAt: now.subtract(const Duration(hours: 3))),
+        TimelineItem(id: 2, category: 'FEEDING',
+            summary: '귀뚜라미 5마리 · 완식',
+            recordedAt: now.subtract(const Duration(hours: 1))),
+      ];
+    }
+    // 요약 카드용 최근 기록
+    return [
+      TimelineItem(id: 1, category: 'WEIGHT',
+          summary: '320g', recordedAt: now.subtract(const Duration(days: 3))),
+      TimelineItem(id: 2, category: 'FEEDING',
+          summary: '냉동 마우스 1마리', recordedAt: now.subtract(const Duration(days: 2))),
+      TimelineItem(id: 3, category: 'CLEANING',
+          summary: '전체 청소', recordedAt: now.subtract(const Duration(days: 5))),
+      TimelineItem(id: 4, category: 'MEMO',
+          summary: '탈피 시작한 것 같음', recordedAt: now.subtract(const Duration(days: 2))),
+    ];
+  }
 
   @override
   Future<List<RecentRecord>> getRecentRecords({int limit = 5}) async =>
@@ -612,6 +652,32 @@ class MockPostRepository extends PostRepository {
 }
 
 // ────────────────────────────────────────────────────────────────────
+// Photo Mock
+// ────────────────────────────────────────────────────────────────────
+
+class MockPhotoRepository extends PhotoRepository {
+  MockPhotoRepository() : super(Dio());
+
+  @override
+  Future<List<PetPhoto>> getPhotos({
+    required String entityType,
+    required int entityId,
+  }) async => []; // 목 모드에서는 빈 갤러리 표시
+
+  @override
+  Future<PetPhoto> uploadPhoto({
+    required String entityType,
+    required int entityId,
+    required String uploadUrl,
+    required String key,
+  }) async =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> deletePhoto(int photoId) async {}
+}
+
+// ────────────────────────────────────────────────────────────────────
 // Riverpod overrides — main.dart에서 사용
 // ────────────────────────────────────────────────────────────────────
 
@@ -624,4 +690,5 @@ List<Override> buildMockOverrides() => [
       notificationRepositoryProvider
           .overrideWithValue(MockNotificationRepository()),
       postRepositoryProvider.overrideWithValue(MockPostRepository()),
+      photoRepositoryProvider.overrideWithValue(MockPhotoRepository()),
     ];

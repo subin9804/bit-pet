@@ -1,11 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/api/api_client.dart';
+import '../../../core/mock/mock_config.dart';
 import '../data/feed_repository.dart';
 import '../data/models/feed_models.dart';
 
-// Repository provider — MockFeedRepository를 기본값으로, DioFeedRepository로 교체 가능
-final feedRepositoryProvider = Provider<FeedRepository>(
-  (ref) => MockFeedRepository(),
-);
+// kMockMode = true → Mock, false → 실서버
+final feedRepositoryProvider = Provider<FeedRepository>((ref) {
+  if (kMockMode) return MockFeedRepository();
+  return DioFeedRepository(ref.watch(dioProvider));
+});
 
 // 급여 세션 StateNotifier
 class FeedSessionsNotifier

@@ -142,7 +142,10 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
                               petId: widget.petId,
                               paletteKey: paletteKey,
                             ),
-                            GalleryTab(paletteKey: paletteKey),
+                            GalleryTab(
+                              petId: widget.petId,
+                              paletteKey: paletteKey,
+                            ),
                           ],
                         ),
                       ),

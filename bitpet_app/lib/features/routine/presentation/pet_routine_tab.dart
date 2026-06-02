@@ -214,7 +214,7 @@ class _RoutineCardCompact extends StatelessWidget {
 }
 
 // ── 확장 카드 ──────────────────────────────────────────────
-class _RoutineCardExpanded extends StatelessWidget {
+class _RoutineCardExpanded extends ConsumerWidget {
   final RoutineWithSubscription item;
   final PetPaletteKey paletteKey;
   final VoidCallback onCollapse;
@@ -242,14 +242,37 @@ class _RoutineCardExpanded extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final pale     = PalePalette.pale(paletteKey);
-    final paleInk  = PalePalette.ink(paletteKey);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pale    = PalePalette.pale(paletteKey);
+    final paleInk = PalePalette.ink(paletteKey);
     final r = item.routine;
 
-    // mock 14일 타임라인 (추후 getLogs API 대체)
-    final timeline = List.generate(14, (i) => i % 3 == 2 ? 1 : 0);
+    // 최근 14일 타임라인 — routineLogsProvider로 실 데이터 연결
+    final logsAsync = ref.watch(routineLogsProvider(r.id));
+    final today     = DateTime.now();
+    final cutoff    = today.subtract(const Duration(days: 14));
+
+    // 로그에서 14일 타임라인 배열 생성 (인덱스 0=14일전 ... 13=오늘)
+    final timeline = logsAsync.whenOrNull(data: (logs) {
+      final arr = List.filled(14, 0);
+      for (final log in logs) {
+        if (log.status == RoutineLogStatus.COMPLETED &&
+            log.executedAt.isAfter(cutoff)) {
+          final idx = log.executedAt.difference(cutoff).inDays;
+          if (idx >= 0 && idx < 14) arr[idx] = 1;
+        }
+      }
+      return arr;
+    }) ?? List.generate(14, (i) => i % 3 == 2 ? 1 : 0); // 로딩 중 임시 표시
+
     final doneCount = timeline.where((v) => v == 1).length;
+
+    // 최근 기록 (최대 3건)
+    final recentLogs = logsAsync.whenOrNull(data: (logs) {
+      final sorted = [...logs]
+        ..sort((a, b) => b.executedAt.compareTo(a.executedAt));
+      return sorted.take(3).toList();
+    }) ?? [];
 
     return Container(
       decoration: BoxDecoration(
@@ -411,6 +434,64 @@ class _RoutineCardExpanded extends StatelessWidget {
             ),
           ),
 
+          // ── 최근 기록 (실제 로그) ──
+          if (recentLogs.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('최근 기록',
+                      style: TextStyle(
+                          fontSize: 11, fontWeight: FontWeight.w700,
+                          color: AppColors.paleInk2, letterSpacing: 0.3)),
+                  const SizedBox(height: 6),
+                  ...recentLogs.asMap().entries.map((e) {
+                    final i   = e.key;
+                    final log = e.value;
+                    return Container(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        border: i < recentLogs.length - 1
+                            ? const Border(bottom: BorderSide(
+                                color: AppColors.paleLineSoft))
+                            : null,
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 14, height: 14,
+                            decoration: BoxDecoration(
+                              color: PalePalette.ink(paletteKey),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            alignment: Alignment.center,
+                            child: const Text('✓',
+                                style: TextStyle(
+                                    fontSize: 9, fontWeight: FontWeight.w700,
+                                    color: AppColors.card)),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              log.memo ?? '완료',
+                              style: const TextStyle(
+                                  fontSize: 12, color: AppColors.primary),
+                            ),
+                          ),
+                          Text(
+                            _fmtExact(log.executedAt),
+                            style: AppTextStyles.monoXs,
+                            textAlign: TextAlign.right,
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+
           // ── 퀵 액션 3분할 ──
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
@@ -455,6 +536,9 @@ class _RoutineCardExpanded extends StatelessWidget {
     if (diff == 1) return '내일 ${dt.hour.toString().padLeft(2,'0')}:${dt.minute.toString().padLeft(2,'0')}';
     return '${dt.month}.${dt.day}';
   }
+
+  String _fmtExact(DateTime dt) =>
+      '${dt.month.toString().padLeft(2,'0')}.${dt.day.toString().padLeft(2,'0')}\n${dt.hour.toString().padLeft(2,'0')}:${dt.minute.toString().padLeft(2,'0')}';
 }
 
 // Toggle 스위치

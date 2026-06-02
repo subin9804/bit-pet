@@ -229,6 +229,24 @@ class RecordRepository {
     await _dio.delete('/layings/$layingId');
   }
 
+  // ── 급여 수정/삭제 ──────────────────────────────────────────
+
+  Future<FeedingRecord> updateFeeding(int id, Map<String, dynamic> data) async {
+    final res = await _dio.patch('/feedings/$id', data: data);
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => FeedingRecord.fromJson(d as Map<String, dynamic>),
+    );
+    if (!apiRes.success || apiRes.data == null) {
+      throw ApiException(statusCode: res.statusCode ?? 0, message: apiRes.message ?? '급여 수정 실패');
+    }
+    return apiRes.data!;
+  }
+
+  Future<void> deleteFeeding(int id) async {
+    await _dio.delete('/feedings/$id');
+  }
+
   // ── 달력 (v5) ─────────────────────────────────────────────
 
   Future<List<CalendarDay>> getCalendar(

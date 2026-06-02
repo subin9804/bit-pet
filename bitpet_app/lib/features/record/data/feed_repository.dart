@@ -1,7 +1,8 @@
-// 급여 기록 Repository — 추상 인터페이스 + 로컬 Mock 구현
-// 추후 DioFeedRepository(Dio) 로 교체
-
+import 'package:dio/dio.dart';
+import '../../../core/api/api_client.dart';
+import '../../../core/api/api_response.dart';
 import 'models/feed_models.dart';
+import 'models/record_models.dart';
 
 abstract class FeedRepository {
   Future<List<FeedSession>> getSessions(int petId);
@@ -87,5 +88,91 @@ class MockFeedRepository implements FeedRepository {
   Future<void> deleteSession(int petId, String sessionId) async {
     await getSessions(petId);
     _store[petId]!.removeWhere((s) => s.id == sessionId);
+  }
+}
+
+// ── 실서버 구현 ───────────────────────────────────────────────
+// 백엔드 feeding_dtl (1행 = 1먹이)을 FeedSession (1세션 = N먹이)으로 매핑.
+// 현재 백엔드가 단일 foodType 구조이므로 각 레코드를 단일-아이템 세션으로 변환.
+class DioFeedRepository implements FeedRepository {
+  final Dio _dio;
+  DioFeedRepository(this._dio);
+
+  // FeedingRecord → FeedSession 변환
+  static FeedSession _toSession(FeedingRecord r) {
+    final dt = r.fedAt;
+    return FeedSession(
+      id: r.id.toString(),
+      date: '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}',
+      time: '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}',
+      items: [FeedItem(food: r.foodType, amt: r.amount?.toInt() ?? 1)],
+      memo: r.memo ?? '',
+    );
+  }
+
+  @override
+  Future<List<FeedSession>> getSessions(int petId) async {
+    final res = await _dio.get('/pets/$petId/feedings');
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => (d as List)
+          .map((e) => FeedingRecord.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+    return (apiRes.data ?? []).map(_toSession).toList();
+  }
+
+  @override
+  Future<FeedSession> addSession(int petId, FeedSession session) async {
+    // 다중 아이템일 경우 첫 번째 아이템으로 대표 등록
+    // TODO: 백엔드가 멀티 아이템 지원 시 반복 POST 또는 스키마 변경
+    final item = session.items.isNotEmpty
+        ? session.items.first
+        : const FeedItem(food: '귀뚜라미', amt: 1);
+    final fedAt = DateTime.parse(
+        '${session.date}T${session.time.length == 5 ? "${session.time}:00" : session.time}');
+    final res = await _dio.post('/pets/$petId/feedings', data: {
+      'foodType': item.food,
+      'amount': item.amt.toDouble(),
+      'unit': '마리',
+      'fedAt': fedAt.toIso8601String(),
+      if (session.memo.isNotEmpty) 'memo': session.memo,
+    });
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => FeedingRecord.fromJson(d as Map<String, dynamic>),
+    );
+    if (!apiRes.success || apiRes.data == null) {
+      throw ApiException(
+          statusCode: res.statusCode ?? 0, message: apiRes.message ?? '급여 기록 실패');
+    }
+    return _toSession(apiRes.data!);
+  }
+
+  @override
+  Future<FeedSession> updateSession(int petId, FeedSession session) async {
+    final item = session.items.isNotEmpty ? session.items.first : const FeedItem(food: '귀뚜라미', amt: 1);
+    final fedAt = DateTime.parse(
+        '${session.date}T${session.time.length == 5 ? "${session.time}:00" : session.time}');
+    final res = await _dio.patch('/feedings/${session.id}', data: {
+      'foodType': item.food,
+      'amount': item.amt.toDouble(),
+      'fedAt': fedAt.toIso8601String(),
+      'memo': session.memo,
+    });
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => FeedingRecord.fromJson(d as Map<String, dynamic>),
+    );
+    if (!apiRes.success || apiRes.data == null) {
+      throw ApiException(
+          statusCode: res.statusCode ?? 0, message: apiRes.message ?? '급여 수정 실패');
+    }
+    return _toSession(apiRes.data!);
+  }
+
+  @override
+  Future<void> deleteSession(int petId, String sessionId) async {
+    await _dio.delete('/feedings/$sessionId');
   }
 }

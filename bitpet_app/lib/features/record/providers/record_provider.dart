@@ -40,3 +40,49 @@ final layingListProvider =
 final recentRecordsProvider = FutureProvider<List<RecentRecord>>((ref) {
   return ref.watch(recordRepositoryProvider).getRecentRecords();
 });
+
+// ── 개체 상세 — 달력 (월별 카테고리 점) ─────────────────────
+class PetYearMonth {
+  final int petId;
+  final String yearMonth; // "YYYY-MM"
+  const PetYearMonth(this.petId, this.yearMonth);
+  @override bool operator ==(Object o) =>
+      o is PetYearMonth && o.petId == petId && o.yearMonth == yearMonth;
+  @override int get hashCode => Object.hash(petId, yearMonth);
+}
+
+final petCalendarProvider =
+    FutureProvider.family<List<CalendarDay>, PetYearMonth>((ref, param) {
+  return ref
+      .watch(recordRepositoryProvider)
+      .getCalendar(param.petId, param.yearMonth, const []);
+});
+
+// ── 개체 상세 — 선택일 타임라인 ──────────────────────────────
+class PetDateParam {
+  final int petId;
+  final String date; // "YYYY-MM-DD"
+  const PetDateParam(this.petId, this.date);
+  @override bool operator ==(Object o) =>
+      o is PetDateParam && o.petId == petId && o.date == date;
+  @override int get hashCode => Object.hash(petId, date);
+}
+
+final petDayTimelineProvider =
+    FutureProvider.family<List<TimelineItem>, PetDateParam>((ref, param) {
+  return ref.watch(recordRepositoryProvider).getTimeline(
+        param.petId,
+        from: param.date,
+        to:   param.date,
+        limit: 50,
+      );
+});
+
+// ── 개체 상세 — 요약 카드 (카테고리별 최신 1건) ─────────────
+final petRecordSummaryProvider =
+    FutureProvider.family<List<TimelineItem>, int>((ref, petId) {
+  return ref.watch(recordRepositoryProvider).getTimeline(
+        petId,
+        limit: 30,
+      );
+});
