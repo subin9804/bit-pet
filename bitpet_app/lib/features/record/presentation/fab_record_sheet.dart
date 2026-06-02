@@ -1,22 +1,61 @@
-﻿// SCR-11: FAB 기록 바텀시트 (v5)
-// 4단계 플로우:
-//   1단계: 기록 유형 선택 (급여/청소/체중/메모)
-//   2단계: 개체 선택 (복합 선택: 개별 OR 전체)
-//   3단계: 상세 입력 (유형별 폼)
-//   4단계: 완료 확인
-// routine_id = NULL (FAB 독립 기록)
+// FAB 기록 바텀시트 — 피딩 플로우 06 → 06b → 06c → 06d / 06e
+// 단일 모달 시트 안에서 단계를 전환해 슬라이드업 애니메이션을 1회만 발생.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/theme/pale_palette.dart';
+import '../../../core/widgets/step_dots.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../../pet/data/models/pet_models.dart';
 import '../../pet/providers/pet_provider.dart';
-import '../../record/data/models/record_models.dart';
-import '../../record/data/record_repository.dart';
+import '../data/models/feed_models.dart';
+import '../data/record_repository.dart';
+import '../providers/record_provider.dart';
+import '../providers/feed_provider.dart';
+import 'widgets/feed_composer_fields.dart';
+import 'widgets/selected_pet_row.dart';
 
-enum _RecordType { feeding, weight, cleaning, memo }
+// ── 플로우 단계 ────────────────────────────────────────────────
+enum _FabStep {
+  chooseType, // 06  기록 종류 6그리드
+  pickPets,   // 06b 개체 다중 선택
+  feedChoice, // 06c BULK / PER-PET
+  feedBulk,   // 06d 일괄 폼
+  feedPerPet, // 06e 개별 탭 폼
+  done,       // 완료
+}
 
+enum _FeedMode { bulk, perPet }
+
+// 개체별 폼 상태
+class _PerPetEntry {
+  FeedFormData form;
+  bool filled;
+  _PerPetEntry() : form = const FeedFormData(), filled = false;
+}
+
+// ── 6 기록 종류 정의 ──────────────────────────────────────────
+class _RecordType {
+  final String id;
+  final String ko;
+  final String en;
+  final String ex;
+  final IconData icon;
+  final Color color;
+  const _RecordType(this.id, this.ko, this.en, this.ex, this.icon, this.color);
+}
+
+const _recordTypes = [
+  _RecordType('feed',  '피딩',   'FEEDING', '먹이·시간·양',     Icons.restaurant_outlined,       AppColors.feedBand),
+  _RecordType('scale', '몸무게', 'WEIGHT',  '측정 기록',        Icons.monitor_weight_outlined,   AppColors.petSage),
+  _RecordType('clean', '청소',   'CLEAN',   '바닥재·환기',       Icons.cleaning_services_outlined, AppColors.petSky),
+  _RecordType('note',  '메모',   'NOTE',    '병원·관찰·증상',    Icons.note_alt_outlined,          AppColors.petLilac),
+  _RecordType('mate',  '메이팅', 'MATING',  '합방·관찰',        Icons.favorite_outline,           AppColors.petCoral),
+  _RecordType('lay',   '산란',   'LAYING',  '알 수·인큐베이션', Icons.egg_outlined,               AppColors.petButter),
+];
+
+// ── 메인 위젯 ──────────────────────────────────────────────────
 class FabRecordSheet extends ConsumerStatefulWidget {
   const FabRecordSheet({super.key});
 
@@ -25,98 +64,301 @@ class FabRecordSheet extends ConsumerStatefulWidget {
 }
 
 class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
-  int _step = 0;
-  _RecordType? _selectedType;
+  _FabStep _step = _FabStep.chooseType;
+  String   _typeId = '';          // 선택된 기록 종류
   final Set<int> _selectedPetIds = {};
-  bool _loading = false;
 
-  // 급여 폼
-  final _foodTypeController = TextEditingController();
-  FeedResponse _feedResponse = FeedResponse.COMPLETE;
+  // 06c
+  _FeedMode _feedMode = _FeedMode.bulk;
 
-  // 체중 폼
-  final _weightController = TextEditingController();
+  // 06d 일괄 폼
+  FeedFormData _bulkForm = const FeedFormData();
 
-  // 메모 폼
-  final _contentController = TextEditingController();
+  // 06e 개별 폼
+  final Map<int, _PerPetEntry> _perPetForms = {};
+  int _activePerPetIdx = 0;
 
-  // 공통 메모
-  final _memoController = TextEditingController();
+  // 저장
+  bool _saving = false;
+  int  _savedCount = 0;
 
-  // 청소 유형
-  CleaningType _cleaningType = CleaningType.FULL;
-
-  @override
-  void dispose() {
-    _foodTypeController.dispose();
-    _weightController.dispose();
-    _contentController.dispose();
-    _memoController.dispose();
-    super.dispose();
+  // ── 헬퍼 ────────────────────────────────────────────────────
+  List<Pet> _selectedPets(AsyncValue<List<Pet>> petsAsync) {
+    final all = petsAsync.whenOrNull(data: (l) => l) ?? [];
+    final order = _selectedPetIds.toList();
+    return order.map((id) => all.firstWhere(
+      (p) => p.id == id,
+      orElse: () => all.first,
+    )).where((p) => _selectedPetIds.contains(p.id)).toList();
   }
 
+  void _onTypeSelected(String typeId) {
+    setState(() {
+      _typeId = typeId;
+      _step   = _FabStep.pickPets;
+    });
+  }
+
+  void _applyPets(Set<int> ids) {
+    setState(() {
+      _selectedPetIds
+        ..clear()
+        ..addAll(ids);
+      if (_typeId == 'feed') {
+        if (ids.length <= 1) {
+          // 1마리 → 06c 건너뛰고 06d 직행
+          _step = _FabStep.feedBulk;
+        } else {
+          _step = _FabStep.feedChoice;
+        }
+      } else {
+        // 피딩 이외 종류 → 간단 폼(추후 확장)
+        _step = _FabStep.feedBulk;
+      }
+    });
+  }
+
+  void _initPerPetForms(List<Pet> pets) {
+    for (final p in pets) {
+      _perPetForms.putIfAbsent(p.id, () => _PerPetEntry());
+    }
+  }
+
+  int get _filledCount =>
+      _perPetForms.values.where((e) => e.filled).length;
+
+  void _markFilled(int petId, bool val, List<Pet> pets) {
+    setState(() {
+      _perPetForms[petId]!.filled = val;
+      if (val) {
+        // 다음 미완료 개체로 자동 이동
+        final nextIdx = pets.indexWhere(
+            (p) => !(_perPetForms[p.id]?.filled ?? false) && p.id != petId);
+        if (nextIdx != -1) _activePerPetIdx = nextIdx;
+      }
+    });
+  }
+
+  // ── 저장 ─────────────────────────────────────────────────────
+  Future<void> _saveBulk(List<Pet> pets) async {
+    if (_bulkForm.items.isEmpty) {
+      showToast(context, '급여를 추가해 주세요', type: ToastType.warning);
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      final repo = ref.read(recordRepositoryProvider);
+      final now  = DateTime.now();
+      for (final pet in pets) {
+        for (final item in _bulkForm.items) {
+          await repo.addFeeding(pet.id, {
+            'foodType': item.food,
+            'amount':   item.amt.toDouble(),
+            'unit':     '마리',
+            'fedAt':    now.toIso8601String(),
+            if (_bulkForm.memo.isNotEmpty) 'memo': _bulkForm.memo,
+          });
+        }
+        ref.invalidate(feedSessionsProvider(pet.id));
+        ref.invalidate(petDetailProvider(pet.id));
+      }
+      setState(() {
+        _savedCount = pets.length;
+        _step = _FabStep.done;
+      });
+    } catch (e) {
+      if (mounted) showToast(context, '저장 실패: $e', type: ToastType.error);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _savePerPet(List<Pet> pets) async {
+    setState(() => _saving = true);
+    try {
+      final repo = ref.read(recordRepositoryProvider);
+      final now  = DateTime.now();
+      int count = 0;
+      for (final pet in pets) {
+        final entry = _perPetForms[pet.id];
+        if (entry == null || !entry.filled) continue;
+        for (final item in entry.form.items) {
+          await repo.addFeeding(pet.id, {
+            'foodType': item.food,
+            'amount':   item.amt.toDouble(),
+            'unit':     '마리',
+            'fedAt':    now.toIso8601String(),
+            if (entry.form.memo.isNotEmpty) 'memo': entry.form.memo,
+          });
+        }
+        ref.invalidate(feedSessionsProvider(pet.id));
+        ref.invalidate(petDetailProvider(pet.id));
+        count++;
+      }
+      setState(() {
+        _savedCount = count;
+        _step = _FabStep.done;
+      });
+    } catch (e) {
+      if (mounted) showToast(context, '저장 실패: $e', type: ToastType.error);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  // ── 뒤로 ─────────────────────────────────────────────────────
+  void _goBack() {
+    setState(() {
+      _step = switch (_step) {
+        _FabStep.pickPets   => _FabStep.chooseType,
+        _FabStep.feedChoice => _FabStep.pickPets,
+        _FabStep.feedBulk   =>
+            _selectedPetIds.length > 1 ? _FabStep.feedChoice : _FabStep.pickPets,
+        _FabStep.feedPerPet => _FabStep.feedChoice,
+        _                   => _FabStep.chooseType,
+      };
+    });
+  }
+
+  // ── 빌드 ─────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
-      initialChildSize: 0.6,
-      maxChildSize: 0.95,
-      minChildSize: 0.4,
-      expand: false,
-      builder: (_, controller) => Column(
+    final petsAsync = ref.watch(petListProvider);
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.paleBg,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // 핸들
-          Center(
-            child: Container(
-              margin: const EdgeInsets.symmetric(vertical: 12),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.border,
-                borderRadius: BorderRadius.circular(2),
+          // 그랩 핸들
+          Container(
+            width: 44, height: 4,
+            margin: const EdgeInsets.fromLTRB(0, 8, 0, 10),
+            decoration: BoxDecoration(
+              color: AppColors.paleLine,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          // 단계별 본문
+          Flexible(
+            child: _buildStep(petsAsync),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStep(AsyncValue<List<Pet>> petsAsync) {
+    return switch (_step) {
+      _FabStep.chooseType => _buildChooseType(petsAsync),
+      _FabStep.pickPets   => _buildPickPets(),
+      _FabStep.feedChoice => _buildFeedChoice(petsAsync),
+      _FabStep.feedBulk   => _buildFeedBulk(petsAsync),
+      _FabStep.feedPerPet => _buildFeedPerPet(petsAsync),
+      _FabStep.done       => _buildDone(),
+    };
+  }
+
+  // ── 06 · 기록 종류 선택 ────────────────────────────────────────
+  Widget _buildChooseType(AsyncValue<List<Pet>> petsAsync) {
+    // 현재 컨텍스트 개체 (첫 번째 개체를 기본으로)
+    final contextPet = petsAsync.whenOrNull(data: (l) => l.isNotEmpty ? l.first : null);
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(22, 4, 22, 28),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 헤더
+          Text('NEW RECORD',
+              style: AppTextStyles.mono(11, FontWeight.w700,
+                  color: AppColors.paleInk2)),
+          const SizedBox(height: 4),
+          const Text('어떤 기록을 추가할까요?',
+              style: TextStyle(
+                  fontSize: 20, fontWeight: FontWeight.w700,
+                  color: AppColors.primary, letterSpacing: -0.4)),
+          const SizedBox(height: 14),
+
+          // 대상 개체 셀렉터
+          if (contextPet != null)
+            GestureDetector(
+              onTap: () => setState(() => _step = _FabStep.pickPets),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppColors.card,
+                  border: Border.all(color: AppColors.paleLine),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36, height: 36,
+                      decoration: BoxDecoration(
+                        color: PalePalette.pale(
+                            PalePalette.keyFromHex(contextPet.colorCode)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.pets, size: 18,
+                          color: AppColors.primary),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('대상 개체',
+                              style: const TextStyle(
+                                  fontSize: 11, fontWeight: FontWeight.w700,
+                                  color: AppColors.paleInk2)),
+                          const SizedBox(height: 1),
+                          Text(
+                            contextPet.name,
+                            style: const TextStyle(
+                                fontSize: 14, fontWeight: FontWeight.w700,
+                                color: AppColors.primary),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right,
+                        size: 18, color: AppColors.paleInk2),
+                  ],
+                ),
               ),
             ),
+          const SizedBox(height: 14),
+
+          // 기록 종류 2열 × 3행 그리드
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+            childAspectRatio: 1.55,
+            children: _recordTypes.map((rt) => _TypeCard(
+              type: rt,
+              onTap: () => _onTypeSelected(rt.id),
+            )).toList(),
           ),
-          // 헤더
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              children: [
-                if (_step > 0)
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back_ios, size: 16),
-                    onPressed: () => setState(() => _step--),
-                    padding: EdgeInsets.zero,
-                  ),
-                Text(_stepTitle(), style: AppTextStyles.title),
-              ],
-            ),
-          ),
-          // 단계 인디케이터
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-            child: Row(
-              children: List.generate(4, (i) {
-                return Expanded(
-                  child: Container(
-                    height: 3,
-                    margin: const EdgeInsets.only(right: 4),
-                    decoration: BoxDecoration(
-                      color: i <= _step
-                          ? AppColors.primary
-                          : AppColors.border,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                );
-              }),
-            ),
-          ),
-          const Divider(height: 8),
-          Expanded(
-            child: SingleChildScrollView(
-              controller: controller,
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: _buildStep(),
+          const SizedBox(height: 14),
+
+          // 취소
+          GestureDetector(
+            onTap: () => Navigator.of(context).pop(),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              alignment: Alignment.center,
+              child: Text('취소',
+                  style: TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w600,
+                      color: AppColors.paleInk2)),
             ),
           ),
         ],
@@ -124,320 +366,1039 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
     );
   }
 
-  String _stepTitle() => switch (_step) {
-        0 => '기록 유형 선택',
-        1 => '개체 선택',
-        2 => '상세 입력',
-        3 => '완료',
-        _ => '기록',
-      };
+  // ── 06b · 대상 개체 선택 (인라인) ─────────────────────────────
+  Widget _buildPickPets() {
+    return _PetPickerContent(
+      preSelected: _selectedPetIds,
+      onApply: (ids) => _applyPets(ids),
+      onBack: _goBack,
+    );
+  }
 
-  Widget _buildStep() => switch (_step) {
-        0 => _buildTypeStep(),
-        1 => _buildPetStep(),
-        2 => _buildFormStep(),
-        3 => _buildConfirmStep(),
-        _ => const SizedBox(),
-      };
-
-  // 1단계: 기록 유형 선택
-  Widget _buildTypeStep() {
-    const types = [
-      (_RecordType.feeding, Icons.restaurant_outlined, '급여', '먹이를 급여했어요'),
-      (_RecordType.weight, Icons.monitor_weight_outlined, '체중', '몸무게를 측정했어요'),
-      (_RecordType.cleaning, Icons.cleaning_services_outlined, '청소', '사육장 청소를 했어요'),
-      (_RecordType.memo, Icons.note_alt_outlined, '메모', '일지·건강 메모를 남겨요'),
-    ];
+  // ── 06c · 일괄/개별 선택 ──────────────────────────────────────
+  Widget _buildFeedChoice(AsyncValue<List<Pet>> petsAsync) {
+    final pets = _selectedPets(petsAsync);
     return Column(
-      children: types.map((t) {
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: InkWell(
-            onTap: () {
-              setState(() {
-                _selectedType = t.$1;
-                _step = 1;
-              });
-            },
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                border: Border.all(color: AppColors.border),
-                borderRadius: BorderRadius.circular(8),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // 헤더
+        Padding(
+          padding: const EdgeInsets.fromLTRB(22, 4, 22, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Text('NEW FEEDING',
+                    style: AppTextStyles.mono(11, FontWeight.w700,
+                        color: AppColors.paleInk2)),
+                const SizedBox(width: 8),
+                const StepDots(step: 2),
+              ]),
+              const SizedBox(height: 6),
+              const Text('어떻게 입력할까요?',
+                  style: TextStyle(
+                      fontSize: 20, fontWeight: FontWeight.w700,
+                      color: AppColors.primary, letterSpacing: -0.4)),
+              const SizedBox(height: 4),
+              Text('여러 개체를 선택했어요. 같은 정보로 한 번에 기록하거나\n개체별로 다르게 작성할 수 있어요',
+                  style: TextStyle(fontSize: 12, color: AppColors.paleInk2)),
+            ],
+          ),
+        ),
+        if (pets.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(22, 0, 22, 12),
+            child: SelectedPetRow(pets: pets),
+          ),
+        // 선택 카드
+        Flexible(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 22),
+            child: Column(
+              children: [
+                _ChoiceCard(
+                  icon: Icons.grid_view_outlined,
+                  en: 'BULK',
+                  title: '일괄 입력',
+                  desc: '선택한 개체 모두에게 같은 정보로 기록할 거예요',
+                  examples: const ['귀뚜라미 5마리', '같은 시각 · 같은 메모'],
+                  recommended: true,
+                  selected: _feedMode == _FeedMode.bulk,
+                  onTap: () => setState(() => _feedMode = _FeedMode.bulk),
+                ),
+                const SizedBox(height: 10),
+                _ChoiceCard(
+                  icon: Icons.view_list_outlined,
+                  en: 'PER-PET',
+                  title: '개별 입력',
+                  desc: '개체마다 다른 양·메모를 따로 작성할 거예요',
+                  examples: const ['고도 5마리', '삼식 3마리', '베타 1마리'],
+                  selected: _feedMode == _FeedMode.perPet,
+                  onTap: () => setState(() => _feedMode = _FeedMode.perPet),
+                ),
+              ],
+            ),
+          ),
+        ),
+        // 푸터
+        _Footer(
+          onBack: _goBack,
+          nextLabel: '다음',
+          onNext: () => setState(() => _step = _feedMode == _FeedMode.bulk
+              ? _FabStep.feedBulk
+              : _FabStep.feedPerPet),
+        ),
+      ],
+    );
+  }
+
+  // ── 06d · 일괄 폼 ────────────────────────────────────────────
+  Widget _buildFeedBulk(AsyncValue<List<Pet>> petsAsync) {
+    final pets = _selectedPets(petsAsync);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // 헤더
+        Padding(
+          padding: const EdgeInsets.fromLTRB(22, 4, 22, 6),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Text(
+                  _typeId == 'feed' ? 'FEEDING · BULK' : _typeId.toUpperCase(),
+                  style: AppTextStyles.mono(11, FontWeight.w700,
+                      color: AppColors.paleInk2),
+                ),
+                const SizedBox(width: 8),
+                const StepDots(step: 3),
+              ]),
+              const SizedBox(height: 6),
+              const Text('피딩 기록',
+                  style: TextStyle(
+                      fontSize: 20, fontWeight: FontWeight.w700,
+                      color: AppColors.primary, letterSpacing: -0.4)),
+            ],
+          ),
+        ),
+        if (pets.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(22, 0, 22, 2),
+            child: SelectedPetRow(pets: pets),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(22, 4, 22, 0),
+            child: Text(
+              '아래 급여 목록을 모든 개체에 동일하게 기록해요',
+              textAlign: TextAlign.right,
+              style: TextStyle(fontSize: 11, color: AppColors.paleInk2),
+            ),
+          ),
+        ],
+        // 본문 (스크롤)
+        Flexible(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(22, 8, 22, 14),
+            child: FeedComposerFields(
+              form: _bulkForm,
+              onChanged: (f) => setState(() => _bulkForm = f),
+            ),
+          ),
+        ),
+        // 푸터
+        _Footer(
+          onBack: _goBack,
+          nextLabel: '완료',
+          nextIcon: Icons.check,
+          nextEnabled: _bulkForm.hasItems && !_saving,
+          nextBadge: _bulkForm.hasItems ? '${_bulkForm.items.length}종 저장' : null,
+          loading: _saving,
+          onNext: () => _saveBulk(pets),
+        ),
+      ],
+    );
+  }
+
+  // ── 06e · 개별 탭 폼 ─────────────────────────────────────────
+  Widget _buildFeedPerPet(AsyncValue<List<Pet>> petsAsync) {
+    final pets = _selectedPets(petsAsync);
+    if (pets.isEmpty) return const SizedBox.shrink();
+    _initPerPetForms(pets);
+
+    final activePet = pets[_activePerPetIdx];
+    final entry     = _perPetForms[activePet.id]!;
+    final pale      = PalePalette.pale(
+        PalePalette.keyFromHex(activePet.colorCode));
+    final paleInk   = PalePalette.ink(
+        PalePalette.keyFromHex(activePet.colorCode));
+    final allFilled = _filledCount == pets.length;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // 헤더
+        Padding(
+          padding: const EdgeInsets.fromLTRB(22, 4, 22, 6),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      Text('FEEDING · PER-PET',
+                          style: AppTextStyles.mono(11, FontWeight.w700,
+                              color: AppColors.paleInk2)),
+                      const SizedBox(width: 8),
+                      const StepDots(step: 3),
+                    ]),
+                    const SizedBox(height: 6),
+                    const Text('피딩 기록',
+                        style: TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.w700,
+                            color: AppColors.primary, letterSpacing: -0.4)),
+                  ],
+                ),
               ),
-              child: Row(
-                children: [
-                  Icon(t.$2, color: AppColors.primary),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+              // 완료 카운트 pill
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: allFilled ? AppColors.feedBand : AppColors.card,
+                  border: allFilled
+                      ? null
+                      : Border.all(color: AppColors.paleLine),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  '$_filledCount / ${pets.length}',
+                  style: AppTextStyles.mono(11, FontWeight.w700,
+                      color: AppColors.paleInk2),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // 개체 탭 (가로 스크롤)
+        Container(
+          height: 46,
+          decoration: BoxDecoration(
+            border: Border(
+                bottom: BorderSide(color: AppColors.paleLineSoft)),
+          ),
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.fromLTRB(22, 4, 22, 4),
+            itemCount: pets.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 6),
+            itemBuilder: (_, i) {
+              final p       = pets[i];
+              final active  = i == _activePerPetIdx;
+              final pKey    = PalePalette.keyFromHex(p.colorCode);
+              final pPale   = PalePalette.pale(pKey);
+              final pInk    = PalePalette.ink(pKey);
+              final isFilled = _perPetForms[p.id]?.filled ?? false;
+              return GestureDetector(
+                onTap: () => setState(() => _activePerPetIdx = i),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: active ? pPale : AppColors.card,
+                    border: Border.all(
+                        color: active ? pInk : AppColors.paleLine,
+                        width: active ? 1.5 : 1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
                     children: [
-                      Text(t.$3, style: AppTextStyles.bodyBold),
-                      Text(t.$4, style: AppTextStyles.caption),
+                      Container(
+                        width: 22, height: 22,
+                        decoration: BoxDecoration(
+                          color: active
+                              ? Colors.white.withValues(alpha: 0.55)
+                              : pPale,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Icon(Icons.pets, size: 12,
+                            color: AppColors.primary),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(p.name,
+                          style: const TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w700,
+                              color: AppColors.primary)),
+                      const SizedBox(width: 6),
+                      isFilled
+                          ? Container(
+                              width: 14, height: 14,
+                              decoration: const BoxDecoration(
+                                  color: AppColors.primary,
+                                  shape: BoxShape.circle),
+                              child: const Icon(Icons.check,
+                                  size: 9, color: Colors.white))
+                          : Container(
+                              width: 14, height: 14,
+                              decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                      color: AppColors.paleInk3,
+                                      width: 1.5,
+                                      style: BorderStyle.solid))),
                     ],
                   ),
-                  const Spacer(),
-                  const Icon(Icons.chevron_right),
-                ],
-              ),
+                ),
+              );
+            },
+          ),
+        ),
+
+        // 본문 (스크롤)
+        Flexible(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(22, 10, 22, 14),
+            child: Column(
+              children: [
+                // 개체 히어로
+                Container(
+                  decoration: BoxDecoration(
+                    color: pale,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 44, height: 44,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.55),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(Icons.pets, size: 22,
+                            color: AppColors.primary),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(activePet.name,
+                                style: const TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.w700,
+                                    color: AppColors.primary,
+                                    letterSpacing: -0.3)),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${activePet.speciesName}${activePet.latestWeightG != null ? ' · ${activePet.latestWeightG!.toStringAsFixed(0)}g' : ''}',
+                              style: TextStyle(
+                                  fontSize: 11, color: AppColors.paleInk2),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (_activePerPetIdx > 0)
+                        GestureDetector(
+                          onTap: () => setState(() => _activePerPetIdx--),
+                          child: Container(
+                            width: 30, height: 30,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.55),
+                              borderRadius: BorderRadius.circular(9),
+                            ),
+                            child: const Icon(Icons.chevron_left,
+                                size: 18, color: AppColors.primary),
+                          ),
+                        ),
+                      if (_activePerPetIdx < pets.length - 1) ...[
+                        const SizedBox(width: 6),
+                        GestureDetector(
+                          onTap: () => setState(() => _activePerPetIdx++),
+                          child: Container(
+                            width: 30, height: 30,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.55),
+                              borderRadius: BorderRadius.circular(9),
+                            ),
+                            child: const Icon(Icons.chevron_right,
+                                size: 18, color: AppColors.primary),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                // FeedComposerFields (개체별)
+                FeedComposerFields(
+                  form: entry.form,
+                  bandColor: pale,
+                  onChanged: (f) => setState(() => entry.form = f),
+                ),
+                const SizedBox(height: 18),
+
+                // 완료 / 저장됨 액션
+                if (entry.filled)
+                  _SavedBanner(
+                    petName: activePet.name,
+                    pale: pale,
+                    paleInk: paleInk,
+                    onUndo: () => setState(() {
+                      _perPetForms[activePet.id]!.filled = false;
+                    }),
+                  )
+                else
+                  GestureDetector(
+                    onTap: () => _markFilled(activePet.id, true, pets),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.check,
+                              color: AppColors.paleBg, size: 16),
+                          const SizedBox(width: 8),
+                          Text('${activePet.name} 완료',
+                              style: TextStyle(
+                                  fontSize: 14, fontWeight: FontWeight.w700,
+                                  color: AppColors.paleBg)),
+                        ],
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 8),
+
+                // 이전/다음 개체 네비게이션
+                if (pets.length > 1)
+                  Row(
+                    children: [
+                      if (_activePerPetIdx > 0) ...[
+                        Expanded(
+                          flex: 0,
+                          child: GestureDetector(
+                            onTap: () => setState(() => _activePerPetIdx--),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: AppColors.card,
+                                border: Border.all(color: AppColors.paleLine),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.chevron_left,
+                                      size: 16, color: AppColors.primary),
+                                  const SizedBox(width: 4),
+                                  Text('이전',
+                                      style: const TextStyle(
+                                          fontSize: 13, fontWeight: FontWeight.w700,
+                                          color: AppColors.primary)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      if (_activePerPetIdx < pets.length - 1) ...[
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => setState(() => _activePerPetIdx++),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 12),
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: AppColors.card,
+                                border: Border.all(
+                                    color: AppColors.paleLine, width: 1.5),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    width: 22, height: 22,
+                                    decoration: BoxDecoration(
+                                      color: PalePalette.pale(PalePalette
+                                          .keyFromHex(pets[_activePerPetIdx + 1].colorCode)),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Icon(Icons.pets, size: 12,
+                                        color: AppColors.primary),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '다음 · ${pets[_activePerPetIdx + 1].name}',
+                                    style: const TextStyle(
+                                        fontSize: 13, fontWeight: FontWeight.w700,
+                                        color: AppColors.primary),
+                                  ),
+                                  const Icon(Icons.chevron_right,
+                                      size: 16, color: AppColors.primary),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+              ],
             ),
           ),
-        );
-      }).toList(),
+        ),
+
+        // 푸터
+        _Footer(
+          onBack: _goBack,
+          nextLabel: '닫기',
+          nextBadge: '$_filledCount건 저장됨',
+          onNext: _filledCount > 0
+              ? () => _savePerPet(pets)
+              : () => Navigator.of(context).pop(),
+          loading: _saving,
+        ),
+      ],
     );
   }
 
-  // 2단계: 개체 선택
-  Widget _buildPetStep() {
-    final petsAsync = ref.watch(petListProvider);
-    return petsAsync.when(
-      loading: () => const CircularProgressIndicator(),
-      error: (e, _) => Text(e.toString()),
-      data: (pets) {
-        if (pets.isEmpty) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
-            child: Text('등록된 개체가 없어요'),
-          );
-        }
-        return Column(
-          children: [
-            // 전체 선택
-            _PetSelectTile(
-              label: '전체 선택',
-              subLabel: '${pets.length}마리 모두',
-              icon: Icons.pets,
-              selected: _selectedPetIds.length == pets.length,
-              onTap: () {
-                setState(() {
-                  if (_selectedPetIds.length == pets.length) {
-                    _selectedPetIds.clear();
-                  } else {
-                    _selectedPetIds
-                      ..clear()
-                      ..addAll(pets.map((p) => p.id));
-                  }
-                });
-              },
-            ),
-            const Divider(height: 16),
-            ...pets.map((pet) => _PetSelectTile(
-                  label: pet.name,
-                  subLabel: pet.speciesName,
-                  icon: Icons.circle,
-                  selected: _selectedPetIds.contains(pet.id),
-                  onTap: () {
-                    setState(() {
-                      if (_selectedPetIds.contains(pet.id)) {
-                        _selectedPetIds.remove(pet.id);
-                      } else {
-                        _selectedPetIds.add(pet.id);
-                      }
-                    });
-                  },
-                )),
-            const SizedBox(height: 16),
-            SizedBox(
+  // ── 완료 화면 ──────────────────────────────────────────────────
+  Widget _buildDone() {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+          22, 32, 22, MediaQuery.of(context).padding.bottom + 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 64, height: 64,
+            decoration: const BoxDecoration(
+                color: AppColors.feedBand, shape: BoxShape.circle),
+            child: const Icon(Icons.check,
+                color: AppColors.primary, size: 32),
+          ),
+          const SizedBox(height: 16),
+          const Text('기록 완료!',
+              style: TextStyle(
+                  fontSize: 22, fontWeight: FontWeight.w700,
+                  color: AppColors.primary, letterSpacing: -0.4)),
+          const SizedBox(height: 8),
+          Text('$_savedCount마리의 급여 기록이 저장되었어요',
+              style: TextStyle(fontSize: 13, color: AppColors.paleInk2)),
+          const SizedBox(height: 32),
+          GestureDetector(
+            onTap: () => Navigator.of(context).pop(),
+            child: Container(
               width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _selectedPetIds.isEmpty
-                    ? null
-                    : () => setState(() => _step = 2),
-                child: Text('다음 (${_selectedPetIds.length}마리)'),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(14),
               ),
+              child: Text('닫기',
+                  style: TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.w700,
+                      color: AppColors.paleBg)),
             ),
-          ],
-        );
-      },
-    );
-  }
-
-  // 3단계: 상세 입력
-  Widget _buildFormStep() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (_selectedType == _RecordType.feeding) ...[
-          Text('급여 종류 *', style: AppTextStyles.label),
-          const SizedBox(height: 4),
-          TextField(
-            controller: _foodTypeController,
-            decoration: const InputDecoration(hintText: '귀뚜라미, 두비아 등'),
-          ),
-          const SizedBox(height: 12),
-          Text('먹이 반응', style: AppTextStyles.label),
-          const SizedBox(height: 4),
-          _FeedResponsePicker(
-            value: _feedResponse,
-            onChanged: (v) => setState(() => _feedResponse = v),
-          ),
-        ] else if (_selectedType == _RecordType.weight) ...[
-          Text('몸무게 (g) *', style: AppTextStyles.label),
-          const SizedBox(height: 4),
-          TextField(
-            controller: _weightController,
-            keyboardType: TextInputType.number,
-            decoration:
-                const InputDecoration(hintText: '0.00', suffixText: 'g'),
-          ),
-        ] else if (_selectedType == _RecordType.cleaning) ...[
-          Text('청소 유형', style: AppTextStyles.label),
-          const SizedBox(height: 4),
-          _CleaningTypePicker(
-            value: _cleaningType,
-            onChanged: (v) => setState(() => _cleaningType = v),
-          ),
-        ] else if (_selectedType == _RecordType.memo) ...[
-          Text('메모 내용 *', style: AppTextStyles.label),
-          const SizedBox(height: 4),
-          TextField(
-            controller: _contentController,
-            decoration:
-                const InputDecoration(hintText: '오늘의 상태, 특이사항을 기록하세요'),
-            maxLines: 3,
           ),
         ],
-        const SizedBox(height: 12),
-        if (_selectedType != _RecordType.memo) ...[
-          Text('메모 (선택)', style: AppTextStyles.label),
-          const SizedBox(height: 4),
-          TextField(
-            controller: _memoController,
-            decoration: const InputDecoration(hintText: '특이사항을 입력하세요'),
-            maxLines: 3,
-          ),
-        ],
-        const SizedBox(height: 24),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: _loading ? null : _submit,
-            child: _loading
-                ? const CircularProgressIndicator()
-                : Text('${_selectedPetIds.length}마리 기록 완료'),
-          ),
-        ),
-      ],
+      ),
     );
-  }
-
-  // 4단계: 완료 확인 (submit 후)
-  Widget _buildConfirmStep() {
-    return Column(
-      children: [
-        const SizedBox(height: 32),
-        const Icon(Icons.check_circle, color: AppColors.primary, size: 64),
-        const SizedBox(height: 16),
-        Text('기록 완료!', style: AppTextStyles.h1),
-        const SizedBox(height: 8),
-        Text('${_selectedPetIds.length}마리의 기록이 저장되었어요',
-            style: AppTextStyles.caption),
-        const SizedBox(height: 32),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('닫기'),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Future<void> _submit() async {
-    if (_selectedType == _RecordType.feeding &&
-        _foodTypeController.text.trim().isEmpty) {
-      showToast(context, '급여 종류를 입력해주세요');
-      return;
-    }
-    if (_selectedType == _RecordType.weight &&
-        _weightController.text.trim().isEmpty) {
-      showToast(context, '몸무게를 입력해주세요');
-      return;
-    }
-    if (_selectedType == _RecordType.memo &&
-        _contentController.text.trim().isEmpty) {
-      showToast(context, '메모 내용을 입력해주세요');
-      return;
-    }
-
-    setState(() => _loading = true);
-    final repo = ref.read(recordRepositoryProvider);
-    final memo = _memoController.text.trim().isEmpty
-        ? null
-        : _memoController.text.trim();
-    final now = DateTime.now();
-
-    try {
-      for (final petId in _selectedPetIds) {
-        switch (_selectedType!) {
-          case _RecordType.feeding:
-            await repo.addFeeding(petId, {
-              'foodType': _foodTypeController.text.trim(),
-              'feedResponse': _feedResponse.name,
-              'fedAt': now.toIso8601String(),
-              if (memo != null) 'memo': memo,
-            });
-          case _RecordType.weight:
-            final w = double.tryParse(_weightController.text.trim());
-            if (w != null) {
-              await repo.addWeight(petId, w, now, memo);
-            }
-          case _RecordType.cleaning:
-            await repo.addCleaning(petId, _cleaningType, now, memo);
-          case _RecordType.memo:
-            await repo.addMemo(petId, {
-              'content': _contentController.text.trim(),
-              'loggedAt': now.toIso8601String(),
-            });
-        }
-      }
-      if (mounted) setState(() => _step = 3);
-    } catch (e) {
-      if (mounted) showToast(context, '오류: $e');
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
   }
 }
 
-class _PetSelectTile extends StatelessWidget {
-  final String label;
-  final String subLabel;
+// ── 06b 개체 선택 컨텐츠 (인라인 위젯) ─────────────────────────
+class _PetPickerContent extends ConsumerStatefulWidget {
+  final Set<int> preSelected;
+  final ValueChanged<Set<int>> onApply;
+  final VoidCallback onBack;
+
+  const _PetPickerContent({
+    required this.preSelected,
+    required this.onApply,
+    required this.onBack,
+  });
+
+  @override
+  ConsumerState<_PetPickerContent> createState() => _PetPickerContentState();
+}
+
+class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
+  late Set<int> _selected;
+  String _query  = '';
+  String _filter = 'all';
+
+  static const _filters = [
+    ('all', '전체'), ('gecko', '게코'), ('snake', '뱀'), ('lizard', '도마뱀'),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = Set.from(widget.preSelected);
+  }
+
+  bool _matchFilter(Pet p) {
+    final sp = p.speciesName.toLowerCase();
+    return switch (_filter) {
+      'gecko'  => sp.contains('게코'),
+      'snake'  => sp.contains('파이톤') || sp.contains('스네이크') ||
+                  sp.contains('보아') || sp.contains('콘'),
+      'lizard' => sp.contains('드래곤') || sp.contains('도마뱀') ||
+                  sp.contains('스킨크') || sp.contains('이구아나'),
+      _        => true,
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final petsAsync = ref.watch(petListProvider);
+    final allPets   = petsAsync.whenOrNull(data: (l) => l) ?? <Pet>[];
+    final q         = _query.toLowerCase();
+    final filtered  = allPets.where((p) =>
+        _matchFilter(p) &&
+        (q.isEmpty || p.name.toLowerCase().contains(q) ||
+            p.speciesName.toLowerCase().contains(q))).toList();
+
+    final allSelected  = filtered.isNotEmpty && filtered.every((p) => _selected.contains(p.id));
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // 헤더
+        Padding(
+          padding: const EdgeInsets.fromLTRB(22, 4, 22, 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('SELECT TARGET',
+                        style: AppTextStyles.mono(11, FontWeight.w700,
+                            color: AppColors.paleInk2)),
+                    const SizedBox(height: 4),
+                    const Text('대상 개체 선택',
+                        style: TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.w700,
+                            color: AppColors.primary, letterSpacing: -0.4)),
+                    const SizedBox(height: 3),
+                    Text('여러 개체에 같은 기록을 한 번에 남길 수 있어요',
+                        style: TextStyle(
+                            fontSize: 12, color: AppColors.paleInk2)),
+                  ],
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: _selected.isNotEmpty
+                      ? AppColors.feedBand
+                      : AppColors.card,
+                  border: _selected.isNotEmpty
+                      ? null
+                      : Border.all(color: AppColors.paleLine),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  '${_selected.length} / ${allPets.length}',
+                  style: AppTextStyles.mono(11, FontWeight.w700,
+                      color: _selected.isNotEmpty
+                          ? AppColors.primary
+                          : AppColors.paleInk3),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // 검색창
+        Padding(
+          padding: const EdgeInsets.fromLTRB(22, 0, 22, 10),
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              border: Border.all(color: AppColors.paleLine),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Row(
+              children: [
+                const Icon(Icons.search,
+                    size: 18, color: AppColors.paleInk2),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: TextField(
+                    onChanged: (v) => setState(() => _query = v),
+                    style: const TextStyle(
+                        fontSize: 14, color: AppColors.primary),
+                    decoration: InputDecoration.collapsed(
+                      hintText: '이름 또는 종 검색…',
+                      hintStyle: TextStyle(color: AppColors.paleInk3),
+                    ),
+                  ),
+                ),
+                if (_query.isNotEmpty)
+                  GestureDetector(
+                    onTap: () => setState(() => _query = ''),
+                    child: const Icon(Icons.close,
+                        size: 16, color: AppColors.paleInk3),
+                  ),
+              ],
+            ),
+          ),
+        ),
+
+        // 종 필터 칩
+        SizedBox(
+          height: 36,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.fromLTRB(22, 0, 22, 0),
+            children: _filters.map((f) {
+              final active = _filter == f.$1;
+              final count  = allPets.where((p) => switch (f.$1) {
+                'gecko'  => p.speciesName.toLowerCase().contains('게코'),
+                'snake'  => p.speciesName.toLowerCase().contains('파이톤') ||
+                            p.speciesName.toLowerCase().contains('스네이크') ||
+                            p.speciesName.toLowerCase().contains('콘'),
+                'lizard' => p.speciesName.toLowerCase().contains('드래곤') ||
+                            p.speciesName.toLowerCase().contains('도마뱀'),
+                _        => true,
+              }).length;
+              return GestureDetector(
+                onTap: () => setState(() => _filter = f.$1),
+                child: Container(
+                  margin: const EdgeInsets.only(right: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: active ? AppColors.primary : AppColors.card,
+                    border: active
+                        ? null
+                        : Border.all(color: AppColors.paleLine),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Row(
+                    children: [
+                      Text(f.$2,
+                          style: TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.w700,
+                              color: active
+                                  ? AppColors.paleBg
+                                  : AppColors.primary)),
+                      const SizedBox(width: 5),
+                      Text('$count',
+                          style: AppTextStyles.mono(10, FontWeight.w700,
+                              color: active
+                                  ? AppColors.paleBg.withValues(alpha: 0.6)
+                                  : AppColors.paleInk3)),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        const SizedBox(height: 10),
+
+        // 전체선택/해제 바
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            border: Border(
+              top:    BorderSide(color: AppColors.paleLineSoft),
+              bottom: BorderSide(color: AppColors.paleLineSoft),
+            ),
+          ),
+          child: Row(
+            children: [
+              Text(
+                '${filtered.length}마리 표시 중',
+                style: AppTextStyles.mono(11, FontWeight.w700,
+                    color: AppColors.paleInk2),
+              ),
+              const Spacer(),
+              _SelectBarBtn(
+                icon: Icons.check,
+                label: '전체선택',
+                disabled: allSelected,
+                onTap: () => setState(() {
+                  for (final p in filtered) _selected.add(p.id);
+                }),
+              ),
+              const SizedBox(width: 6),
+              _SelectBarBtn(
+                icon: Icons.close,
+                label: '전체해제',
+                disabled: _selected.isEmpty,
+                onTap: () => setState(() => _selected.clear()),
+              ),
+            ],
+          ),
+        ),
+
+        // 개체 3열 그리드
+        Flexible(
+          child: filtered.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 40),
+                  child: Center(
+                    child: Text('일치하는 개체가 없어요',
+                        style: TextStyle(
+                            fontSize: 13, color: AppColors.paleInk3)),
+                  ),
+                )
+              : GridView.count(
+                  shrinkWrap: true,
+                  physics: const ClampingScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(22, 10, 22, 10),
+                  crossAxisCount: 3,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
+                  childAspectRatio: 0.78,
+                  children: filtered.map((p) {
+                    final isOn  = _selected.contains(p.id);
+                    final key   = PalePalette.keyFromHex(p.colorCode);
+                    final pale  = PalePalette.pale(key);
+                    final pInk  = PalePalette.ink(key);
+                    return GestureDetector(
+                      onTap: () => setState(() {
+                        if (isOn) _selected.remove(p.id);
+                        else      _selected.add(p.id);
+                      }),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 120),
+                        decoration: BoxDecoration(
+                          color: isOn ? pale : AppColors.card,
+                          border: Border.all(
+                              color: isOn ? pInk : AppColors.paleLine,
+                              width: isOn ? 1.5 : 1),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        padding: const EdgeInsets.fromLTRB(10, 12, 10, 10),
+                        child: Column(
+                          children: [
+                            Container(
+                              width: 52, height: 52,
+                              decoration: BoxDecoration(
+                                color: isOn
+                                    ? Colors.white.withValues(alpha: 0.55)
+                                    : pale,
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Icon(Icons.pets, size: 24,
+                                  color: AppColors.primary),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(p.name,
+                                style: const TextStyle(
+                                    fontSize: 13, fontWeight: FontWeight.w700,
+                                    color: AppColors.primary,
+                                    letterSpacing: -0.2),
+                                overflow: TextOverflow.ellipsis),
+                            const SizedBox(height: 2),
+                            Text(p.speciesName,
+                                style: TextStyle(
+                                    fontSize: 10, color: AppColors.paleInk2,
+                                    fontWeight: FontWeight.w600),
+                                overflow: TextOverflow.ellipsis),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${p.gender == 'MALE' ? '♂' : p.gender == 'FEMALE' ? '♀' : '?'}'
+                              '${p.latestWeightG != null ? ' · ${p.latestWeightG!.toStringAsFixed(0)}g' : ''}',
+                              style: AppTextStyles.mono(9, FontWeight.w700,
+                                  color: isOn
+                                      ? AppColors.paleInk2
+                                      : AppColors.paleInk3),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+        ),
+
+        // 푸터
+        _Footer(
+          onBack: widget.onBack,
+          nextLabel: '적용',
+          nextBadge: _selected.isNotEmpty ? '${_selected.length}마리' : null,
+          nextEnabled: _selected.isNotEmpty,
+          onNext: () => widget.onApply(Set.from(_selected)),
+        ),
+      ],
+    );
+  }
+}
+
+// ── 기록 종류 카드 ─────────────────────────────────────────────
+class _TypeCard extends StatelessWidget {
+  final _RecordType type;
+  final VoidCallback onTap;
+
+  const _TypeCard({required this.type, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: type.color,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 34, height: 34,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.7),
+                borderRadius: BorderRadius.circular(11),
+              ),
+              child: Icon(type.icon, size: 18, color: AppColors.primary),
+            ),
+            const Spacer(),
+            Text(type.en,
+                style: AppTextStyles.mono(9, FontWeight.w700,
+                    color: AppColors.paleInk2)),
+            const SizedBox(height: 2),
+            Text(type.ko,
+                style: const TextStyle(
+                    fontSize: 15, fontWeight: FontWeight.w700,
+                    color: AppColors.primary)),
+            const SizedBox(height: 2),
+            Text(type.ex,
+                style: TextStyle(fontSize: 11, color: AppColors.paleInk2)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── 선택 카드 (06c BULK / PER-PET) ────────────────────────────
+class _ChoiceCard extends StatelessWidget {
   final IconData icon;
+  final String en;
+  final String title;
+  final String desc;
+  final List<String> examples;
+  final bool recommended;
   final bool selected;
   final VoidCallback onTap;
 
-  const _PetSelectTile({
-    required this.label,
-    required this.subLabel,
+  const _ChoiceCard({
     required this.icon,
+    required this.en,
+    required this.title,
+    required this.desc,
+    required this.examples,
+    this.recommended = false,
     required this.selected,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return GestureDetector(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          border: Border.all(
+              color: selected ? AppColors.primary : AppColors.paleLine,
+              width: selected ? 1.5 : 1),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(
-              selected ? Icons.check_circle : Icons.circle_outlined,
-              color: selected ? AppColors.primary : AppColors.border,
+            Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(
+                color: AppColors.feedBand,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, size: 22, color: AppColors.primary),
             ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: AppTextStyles.body),
-                Text(subLabel, style: AppTextStyles.caption),
-              ],
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(en,
+                          style: AppTextStyles.mono(9, FontWeight.w700,
+                              color: AppColors.paleInk2)),
+                      if (recommended) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.feedBand,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text('RECOMMENDED',
+                              style: AppTextStyles.mono(9, FontWeight.w700)),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text(title,
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w700,
+                          color: AppColors.primary, letterSpacing: -0.3)),
+                  const SizedBox(height: 4),
+                  Text(desc,
+                      style: TextStyle(
+                          fontSize: 12, color: AppColors.paleInk2,
+                          height: 1.5)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 4,
+                    runSpacing: 4,
+                    children: examples.map((e) => Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.paleBgAlt,
+                        border: Border.all(color: AppColors.paleLineSoft),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(e,
+                          style: AppTextStyles.mono(10, FontWeight.w700,
+                              color: AppColors.paleInk3)),
+                    )).toList(),
+                  ),
+                ],
+              ),
             ),
+            const Icon(Icons.chevron_right,
+                size: 16, color: AppColors.paleInk3),
           ],
         ),
       ),
@@ -445,60 +1406,229 @@ class _PetSelectTile extends StatelessWidget {
   }
 }
 
-class _CleaningTypePicker extends StatelessWidget {
-  final CleaningType value;
-  final ValueChanged<CleaningType> onChanged;
+// ── 저장됨 배너 (06e) ──────────────────────────────────────────
+class _SavedBanner extends StatelessWidget {
+  final String petName;
+  final Color pale;
+  final Color paleInk;
+  final VoidCallback onUndo;
 
-  const _CleaningTypePicker({required this.value, required this.onChanged});
+  const _SavedBanner({
+    required this.petName,
+    required this.pale,
+    required this.paleInk,
+    required this.onUndo,
+  });
 
   @override
   Widget build(BuildContext context) {
-    const options = [
-      (CleaningType.FULL, '전체 청소'),
-      (CleaningType.PARTIAL, '부분 청소'),
-      (CleaningType.WATER_CHANGE, '물 교체'),
-    ];
-    return Wrap(
-      spacing: 8,
-      children: options.map((o) {
-        final selected = value == o.$1;
-        return ChoiceChip(
-          label: Text(o.$2),
-          selected: selected,
-          selectedColor: AppColors.primary.withValues(alpha: 0.2),
-          onSelected: (_) => onChanged(o.$1),
-        );
-      }).toList(),
+    return Container(
+      decoration: BoxDecoration(
+        color: pale,
+        border: Border.all(color: paleInk, width: 1.5),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      child: Row(
+        children: [
+          Container(
+            width: 26, height: 26,
+            decoration: BoxDecoration(color: paleInk, shape: BoxShape.circle),
+            alignment: Alignment.center,
+            child: const Icon(Icons.check, color: Colors.white, size: 14),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('$petName · 저장됨',
+                    style: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w700,
+                        color: AppColors.primary)),
+                const SizedBox(height: 2),
+                Text('수정하려면 미완료로 되돌린 뒤 다시 완료하세요',
+                    style: TextStyle(fontSize: 11, color: AppColors.paleInk2)),
+              ],
+            ),
+          ),
+          GestureDetector(
+            onTap: onUndo,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.card,
+                border: Border.all(color: AppColors.paleLine),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Text('미완료',
+                  style: TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w700,
+                      color: AppColors.primary)),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _FeedResponsePicker extends StatelessWidget {
-  final FeedResponse value;
-  final ValueChanged<FeedResponse> onChanged;
+// ── 공통 푸터 (뒤로 / 다음) ────────────────────────────────────
+class _Footer extends StatelessWidget {
+  final VoidCallback? onBack;
+  final String nextLabel;
+  final IconData? nextIcon;
+  final String? nextBadge;
+  final bool nextEnabled;
+  final bool loading;
+  final VoidCallback? onNext;
 
-  const _FeedResponsePicker({required this.value, required this.onChanged});
+  const _Footer({
+    this.onBack,
+    required this.nextLabel,
+    this.nextIcon,
+    this.nextBadge,
+    this.nextEnabled = true,
+    this.loading = false,
+    this.onNext,
+  });
 
   @override
   Widget build(BuildContext context) {
-    const options = [
-      (FeedResponse.COMPLETE, '완식', Colors.green),
-      (FeedResponse.PARTIAL, '부분', Colors.orange),
-      (FeedResponse.REFUSED, '거절', Colors.red),
-    ];
-    return Row(
-      children: options.map((o) {
-        final selected = value == o.$1;
-        return Padding(
-          padding: const EdgeInsets.only(right: 8),
-          child: ChoiceChip(
-            label: Text(o.$2),
-            selected: selected,
-            selectedColor: o.$3.withValues(alpha: 0.2),
-            onSelected: (_) => onChanged(o.$1),
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+          22, 12, 22, MediaQuery.of(context).padding.bottom + 16),
+      decoration: const BoxDecoration(
+        color: AppColors.paleBg,
+        border: Border(top: BorderSide(color: AppColors.paleLineSoft)),
+      ),
+      child: Row(
+        children: [
+          if (onBack != null) ...[
+            GestureDetector(
+              onTap: onBack,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 18, vertical: 14),
+                decoration: BoxDecoration(
+                  color: AppColors.card,
+                  border: Border.all(color: AppColors.paleLine),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.arrow_back_ios,
+                        size: 13, color: AppColors.primary),
+                    const SizedBox(width: 4),
+                    const Text('뒤로',
+                        style: TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.w700,
+                            color: AppColors.primary)),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
+          Expanded(
+            child: GestureDetector(
+              onTap: nextEnabled && !loading ? onNext : null,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: nextEnabled ? AppColors.primary : AppColors.paleLine,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: loading
+                    ? const SizedBox(
+                        width: 20, height: 20,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (nextIcon != null) ...[
+                            Icon(nextIcon,
+                                size: 16,
+                                color: nextEnabled
+                                    ? AppColors.paleBg
+                                    : AppColors.paleInk3),
+                            const SizedBox(width: 8),
+                          ],
+                          Text(nextLabel,
+                              style: TextStyle(
+                                  fontSize: 14, fontWeight: FontWeight.w700,
+                                  color: nextEnabled
+                                      ? AppColors.paleBg
+                                      : AppColors.paleInk3)),
+                          if (nextBadge != null) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: nextEnabled
+                                    ? Colors.white.withValues(alpha: 0.18)
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(nextBadge!,
+                                  style: AppTextStyles.mono(11, FontWeight.w700,
+                                      color: nextEnabled
+                                          ? AppColors.paleBg
+                                          : AppColors.paleInk3)),
+                            ),
+                          ],
+                        ],
+                      ),
+              ),
+            ),
           ),
-        );
-      }).toList(),
+        ],
+      ),
+    );
+  }
+}
+
+// ── 전체선택/해제 버튼 ─────────────────────────────────────────
+class _SelectBarBtn extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool disabled;
+  final VoidCallback onTap;
+
+  const _SelectBarBtn({
+    required this.icon,
+    required this.label,
+    required this.disabled,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: disabled ? null : onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: AppColors.paleBg,
+          border: Border.all(color: AppColors.paleLine),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            Icon(icon,
+                size: 13,
+                color: disabled ? AppColors.paleInk3 : AppColors.primary),
+            const SizedBox(width: 4),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 11, fontWeight: FontWeight.w700,
+                    color: disabled ? AppColors.paleInk3 : AppColors.primary)),
+          ],
+        ),
+      ),
     );
   }
 }

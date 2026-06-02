@@ -54,6 +54,12 @@ abstract final class AppColors {
     petColorRose,
   ];
 
+  // ── 급여(피딩) 전용 토큰 ───────────────────────────────────────
+  // feedBand = petPeach (#FFE3CE) 와 동일 (oklch(0.94 0.04 55))
+  static const feedBand = petPeach;
+  // feedDot: oklch(0.62 0.13 55) — 리스트 구분 점, 더 진한 오렌지
+  static const feedDot  = Color(0xFFC16E2D);
+
   // ── PALE 디자인 시스템 토큰 (개체 상세 화면 기준) ──────────────
   static const paleBg       = Color(0xFFFBF7EE); // 아이보리 배경
   static const paleBgAlt    = Color(0xFFF5EFE2); // 칩/선택 배경
