@@ -42,5 +42,11 @@ final speciesListProvider = FutureProvider<List<Species>>((ref) {
   return ref.watch(petRepositoryProvider).getSpecies();
 });
 
+// 종별 모프 목록 (개체 등록/수정 시 모프 선택용)
+final morphsBySpeciesProvider =
+    FutureProvider.family<List<Morph>, int>((ref, speciesId) {
+  return ref.watch(petRepositoryProvider).getMorphs(speciesId);
+});
+
 // 현재 선택된 개체 ID (홈 화면에서 필터용)
 final selectedPetIdProvider = StateProvider<int?>((ref) => null);

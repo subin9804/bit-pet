@@ -34,20 +34,25 @@ final _mockPets = [
     serialNo: 'ABC123',
     speciesId: 1,
     speciesName: '볼파이톤',
+    morphName: 'Pastel',
     name: '까망이',
     gender: 'MALE',
     colorCode: '#3D2B1F',
     latestWeightG: 320.0,
+    hatchingDate: DateTime(2023, 6, 2),
+    adoptionDate: DateTime(2023, 8, 10),
   ),
   Pet(
     id: 2,
     serialNo: 'DEF456',
     speciesId: 2,
     speciesName: '레오파드게코',
+    morphName: 'Tangerine',
     name: '노을이',
     gender: 'FEMALE',
     colorCode: '#E8A87C',
     latestWeightG: 58.5,
+    hatchingDate: DateTime(2024, 11, 20),
     adoptionDate: DateTime(2025, 3, 15),
   ),
   Pet(
@@ -55,10 +60,38 @@ final _mockPets = [
     serialNo: 'GHI789',
     speciesId: 3,
     speciesName: '콘스네이크',
+    morphName: 'Snow',
     name: '하양이',
     gender: 'UNKNOWN',
     colorCode: '#F5E6CA',
     latestWeightG: 145.0,
+    hatchingDate: DateTime(2024, 5, 8),
+  ),
+  Pet(
+    id: 4,
+    serialNo: 'JKL012',
+    speciesId: 4,
+    speciesName: '수염도마뱀',
+    morphName: 'Hypo Citrus',
+    name: '단풍이',
+    gender: 'MALE',
+    colorCode: '#F0D58C',
+    latestWeightG: 412.0,
+    hatchingDate: DateTime(2023, 9, 1),
+    adoptionDate: DateTime(2023, 11, 12),
+  ),
+  Pet(
+    id: 5,
+    serialNo: 'MNO345',
+    speciesId: 6,
+    speciesName: '크레스티드게코',
+    morphName: 'Lily White',
+    name: '솜이',
+    gender: 'FEMALE',
+    colorCode: '#E2D4F0',
+    latestWeightG: 42.0,
+    hatchingDate: DateTime(2024, 2, 18),
+    adoptionDate: DateTime(2024, 6, 1),
   ),
 ];
 
@@ -176,12 +209,89 @@ final _mockRoutines = [
 ];
 
 final _mockSpecies = [
+  // 뱀
   Species(id: 1, code: 'BALL_PYTHON', category: '뱀', nameKo: '볼파이톤', nameEn: 'Ball Python'),
-  Species(id: 2, code: 'LEOPARD_GECKO', category: '도마뱀', nameKo: '레오파드게코', nameEn: 'Leopard Gecko'),
   Species(id: 3, code: 'CORN_SNAKE', category: '뱀', nameKo: '콘스네이크', nameEn: 'Corn Snake'),
+  Species(id: 7, code: 'HOGNOSE', category: '뱀', nameKo: '호그노즈', nameEn: 'Hognose Snake'),
+  Species(id: 8, code: 'KINGSNAKE', category: '뱀', nameKo: '킹스네이크', nameEn: 'Kingsnake'),
+  // 도마뱀
   Species(id: 4, code: 'BEARDED_DRAGON', category: '도마뱀', nameKo: '수염도마뱀', nameEn: 'Bearded Dragon'),
   Species(id: 5, code: 'BLUE_TONGUE_SKINK', category: '도마뱀', nameKo: '블루텅스킨크', nameEn: 'Blue-tongue Skink'),
+  Species(id: 9, code: 'LEACHIANUS', category: '도마뱀', nameKo: '리키에너스게코', nameEn: 'Leachianus Gecko'),
+  // 게코
+  Species(id: 2, code: 'LEOPARD_GECKO', category: '게코', nameKo: '레오파드게코', nameEn: 'Leopard Gecko'),
+  Species(id: 6, code: 'CRESTED_GECKO', category: '게코', nameKo: '크레스티드게코', nameEn: 'Crested Gecko'),
+  Species(id: 10, code: 'GARGOYLE_GECKO', category: '게코', nameKo: '가고일게코', nameEn: 'Gargoyle Gecko'),
+  // 거북
+  Species(id: 11, code: 'RUSSIAN_TORTOISE', category: '거북', nameKo: '러시안육지거북', nameEn: 'Russian Tortoise'),
+  Species(id: 12, code: 'HERMANN_TORTOISE', category: '거북', nameKo: '헤르만육지거북', nameEn: "Hermann's Tortoise"),
 ];
+
+// 종(speciesId)별 모프 카탈로그 — 개체 등록 화면의 모프 추천/선택용 mock
+// hasHealthConcern: 유전적 신경 이상 등 건강 우려가 알려진 모프 표시
+final _mockMorphsBySpecies = <int, List<Morph>>{
+  // 볼파이톤 — Spider 계열은 wobble(신경 이상) 우려
+  1: const [
+    Morph(id: 101, speciesId: 1, nameKo: '파스텔',  nameEn: 'Pastel'),
+    Morph(id: 102, speciesId: 1, nameKo: '알비노',  nameEn: 'Albino'),
+    Morph(id: 103, speciesId: 1, nameKo: '바나나',  nameEn: 'Banana'),
+    Morph(id: 104, speciesId: 1, nameKo: '파이드',  nameEn: 'Pied'),
+    Morph(id: 105, speciesId: 1, nameKo: '스파이더', nameEn: 'Spider', hasHealthConcern: true),
+    Morph(id: 106, speciesId: 1, nameKo: '클라운',  nameEn: 'Clown'),
+    Morph(id: 107, speciesId: 1, nameKo: '모하비',  nameEn: 'Mojave'),
+  ],
+  // 레오파드게코 — Enigma는 신경 이상 우려
+  2: const [
+    Morph(id: 201, speciesId: 2, nameKo: '탠저린',     nameEn: 'Tangerine'),
+    Morph(id: 202, speciesId: 2, nameKo: '맥스노우',   nameEn: 'Mack Snow'),
+    Morph(id: 203, speciesId: 2, nameKo: '알비노',     nameEn: 'Albino'),
+    Morph(id: 204, speciesId: 2, nameKo: '이클립스',   nameEn: 'Eclipse'),
+    Morph(id: 205, speciesId: 2, nameKo: '레몬프로스트', nameEn: 'Lemon Frost', hasHealthConcern: true),
+    Morph(id: 206, speciesId: 2, nameKo: '블리자드',   nameEn: 'Blizzard'),
+    Morph(id: 207, speciesId: 2, nameKo: '에니그마',   nameEn: 'Enigma', hasHealthConcern: true),
+  ],
+  // 콘스네이크
+  3: const [
+    Morph(id: 301, speciesId: 3, nameKo: '스노우',   nameEn: 'Snow'),
+    Morph(id: 302, speciesId: 3, nameKo: '아멜',     nameEn: 'Amel'),
+    Morph(id: 303, speciesId: 3, nameKo: '아네리',   nameEn: 'Anery'),
+    Morph(id: 304, speciesId: 3, nameKo: '차콜',     nameEn: 'Charcoal'),
+    Morph(id: 305, speciesId: 3, nameKo: '블러드레드', nameEn: 'Blood Red'),
+    Morph(id: 306, speciesId: 3, nameKo: '캐러멜',   nameEn: 'Caramel'),
+  ],
+  // 수염도마뱀 — Silkback은 비늘 결손으로 관리 우려
+  4: const [
+    Morph(id: 401, speciesId: 4, nameKo: '하이포시트러스', nameEn: 'Hypo Citrus'),
+    Morph(id: 402, speciesId: 4, nameKo: '레더백',       nameEn: 'Leatherback'),
+    Morph(id: 403, speciesId: 4, nameKo: '트랜스루센트',  nameEn: 'Translucent'),
+    Morph(id: 404, speciesId: 4, nameKo: '제로',         nameEn: 'Zero'),
+    Morph(id: 405, speciesId: 4, nameKo: '실크백',       nameEn: 'Silkback', hasHealthConcern: true),
+  ],
+  // 크레스티드게코
+  6: const [
+    Morph(id: 601, speciesId: 6, nameKo: '릴리화이트',  nameEn: 'Lily White'),
+    Morph(id: 602, speciesId: 6, nameKo: '할리퀸',      nameEn: 'Harlequin'),
+    Morph(id: 603, speciesId: 6, nameKo: '핀스트라이프', nameEn: 'Pinstripe'),
+    Morph(id: 604, speciesId: 6, nameKo: '플레임',      nameEn: 'Flame'),
+    Morph(id: 605, speciesId: 6, nameKo: '달마시안',    nameEn: 'Dalmatian'),
+    Morph(id: 606, speciesId: 6, nameKo: '타이거',      nameEn: 'Tiger'),
+  ],
+  // 호그노즈
+  7: const [
+    Morph(id: 701, speciesId: 7, nameKo: '아나콘다',    nameEn: 'Anaconda'),
+    Morph(id: 702, speciesId: 7, nameKo: '알비노',      nameEn: 'Albino'),
+    Morph(id: 703, speciesId: 7, nameKo: '라벤더',      nameEn: 'Lavender'),
+    Morph(id: 704, speciesId: 7, nameKo: '토피글로우',  nameEn: 'Toffeeglow'),
+    Morph(id: 705, speciesId: 7, nameKo: '슈퍼콘다',    nameEn: 'Superconda'),
+  ],
+  // 가고일게코
+  10: const [
+    Morph(id: 1001, speciesId: 10, nameKo: '레드스트라이프', nameEn: 'Red Stripe'),
+    Morph(id: 1002, speciesId: 10, nameKo: '레티큘레이트',  nameEn: 'Reticulated'),
+    Morph(id: 1003, speciesId: 10, nameKo: '모틀드',        nameEn: 'Mottled'),
+    Morph(id: 1004, speciesId: 10, nameKo: '패턴리스',      nameEn: 'Patternless'),
+  ],
+};
 
 // ────────────────────────────────────────────────────────────────────
 // Auth
@@ -255,6 +365,10 @@ class MockPetRepository extends PetRepository {
 
   @override
   Future<List<Species>> getSpecies() async => List.from(_mockSpecies);
+
+  @override
+  Future<List<Morph>> getMorphs(int speciesId) async =>
+      List.from(_mockMorphsBySpecies[speciesId] ?? const []);
 }
 
 // ────────────────────────────────────────────────────────────────────

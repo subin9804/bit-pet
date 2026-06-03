@@ -89,4 +89,16 @@ class PetRepository {
     );
     return apiRes.data ?? [];
   }
+
+  // 종별 모프 목록 — GET /species/{speciesId}/morphs
+  Future<List<Morph>> getMorphs(int speciesId) async {
+    final res = await _dio.get('/species/$speciesId/morphs');
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => (d as List)
+          .map((e) => Morph.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+    return apiRes.data ?? [];
+  }
 }

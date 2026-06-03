@@ -25,6 +25,37 @@ class Species {
       );
 }
 
+// 모프 마스터 (morph_cd) — GET /species/{speciesId}/morphs
+class Morph {
+  final int id;
+  final int speciesId;
+  final String nameKo;
+  final String? nameEn;
+  final String? aliasList;        // 쉼표 구분 별칭
+  final bool hasHealthConcern;    // 건강 우려 모프 여부 (예: Spider, Enigma)
+
+  const Morph({
+    required this.id,
+    required this.speciesId,
+    required this.nameKo,
+    this.nameEn,
+    this.aliasList,
+    this.hasHealthConcern = false,
+  });
+
+  // 표시용 라벨: 영문명 우선, 없으면 한글명
+  String get label => (nameEn != null && nameEn!.isNotEmpty) ? nameEn! : nameKo;
+
+  factory Morph.fromJson(Map<String, dynamic> json) => Morph(
+        id: json['id'] as int,
+        speciesId: json['speciesId'] as int,
+        nameKo: json['nameKo'] as String,
+        nameEn: json['nameEn'] as String?,
+        aliasList: json['aliasList'] as String?,
+        hasHealthConcern: json['hasHealthConcern'] as bool? ?? false,
+      );
+}
+
 class Pet {
   final int id;
   final String serialNo;
