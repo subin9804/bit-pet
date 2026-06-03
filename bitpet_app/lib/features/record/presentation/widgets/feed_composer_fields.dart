@@ -46,12 +46,19 @@ class FeedComposerFields extends StatelessWidget {
   final FeedFormData form;
   final ValueChanged<FeedFormData> onChanged;
   final Color bandColor;
+  /// 내장 메모 입력 노출 여부. 확인 시트(01c/01d)처럼 메모를 별도 아코디언으로
+  /// 분리하는 경우 false 로 끈다.
+  final bool showMemo;
+  /// "급여 추가" 컴포저 카드를 [label] 래퍼 없이 평평하게 표시할지 여부.
+  final bool compact;
 
   const FeedComposerFields({
     super.key,
     required this.form,
     required this.onChanged,
     this.bandColor = AppColors.feedBand,
+    this.showMemo = true,
+    this.compact = false,
   });
 
   void _setDraft(String? food, int? amount) => onChanged(form.copyWith(
@@ -329,28 +336,30 @@ class FeedComposerFields extends StatelessWidget {
               ),
 
         // ── 메모 (optional) ──────────────────────────────────
-        const SizedBox(height: 16),
-        _FormRow(
-          label: '메모',
-          optional: true,
-          child: TextField(
-            controller: TextEditingController(text: form.memo),
-            onChanged: (v) => onChanged(form.copyWith(memo: v)),
-            maxLines: 2,
-            style: const TextStyle(fontSize: 13, color: AppColors.primary),
-            decoration: InputDecoration(
-              hintText: '예: 1마리 남김 · 식욕 좋음',
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: AppColors.paleLine)),
-              enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: AppColors.paleLine)),
+        if (showMemo) ...[
+          const SizedBox(height: 16),
+          _FormRow(
+            label: '메모',
+            optional: true,
+            child: TextField(
+              controller: TextEditingController(text: form.memo),
+              onChanged: (v) => onChanged(form.copyWith(memo: v)),
+              maxLines: 2,
+              style: const TextStyle(fontSize: 13, color: AppColors.primary),
+              decoration: InputDecoration(
+                hintText: '예: 1마리 남김 · 식욕 좋음',
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: AppColors.paleLine)),
+                enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: AppColors.paleLine)),
+              ),
             ),
           ),
-        ),
+        ],
       ],
     );
   }

@@ -1,9 +1,10 @@
-﻿import 'package:flutter/material.dart';
+// 01 · 홈 대시보드 — PALE 디자인 (handoff 반영)
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../../core/widgets/empty_state.dart';
+import '../../../core/theme/pale_palette.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../notification/providers/notification_provider.dart';
 import '../../pet/data/models/pet_models.dart';
@@ -12,8 +13,11 @@ import '../../record/providers/record_provider.dart';
 import '../../record/data/models/record_models.dart';
 import '../../routine/data/models/routine_models.dart';
 import '../../routine/providers/routine_provider.dart';
-import '../../routine/presentation/routine_today_check_sheet.dart';
-import '../../record/presentation/feeding_record_sheet.dart';
+import '../../routine/presentation/bulk_confirm_sheet.dart';
+import '../../routine/presentation/per_pet_confirm_sheet.dart';
+
+// 개체 상태 신호 레코드
+typedef _PetSignal = ({Color bg, Color fg, String label});
 
 class DashboardTab extends ConsumerStatefulWidget {
   const DashboardTab({super.key});
@@ -23,7 +27,7 @@ class DashboardTab extends ConsumerStatefulWidget {
 }
 
 class _DashboardTabState extends ConsumerState<DashboardTab> {
-  final _pageController = PageController(viewportFraction: 0.88);
+  final _pageController = PageController(viewportFraction: 0.86);
   int _currentPage = 0;
 
   @override
@@ -32,213 +36,101 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
     super.dispose();
   }
 
+  // ── 개체 상태 신호 계산 ────────────────────────────────────────
+  _PetSignal _petSignal(Pet pet, List<TodayRoutine> routines) {
+    // 오늘 미완료 피딩 루틴이 있으면 "급여 오늘"
+    final hasPendingFeed = routines.any((r) =>
+        r.routineType == RoutineType.FEEDING &&
+        r.petStatuses.any((s) => s.petId == pet.id && !s.isCompleted));
+    if (hasPendingFeed) {
+      return (bg: AppColors.petPeach, fg: AppColors.petPeachInk, label: '급여 오늘');
+    }
+    return (bg: AppColors.petSage, fg: AppColors.petSageInk, label: '정상');
+  }
+
+  String _feedDdayLabel(Pet pet, List<TodayRoutine> routines) {
+    final inFeed = routines.any((r) =>
+        r.routineType == RoutineType.FEEDING &&
+        r.petStatuses.any((s) => s.petId == pet.id));
+    return inFeed ? '급여 오늘' : '급여 D-1';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final authAsync = ref.watch(authStateProvider);
-    final userName = authAsync.valueOrNull?.name ?? '사용자';
-    final todayAsync = ref.watch(todayRoutinesProvider);
-    final petsAsync = ref.watch(petListProvider);
-    final recentAsync = ref.watch(recentRecordsProvider);
-    final unread = ref.watch(unreadNotificationCountProvider);
+    final authAsync    = ref.watch(authStateProvider);
+    final userName     = authAsync.valueOrNull?.name ?? '사용자';
+    final todayAsync   = ref.watch(todayRoutinesProvider);
+    final petsAsync    = ref.watch(petListProvider);
+    final recentAsync  = ref.watch(recentRecordsProvider);
+    final unread       = ref.watch(unreadNotificationCountProvider);
 
-    final todayCount = todayAsync.valueOrNull?.length ?? 0;
+    final allRoutines  = todayAsync.valueOrNull ?? [];
+    final remaining    = allRoutines.where((r) => !r.isAllCompleted).length;
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () async {
-            ref.invalidate(todayRoutinesProvider);
-            ref.invalidate(recentRecordsProvider);
-            ref.read(petListProvider.notifier).load();
-          },
-          child: CustomScrollView(
-            slivers: [
-              // ── 헤더 ──────────────────────────────────────────────
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 16, 0),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'bit-pet',
-                              style: AppTextStyles.label.copyWith(
-                                fontSize: 12,
-                                color: AppColors.textSecondary,
-                                letterSpacing: 1,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text('안녕, ${userName}님', style: AppTextStyles.h1),
-                            Text(
-                              '오늘의 루틴 ${todayCount}개',
-                              style: AppTextStyles.h2.copyWith(
-                                color: AppColors.textSecondary,
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Stack(
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.notifications_outlined, size: 26),
-                            onPressed: () => context.push('/notifications'),
-                          ),
-                          if (unread > 0)
-                            Positioned(
-                              right: 10,
-                              top: 10,
-                              child: Container(
-                                width: 8,
-                                height: 8,
-                                decoration: const BoxDecoration(
-                                  color: AppColors.error,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+      backgroundColor: AppColors.paleBg,
+      body: Column(
+        children: [
+          // ── 헤더 (고정, 스크롤 안됨) ──────────────────────────
+          SafeArea(
+            bottom: false,
+            child: _Header(
+              userName: userName,
+              remainingCount: remaining,
+              hasUnread: unread > 0,
+              onBellTap: () => context.push('/notifications'),
+            ),
+          ),
 
-              // ── TODAY 루틴 슬라이더 ───────────────────────────────
-              SliverToBoxAdapter(
+          // ── 본문 (스크롤) ────────────────────────────────────
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () async {
+                ref.invalidate(todayRoutinesProvider);
+                ref.invalidate(recentRecordsProvider);
+                ref.read(petListProvider.notifier).load();
+              },
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.only(bottom: 110),
+                physics: const AlwaysScrollableScrollPhysics(),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
-                      child: Row(
-                        children: [
-                          Text(
-                            'TODAY',
-                            style: AppTextStyles.label.copyWith(
-                              fontSize: 12,
-                              letterSpacing: 2,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                          const Spacer(),
-                          if (todayAsync.valueOrNull != null)
-                            Text(
-                              '${_currentPage + 1} / ${todayCount}',
-                              style: AppTextStyles.caption,
-                            ),
-                        ],
-                      ),
-                    ),
-                    todayAsync.when(
-                      loading: () => SizedBox(
-                        height: 200,
-                        child: Center(
-                          child: CircularProgressIndicator(
-                            color: AppColors.primary,
-                            strokeWidth: 2,
-                          ),
-                        ),
-                      ),
-                      error: (_, __) => const SizedBox(
-                        height: 200,
-                        child: Center(child: Text('루틴을 불러올 수 없어요')),
-                      ),
-                      data: (routines) {
-                        if (routines.isEmpty) {
-                          return Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 20),
-                            padding: const EdgeInsets.all(24),
-                            decoration: BoxDecoration(
-                              color: AppColors.bg2,
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: const Center(
-                              child: Text('오늘 예정된 루틴이 없어요 🌿'),
-                            ),
-                          );
-                        }
-                        return SizedBox(
-                          height: 220,
-                          child: PageView.builder(
-                            controller: _pageController,
-                            onPageChanged: (i) =>
-                                setState(() => _currentPage = i),
-                            itemCount: routines.length,
-                            itemBuilder: (_, i) => Padding(
-                              padding: const EdgeInsets.only(right: 12),
-                              child: _RoutineCard(
-                                routine: routines[i],
-                                index: i,
-                                total: routines.length,
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    // 페이지 도트
-                    if (todayCount > 1)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: List.generate(todayCount, (i) {
-                            return AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              margin: const EdgeInsets.symmetric(horizontal: 3),
-                              width: i == _currentPage ? 20 : 6,
-                              height: 6,
-                              decoration: BoxDecoration(
-                                color: i == _currentPage
-                                    ? AppColors.primary
-                                    : AppColors.border,
-                                borderRadius: BorderRadius.circular(3),
-                              ),
-                            );
-                          }),
-                        ),
-                      )
-                    else
-                      const SizedBox(height: 8),
-                  ],
-                ),
-              ),
+                    const SizedBox(height: 22),
 
-              // ── 내 개체 ───────────────────────────────────────────
-              SliverToBoxAdapter(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                    // ── TODAY 섹션 ──────────────────────────────
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 8, 16, 12),
+                      padding: const EdgeInsets.fromLTRB(22, 0, 22, 12),
                       child: Row(
                         children: [
-                          Text('내 개체', style: AppTextStyles.h3),
+                          Text('TODAY',
+                              style: AppTextStyles.mono(11, FontWeight.w700,
+                                  color: AppColors.paleInk2)),
                           const Spacer(),
-                          petsAsync.whenOrNull(
-                                data: (pets) => TextButton(
-                                  onPressed: () => context.go('/pets'),
-                                  child: Text(
-                                    '${pets.length} →',
-                                    style: AppTextStyles.body.copyWith(
-                                        color: AppColors.textSecondary),
-                                  ),
-                                ),
-                              ) ??
-                              const SizedBox(),
+                          todayAsync.whenOrNull(data: (r) => Text(
+                            '${r.length - remaining} / ${r.length}',
+                            style: AppTextStyles.mono(11, FontWeight.w700,
+                                color: AppColors.paleInk3),
+                          )) ?? const SizedBox.shrink(),
                         ],
                       ),
+                    ),
+                    _TodayDeck(
+                      todayAsync: todayAsync,
+                      currentPage: _currentPage,
+                      pageController: _pageController,
+                      onPageChanged: (i) => setState(() => _currentPage = i),
+                    ),
+
+                    // ── 내 개체 섹션 ────────────────────────────
+                    _SectionHeader(
+                      title: '내 개체',
+                      trailing: petsAsync.whenOrNull(
+                          data: (pets) => '${pets.length} →') ?? '',
+                      onTap: () => context.go('/pets'),
                     ),
                     SizedBox(
-                      height: 110,
+                      height: 172,
                       child: petsAsync.when(
                         loading: () => const Center(
                             child: CircularProgressIndicator(strokeWidth: 2)),
@@ -247,23 +139,29 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
                         data: (pets) {
                           if (pets.isEmpty) {
                             return Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 20),
+                              padding: const EdgeInsets.symmetric(horizontal: 22),
                               child: GestureDetector(
                                 onTap: () => context.push('/pets/new'),
                                 child: Container(
-                                  padding: const EdgeInsets.all(16),
+                                  padding: const EdgeInsets.all(18),
                                   decoration: BoxDecoration(
-                                    color: AppColors.bg2,
-                                    borderRadius: BorderRadius.circular(12),
+                                    color: AppColors.paleBgAlt,
+                                    borderRadius: BorderRadius.circular(14),
                                   ),
-                                  child: const Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.add, color: AppColors.primary),
-                                      SizedBox(width: 8),
-                                      Text('첫 개체 등록하기'),
-                                    ],
+                                  child: const Center(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.add,
+                                            color: AppColors.primary, size: 28),
+                                        SizedBox(height: 8),
+                                        Text('첫 개체 등록하기',
+                                            style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w700,
+                                                color: AppColors.primary)),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
@@ -271,12 +169,68 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
                           }
                           return ListView.separated(
                             scrollDirection: Axis.horizontal,
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 20),
+                            padding: const EdgeInsets.fromLTRB(22, 0, 22, 4),
                             itemCount: pets.length,
                             separatorBuilder: (_, __) =>
-                                const SizedBox(width: 12),
-                            itemBuilder: (_, i) => _PetChip(pet: pets[i]),
+                                const SizedBox(width: 10),
+                            itemBuilder: (_, i) => _PetStateCard(
+                              pet: pets[i],
+                              signal: _petSignal(pets[i], allRoutines),
+                              feedLabel: _feedDdayLabel(pets[i], allRoutines),
+                              onTap: () => context.push('/pets/${pets[i].id}'),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+
+                    // ── 최근 기록 섹션 ──────────────────────────
+                    _SectionHeader(
+                      title: '최근 기록',
+                      trailing: '더보기 →',
+                      onTap: () => context.go('/pets'),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(22, 0, 22, 0),
+                      child: recentAsync.when(
+                        loading: () => const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 24),
+                          child: Center(
+                              child: CircularProgressIndicator(strokeWidth: 2)),
+                        ),
+                        error: (_, __) => const SizedBox.shrink(),
+                        data: (records) {
+                          if (records.isEmpty) {
+                            return Container(
+                              padding: const EdgeInsets.all(18),
+                              decoration: BoxDecoration(
+                                color: AppColors.paleBgAlt,
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Text('아직 기록이 없어요',
+                                  style: TextStyle(
+                                      color: AppColors.paleInk3,
+                                      fontSize: 13)),
+                            );
+                          }
+                          return Container(
+                            decoration: BoxDecoration(
+                              color: AppColors.card,
+                              border: Border.all(color: AppColors.paleLine),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 4),
+                            child: Column(
+                              children: records.take(4).toList().asMap().entries.map((e) {
+                                final i = e.key;
+                                final r = e.value;
+                                return _RecentTile(
+                                  record: r,
+                                  hasDivider: i < records.take(4).length - 1,
+                                );
+                              }).toList(),
+                            ),
                           );
                         },
                       ),
@@ -284,340 +238,641 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
                   ],
                 ),
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-              // ── 최근 기록 ─────────────────────────────────────────
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 16, 8),
-                  child: Row(
+// ── 헤더 ──────────────────────────────────────────────────────
+class _Header extends StatelessWidget {
+  final String userName;
+  final int remainingCount;
+  final bool hasUnread;
+  final VoidCallback onBellTap;
+
+  const _Header({
+    required this.userName,
+    required this.remainingCount,
+    required this.hasUnread,
+    required this.onBellTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(22, 20, 22, 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 워드마크
+                Text(
+                  'bit-pet',
+                  style: TextStyle(
+                    fontFamily: 'Courier New',
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.paleInk2,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                // 인사
+                RichText(
+                  text: TextSpan(
+                    style: const TextStyle(
+                      fontFamily: 'Pretendard',
+                      fontSize: 26,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                      letterSpacing: -0.7,
+                      height: 1.15,
+                    ),
                     children: [
-                      Text('최근 기록', style: AppTextStyles.h3),
-                      const Spacer(),
-                      TextButton(
-                        onPressed: () => context.go('/pets'),
-                        child: Text(
-                          '더보기 →',
-                          style: AppTextStyles.body
-                              .copyWith(color: AppColors.textSecondary),
+                      TextSpan(text: '안녕, $userName님\n'),
+                      TextSpan(
+                        text: '오늘의 루틴 $remainingCount개',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.paleInk2,
                         ),
                       ),
                     ],
                   ),
                 ),
-              ),
-              recentAsync.when(
-                loading: () => const SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.all(20),
-                    child: Center(
-                        child: CircularProgressIndicator(strokeWidth: 2)),
+              ],
+            ),
+          ),
+          // 알림 버튼
+          GestureDetector(
+            onTap: onBellTap,
+            child: Stack(
+              children: [
+                Container(
+                  width: 36, height: 36,
+                  decoration: BoxDecoration(
+                    color: AppColors.card,
+                    border: Border.all(color: AppColors.paleLine),
+                    shape: BoxShape.circle,
                   ),
+                  child: const Icon(Icons.notifications_none_outlined,
+                      size: 18, color: AppColors.primary),
                 ),
-                error: (_, __) => const SliverToBoxAdapter(child: SizedBox()),
-                data: (records) {
-                  if (records.isEmpty) {
-                    return SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 8),
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: AppColors.bg2,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text('아직 기록이 없어요',
-                              style: AppTextStyles.caption),
-                        ),
-                      ),
-                    );
-                  }
-                  return SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-                    sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (_, i) => _RecentRecordTile(record: records[i]),
-                        childCount: records.length,
+                if (hasUnread)
+                  Positioned(
+                    right: 7, top: 7,
+                    child: Container(
+                      width: 7, height: 7,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFE05C3A), // oklch(0.7 0.18 25)
+                        shape: BoxShape.circle,
                       ),
                     ),
-                  );
-                },
-              ),
-
-              const SliverToBoxAdapter(child: SizedBox(height: 100)),
-            ],
+                  ),
+              ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
 }
 
-// ── 루틴 카드 (TODAY 슬라이더) ──────────────────────────────────────────────
+// ── TODAY 덱 ──────────────────────────────────────────────────
+class _TodayDeck extends StatelessWidget {
+  final AsyncValue<List<TodayRoutine>> todayAsync;
+  final int currentPage;
+  final PageController pageController;
+  final ValueChanged<int> onPageChanged;
 
-class _RoutineCard extends ConsumerWidget {
+  const _TodayDeck({
+    required this.todayAsync,
+    required this.currentPage,
+    required this.pageController,
+    required this.onPageChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return todayAsync.when(
+      loading: () => const SizedBox(
+        height: 220,
+        child: Center(
+            child: CircularProgressIndicator(
+                strokeWidth: 2, color: AppColors.primary)),
+      ),
+      error: (_, __) => const SizedBox(
+        height: 220,
+        child: Center(child: Text('루틴을 불러올 수 없어요')),
+      ),
+      data: (routines) {
+        if (routines.isEmpty) {
+          return Container(
+            margin: const EdgeInsets.symmetric(horizontal: 22),
+            padding: const EdgeInsets.all(28),
+            decoration: BoxDecoration(
+              color: AppColors.paleBgAlt,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Center(
+              child: Text('오늘 예정된 루틴이 없어요 🌿',
+                  style: TextStyle(
+                      fontSize: 14, color: AppColors.paleInk2,
+                      fontWeight: FontWeight.w600)),
+            ),
+          );
+        }
+
+        return Column(
+          children: [
+            SizedBox(
+              height: 216,
+              child: PageView.builder(
+                controller: pageController,
+                onPageChanged: onPageChanged,
+                itemCount: routines.length,
+                itemBuilder: (_, i) => Padding(
+                  padding: EdgeInsets.only(
+                      left: i == 0 ? 22 : 0,
+                      right: 12),
+                  child: _TodayRoutineCard(
+                    routine: routines[i],
+                    index: i,
+                    total: routines.length,
+                  ),
+                ),
+              ),
+            ),
+            // 도트 인디케이터
+            if (routines.length > 1)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(routines.length, (i) {
+                    final active = i == currentPage;
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      width: active ? 18 : 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: active ? AppColors.primary : AppColors.paleLine,
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    );
+                  }),
+                ),
+              )
+            else
+              const SizedBox(height: 8),
+          ],
+        );
+      },
+    );
+  }
+}
+
+// ── TODAY 루틴 카드 ───────────────────────────────────────────
+class _TodayRoutineCard extends StatelessWidget {
   final TodayRoutine routine;
   final int index;
   final int total;
 
-  const _RoutineCard({
+  const _TodayRoutineCard({
     required this.routine,
     required this.index,
     required this.total,
   });
 
-  Color get _bgColor {
-    if (routine.isAllCompleted) return AppColors.petColorMint;
-    return switch (routine.routineType) {
-      RoutineType.FEEDING => AppColors.petColorPeach,
-      RoutineType.CLEANING => AppColors.petColorSky,
-      RoutineType.WEIGHT => AppColors.petColorLavender,
-      RoutineType.CUSTOM => AppColors.petColorButter,
-    };
-  }
+  Color get _bg => switch (routine.routineType) {
+        RoutineType.FEEDING  => AppColors.petPeach,
+        RoutineType.CLEANING => AppColors.petSky,
+        RoutineType.WEIGHT   => AppColors.petSage,
+        RoutineType.CUSTOM   => AppColors.petLilac,
+      };
+
+  IconData get _icon => switch (routine.routineType) {
+        RoutineType.FEEDING  => Icons.restaurant_outlined,
+        RoutineType.CLEANING => Icons.cleaning_services_outlined,
+        RoutineType.WEIGHT   => Icons.monitor_weight_outlined,
+        RoutineType.CUSTOM   => Icons.star_outline,
+      };
 
   String get _typeLabel => switch (routine.routineType) {
-        RoutineType.FEEDING => '피딩',
-        RoutineType.CLEANING => '청소',
-        RoutineType.WEIGHT => '체중',
-        RoutineType.CUSTOM => '사용자',
+        RoutineType.FEEDING  => 'FEEDING',
+        RoutineType.CLEANING => 'CLEANING',
+        RoutineType.WEIGHT   => 'WEIGHT',
+        RoutineType.CUSTOM   => 'CUSTOM',
       };
 
-  IconData get _typeIcon => switch (routine.routineType) {
-        RoutineType.FEEDING => Icons.restaurant_outlined,
-        RoutineType.CLEANING => Icons.cleaning_services_outlined,
-        RoutineType.WEIGHT => Icons.monitor_weight_outlined,
-        RoutineType.CUSTOM => Icons.star_outline,
-      };
-
-  void _onComplete(BuildContext context, WidgetRef ref) {
-    if (routine.isAllCompleted) return;
-    if (routine.routineType == RoutineType.FEEDING) {
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (_) => FeedingRecordSheet(
-          routine: routine,
-          fromHome: true,
-        ),
-      );
-    } else {
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (_) => RoutineTodayCheckSheet(routine: routine),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final firstPet =
-        routine.petStatuses.isNotEmpty ? routine.petStatuses.first : null;
-
-    return Container(
-      margin: const EdgeInsets.only(left: 20),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: _bgColor,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 시간 & 카운터
-          Row(
-            children: [
-              Text(
-                routine.alarmTime ?? '--:--',
-                style: AppTextStyles.caption
-                    .copyWith(color: AppColors.textSecondary),
-              ),
-              const Spacer(),
-              Text(
-                '${(index + 1).toString().padLeft(2, '0')} / ${total.toString().padLeft(2, '0')}',
-                style: AppTextStyles.caption
-                    .copyWith(color: AppColors.textSecondary),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          // 개체 정보 & 스프라이트
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              _PetSprite(
-                colorCode: firstPet?.colorCode,
-                imageUrl: firstPet?.imageUrl,
-                size: 56,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      firstPet?.petName ?? routine.title,
-                      style: AppTextStyles.bodyBold.copyWith(
-                        decoration: firstPet != null
-                            ? TextDecoration.underline
-                            : null,
-                      ),
-                    ),
-                    Text(_typeLabel, style: AppTextStyles.caption),
-                    if (routine.totalPetCount > 1)
-                      Text(
-                        '${routine.totalPetCount}마리',
-                        style: AppTextStyles.caption,
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const Spacer(),
-          // 완료 버튼
-          Row(
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => _onComplete(context, ref),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      color: routine.isAllCompleted
-                          ? AppColors.primary.withValues(alpha: 0.15)
-                          : AppColors.surface,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: routine.isAllCompleted
-                            ? Colors.transparent
-                            : AppColors.border,
-                      ),
-                    ),
-                    child: Center(
-                      child: Text(
-                        routine.isAllCompleted ? '완료됨' : '완료',
-                        style: AppTextStyles.bodyBold.copyWith(
-                          color: routine.isAllCompleted
-                              ? AppColors.primary
-                              : AppColors.textPrimary,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Icon(
-                  routine.isAlarmEnabled
-                      ? Icons.notifications_outlined
-                      : Icons.notifications_off_outlined,
-                  size: 20,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+  void _openBulk(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.transparent,
+      builder: (_) => BulkConfirmSheet(routine: routine),
     );
   }
-}
 
-// ── 개체 칩 (내 개체 가로 스크롤) ────────────────────────────────────────────
-
-class _PetChip extends StatelessWidget {
-  final Pet pet;
-  const _PetChip({required this.pet});
-
-  Color get _color {
-    if (pet.colorCode == null) return AppColors.petColorMint;
-    try {
-      return Color(int.parse(pet.colorCode!.replaceFirst('#', '0xFF')));
-    } catch (_) {
-      return AppColors.petColorMint;
-    }
+  void _openPerPet(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.transparent,
+      builder: (_) => PerPetConfirmSheet(routine: routine),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => context.push('/pets/${pet.id}'),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 68,
-            height: 68,
-            decoration: BoxDecoration(
-              color: _color,
-              shape: BoxShape.circle,
+    final allDone   = routine.isAllCompleted;
+    final done      = routine.completedPetCount;
+    final totalPets = routine.totalPetCount;
+    final pets      = routine.petStatuses;
+
+    return Opacity(
+      opacity: allDone ? 0.62 : 1.0,
+      child: Container(
+        decoration: BoxDecoration(
+          color: _bg,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 시각 + 인덱스 pill
+            Row(
+              children: [
+                Text(
+                  routine.alarmTime ?? '--:--',
+                  style: AppTextStyles.mono(11, FontWeight.w700,
+                      color: AppColors.paleInk2),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.55),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    '${(index + 1).toString().padLeft(2, '0')} / ${total.toString().padLeft(2, '0')}',
+                    style: AppTextStyles.mono(10, FontWeight.w700,
+                        color: AppColors.paleInk2),
+                  ),
+                ),
+              ],
             ),
-            child: pet.profileImageUrl != null
-                ? ClipOval(
-                    child: Image.network(
-                      pet.profileImageUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Icon(
-                        Icons.pets,
-                        color: _color.withValues(alpha: 0.6),
-                        size: 32,
+            const SizedBox(height: 14),
+
+            // 아이콘 + 제목 + 마리수 pill
+            Row(
+              children: [
+                Container(
+                  width: 44, height: 44,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.55),
+                    borderRadius: BorderRadius.circular(13),
+                  ),
+                  child: Icon(_icon, size: 22, color: AppColors.primary),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(_typeLabel,
+                          style: AppTextStyles.mono(9, FontWeight.w700,
+                              color: AppColors.paleInk2)),
+                      const SizedBox(height: 2),
+                      Text(
+                        routine.title,
+                        style: TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.w700,
+                          color: AppColors.primary, letterSpacing: -0.4,
+                          decoration: allDone
+                              ? TextDecoration.lineThrough
+                              : TextDecoration.none,
+                          decorationColor: AppColors.paleInk2,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.7),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.person_outline,
+                          size: 12, color: AppColors.primary),
+                      const SizedBox(width: 4),
+                      Text('$totalPets마리',
+                          style: AppTextStyles.mono(11, FontWeight.w700)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // 개체 아바타 strip + 진행도
+            Row(
+              children: [
+                // 아바타 (최대 5, 겹침)
+                SizedBox(
+                  height: 26,
+                  width: _avatarStripWidth(pets.length.clamp(0, 5)),
+                  child: Stack(
+                    children: pets.take(5).toList().asMap().entries.map((e) {
+                      final i = e.key;
+                      final s = e.value;
+                      return Positioned(
+                        left: i * 19.0,
+                        child: Container(
+                          width: 26, height: 26,
+                          decoration: BoxDecoration(
+                            color: s.isCompleted
+                                ? PalePalette.pale(PalePalette.keyFromHex(s.colorCode))
+                                : Colors.white.withValues(alpha: 0.55),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: _bg, width: 1.5),
+                          ),
+                          child: Icon(Icons.pets,
+                              size: 12, color: AppColors.primary),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+                if (pets.length > 5) ...[
+                  Container(
+                    margin: const EdgeInsets.only(left: 4),
+                    width: 26, height: 26,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.55),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: _bg, width: 1.5),
+                    ),
+                    child: Center(
+                      child: Text('+${pets.length - 5}',
+                          style: AppTextStyles.mono(9, FontWeight.w700)),
+                    ),
+                  ),
+                ],
+                const Spacer(),
+                Text('$done / $totalPets 완료',
+                    style: AppTextStyles.mono(11, FontWeight.w700)),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            // 액션 버튼 2개
+            Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: allDone ? null : () => _openBulk(context),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 11),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: allDone ? Colors.transparent : AppColors.primary,
+                        border: allDone
+                            ? Border.all(color: AppColors.paleInk2, width: 1.5)
+                            : null,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (!allDone) ...[
+                            const Icon(Icons.check,
+                                size: 14, color: AppColors.paleBg),
+                            const SizedBox(width: 6),
+                          ],
+                          Text(
+                            allDone ? '완료됨' : '일괄 완료',
+                            style: TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w700,
+                              color: allDone
+                                  ? AppColors.paleInk2
+                                  : AppColors.paleBg,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  )
-                : Icon(
-                    Icons.pets,
-                    color: _colorForeground,
-                    size: 32,
                   ),
-          ),
-          const SizedBox(height: 6),
-          SizedBox(
-            width: 68,
-            child: Text(
-              pet.name,
-              style: AppTextStyles.caption.copyWith(color: AppColors.textPrimary),
-              textAlign: TextAlign.center,
-              maxLines: 1,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => _openPerPet(context),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 11),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.7),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.view_list_outlined,
+                              size: 14, color: AppColors.primary),
+                          const SizedBox(width: 6),
+                          const Text('개별 완료',
+                              style: TextStyle(
+                                  fontSize: 13, fontWeight: FontWeight.w700,
+                                  color: AppColors.primary)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static double _avatarStripWidth(int count) {
+    if (count == 0) return 0;
+    return 26 + (count - 1) * 19.0;
+  }
+}
+
+// ── 내 개체 상태 카드 (132px) ──────────────────────────────────
+class _PetStateCard extends StatelessWidget {
+  final Pet pet;
+  final _PetSignal signal;
+  final String feedLabel;
+  final VoidCallback onTap;
+
+  const _PetStateCard({
+    required this.pet,
+    required this.signal,
+    required this.feedLabel,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final paletteKey = PalePalette.keyFromHex(pet.colorCode);
+    final pale       = PalePalette.pale(paletteKey);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 132,
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          border: Border.all(color: AppColors.paleLine),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        padding: const EdgeInsets.fromLTRB(13, 13, 13, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 아이콘박스 + 이름/종
+            Row(
+              children: [
+                Container(
+                  width: 38, height: 38,
+                  decoration: BoxDecoration(
+                    color: pale,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: pet.profileImageUrl != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(11),
+                          child: Image.network(pet.profileImageUrl!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) =>
+                                  Icon(Icons.pets, size: 18,
+                                      color: AppColors.primary)))
+                      : Icon(Icons.pets, size: 18, color: AppColors.primary),
+                ),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        pet.name,
+                        style: const TextStyle(
+                            fontSize: 13.5, fontWeight: FontWeight.w700,
+                            color: AppColors.primary),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        pet.speciesName,
+                        style: TextStyle(
+                            fontSize: 10, color: AppColors.paleInk3,
+                            fontWeight: FontWeight.w600),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 11),
+
+            // 상태 신호 칩
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+              decoration: BoxDecoration(
+                color: signal.bg,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                signal.label,
+                style: TextStyle(
+                    fontSize: 11, fontWeight: FontWeight.w700,
+                    color: signal.fg),
+              ),
+            ),
+            const SizedBox(height: 9),
+
+            // 급여 D-day
+            Text(
+              feedLabel,
+              style: AppTextStyles.mono(10.5, FontWeight.w700,
+                  color: AppColors.paleInk2),
               overflow: TextOverflow.ellipsis,
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── 섹션 헤더 ─────────────────────────────────────────────────
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  final String trailing;
+  final VoidCallback? onTap;
+
+  const _SectionHeader({
+    required this.title,
+    required this.trailing,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(22, 32, 22, 14),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(title,
+              style: const TextStyle(
+                  fontSize: 16, fontWeight: FontWeight.w700,
+                  color: AppColors.primary, letterSpacing: -0.3)),
+          GestureDetector(
+            onTap: onTap,
+            child: Text(trailing,
+                style: TextStyle(
+                    fontSize: 12, color: AppColors.paleInk2)),
           ),
         ],
       ),
     );
   }
-
-  Color get _colorForeground {
-    final luminance = 0.299 * _color.r + 0.587 * _color.g + 0.114 * _color.b;
-    return luminance > 0.6
-        ? AppColors.primary.withValues(alpha: 0.6)
-        : Colors.white70;
-  }
 }
 
-// ── 최근 기록 타일 ──────────────────────────────────────────────────────────
-
-class _RecentRecordTile extends StatelessWidget {
+// ── 최근 기록 타일 ────────────────────────────────────────────
+class _RecentTile extends StatelessWidget {
   final RecentRecord record;
-  const _RecentRecordTile({required this.record});
+  final bool hasDivider;
+
+  const _RecentTile({required this.record, this.hasDivider = true});
 
   Color get _dotColor {
-    if (record.colorCode == null) return AppColors.petColorMint;
+    if (record.colorCode == null) return AppColors.petSage;
     try {
       return Color(int.parse(record.colorCode!.replaceFirst('#', '0xFF')));
     } catch (_) {
-      return AppColors.petColorMint;
+      return AppColors.petSage;
     }
   }
 
@@ -632,75 +887,35 @@ class _RecentRecordTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 0),
+      decoration: hasDivider
+          ? const BoxDecoration(
+              border: Border(
+                  bottom: BorderSide(color: AppColors.paleLineSoft)))
+          : null,
+      padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
         children: [
           Container(
-            width: 8,
-            height: 8,
-            margin: const EdgeInsets.only(right: 10, top: 2),
+            width: 8, height: 8,
+            margin: const EdgeInsets.only(right: 12),
             decoration: BoxDecoration(
-              color: _dotColor,
-              shape: BoxShape.circle,
-            ),
+              color: _dotColor, shape: BoxShape.circle),
           ),
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              child: Text(
-                '${record.petName}  ${record.summary}',
-                style: AppTextStyles.body,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+            child: Text(
+              '${record.petName}  ${record.summary}',
+              style: const TextStyle(
+                  fontSize: 13, color: AppColors.primary),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-          Text(_timeAgo(record.createdAt), style: AppTextStyles.caption),
+          Text(
+            _timeAgo(record.createdAt),
+            style: AppTextStyles.mono(10, FontWeight.w600,
+                color: AppColors.paleInk3),
+          ),
         ],
       ),
     );
-  }
-}
-
-// ── 공유 위젯: 펫 스프라이트 플레이스홀더 ────────────────────────────────────
-
-class _PetSprite extends StatelessWidget {
-  final String? colorCode;
-  final String? imageUrl;
-  final double size;
-
-  const _PetSprite({this.colorCode, this.imageUrl, this.size = 48});
-
-  Color get _bgColor {
-    if (colorCode == null) return AppColors.petColorMint;
-    try {
-      return Color(int.parse(colorCode!.replaceFirst('#', '0xFF')));
-    } catch (_) {
-      return AppColors.petColorMint;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: _bgColor.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(size * 0.25),
-      ),
-      child: imageUrl != null
-          ? ClipRRect(
-              borderRadius: BorderRadius.circular(size * 0.25),
-              child: Image.network(imageUrl!, fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => _icon()),
-            )
-          : _icon(),
-    );
-  }
-
-  Widget _icon() {
-    return Icon(Icons.pets,
-        size: size * 0.5, color: AppColors.primary.withValues(alpha: 0.5));
   }
 }
