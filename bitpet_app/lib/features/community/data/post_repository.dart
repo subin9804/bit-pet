@@ -13,8 +13,8 @@ class PostRepository {
   PostRepository(this._dio);
 
   Future<List<Post>> getFeed({String? categoryCode, String? cursor}) async {
-    final res = await _dio.get('/diary/feed', queryParameters: {
-      if (categoryCode != null) 'category': categoryCode,
+    final res = await _dio.get('/posts', queryParameters: {
+      if (categoryCode != null) 'categoryCode': categoryCode,
       if (cursor != null) 'cursor': cursor,
       'limit': 20,
     });
@@ -28,7 +28,7 @@ class PostRepository {
   }
 
   Future<Post> getPost(int id) async {
-    final res = await _dio.get('/diary/$id');
+    final res = await _dio.get('/posts/$id');
     final apiRes = ApiResponse.fromJson(
       res.data as Map<String, dynamic>,
       (d) => Post.fromJson(d as Map<String, dynamic>),
@@ -42,7 +42,7 @@ class PostRepository {
   }
 
   Future<Post> createPost(CreatePostRequest request) async {
-    final res = await _dio.post('/diary', data: request.toJson());
+    final res = await _dio.post('/posts', data: request.toJson());
     final apiRes = ApiResponse.fromJson(
       res.data as Map<String, dynamic>,
       (d) => Post.fromJson(d as Map<String, dynamic>),
@@ -55,20 +55,42 @@ class PostRepository {
     return apiRes.data!;
   }
 
+  Future<Post> updatePost(int id, UpdatePostRequest request) async {
+    final res = await _dio.patch('/posts/$id', data: request.toJson());
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => Post.fromJson(d as Map<String, dynamic>),
+    );
+    if (!apiRes.success || apiRes.data == null) {
+      throw ApiException(
+          statusCode: res.statusCode ?? 0,
+          message: apiRes.message ?? '게시글 수정 실패');
+    }
+    return apiRes.data!;
+  }
+
   Future<void> deletePost(int id) async {
-    await _dio.delete('/diary/$id');
+    await _dio.delete('/posts/$id');
   }
 
   Future<void> toggleLike(int id, bool currentlyLiked) async {
     if (currentlyLiked) {
-      await _dio.delete('/diary/$id/like');
+      await _dio.delete('/posts/$id/like');
     } else {
-      await _dio.post('/diary/$id/like');
+      await _dio.post('/posts/$id/like');
+    }
+  }
+
+  Future<void> toggleBookmark(int id, bool currentlyBookmarked) async {
+    if (currentlyBookmarked) {
+      await _dio.delete('/posts/$id/bookmark');
+    } else {
+      await _dio.post('/posts/$id/bookmark');
     }
   }
 
   Future<List<PostComment>> getComments(int postId) async {
-    final res = await _dio.get('/diary/$postId/comments');
+    final res = await _dio.get('/posts/$postId/comments');
     final apiRes = ApiResponse.fromJson(
       res.data as Map<String, dynamic>,
       (d) => (d as List)
@@ -80,7 +102,7 @@ class PostRepository {
 
   Future<PostComment> addComment(int postId, String content,
       {int? parentCommentId}) async {
-    final res = await _dio.post('/diary/$postId/comments', data: {
+    final res = await _dio.post('/posts/$postId/comments', data: {
       'content': content,
       if (parentCommentId != null) 'parentCommentId': parentCommentId,
     });

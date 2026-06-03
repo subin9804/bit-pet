@@ -92,6 +92,23 @@ abstract final class AppColors {
   static const catMating  = petCoral;  static const catMatingInk  = petCoralInk;
   static const catLaying  = petPeach;  static const catLayingInk  = petPeachInk;
 
+  // ── 커뮤니티 카테고리 태그 색 (게시판 pill badge) ──────────
+  static const commFreeBg   = petPeach;           // oklch(0.94 0.04 55)
+  static const commFreeInk  = Color(0xFF7B5525);  // oklch(0.45 0.08 55)
+  static const commQnaBg    = Color(0xFFCAE8FF);  // oklch(0.94 0.05 235)
+  static const commQnaInk   = Color(0xFF1C4880);  // oklch(0.42 0.10 235)
+  static const commInfoBg   = petSage;            // oklch(0.94 0.035 150)
+  static const commInfoInk  = Color(0xFF2A5438);  // oklch(0.42 0.08 150)
+  static const commSellBg   = Color(0xFFEBD8FF);  // oklch(0.94 0.05 305)
+  static const commSellInk  = Color(0xFF5C2880);  // oklch(0.42 0.10 305)
+
+  // 커뮤니티 HOT/PINNED/좋아요 강조색
+  static const commHot      = Color(0xFFC44030);  // oklch(0.55 0.16 25) HOT 라벨
+  static const commNotifDot = Color(0xFFE06035);  // oklch(0.70 0.18 25) 알림 점
+  static const commLikeInk  = Color(0xFFA03020);  // oklch(0.45 0.12 25) 좋아요 텍스트
+  static const commLikeBg   = Color(0xFFFFDED5);  // oklch(0.94 0.06 25) 좋아요 배경
+  static const commPinnedBg = Color(0xFFF5F0D5);  // oklch(0.96 0.04 95) PINNED 띠
+
   // ── 다크 테마 (추후 정의 예정) ─────────────────────────────
   static const darkBg          = Color(0xFF0F0F14);
   static const darkSurface     = Color(0xFF1A1A24);

@@ -12,6 +12,7 @@ import '../../features/pet/presentation/pet_form_screen.dart';
 import '../../features/record/presentation/record_screen.dart';
 import '../../features/community/presentation/community_feed_screen.dart';
 import '../../features/community/presentation/post_detail_screen.dart';
+import '../../features/community/presentation/post_compose_screen.dart';
 import '../../features/my/presentation/my_screen.dart';
 import '../../features/notification/data/notification_repository.dart';
 import '../../features/notification/data/models/notification_models.dart';
@@ -90,11 +91,16 @@ final routerProvider = Provider<GoRouter>((ref) {
               builder: (_, __) => const CommunityFeedScreen()),
           GoRoute(
               path: '/community/new',
-              builder: (_, __) => const _PostFormPlaceholder()),
+              builder: (_, __) => const PostComposeScreen()),
           GoRoute(
             path: '/community/:id',
             builder: (_, state) => PostDetailScreen(
                 postId: int.parse(state.pathParameters['id']!)),
+          ),
+          GoRoute(
+            path: '/community/:id/edit',
+            builder: (_, state) => PostComposeScreen(
+                postId: int.tryParse(state.pathParameters['id']!)),
           ),
           GoRoute(path: '/my', builder: (_, __) => const MyScreen()),
         ],
@@ -124,17 +130,6 @@ class _AuthListenable implements Listenable {
   void removeListener(VoidCallback listener) => _listeners.remove(listener);
 }
 
-class _PostFormPlaceholder extends StatelessWidget {
-  const _PostFormPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('게시글 작성')),
-      body: const Center(child: Text('게시글 작성 화면 (STEP 9에서 구현)')),
-    );
-  }
-}
 
 // 알림 목록 화면
 class _NotificationScreen extends ConsumerWidget {
