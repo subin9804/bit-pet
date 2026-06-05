@@ -7,8 +7,6 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/skeleton_loader.dart';
 import '../data/models/pet_models.dart';
 import '../providers/pet_provider.dart';
-import '../../routine/data/models/routine_models.dart';
-import '../../routine/data/routine_repository.dart';
 import '../../routine/providers/routine_provider.dart';
 import '../../routine/presentation/routine_screen.dart';
 
@@ -40,18 +38,8 @@ class _PetListScreenState extends ConsumerState<PetListScreen>
     if (_tabController.index == 0) {
       context.push('/pets/new');
     } else {
-      // 루틴 추가 — RoutineScreen에서 처리
-      _showAddRoutineSheet();
+      context.push('/routines/new');
     }
-  }
-
-  void _showAddRoutineSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => const _AddRoutineSheet(),
-    );
   }
 
   @override
@@ -560,144 +548,3 @@ class _FilterChip extends StatelessWidget {
   }
 }
 
-// ── 루틴 추가 바텀시트 (placeholder) ─────────────────────────────────────────
-
-class _AddRoutineSheet extends ConsumerStatefulWidget {
-  const _AddRoutineSheet();
-
-  @override
-  ConsumerState<_AddRoutineSheet> createState() => _AddRoutineSheetState();
-}
-
-class _AddRoutineSheetState extends ConsumerState<_AddRoutineSheet> {
-  final _titleController = TextEditingController();
-  RoutineTypeSelection _type = RoutineTypeSelection.feeding;
-  int _cycleDays = 1;
-  bool _loading = false;
-
-  @override
-  void dispose() {
-    _titleController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40, height: 4,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: AppColors.border,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              Text('루틴 추가', style: AppTextStyles.title),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _titleController,
-                decoration: const InputDecoration(hintText: '루틴 이름'),
-              ),
-              const SizedBox(height: 12),
-              // 타입 선택
-              Row(
-                children: RoutineTypeSelection.values.map((t) {
-                  final selected = _type == t;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: _FilterChip(
-                      label: t.label,
-                      selected: selected,
-                      onTap: () => setState(() => _type = t),
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 12),
-              // 주기
-              Row(
-                children: [
-                  Text('주기: ', style: AppTextStyles.body),
-                  IconButton(
-                    icon: const Icon(Icons.remove, size: 18),
-                    onPressed: () => setState(() {
-                      if (_cycleDays > 1) _cycleDays--;
-                    }),
-                  ),
-                  Text('$_cycleDays일',
-                      style: AppTextStyles.bodyBold),
-                  IconButton(
-                    icon: const Icon(Icons.add, size: 18),
-                    onPressed: () =>
-                        setState(() => _cycleDays++),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _loading ? null : _submit,
-                  child: _loading
-                      ? const CircularProgressIndicator()
-                      : const Text('루틴 추가'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _submit() async {
-    if (_titleController.text.trim().isEmpty) return;
-    setState(() => _loading = true);
-    try {
-      final routineType = switch (_type) {
-        RoutineTypeSelection.feeding => RoutineType.FEEDING,
-        RoutineTypeSelection.cleaning => RoutineType.CLEANING,
-        RoutineTypeSelection.weight => RoutineType.WEIGHT,
-        RoutineTypeSelection.custom => RoutineType.CUSTOM,
-      };
-      await ref.read(routineRepositoryProvider).createRoutine(
-            CreateRoutineRequest(
-              routineType: routineType,
-              title: _titleController.text.trim(),
-              cycleDays: _cycleDays,
-            ),
-          );
-      ref.read(routineListProvider.notifier).load();
-      if (mounted) Navigator.of(context).pop();
-    } catch (e) {
-      // 오류 처리 — 간단히 무시
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-}
-
-enum RoutineTypeSelection {
-  feeding('피딩'),
-  cleaning('청소'),
-  weight('체중'),
-  custom('사용자');
-
-  final String label;
-  const RoutineTypeSelection(this.label);
-}

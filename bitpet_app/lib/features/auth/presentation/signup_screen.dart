@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/step_shell.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../providers/auth_provider.dart';
 
-enum _PwStrength { none, weak, medium, strong }
+// ════════════════════════════════════════════════════════════════
+// 11s · 회원가입 — 4단계 스텝 위저드
+// 1) 프로필(색·닉네임)  2) 로그인 정보  3) 약관  4) 확인
+// ════════════════════════════════════════════════════════════════
 
 class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
@@ -16,61 +19,103 @@ class SignupScreen extends ConsumerStatefulWidget {
 }
 
 class _SignupScreenState extends ConsumerState<SignupScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _emailCtrl    = TextEditingController();
-  final _pwCtrl       = TextEditingController();
-  final _pwConfirmCtrl = TextEditingController();
-  final _nicknameCtrl = TextEditingController();
+  // ── 상태 ────────────────────────────────────────────────────────────────────
+  String _colorKey = 'peach'; // sage/peach/sky/lilac/butter/coral
+  final _nickCtrl   = TextEditingController();
+  final _emailCtrl  = TextEditingController();
+  final _pwCtrl     = TextEditingController();
+  final _pw2Ctrl    = TextEditingController();
 
-  bool _obscurePw        = true;
-  bool _obscurePwConfirm = true;
-  _PwStrength _pwStrength = _PwStrength.none;
+  bool _obscurePw  = true;
+  bool _obscurePw2 = true;
 
-  // 약관 동의
-  bool _agreeTerms     = false; // 이용약관 (필수)
-  bool _agreePrivacy   = false; // 개인정보 처리방침 (필수)
-  bool _agreeMarketing = false; // 마케팅 수신 (선택)
+  bool _agreeAll       = false;
+  bool _agreeTos       = false; // 필수
+  bool _agreePrivacy   = false; // 필수
+  bool _agreeAge       = false; // 필수
+  bool _agreeMarketing = false; // 선택
 
-  bool get _requiredAgreed => _agreeTerms && _agreePrivacy;
-  bool get _agreeAll => _agreeTerms && _agreePrivacy && _agreeMarketing;
+  bool get _reqAgreed => _agreeTos && _agreePrivacy && _agreeAge;
 
-  void _setAgreeAll(bool value) => setState(() {
-        _agreeTerms = value;
-        _agreePrivacy = value;
-        _agreeMarketing = value;
-      });
+  // ── 팔레트 ──────────────────────────────────────────────────────────────────
+  static const _palette = <(String, Color, Color)>[
+    ('sage',   AppColors.petSage,   AppColors.petSageInk),
+    ('peach',  AppColors.petPeach,  AppColors.petPeachInk),
+    ('sky',    AppColors.petSky,    AppColors.petSkyInk),
+    ('lilac',  AppColors.petLilac,  AppColors.petLilacInk),
+    ('butter', AppColors.petButter, AppColors.petButterInk),
+    ('coral',  AppColors.petCoral,  AppColors.petCoralInk),
+  ];
+
+  Color get _accentInk {
+    for (final (key, _, ink) in _palette) {
+      if (key == _colorKey) return ink;
+    }
+    return AppColors.petPeachInk;
+  }
+
+  Color get _selectedBg {
+    for (final (key, bg, _) in _palette) {
+      if (key == _colorKey) return bg;
+    }
+    return AppColors.petPeach;
+  }
+
+  // ── 비밀번호 강도 ────────────────────────────────────────────────────────────
+  int _strength(String pw) {
+    if (pw.isEmpty) return 0;
+    int s = 0;
+    if (pw.length >= 10) s++;
+    if (RegExp(r'[0-9]').hasMatch(pw)) s++;
+    if (RegExp(r'[^A-Za-z0-9]').hasMatch(pw)) s++;
+    return s;
+  }
+
+  bool get _emailValid =>
+      RegExp(r'^[\w.+\-]+@[\w\-]+\.[a-zA-Z]{2,}$').hasMatch(_emailCtrl.text);
+  bool get _pwValid =>
+      _pwCtrl.text.length >= 10 &&
+      [
+        RegExp(r'[a-zA-Z]').hasMatch(_pwCtrl.text),
+        RegExp(r'[0-9]').hasMatch(_pwCtrl.text),
+        RegExp(r'[^A-Za-z0-9]').hasMatch(_pwCtrl.text),
+      ].where((e) => e).length >= 2;
+  bool get _pw2Match => _pwCtrl.text.isNotEmpty && _pwCtrl.text == _pw2Ctrl.text;
 
   @override
   void dispose() {
+    _nickCtrl.dispose();
     _emailCtrl.dispose();
     _pwCtrl.dispose();
-    _pwConfirmCtrl.dispose();
-    _nicknameCtrl.dispose();
+    _pw2Ctrl.dispose();
     super.dispose();
   }
 
-  _PwStrength _calcStrength(String pw) {
-    if (pw.isEmpty) return _PwStrength.none;
-    if (pw.length < 10) return _PwStrength.weak;
-    final hasLetter  = RegExp(r'[a-zA-Z]').hasMatch(pw);
-    final hasDigit   = RegExp(r'[0-9]').hasMatch(pw);
-    final hasSpecial = RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(pw);
-    final types = [hasLetter, hasDigit, hasSpecial].where((e) => e).length;
-    if (types >= 3) return _PwStrength.strong;
-    if (types >= 2) return _PwStrength.medium;
-    return _PwStrength.weak;
+  void _toggleOne(String k) {
+    setState(() {
+      if (k == 'tos')       _agreeTos       = !_agreeTos;
+      if (k == 'privacy')   _agreePrivacy   = !_agreePrivacy;
+      if (k == 'age')       _agreeAge       = !_agreeAge;
+      if (k == 'marketing') _agreeMarketing = !_agreeMarketing;
+      _agreeAll = _agreeTos && _agreePrivacy && _agreeAge && _agreeMarketing;
+    });
+  }
+
+  void _toggleAll() {
+    setState(() {
+      _agreeAll = !_agreeAll;
+      _agreeTos = _agreeAll;
+      _agreePrivacy = _agreeAll;
+      _agreeAge = _agreeAll;
+      _agreeMarketing = _agreeAll;
+    });
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (!_requiredAgreed) {
-      ToastMessage.show(context, '필수 약관에 동의해주세요', type: ToastType.error);
-      return;
-    }
     await ref.read(authStateProvider.notifier).signup(
       _emailCtrl.text.trim(),
       _pwCtrl.text,
-      _nicknameCtrl.text.trim(),
+      _nickCtrl.text.trim(),
     );
     if (!mounted) return;
     ref.read(authStateProvider).whenOrNull(
@@ -78,374 +123,455 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final isLoading = ref.watch(authStateProvider).isLoading;
-
-    return Scaffold(
-      backgroundColor: AppColors.bg,
-      appBar: AppBar(
-        backgroundColor: AppColors.bg,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
-          onPressed: () => context.pop(),
-        ),
-        title: Text(
-          '회원가입',
-          style: GoogleFonts.vt323(
-            fontSize: 22,
-            color: AppColors.textPrimary,
-            letterSpacing: 1,
-          ),
-        ),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 28),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 20),
-
-                  // ── EMAIL ────────────────────────────────────────────
-                  _InputField(
-                    label: 'EMAIL',
-                    controller: _emailCtrl,
-                    keyboardType: TextInputType.emailAddress,
-                    enabled: !isLoading,
-                    validator: (v) {
-                      if (v == null || v.isEmpty) return '이메일을 입력하세요';
-                      final ok = RegExp(r'^[\w.+\-]+@[\w\-]+\.[a-zA-Z]{2,}$');
-                      if (!ok.hasMatch(v)) return '올바른 이메일 형식이 아닙니다';
-                      return null;
-                    },
+  // ── 스텝 빌드 ─────────────────────────────────────────────────────────────
+  List<StepConfig> get _steps => [
+    // ── Step 1: 프로필 ──────────────────────────────────────────────────────
+    StepConfig(
+      title: '프로필을 만들어요',
+      desc: '비펫 안에서 보일 이름과 색이에요.',
+      valid: () => _nickCtrl.text.trim().length >= 2,
+      render: (ctx) => ListenableBuilder(
+        listenable: _nickCtrl,
+        builder: (_, __) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 아바타 + 팔레트
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // 아바타 프리뷰
+                Container(
+                  width: 92,
+                  height: 92,
+                  decoration: BoxDecoration(
+                    color: _selectedBg,
+                    borderRadius: BorderRadius.circular(24),
                   ),
-
-                  const SizedBox(height: 12),
-
-                  // ── P/W ──────────────────────────────────────────────
-                  _InputField(
-                    label: 'P/W',
-                    controller: _pwCtrl,
-                    obscureText: _obscurePw,
-                    enabled: !isLoading,
-                    onChanged: (v) =>
-                        setState(() => _pwStrength = _calcStrength(v)),
-                    suffixIcon: GestureDetector(
-                      onTap: () => setState(() => _obscurePw = !_obscurePw),
-                      child: Icon(
-                        _obscurePw
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
-                        color: AppColors.textDisabled,
-                        size: 20,
-                      ),
-                    ),
-                    validator: (v) {
-                      if (v == null || v.length < 10) return '최소 10자 이상이어야 합니다';
-                      final hasLetter  = RegExp(r'[a-zA-Z]').hasMatch(v);
-                      final hasDigit   = RegExp(r'[0-9]').hasMatch(v);
-                      final hasSpecial = RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(v);
-                      final types = [hasLetter, hasDigit, hasSpecial].where((e) => e).length;
-                      if (types < 2) return '영문·숫자·특수문자 중 2종류 이상 조합하세요';
-                      return null;
-                    },
+                  child: const Center(
+                    child: Text('🦎', style: TextStyle(fontSize: 40)),
                   ),
-
-                  // ── 비밀번호 강도 게이지 ──────────────────────────────
-                  const SizedBox(height: 8),
-                  _PasswordStrengthBar(strength: _pwStrength),
-
-                  const SizedBox(height: 12),
-
-                  // ── P/W CONFIRM ──────────────────────────────────────
-                  _InputField(
-                    label: 'P/W CONFIRM',
-                    controller: _pwConfirmCtrl,
-                    obscureText: _obscurePwConfirm,
-                    enabled: !isLoading,
-                    suffixIcon: GestureDetector(
-                      onTap: () =>
-                          setState(() => _obscurePwConfirm = !_obscurePwConfirm),
-                      child: Icon(
-                        _obscurePwConfirm
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
-                        color: AppColors.textDisabled,
-                        size: 20,
-                      ),
-                    ),
-                    validator: (v) {
-                      if (v == null || v.isEmpty) return '비밀번호 확인을 입력하세요';
-                      if (v != _pwCtrl.text) return '비밀번호가 일치하지 않습니다';
-                      return null;
-                    },
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // ── NICKNAME ─────────────────────────────────────────
-                  _InputField(
-                    label: 'NICKNAME',
-                    controller: _nicknameCtrl,
-                    enabled: !isLoading,
-                    validator: (v) {
-                      if (v == null || v.isEmpty) return '닉네임을 입력하세요';
-                      if (v.length > 20) return '20자 이하로 입력하세요';
-                      return null;
-                    },
-                  ),
-
-                  const SizedBox(height: 28),
-
-                  // ── 약관 동의 ─────────────────────────────────────────
-                  Text(
-                    'TERMS',
-                    style: GoogleFonts.vt323(
-                      fontSize: 13,
-                      color: AppColors.textDisabled,
-                      letterSpacing: 2,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: Column(
-                      children: [
-                        _TermsRow(
-                          label: '전체 동의',
-                          checked: _agreeAll,
-                          badge: null,
-                          isBold: true,
-                          onTap: () => _setAgreeAll(!_agreeAll),
-                        ),
-                        Divider(height: 1, thickness: 1, color: AppColors.border),
-                        _TermsRow(
-                          label: '이용약관 동의',
-                          checked: _agreeTerms,
-                          badge: '필수',
-                          onTap: () =>
-                              setState(() => _agreeTerms = !_agreeTerms),
-                        ),
-                        _TermsRow(
-                          label: '개인정보 처리방침 동의',
-                          checked: _agreePrivacy,
-                          badge: '필수',
-                          onTap: () =>
-                              setState(() => _agreePrivacy = !_agreePrivacy),
-                        ),
-                        _TermsRow(
-                          label: '마케팅 정보 수신 동의',
-                          checked: _agreeMarketing,
-                          badge: '선택',
-                          onTap: () =>
-                              setState(() => _agreeMarketing = !_agreeMarketing),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // ── 가입하기 버튼 ────────────────────────────────────
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton(
-                      onPressed:
-                          (isLoading || !_requiredAgreed) ? null : _submit,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _requiredAgreed
-                            ? AppColors.primary
-                            : AppColors.border,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                      child: isLoading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Colors.white),
-                            )
-                          : Text(
-                              '가입하기',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
-                                color: _requiredAgreed
-                                    ? Colors.white
-                                    : AppColors.textDisabled,
-                              ),
-                            ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // ── 이미 계정이 있으신가요? ───────────────────────────
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        '이미 계정이 있으신가요?',
+                      const Text(
+                        'PROFILE COLOR',
                         style: TextStyle(
-                            fontSize: 13, color: AppColors.textSecondary),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.paleInk2,
+                          letterSpacing: 0.3,
+                        ),
                       ),
-                      TextButton(
-                        onPressed: () => context.pop(),
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.only(left: 4),
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: Text(
-                          '로그인',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: AppColors.textPrimary,
-                            fontWeight: FontWeight.w700,
-                            decoration: TextDecoration.underline,
-                            decorationColor: AppColors.textPrimary,
-                          ),
-                        ),
+                      const SizedBox(height: 10),
+                      _PalettePicker(
+                        value: _colorKey,
+                        palette: _palette,
+                        onChanged: (k) {
+                          setState(() => _colorKey = k);
+                        },
                       ),
                     ],
                   ),
-
-                  const SizedBox(height: 40),
+                ),
+              ],
+            ),
+            const SizedBox(height: 22),
+            // 닉네임
+            SField(
+              label: '닉네임',
+              hint: '2~20자',
+              child: Row(
+                children: [
+                  Expanded(
+                    child: PaleTextField(
+                      controller: _nickCtrl,
+                      placeholder: '비펫 안에서 보일 이름',
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () => ToastMessage.show(
+                      context, '중복확인 기능은 준비 중이에요', type: ToastType.info,
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(11),
+                        border: Border.all(color: AppColors.paleLine),
+                      ),
+                      child: const Text(
+                        '중복확인',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
-          ),
+          ],
+        ),
+      ),
+    ),
+
+    // ── Step 2: 로그인 정보 ──────────────────────────────────────────────────
+    StepConfig(
+      title: '로그인 정보',
+      desc: '이메일과 비밀번호를 입력하세요.',
+      valid: () => _emailValid && _pwValid && _pw2Match,
+      render: (_) => ListenableBuilder(
+        listenable: Listenable.merge([_emailCtrl, _pwCtrl, _pw2Ctrl]),
+        builder: (_, __) {
+          final st = _strength(_pwCtrl.text);
+          final Color stColor = st == 0
+              ? Colors.transparent
+              : st == 1
+                  ? const Color(0xFFCC4422)
+                  : st == 2
+                      ? const Color(0xFFCC8800)
+                      : const Color(0xFF3A8854);
+          final stLabel = ['', '약함', '보통', '강함'][st];
+
+          return Column(
+            children: [
+              SField(
+                label: '이메일',
+                child: PaleTextField(
+                  controller: _emailCtrl,
+                  placeholder: 'name@example.com',
+                  keyboardType: TextInputType.emailAddress,
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+              SField(
+                label: '비밀번호',
+                hint: '10자 이상, 2종류 이상 조합',
+                child: Column(
+                  children: [
+                    PaleTextField(
+                      controller: _pwCtrl,
+                      placeholder: '비밀번호',
+                      obscureText: _obscurePw,
+                      onChanged: (_) => setState(() {}),
+                      suffixIcon: GestureDetector(
+                        onTap: () => setState(() => _obscurePw = !_obscurePw),
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 12),
+                          child: Icon(
+                            _obscurePw
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                            color: AppColors.paleInk3,
+                            size: 18,
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (_pwCtrl.text.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(2),
+                              child: LinearProgressIndicator(
+                                value: st / 3,
+                                minHeight: 4,
+                                backgroundColor: AppColors.paleLine,
+                                color: stColor,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            stLabel,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: stColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              SField(
+                label: '비밀번호 확인',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    PaleTextField(
+                      controller: _pw2Ctrl,
+                      placeholder: '비밀번호 다시 입력',
+                      obscureText: _obscurePw2,
+                      onChanged: (_) => setState(() {}),
+                      suffixIcon: GestureDetector(
+                        onTap: () => setState(() => _obscurePw2 = !_obscurePw2),
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 12),
+                          child: Icon(
+                            _obscurePw2
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                            color: AppColors.paleInk3,
+                            size: 18,
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (_pw2Ctrl.text.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        _pw2Match ? '✓ 일치합니다' : '✗ 비밀번호가 다릅니다',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: _pw2Match
+                              ? const Color(0xFF3A8854)
+                              : const Color(0xFFCC4422),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    ),
+
+    // ── Step 3: 약관 ─────────────────────────────────────────────────────────
+    StepConfig(
+      title: '약관에 동의해 주세요',
+      desc: '필수 항목에 모두 동의하면 가입할 수 있어요.',
+      valid: () => _reqAgreed,
+      render: (ctx) => Container(
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.paleLine),
+        ),
+        child: Column(
+          children: [
+            _TermsItem(
+              label: '전체 동의',
+              checked: _agreeAll,
+              isBold: true,
+              hasBorder: true,
+              onTap: () {
+                _toggleAll();
+                if (!_agreeAll && _reqAgreed) ctx.advance();
+              },
+            ),
+            _TermsItem(
+              label: '서비스 이용약관',
+              checked: _agreeTos,
+              badge: '필수',
+              onTap: () => _toggleOne('tos'),
+            ),
+            _TermsItem(
+              label: '개인정보 처리방침',
+              checked: _agreePrivacy,
+              badge: '필수',
+              onTap: () => _toggleOne('privacy'),
+            ),
+            _TermsItem(
+              label: '만 14세 이상입니다',
+              checked: _agreeAge,
+              badge: '필수',
+              onTap: () => _toggleOne('age'),
+            ),
+            _TermsItem(
+              label: '마케팅 정보 수신',
+              checked: _agreeMarketing,
+              badge: '선택',
+              isLast: true,
+              onTap: () => _toggleOne('marketing'),
+            ),
+          ],
+        ),
+      ),
+    ),
+
+    // ── Step 4: 확인 ─────────────────────────────────────────────────────────
+    StepConfig(
+      title: '입력한 내용을 확인하세요',
+      desc: '"수정"을 눌러 각 단계를 다시 고칠 수 있어요.',
+      render: (ctx) => StepSummary(
+        goEdit: ctx.goEdit,
+        groups: [
+          StepSummaryGroup(label: '프로필', step: 0, rows: [
+            StepSummaryRow(k: '닉네임', v: _nickCtrl.text),
+            StepSummaryRow(k: '색상', v: _colorKey),
+          ]),
+          StepSummaryGroup(label: '계정', step: 1, rows: [
+            StepSummaryRow(k: '이메일', v: _emailCtrl.text),
+            StepSummaryRow(
+              k: '비밀번호',
+              v: _pwCtrl.text.isNotEmpty ? '•' * _pwCtrl.text.length.clamp(0, 10) : '',
+            ),
+          ]),
+          StepSummaryGroup(label: '약관', step: 2, rows: [
+            StepSummaryRow(
+              k: '필수 약관',
+              v: _reqAgreed ? '모두 동의' : '미동의',
+              muted: !_reqAgreed,
+            ),
+            StepSummaryRow(
+              k: '마케팅 수신',
+              v: _agreeMarketing ? '동의' : '미동의',
+              muted: !_agreeMarketing,
+            ),
+          ]),
+        ],
+      ),
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.paleBg,
+      body: SafeArea(
+        child: StepShell(
+          headerTitle: '회원가입',
+          accentInk: _accentInk,
+          steps: _steps,
+          doneLabel: '가입 완료하고 시작',
+          onDone: _submit,
+          onCancel: () => context.pop(),
         ),
       ),
     );
   }
 }
 
-// ─── 비밀번호 강도 게이지 바 ──────────────────────────────────────────────────
-class _PasswordStrengthBar extends StatelessWidget {
-  final _PwStrength strength;
-  const _PasswordStrengthBar({required this.strength});
+// ── 팔레트 피커 ────────────────────────────────────────────────────────────────
+
+class _PalettePicker extends StatelessWidget {
+  final String value;
+  final List<(String, Color, Color)> palette;
+  final void Function(String) onChanged;
+
+  const _PalettePicker({
+    required this.value,
+    required this.palette,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
-    if (strength == _PwStrength.none) return const SizedBox.shrink();
-
-    final filled = switch (strength) {
-      _PwStrength.weak   => 1,
-      _PwStrength.medium => 2,
-      _PwStrength.strong => 3,
-      _PwStrength.none   => 0,
-    };
-    final color = switch (strength) {
-      _PwStrength.weak   => AppColors.error,
-      _PwStrength.medium => AppColors.warning,
-      _PwStrength.strong => AppColors.success,
-      _PwStrength.none   => AppColors.border,
-    };
-    final label = switch (strength) {
-      _PwStrength.weak   => '약함',
-      _PwStrength.medium => '보통',
-      _PwStrength.strong => '강함',
-      _PwStrength.none   => '',
-    };
-
-    return Row(
-      children: [
-        ...List.generate(3, (i) => Expanded(
-              child: Container(
-                height: 4,
-                margin: EdgeInsets.only(right: i < 2 ? 4 : 0),
-                decoration: BoxDecoration(
-                  color: i < filled ? color : AppColors.border,
-                  borderRadius: BorderRadius.circular(2),
-                ),
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: palette.map((entry) {
+        final (key, bg, ink) = entry;
+        final sel = value == key;
+        return GestureDetector(
+          onTap: () => onChanged(key),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              color: bg,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: sel ? ink : AppColors.paleLine,
+                width: sel ? 2 : 1,
               ),
-            )),
-        const SizedBox(width: 8),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            color: color,
-            fontWeight: FontWeight.w600,
+            ),
+            child: sel
+                ? Icon(Icons.check, size: 14, color: ink)
+                : null,
           ),
-        ),
-      ],
+        );
+      }).toList(),
     );
   }
 }
 
-// ─── 약관 동의 행 ──────────────────────────────────────────────────────────────
-class _TermsRow extends StatelessWidget {
+// ── 약관 항목 행 ────────────────────────────────────────────────────────────────
+
+class _TermsItem extends StatelessWidget {
   final String label;
   final bool checked;
-  final String? badge;  // '필수' | '선택' | null
+  final String? badge;
   final bool isBold;
+  final bool hasBorder;
+  final bool isLast;
   final VoidCallback onTap;
 
-  const _TermsRow({
+  const _TermsItem({
     required this.label,
     required this.checked,
     required this.onTap,
     this.badge,
     this.isBold = false,
+    this.hasBorder = false,
+    this.isLast = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        decoration: BoxDecoration(
+          border: hasBorder
+              ? const Border(bottom: BorderSide(color: AppColors.paleLineSoft))
+              : isLast
+                  ? null
+                  : const Border(bottom: BorderSide(color: AppColors.paleLineSoft)),
+        ),
         child: Row(
           children: [
-            _PixelCheckbox(checked: checked),
+            _PaleCheckbox(checked: checked, large: isBold),
             const SizedBox(width: 10),
             Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: AppColors.textPrimary,
-                  fontWeight: isBold ? FontWeight.w700 : FontWeight.w400,
-                ),
+              child: Row(
+                children: [
+                  if (badge != null) ...[
+                    Text(
+                      '[$badge]',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                        color: badge == '필수'
+                            ? const Color(0xFFCC4422)
+                            : AppColors.paleInk3,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                  ],
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            if (badge != null)
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.bg2,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  badge!,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: badge == '필수'
-                        ? AppColors.textSecondary
-                        : AppColors.textDisabled,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
+            if (!isBold)
+              const Icon(Icons.chevron_right, size: 16, color: AppColors.paleInk3),
           ],
         ),
       ),
@@ -453,117 +579,30 @@ class _TermsRow extends StatelessWidget {
   }
 }
 
-// ─── 픽셀 체크박스 ────────────────────────────────────────────────────────────
-class _PixelCheckbox extends StatelessWidget {
+class _PaleCheckbox extends StatelessWidget {
   final bool checked;
-  const _PixelCheckbox({required this.checked});
+  final bool large;
+  const _PaleCheckbox({required this.checked, this.large = false});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 18,
-      height: 18,
+    final size = large ? 22.0 : 18.0;
+    final radius = large ? 6.0 : 9.0;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 150),
+      width: size,
+      height: size,
       decoration: BoxDecoration(
-        color: checked ? AppColors.primary : Colors.transparent,
-        border: Border.all(color: AppColors.textPrimary, width: 1.5),
-        borderRadius: BorderRadius.circular(3),
+        color: checked ? AppColors.primary : AppColors.surface,
+        borderRadius: BorderRadius.circular(radius),
+        border: Border.all(
+          color: checked ? AppColors.primary : AppColors.paleLine,
+          width: 1.5,
+        ),
       ),
       child: checked
-          ? const Icon(Icons.check, size: 13, color: Colors.white)
+          ? Icon(Icons.check, size: size * 0.65, color: AppColors.paleBg)
           : null,
-    );
-  }
-}
-
-// ─── 공통 입력 필드 ────────────────────────────────────────────────────────────
-class _InputField extends StatelessWidget {
-  final String label;
-  final TextEditingController controller;
-  final TextInputType keyboardType;
-  final bool obscureText;
-  final bool enabled;
-  final Widget? suffixIcon;
-  final String? Function(String?)? validator;
-  final void Function(String)? onChanged;
-
-  const _InputField({
-    required this.label,
-    required this.controller,
-    this.keyboardType = TextInputType.text,
-    this.obscureText = false,
-    this.enabled = true,
-    this.suffixIcon,
-    this.validator,
-    this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: GoogleFonts.vt323(
-            fontSize: 13,
-            color: AppColors.textDisabled,
-            letterSpacing: 2,
-          ),
-        ),
-        const SizedBox(height: 5),
-        TextFormField(
-          controller: controller,
-          keyboardType: keyboardType,
-          obscureText: obscureText,
-          enabled: enabled,
-          onChanged: onChanged,
-          validator: validator,
-          style: TextStyle(fontSize: 15, color: AppColors.textPrimary),
-          cursorColor: AppColors.textPrimary,
-          decoration: InputDecoration(
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            suffixIcon: suffixIcon != null
-                ? Padding(
-                    padding: const EdgeInsets.only(right: 12),
-                    child: suffixIcon,
-                  )
-                : null,
-            suffixIconConstraints:
-                const BoxConstraints(minWidth: 0, minHeight: 0),
-            filled: true,
-            fillColor: AppColors.surface,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AppColors.border),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AppColors.border),
-            ),
-            disabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AppColors.border),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide:
-                  const BorderSide(color: AppColors.textPrimary, width: 1.5),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AppColors.error),
-            ),
-            focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide:
-                  const BorderSide(color: AppColors.error, width: 1.5),
-            ),
-            errorStyle:
-                const TextStyle(fontSize: 11, color: AppColors.error),
-          ),
-        ),
-      ],
     );
   }
 }

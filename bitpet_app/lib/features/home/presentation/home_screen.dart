@@ -18,7 +18,7 @@ class HomeScreen extends ConsumerWidget {
 
   int get _currentIndex {
     if (location.startsWith('/home')) return 0;
-    if (location.startsWith('/pets')) return 1;
+    if (location.startsWith('/routines')) return 1;
     if (location.startsWith('/community')) return 2;
     if (location.startsWith('/my')) return 3;
     return 0;
@@ -66,11 +66,11 @@ class HomeScreen extends ConsumerWidget {
               onTap: () => context.go('/home'),
             ),
             _NavBtn(
-              icon: Icons.grid_view_outlined,
-              activeIcon: Icons.grid_view,
-              label: '내 개체',
+              icon: Icons.schedule_outlined,
+              activeIcon: Icons.schedule,
+              label: '루틴',
               active: _currentIndex == 1,
-              onTap: () => context.go('/pets'),
+              onTap: () => context.go('/routines'),
             ),
             const SizedBox(width: 56), // FAB 공간
             _NavBtn(

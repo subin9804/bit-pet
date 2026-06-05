@@ -13,6 +13,8 @@ import '../../features/record/presentation/record_screen.dart';
 import '../../features/community/presentation/community_feed_screen.dart';
 import '../../features/community/presentation/post_detail_screen.dart';
 import '../../features/community/presentation/post_compose_screen.dart';
+import '../../features/routine/presentation/routines_page.dart';
+import '../../features/routine/presentation/routine_form_screen.dart';
 import '../../features/my/presentation/my_screen.dart';
 import '../../features/notification/data/notification_repository.dart';
 import '../../features/notification/data/models/notification_models.dart';
@@ -86,6 +88,8 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/notifications',
             builder: (_, __) => const _NotificationScreen(),
           ),
+          GoRoute(path: '/routines', builder: (_, __) => const RoutinesPage()),
+          GoRoute(path: '/routines/new', builder: (_, __) => const RoutineFormScreen()),
           GoRoute(
               path: '/community',
               builder: (_, __) => const CommunityFeedScreen()),
