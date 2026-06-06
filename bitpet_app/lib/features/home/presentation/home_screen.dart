@@ -40,54 +40,80 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       body: child,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _openFabSheet(context),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: const Icon(Icons.add, size: 28),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      // FAB는 BottomAppBar 안에 인라인으로 임베드 (디자인 기준: marginTop -20)
       bottomNavigationBar: BottomAppBar(
-        shape: const CircularNotchedRectangle(),
-        notchMargin: 8,
         color: AppColors.surface,
         elevation: 8,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _NavBtn(
-              icon: Icons.home_outlined,
-              activeIcon: Icons.home,
-              label: '홈',
-              active: _currentIndex == 0,
-              badge: unreadCount > 0 && _currentIndex == 0 ? unreadCount : 0,
-              onTap: () => context.go('/home'),
+        padding: EdgeInsets.zero,
+        child: SafeArea(
+          top: false,
+          child: SizedBox(
+            height: 56,
+            child: Row(
+              children: [
+                _NavBtn(
+                  icon: Icons.home_outlined,
+                  activeIcon: Icons.home,
+                  label: '홈',
+                  active: _currentIndex == 0,
+                  badge: unreadCount > 0 && _currentIndex == 0 ? unreadCount : 0,
+                  onTap: () => context.go('/home'),
+                ),
+                _NavBtn(
+                  icon: Icons.schedule_outlined,
+                  activeIcon: Icons.schedule,
+                  label: '루틴',
+                  active: _currentIndex == 1,
+                  onTap: () => context.go('/routines'),
+                ),
+                // 중앙 FAB — nav bar 안에 임베드, 14px 위로 돌출
+                Expanded(
+                  child: Center(
+                    child: Transform.translate(
+                      offset: const Offset(0, -14),
+                      child: GestureDetector(
+                        onTap: () => _openFabSheet(context),
+                        child: Container(
+                          width: 50,
+                          height: 50,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x2E3A332B),
+                                blurRadius: 16,
+                                offset: Offset(0, 6),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.add,
+                            color: Colors.white,
+                            size: 26,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                _NavBtn(
+                  icon: Icons.forum_outlined,
+                  activeIcon: Icons.forum,
+                  label: '커뮤니티',
+                  active: _currentIndex == 2,
+                  onTap: () => context.go('/community'),
+                ),
+                _NavBtn(
+                  icon: Icons.person_outline,
+                  activeIcon: Icons.person,
+                  label: '마이',
+                  active: _currentIndex == 3,
+                  onTap: () => context.go('/my'),
+                ),
+              ],
             ),
-            _NavBtn(
-              icon: Icons.schedule_outlined,
-              activeIcon: Icons.schedule,
-              label: '루틴',
-              active: _currentIndex == 1,
-              onTap: () => context.go('/routines'),
-            ),
-            const SizedBox(width: 56), // FAB 공간
-            _NavBtn(
-              icon: Icons.forum_outlined,
-              activeIcon: Icons.forum,
-              label: '커뮤니티',
-              active: _currentIndex == 2,
-              onTap: () => context.go('/community'),
-            ),
-            _NavBtn(
-              icon: Icons.person_outline,
-              activeIcon: Icons.person,
-              label: '마이',
-              active: _currentIndex == 3,
-              onTap: () => context.go('/my'),
-            ),
-          ],
+          ),
         ),
       ),
     );

@@ -262,13 +262,10 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
     };
   }
 
-  // ── 06 · 기록 종류 선택 ────────────────────────────────────────
+  // ── 06 · 기록 종류 선택 (BFinalFabSheetV2 — 컴팩트 3×2) ────────
   Widget _buildChooseType(AsyncValue<List<Pet>> petsAsync) {
-    // 현재 컨텍스트 개체 (첫 번째 개체를 기본으로)
-    final contextPet = petsAsync.whenOrNull(data: (l) => l.isNotEmpty ? l.first : null);
-
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(22, 4, 22, 28),
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 22),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -276,77 +273,87 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
           Text('NEW RECORD',
               style: AppTextStyles.mono(11, FontWeight.w700,
                   color: AppColors.paleInk2)),
-          const SizedBox(height: 4),
-          const Text('어떤 기록을 추가할까요?',
+          const SizedBox(height: 3),
+          const Text('무엇을 기록할까요?',
               style: TextStyle(
                   fontSize: 20, fontWeight: FontWeight.w700,
                   color: AppColors.primary, letterSpacing: -0.4)),
+          const SizedBox(height: 3),
+          Text('종류를 고르면 대상 개체를 선택해요',
+              style: TextStyle(fontSize: 11.5, color: AppColors.paleInk3,
+                  fontWeight: FontWeight.w500)),
           const SizedBox(height: 14),
 
-          // 대상 개체 셀렉터
-          if (contextPet != null)
-            GestureDetector(
-              onTap: () => setState(() => _step = _FabStep.pickPets),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: AppColors.card,
-                  border: Border.all(color: AppColors.paleLine),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 36, height: 36,
-                      decoration: BoxDecoration(
-                        color: PalePalette.pale(
-                            PalePalette.keyFromHex(contextPet.colorCode)),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Icons.pets, size: 18,
-                          color: AppColors.primary),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('대상 개체',
-                              style: const TextStyle(
-                                  fontSize: 11, fontWeight: FontWeight.w700,
-                                  color: AppColors.paleInk2)),
-                          const SizedBox(height: 1),
-                          Text(
-                            contextPet.name,
-                            style: const TextStyle(
-                                fontSize: 14, fontWeight: FontWeight.w700,
-                                color: AppColors.primary),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Icon(Icons.chevron_right,
-                        size: 18, color: AppColors.paleInk2),
-                  ],
-                ),
-              ),
-            ),
-          const SizedBox(height: 14),
-
-          // 기록 종류 2열 × 3행 그리드
+          // 기록 종류 — 3×2 컴팩트 그리드
           GridView.count(
-            crossAxisCount: 2,
+            crossAxisCount: 3,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-            childAspectRatio: 1.55,
-            children: _recordTypes.map((rt) => _TypeCard(
+            crossAxisSpacing: 8,
+            mainAxisSpacing: 8,
+            childAspectRatio: 0.95,
+            children: _recordTypes.map((rt) => _CompactTypeCard(
               type: rt,
               onTap: () => _onTypeSelected(rt.id),
             )).toList(),
           ),
-          const SizedBox(height: 14),
+
+          // 구분선
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Divider(color: AppColors.paleLineSoft, height: 1),
+          ),
+
+          // 개체 추가 버튼
+          GestureDetector(
+            onTap: () {
+              Navigator.of(context).pop();
+              // 개체 등록으로 이동 — 라우터로 push 불가(context 소멸 후)하므로 pop 후 외부에서 처리
+              // Navigator.of(context).pop('/pets/new'); 대신 토스트 안내
+            },
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.paleBgAlt,
+                border: Border.all(color: AppColors.paleLine),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40, height: 40,
+                    decoration: BoxDecoration(
+                      color: AppColors.card,
+                      border: Border.all(color: AppColors.paleLine),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.add,
+                        size: 20, color: AppColors.primary),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('개체 추가',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14.5,
+                                color: AppColors.primary)),
+                        const SizedBox(height: 1),
+                        Text('새로운 반려동물 등록',
+                            style: TextStyle(
+                                fontSize: 11.5, color: AppColors.paleInk2,
+                                fontWeight: FontWeight.w500)),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right,
+                      size: 16, color: AppColors.paleInk2),
+                ],
+              ),
+            ),
+          ),
 
           // 취소
           GestureDetector(
@@ -1247,12 +1254,12 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
   }
 }
 
-// ── 기록 종류 카드 ─────────────────────────────────────────────
-class _TypeCard extends StatelessWidget {
+// ── 컴팩트 기록 종류 타일 (3×2, 아이콘 + 이름만) ──────────────────
+class _CompactTypeCard extends StatelessWidget {
   final _RecordType type;
   final VoidCallback onTap;
 
-  const _TypeCard({required this.type, required this.onTap});
+  const _CompactTypeCard({required this.type, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -1260,33 +1267,30 @@ class _TypeCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: type.color,
-          borderRadius: BorderRadius.circular(16),
+          color: AppColors.card,
+          border: Border.all(color: AppColors.paleLine),
+          borderRadius: BorderRadius.circular(14),
         ),
-        padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+        padding: const EdgeInsets.fromLTRB(6, 12, 6, 10),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 34, height: 34,
+              width: 42,
+              height: 42,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.7),
-                borderRadius: BorderRadius.circular(11),
+                color: type.color,
+                borderRadius: BorderRadius.circular(13),
               ),
-              child: Icon(type.icon, size: 18, color: AppColors.primary),
+              child: Icon(type.icon, size: 20, color: AppColors.primary),
             ),
-            const Spacer(),
-            Text(type.en,
-                style: AppTextStyles.mono(9, FontWeight.w700,
-                    color: AppColors.paleInk2)),
-            const SizedBox(height: 2),
+            const SizedBox(height: 7),
             Text(type.ko,
                 style: const TextStyle(
-                    fontSize: 15, fontWeight: FontWeight.w700,
-                    color: AppColors.primary)),
-            const SizedBox(height: 2),
-            Text(type.ex,
-                style: TextStyle(fontSize: 11, color: AppColors.paleInk2)),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13.5,
+                    color: AppColors.primary,
+                    letterSpacing: -0.2)),
           ],
         ),
       ),
