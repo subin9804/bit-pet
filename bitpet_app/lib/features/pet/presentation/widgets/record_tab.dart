@@ -75,8 +75,8 @@ class _RecordTabState extends ConsumerState<RecordTab> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── 요약 카드 2열 그리드 ──────────────────────────────
-        _buildSummaryGrid(context, summaryAsync, weightsAsync),
+        // ── 요약 — 체중 히어로 + 나머지 카테고리 리스트 ─────
+        _buildSummaryHero(context, summaryAsync, weightsAsync),
         const SizedBox(height: 14),
 
         // ── 캘린더 카드 ───────────────────────────────────────
@@ -163,13 +163,12 @@ class _RecordTabState extends ConsumerState<RecordTab> {
     );
   }
 
-  // ── 요약 카드 그리드 ─────────────────────────────────────────
-  Widget _buildSummaryGrid(
+  // ── 요약 — Hero 레이아웃 (04 handoff: 체중 히어로 + 나머지 리스트) ──
+  Widget _buildSummaryHero(
     BuildContext context,
     AsyncValue<List<TimelineItem>> summaryAsync,
     AsyncValue<List<WeightRecord>> weightsAsync,
   ) {
-    // 카테고리별 최신 1건 추출
     final latestByCategory = <String, TimelineItem>{};
     summaryAsync.whenOrNull(data: (items) {
       for (final item in items) {
@@ -177,90 +176,169 @@ class _RecordTabState extends ConsumerState<RecordTab> {
       }
     });
 
-    // 스파크라인용 체중 데이터
     final weightPoints = weightsAsync.whenOrNull(data: (records) {
       final sorted = [...records]
         ..sort((a, b) => a.measuredAt.compareTo(b.measuredAt));
       return sorted.map((r) => WeightPoint(r.weightG)).toList();
     });
 
-    final categories = ['WEIGHT', 'FEEDING', 'CLEANING', 'MEMO', 'MATING', 'LAYING'];
+    final isLoading = summaryAsync is AsyncLoading;
+    final weightItem = latestByCategory['WEIGHT'];
 
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 10,
-      mainAxisSpacing: 10,
-      childAspectRatio: 1.2,
-      children: categories.map((cat) {
-        final item    = latestByCategory[cat];
-        final meta    = _catMeta[cat];
-        final isEmpty = item == null;
-        final isLoading = summaryAsync is AsyncLoading;
-
-        return GestureDetector(
-          onTap: () {
-            if (cat == 'WEIGHT')  context.push('/pets/${widget.petId}/weight');
-            if (cat == 'FEEDING') context.push('/pets/${widget.petId}/feeding');
-          },
-          child: Opacity(
-            opacity: isEmpty && !isLoading ? 0.72 : 1.0,
-            child: Container(
-              decoration: BoxDecoration(
-                color: AppColors.card,
-                border: Border.all(color: AppColors.paleLine),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              padding: const EdgeInsets.fromLTRB(14, 13, 14, 14),
-              child: isLoading
-                  ? const Center(child: SizedBox(
-                      width: 20, height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2)))
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(children: [
-                          Icon(meta?.icon ?? Icons.circle,
-                              size: 14,
-                              color: PalePalette.catInk(_paleCatKey(cat))),
-                          const SizedBox(width: 6),
-                          Text(meta?.label ?? cat,
-                              style: AppTextStyles.paleCatLabel),
-                        ]),
-                        const SizedBox(height: 11),
-                        Text(
-                          isEmpty ? '—' : item.summary,
-                          style: AppTextStyles.paleValue.copyWith(
-                              color: isEmpty
-                                  ? AppColors.paleInk3
-                                  : AppColors.primary),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+    // ① 체중 히어로 카드
+    final heroCard = GestureDetector(
+      onTap: () => context.push('/pets/${widget.petId}/weight'),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
+        decoration: BoxDecoration(
+          color: PalePalette.catPale('WEIGHT'),
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: isLoading
+            ? const SizedBox(height: 72,
+                child: Center(child: CircularProgressIndicator(strokeWidth: 2)))
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(_catMeta['WEIGHT']!.icon, size: 15,
+                          color: PalePalette.catInk('WEIGHT')),
+                      const SizedBox(width: 6),
+                      Text('체중', style: AppTextStyles.paleCatLabel),
+                      const Spacer(),
+                      if (weightItem != null)
+                        Text(_agoLabel(weightItem.recordedAt),
+                            style: AppTextStyles.paleMeta),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        weightItem?.summary ?? '—',
+                        style: TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 30,
+                          fontWeight: FontWeight.w700,
+                          color: weightItem == null
+                              ? AppColors.paleInk3
+                              : AppColors.primary,
+                          letterSpacing: -0.5,
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          isEmpty
-                              ? '기록 없음'
-                              : _agoLabel(item.recordedAt),
-                          style: AppTextStyles.paleMeta,
-                        ),
-                        if (cat == 'WEIGHT' &&
-                            weightPoints != null &&
-                            weightPoints.length >= 2) ...[
-                          const Spacer(),
-                          RecordSparkline(
+                      ),
+                      const Spacer(),
+                      if (weightPoints != null && weightPoints.length >= 2)
+                        SizedBox(
+                          width: 140,
+                          child: RecordSparkline(
                             data: weightPoints.map((p) => p.w).toList(),
                             strokeColor: PalePalette.catInk('WEIGHT'),
-                            fillColor: PalePalette.catPale('WEIGHT'),
+                            fillColor: Colors.white.withValues(alpha: 0.5),
                           ),
-                        ],
-                      ],
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+      ),
+    );
+
+    // ② 나머지 5개 카테고리 — 단일 카드 안에 아이콘칩 리스트
+    const restCats = ['FEEDING', 'CLEANING', 'MEMO', 'MATING', 'LAYING'];
+    final restCard = Container(
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        border: Border.all(color: AppColors.paleLine),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+      child: Column(
+        children: restCats.asMap().entries.map((entry) {
+          final i   = entry.key;
+          final cat = entry.value;
+          final meta = _catMeta[cat]!;
+          final item = latestByCategory[cat];
+          final isEmpty = item == null;
+          return GestureDetector(
+            onTap: () {
+              if (cat == 'FEEDING') context.push('/pets/${widget.petId}/feeding');
+            },
+            child: Opacity(
+              opacity: isEmpty ? 0.6 : 1.0,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  border: i < restCats.length - 1
+                      ? const Border(
+                          bottom: BorderSide(color: AppColors.paleLineSoft))
+                      : null,
+                ),
+                child: Row(
+                  children: [
+                    // 아이콘칩
+                    Container(
+                      width: 34, height: 34,
+                      decoration: BoxDecoration(
+                        color: PalePalette.catPale(cat),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(meta.icon, size: 16,
+                          color: PalePalette.catInk(cat)),
                     ),
+                    const SizedBox(width: 12),
+                    // 라벨 고정폭
+                    SizedBox(
+                      width: 38,
+                      child: Text(meta.label,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.paleInk2,
+                          )),
+                    ),
+                    const SizedBox(width: 8),
+                    // 값
+                    Expanded(
+                      child: Text(
+                        isEmpty ? '—' : item.summary,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: isEmpty ? AppColors.paleInk3 : AppColors.primary,
+                          letterSpacing: -0.2,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    // 메타 (시간)
+                    if (!isEmpty)
+                      Text(
+                        _agoLabel(item.recordedAt),
+                        style: const TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.paleInk3,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
             ),
-          ),
-        );
-      }).toList(),
+          );
+        }).toList(),
+      ),
+    );
+
+    return Column(
+      children: [
+        heroCard,
+        const SizedBox(height: 12),
+        restCard,
+      ],
     );
   }
 

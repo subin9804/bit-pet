@@ -405,7 +405,7 @@ class _RoutineCard extends ConsumerWidget {
                 _CardAction(
                   icon: Icons.calendar_today_outlined,
                   label: '캘린더',
-                  onTap: () => _showCalendarPlaceholder(context),
+                  onTap: () => _openCalendarSheet(context, ref),
                 ),
                 Container(width: 1, height: 40, color: AppColors.paleLineSoft),
                 _CardAction(
@@ -453,8 +453,13 @@ class _RoutineCard extends ConsumerWidget {
     );
   }
 
-  void _showCalendarPlaceholder(BuildContext context) {
-    showToast(context, '캘린더 기능은 준비 중이에요');
+  void _openCalendarSheet(BuildContext context, WidgetRef ref) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _CalendarSheet(routine: routine),
+    );
   }
 }
 
@@ -536,5 +541,140 @@ class _CardAction extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+// ── 캘린더 바텀시트 ───────────────────────────────────────────────
+
+class _CalendarSheet extends ConsumerWidget {
+  final Routine routine;
+  const _CalendarSheet({required this.routine});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final logsAsync = ref.watch(routineLogsProvider(routine.id));
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.paleBg,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      padding: const EdgeInsets.fromLTRB(22, 16, 22, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40, height: 4,
+              margin: const EdgeInsets.only(bottom: 14),
+              decoration: BoxDecoration(
+                color: AppColors.paleLine,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const Text('CALENDAR',
+              style: TextStyle(
+                fontSize: 11, fontWeight: FontWeight.w700,
+                color: AppColors.paleInk2, letterSpacing: 0.4,
+              )),
+          const SizedBox(height: 4),
+          Text('${routine.title} · 수행 캘린더',
+              style: const TextStyle(
+                fontSize: 19, fontWeight: FontWeight.w700,
+                color: AppColors.primary, letterSpacing: -0.4,
+              )),
+          const SizedBox(height: 16),
+          logsAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) => Text('$e'),
+            data: (logs) => _buildCal(logs),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCal(List<RoutineLog> logs) {
+    final now = DateTime.now();
+    final map = <int, bool>{};
+    for (final l in logs) {
+      if (l.executedAt.year == now.year && l.executedAt.month == now.month) {
+        map[l.executedAt.day] = l.status == RoutineLogStatus.COMPLETED;
+      }
+    }
+    final firstWd = DateTime(now.year, now.month, 1).weekday % 7;
+    final days = DateTime(now.year, now.month + 1, 0).day;
+    final cells = <int?>[
+      ...List.filled(firstWd, null),
+      ...List.generate(days, (i) => i + 1),
+    ];
+    const wk = ['일', '월', '화', '수', '목', '금', '토'];
+
+    return Column(
+      children: [
+        Row(children: wk.map((w) => Expanded(
+          child: Text(w, textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
+                  color: AppColors.paleInk3)),
+        )).toList()),
+        const SizedBox(height: 6),
+        GridView.count(
+          crossAxisCount: 7,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 4, crossAxisSpacing: 4,
+          children: cells.map((d) {
+            if (d == null) return const SizedBox.shrink();
+            final has  = map.containsKey(d);
+            final done = map[d] == true;
+            return Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(7),
+                border: has ? Border.all(color: AppColors.primary, width: 1.5) : null,
+                color: done ? AppColors.primary : Colors.transparent,
+              ),
+              child: Center(
+                child: Text('$d',
+                    style: TextStyle(
+                      fontFamily: 'monospace', fontSize: 12, fontWeight: FontWeight.w700,
+                      color: done ? AppColors.paleBg : AppColors.primary,
+                    )),
+              ),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 14),
+        Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          _Leg(filled: true, label: '완료'),
+          const SizedBox(width: 16),
+          _Leg(filled: false, label: '미완료'),
+        ]),
+      ],
+    );
+  }
+}
+
+class _Leg extends StatelessWidget {
+  final bool filled;
+  final String label;
+  const _Leg({required this.filled, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(children: [
+      Container(
+        width: 12, height: 12,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(3),
+          color: filled ? AppColors.primary : Colors.transparent,
+          border: filled ? null : Border.all(color: AppColors.primary, width: 1.5),
+        ),
+      ),
+      const SizedBox(width: 5),
+      Text(label, style: const TextStyle(
+          fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.paleInk2)),
+    ]);
   }
 }

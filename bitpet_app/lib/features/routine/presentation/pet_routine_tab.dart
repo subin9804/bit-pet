@@ -1,18 +1,50 @@
-// SCR-08: 개체 상세 — 루틴 탭 (handoff 04b v2 반영)
-// ⭐ 변경 사항: 14일 타임라인 삭제 / 최근 기록 더보기(3건씩) / 퀵액션 2단
+// 04b · 개체 프로필 — 루틴 탭 (handoff 기준 재작성)
+// 상단 "루틴 추가" 버튼 → AddPetToRoutinesSheet
+// 오늘/예정 섹션 분리 · 카드 탭 → 미니 캘린더 토글 · 오늘 완료 + 해제
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/pale_palette.dart';
 import '../../../core/widgets/empty_state.dart';
-import '../../../core/widgets/skeleton_loader.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../data/models/routine_models.dart';
 import '../data/routine_repository.dart';
 import '../providers/routine_provider.dart';
 
-// ── RoutineTab ────────────────────────────────────────────────
+// ── 타입별 색·아이콘 ──────────────────────────────────────────────
+
+Color _rtypeBg(RoutineType t) => switch (t) {
+      RoutineType.FEEDING  => AppColors.petPeach,
+      RoutineType.CLEANING => AppColors.petSky,
+      RoutineType.WEIGHT   => AppColors.petSage,
+      RoutineType.CUSTOM   => AppColors.petLilac,
+    };
+
+IconData _rtypeIcon(RoutineType t) => switch (t) {
+      RoutineType.FEEDING  => Icons.restaurant_outlined,
+      RoutineType.CLEANING => Icons.cleaning_services_outlined,
+      RoutineType.WEIGHT   => Icons.monitor_weight_outlined,
+      RoutineType.CUSTOM   => Icons.star_outline,
+    };
+
+String _cycleLabel(Routine r) {
+  if (r.cycleDays == 1) return '매일';
+  if (r.cycleDays == 7) return '매주';
+  if (r.cycleDays == 30) return '월 1회';
+  return '${r.cycleDays}일마다';
+}
+
+bool _isToday(Routine r) {
+  if (r.nextDueAt == null) return false;
+  final n = DateTime.now();
+  final d = r.nextDueAt!;
+  return d.year == n.year && d.month == n.month && d.day == n.day;
+}
+
+// ════════════════════════════════════════════════════════════════
+
 class PetRoutineTab extends ConsumerStatefulWidget {
   final int petId;
   final PetPaletteKey paletteKey;
@@ -28,99 +60,20 @@ class PetRoutineTab extends ConsumerStatefulWidget {
 }
 
 class _PetRoutineTabState extends ConsumerState<PetRoutineTab> {
-  int? _expandedId;
+  bool _addOpen = false;
 
-  @override
-  Widget build(BuildContext context) {
-    final routinesAsync = ref.watch(routinesForPetProvider(widget.petId));
-
-    return routinesAsync.when(
-      loading: () => Column(
-        children: List.generate(3, (i) => Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: SkeletonBox(width: double.infinity, height: 64, borderRadius: 14),
-        )),
-      ),
-      error: (e, _) => EmptyState(message: e.toString()),
-      data: (routines) {
-        if (routines.isEmpty) {
-          return const EmptyState(
-            message: '연결된 루틴이 없어요',
-            subMessage: '루틴 관리에서 루틴을 만들고 개체를 연결하세요',
-            icon: Icons.schedule_outlined,
-          );
-        }
-        return Column(
-          children: [
-            ...routines.map((item) {
-              final r = item.routine;
-              if (_expandedId == r.id) {
-                return _RoutineCardExpanded(
-                  key: ValueKey('exp_${r.id}'),
-                  item: item,
-                  paletteKey: widget.paletteKey,
-                  onCollapse: () => setState(() => _expandedId = null),
-                  onToggleAlarm: (val) => _handleToggle(r.id, val),
-                  onComplete: () => _handleComplete(r.id),
-                  onSkip: () => _handleSkip(r.id),
-                );
-              }
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: _RoutineCardCompact(
-                  item: item,
-                  paletteKey: widget.paletteKey,
-                  onExpand: () => setState(() => _expandedId = r.id),
-                ),
-              );
-            }),
-            const SizedBox(height: 4),
-            // 새 루틴 추가 점선 버튼
-            GestureDetector(
-              onTap: () {
-                // TODO: 루틴 생성 화면(02d)으로 이동
-              },
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                decoration: BoxDecoration(
-                  border: Border.all(
-                      color: AppColors.paleLine, width: 1.5,
-                      style: BorderStyle.solid),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.add, size: 18, color: AppColors.paleInk2),
-                    const SizedBox(width: 6),
-                    Text('새 루틴 추가',
-                        style: TextStyle(
-                            fontSize: 13, fontWeight: FontWeight.w600,
-                            color: AppColors.paleInk2)),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> _handleToggle(int routineId, bool val) async {
+  void _removeRoutine(int routineId) async {
     try {
       await ref.read(routineRepositoryProvider)
-          .updateRoutine(routineId, {'alarmEnabled': val});
+          .unsubscribePet(routineId, widget.petId);
       ref.invalidate(routinesForPetProvider(widget.petId));
     } catch (e) {
       if (mounted) showToast(context, '오류: $e');
     }
   }
 
-  Future<void> _handleComplete(int routineId) async {
+  void _completeToday(int routineId) async {
     try {
-      // completeBatch: 이 루틴에 연결된 모든 개체를 오늘 완료로 기록
       await ref.read(routineRepositoryProvider).completeBatch(
         routineId,
         RoutineCompleteBatchRequest(executedAt: DateTime.now()),
@@ -128,367 +81,426 @@ class _PetRoutineTabState extends ConsumerState<PetRoutineTab> {
       if (mounted) {
         showToast(context, '완료로 기록했습니다.', type: ToastType.success);
         ref.invalidate(routinesForPetProvider(widget.petId));
-        ref.invalidate(routineLogsProvider(routineId));
-        setState(() => _expandedId = null);
       }
     } catch (e) {
       if (mounted) showToast(context, '오류: $e', type: ToastType.error);
     }
-  }
-
-  Future<void> _handleSkip(int routineId) async {
-    try {
-      // completeIndividual: 이 개체만 REFUSED(건너뛰기) 처리
-      await ref.read(routineRepositoryProvider).completeIndividual(
-        routineId,
-        RoutineCompleteIndividualRequest(
-          petId: widget.petId,
-          status: RoutineLogStatus.REFUSED,
-          executedAt: DateTime.now(),
-        ),
-      );
-      if (mounted) {
-        showToast(context, '건너뛰었습니다.', type: ToastType.info);
-        ref.invalidate(routinesForPetProvider(widget.petId));
-        ref.invalidate(routineLogsProvider(routineId));
-        setState(() => _expandedId = null);
-      }
-    } catch (e) {
-      if (mounted) showToast(context, '오류: $e', type: ToastType.error);
-    }
-  }
-}
-
-// ── 컴팩트 카드 (접힌 상태) ────────────────────────────────────
-class _RoutineCardCompact extends StatelessWidget {
-  final RoutineWithSubscription item;
-  final PetPaletteKey paletteKey;
-  final VoidCallback onExpand;
-
-  const _RoutineCardCompact({
-    required this.item,
-    required this.paletteKey,
-    required this.onExpand,
-  });
-
-  IconData get _icon => switch (item.routine.routineType) {
-        RoutineType.FEEDING  => Icons.restaurant_outlined,
-        RoutineType.CLEANING => Icons.cleaning_services_outlined,
-        RoutineType.WEIGHT   => Icons.monitor_weight_outlined,
-        RoutineType.CUSTOM   => Icons.task_alt_outlined,
-      };
-
-  String get _cycleLabel {
-    final d = item.routine.cycleDays;
-    if (d == 1) return '매일';
-    if (d % 7 == 0) return '${d ~/ 7}주 1회';
-    return '$d일에 1회';
   }
 
   @override
   Widget build(BuildContext context) {
-    final pale    = PalePalette.pale(paletteKey);
-    final r       = item.routine;
+    final routinesAsync = ref.watch(routinesForPetProvider(widget.petId));
+    final pale    = PalePalette.pale(widget.paletteKey);
+    final paleInk = PalePalette.ink(widget.paletteKey);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ── 루틴 추가 버튼 ────────────────────────────────────
+        GestureDetector(
+          onTap: () => setState(() => _addOpen = true),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 13),
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: const [
+                Icon(Icons.add, color: AppColors.paleBg, size: 18),
+                SizedBox(width: 6),
+                Text('루틴 추가',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13.5,
+                      color: AppColors.paleBg,
+                    )),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // ── 루틴 목록 ─────────────────────────────────────────
+        routinesAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => EmptyState(message: e.toString()),
+          data: (routines) {
+            if (routines.isEmpty) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: EmptyState(
+                  message: '연결된 루틴이 없어요',
+                  subMessage: '"루틴 추가"로 이미 만들어진 루틴에 이 개체를 추가하세요',
+                  icon: Icons.schedule_outlined,
+                ),
+              );
+            }
+
+            final todays   = routines.where((r) => _isToday(r.routine)).toList();
+            final upcoming = routines.where((r) => !_isToday(r.routine)).toList();
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (todays.isNotEmpty) ...[
+                  _SectionHeader(label: '오늘', count: todays.length, accent: paleInk),
+                  const SizedBox(height: 10),
+                  ...todays.map((item) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _RoutineCard(
+                      item: item,
+                      petId: widget.petId,
+                      pale: pale,
+                      paleInk: paleInk,
+                      isToday: true,
+                      onComplete: () => _completeToday(item.routine.id),
+                      onRemove: () => _removeRoutine(item.routine.id),
+                    ),
+                  )),
+                  const SizedBox(height: 10),
+                ],
+                if (upcoming.isNotEmpty) ...[
+                  _SectionHeader(label: '예정 루틴', count: upcoming.length),
+                  const SizedBox(height: 10),
+                  ...upcoming.map((item) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _RoutineCard(
+                      item: item,
+                      petId: widget.petId,
+                      pale: pale,
+                      paleInk: paleInk,
+                      isToday: false,
+                      onComplete: () {},
+                      onRemove: () => _removeRoutine(item.routine.id),
+                    ),
+                  )),
+                ],
+              ],
+            );
+          },
+        ),
+
+        // ── AddPetToRoutinesSheet 오버레이 ────────────────────
+        if (_addOpen)
+          _AddPetToRoutinesSheet(
+            petId: widget.petId,
+            onClose: () => setState(() => _addOpen = false),
+            onAdded: () {
+              setState(() => _addOpen = false);
+              ref.invalidate(routinesForPetProvider(widget.petId));
+            },
+          ),
+      ],
+    );
+  }
+}
+
+// ── 섹션 헤더 ─────────────────────────────────────────────────────
+
+class _SectionHeader extends StatelessWidget {
+  final String label;
+  final int count;
+  final Color? accent;
+
+  const _SectionHeader({required this.label, required this.count, this.accent});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        if (accent != null) ...[
+          Container(
+            width: 7, height: 7,
+            decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 8),
+        ],
+        Text(label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: accent != null ? AppColors.primary : AppColors.paleInk2,
+              letterSpacing: -0.2,
+            )),
+        const SizedBox(width: 6),
+        Text('$count',
+            style: const TextStyle(
+              fontFamily: 'monospace',
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: AppColors.paleInk3,
+            )),
+      ],
+    );
+  }
+}
+
+// ── 루틴 카드 ─────────────────────────────────────────────────────
+
+class _RoutineCard extends ConsumerStatefulWidget {
+  final RoutineWithSubscription item;
+  final int petId;
+  final Color pale;
+  final Color paleInk;
+  final bool isToday;
+  final VoidCallback onComplete;
+  final VoidCallback onRemove;
+
+  const _RoutineCard({
+    required this.item,
+    required this.petId,
+    required this.pale,
+    required this.paleInk,
+    required this.isToday,
+    required this.onComplete,
+    required this.onRemove,
+  });
+
+  @override
+  ConsumerState<_RoutineCard> createState() => _RoutineCardState();
+}
+
+class _RoutineCardState extends ConsumerState<_RoutineCard> {
+  bool _calOpen = false;
+  bool _done = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final r = widget.item.routine;
     final hasAlarm = r.isAlarmEnabled && r.alarmTime != null;
 
-    return GestureDetector(
-      onTap: onExpand,
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          border: Border.all(color: AppColors.paleLine),
-          borderRadius: BorderRadius.circular(14),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        border: Border.all(
+          color: widget.isToday ? widget.paleInk : AppColors.paleLine,
+          width: widget.isToday ? 1.5 : 1,
         ),
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-        child: Row(
-          children: [
-            Container(
-              width: 34, height: 34,
-              decoration: BoxDecoration(
-                  color: pale, borderRadius: BorderRadius.circular(10)),
-              child: Icon(_icon, size: 18, color: AppColors.primary),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          // ── 카드 본문 (탭 → 캘린더 토글) ─────────────────────
+          GestureDetector(
+            onTap: () => setState(() => _calOpen = !_calOpen),
+            child: Container(
+              color: Colors.transparent,
+              padding: const EdgeInsets.fromLTRB(14, 13, 14, 12),
+              child: Row(
                 children: [
-                  Row(
-                    children: [
-                      Text(r.title,
-                          style: const TextStyle(
-                              fontSize: 14, fontWeight: FontWeight.w700,
-                              color: AppColors.primary)),
-                      const SizedBox(width: 8),
-                      Text(_cycleLabel,
-                          style: AppTextStyles.mono(10, FontWeight.w600,
-                              color: AppColors.paleInk3)),
-                    ],
+                  // 타입 아이콘 (개체 파스텔 색 배경)
+                  Container(
+                    width: 38, height: 38,
+                    decoration: BoxDecoration(
+                      color: widget.pale,
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    child: Icon(_rtypeIcon(r.routineType),
+                        size: 18, color: AppColors.primary),
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    hasAlarm
-                        ? '→ ${r.nextDueAt != null ? _fmtNext(r.nextDueAt!) : r.alarmTime!}'
-                        : '알람 꺼짐',
-                    style: AppTextStyles.mono(
-                        11, FontWeight.w700,
-                        color: hasAlarm ? AppColors.primary : AppColors.paleInk3),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(r.title,
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.primary,
+                                    letterSpacing: -0.3,
+                                  ),
+                                  overflow: TextOverflow.ellipsis),
+                            ),
+                            const SizedBox(width: 7),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 7, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.paleBgAlt,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(_cycleLabel(r),
+                                  style: const TextStyle(
+                                    fontFamily: 'monospace',
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.paleInk2,
+                                  )),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.notifications_outlined,
+                              size: 13,
+                              color: hasAlarm
+                                  ? AppColors.paleInk2
+                                  : AppColors.paleInk3,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              _nextLabel(r),
+                              style: TextStyle(
+                                fontFamily: 'monospace',
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: hasAlarm
+                                    ? AppColors.primary
+                                    : AppColors.paleInk3,
+                              ),
+                            ),
+                            if (!hasAlarm) ...[
+                              const SizedBox(width: 5),
+                              const Text('· 알람 꺼짐',
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      color: AppColors.paleInk3,
+                                      fontWeight: FontWeight.w600)),
+                            ],
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  // 오늘 배지
+                  if (widget.isToday && !_done)
+                    Container(
+                      margin: const EdgeInsets.only(left: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: widget.paleInk,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text('오늘',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.paleBg,
+                          )),
+                    ),
+                  // 셰브론
+                  const SizedBox(width: 6),
+                  AnimatedRotation(
+                    duration: const Duration(milliseconds: 150),
+                    turns: _calOpen ? 0.5 : 0,
+                    child: const Icon(Icons.keyboard_arrow_down,
+                        size: 18, color: AppColors.paleInk3),
                   ),
                 ],
               ),
             ),
-            Text('+',
-                style: AppTextStyles.mono(16, FontWeight.w700,
-                    color: AppColors.paleInk3)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _fmtNext(DateTime dt) {
-    final diff = dt.difference(DateTime.now()).inDays;
-    if (diff == 0) return '오늘 ${_hm(dt)}';
-    if (diff == 1) return '내일 ${_hm(dt)}';
-    return '${dt.month}.${dt.day}';
-  }
-
-  String _hm(DateTime dt) =>
-      '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-}
-
-// ── 확장 카드 (펼친 상태) ─────────────────────────────────────
-// ConsumerStatefulWidget: _shown 상태(더보기 페이지네이션) 보유
-class _RoutineCardExpanded extends ConsumerStatefulWidget {
-  final RoutineWithSubscription item;
-  final PetPaletteKey paletteKey;
-  final VoidCallback onCollapse;
-  final ValueChanged<bool> onToggleAlarm;
-  final VoidCallback onComplete;
-  final VoidCallback onSkip;
-
-  const _RoutineCardExpanded({
-    super.key,
-    required this.item,
-    required this.paletteKey,
-    required this.onCollapse,
-    required this.onToggleAlarm,
-    required this.onComplete,
-    required this.onSkip,
-  });
-
-  @override
-  ConsumerState<_RoutineCardExpanded> createState() =>
-      _RoutineCardExpandedState();
-}
-
-class _RoutineCardExpandedState extends ConsumerState<_RoutineCardExpanded> {
-  static const _page = 3;
-  int _shown = _page;
-
-  IconData get _icon => switch (widget.item.routine.routineType) {
-        RoutineType.FEEDING  => Icons.restaurant_outlined,
-        RoutineType.CLEANING => Icons.cleaning_services_outlined,
-        RoutineType.WEIGHT   => Icons.monitor_weight_outlined,
-        RoutineType.CUSTOM   => Icons.task_alt_outlined,
-      };
-
-  String get _cycleLabel {
-    final d = widget.item.routine.cycleDays;
-    if (d == 1) return '매일';
-    if (d % 7 == 0) return '${d ~/ 7}주 1회';
-    return '$d일에 1회';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final pale    = PalePalette.pale(widget.paletteKey);
-    final paleInk = PalePalette.ink(widget.paletteKey);
-    final r       = widget.item.routine;
-
-    // 실제 로그 (routineLogsProvider)
-    final logsAsync = ref.watch(routineLogsProvider(r.id));
-    final allLogs   = logsAsync.whenOrNull(data: (logs) {
-      return [...logs]..sort((a, b) => b.executedAt.compareTo(a.executedAt));
-    }) ?? <RoutineLog>[];
-
-    final visible   = allLogs.take(_shown).toList();
-    final moreCount = allLogs.length - _shown;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          border: Border.all(color: AppColors.primary, width: 1.5),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── (A) 헤더 밴드 ────────────────────────────────
-            _Header(
-              r: r,
-              pale: pale,
-              icon: _icon,
-              cycleLabel: _cycleLabel,
-              paletteKey: widget.paletteKey,
-              onCollapse: widget.onCollapse,
-              onToggleAlarm: widget.onToggleAlarm,
-            ),
-
-            // ── (B) 최근 기록 리스트 + 더보기 ────────────────
-            _RecentLogs(
-              allLogs: allLogs,
-              visible: visible,
-              moreCount: moreCount,
-              paleInk: paleInk,
-              paletteKey: widget.paletteKey,
-              isLoading: logsAsync is AsyncLoading,
-              onMore: () => setState(() =>
-                  _shown = (_shown + _page).clamp(0, allLogs.length)),
-              onCollapse: () => setState(() => _shown = _page),
-            ),
-
-            // ── (C) 퀵 액션 2단 레이아웃 ────────────────────
-            _QuickActions(
-              onComplete: widget.onComplete,
-              onSkip: widget.onSkip,
-              onEdit: () {
-                // 루틴 편집 화면(02d) — 범위 밖, 추후 구현
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── (A) 헤더 밴드 ──────────────────────────────────────────────
-class _Header extends StatelessWidget {
-  final Routine r;
-  final Color pale;
-  final IconData icon;
-  final String cycleLabel;
-  final PetPaletteKey paletteKey;
-  final VoidCallback onCollapse;
-  final ValueChanged<bool> onToggleAlarm;
-
-  const _Header({
-    required this.r,
-    required this.pale,
-    required this.icon,
-    required this.cycleLabel,
-    required this.paletteKey,
-    required this.onCollapse,
-    required this.onToggleAlarm,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: pale,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(14.5)),
-      ),
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
-      child: Column(
-        children: [
-          // 아이콘 + 제목 + 접기
-          Row(
-            children: [
-              Container(
-                width: 42, height: 42,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.55),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, size: 22, color: AppColors.primary),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(r.title,
-                              style: const TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.w700,
-                                  color: AppColors.primary,
-                                  letterSpacing: -0.3),
-                              overflow: TextOverflow.ellipsis),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 7, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.55),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(cycleLabel,
-                              style: AppTextStyles.mono(10, FontWeight.w700,
-                                  color: AppColors.paleInk2)),
-                        ),
-                      ],
-                    ),
-                    if (r.memo != null && r.memo!.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 3),
-                        child: Text(r.memo!,
-                            style: const TextStyle(
-                                fontSize: 12, fontWeight: FontWeight.w500,
-                                color: AppColors.primary)),
-                      ),
-                  ],
-                ),
-              ),
-              GestureDetector(
-                onTap: onCollapse,
-                child: Container(
-                  width: 28, height: 28,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.55),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  alignment: Alignment.center,
-                  child: const Text('−',
-                      style: TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.w700,
-                          color: AppColors.primary)),
-                ),
-              ),
-            ],
           ),
-          const SizedBox(height: 12),
-          // 알람 행
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.55),
-              borderRadius: BorderRadius.circular(10),
+
+          // ── 미니 캘린더 (펼쳤을 때) ──────────────────────────
+          if (_calOpen)
+            Container(
+              padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+              decoration: const BoxDecoration(
+                border: Border(top: BorderSide(color: AppColors.paleLineSoft)),
+              ),
+              child: _MiniRoutineCalendar(
+                routineId: r.id,
+                accentColor: widget.paleInk,
+              ),
             ),
+
+          // ── 액션 행 ──────────────────────────────────────────
+          Container(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
             child: Row(
               children: [
-                const Icon(Icons.notifications_none_outlined,
-                    size: 16, color: AppColors.primary),
-                const SizedBox(width: 8),
-                const Text('다음 알람',
-                    style: TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.w700,
-                        color: AppColors.primary)),
-                const SizedBox(width: 8),
-                Text(
-                  r.nextDueAt != null
-                      ? _fmtAlarm(r.nextDueAt!)
-                      : r.alarmTime ?? '-',
-                  style: AppTextStyles.mono(12, FontWeight.w700),
+                // 오늘 완료 버튼 (오늘 루틴만 활성)
+                Expanded(
+                  child: widget.isToday
+                      ? GestureDetector(
+                          onTap: _done ? null : () {
+                            setState(() => _done = true);
+                            widget.onComplete();
+                          },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
+                            padding: const EdgeInsets.symmetric(vertical: 11),
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: _done ? widget.pale : AppColors.primary,
+                              border: _done
+                                  ? Border.all(color: widget.paleInk)
+                                  : null,
+                              borderRadius: BorderRadius.circular(11),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.check,
+                                    size: 14,
+                                    color: _done
+                                        ? AppColors.primary
+                                        : AppColors.paleBg),
+                                const SizedBox(width: 6),
+                                Text(
+                                  _done ? '오늘 완료됨' : '오늘 완료',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: _done
+                                        ? AppColors.primary
+                                        : AppColors.paleBg,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      : Container(
+                          padding: const EdgeInsets.symmetric(vertical: 11),
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: AppColors.paleBgAlt,
+                            border: Border.all(color: AppColors.paleLine),
+                            borderRadius: BorderRadius.circular(11),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: const [
+                              Icon(Icons.check,
+                                  size: 14, color: AppColors.paleInk3),
+                              SizedBox(width: 6),
+                              Text('오늘 완료',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.paleInk3,
+                                  )),
+                            ],
+                          ),
+                        ),
                 ),
-                const Spacer(),
-                _Toggle(on: r.isAlarmEnabled, onChange: onToggleAlarm),
+                const SizedBox(width: 8),
+                // 해제(휴지통) 버튼
+                GestureDetector(
+                  onTap: widget.onRemove,
+                  child: Container(
+                    width: 40, height: 40,
+                    decoration: BoxDecoration(
+                      color: AppColors.card,
+                      border: Border.all(color: AppColors.paleLine),
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    child: const Icon(Icons.delete_outline,
+                        size: 18, color: AppColors.paleInk3),
+                  ),
+                ),
               ],
             ),
           ),
@@ -497,332 +509,601 @@ class _Header extends StatelessWidget {
     );
   }
 
-  String _fmtAlarm(DateTime dt) {
-    final diff = dt.difference(DateTime.now()).inDays;
-    final hm = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  String _nextLabel(Routine r) {
+    if (r.alarmTime == null) return '시간 미설정';
+    if (r.nextDueAt == null) return r.alarmTime!;
+    final diff = r.nextDueAt!.difference(DateTime.now()).inDays;
+    final hm = r.alarmTime!;
     if (diff == 0) return '오늘 $hm';
     if (diff == 1) return '내일 $hm';
-    return '${dt.month}.${dt.day} $hm';
+    return '${r.nextDueAt!.month}.${r.nextDueAt!.day} $hm';
   }
 }
 
-// ── (B) 최근 기록 리스트 + 더보기 ─────────────────────────────
-class _RecentLogs extends StatelessWidget {
-  final List<RoutineLog> allLogs;
-  final List<RoutineLog> visible;
-  final int moreCount;
-  final Color paleInk;
-  final PetPaletteKey paletteKey;
-  final bool isLoading;
-  final VoidCallback onMore;
-  final VoidCallback onCollapse;
+// ── 미니 루틴 캘린더 ─────────────────────────────────────────────
 
-  const _RecentLogs({
-    required this.allLogs,
-    required this.visible,
-    required this.moreCount,
-    required this.paleInk,
-    required this.paletteKey,
-    required this.isLoading,
-    required this.onMore,
-    required this.onCollapse,
+class _MiniRoutineCalendar extends ConsumerWidget {
+  final int routineId;
+  final Color accentColor;
+
+  const _MiniRoutineCalendar({
+    required this.routineId,
+    required this.accentColor,
   });
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 헤더
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('최근 기록',
-                  style: TextStyle(
-                      fontSize: 11, fontWeight: FontWeight.w700,
-                      color: AppColors.paleInk2, letterSpacing: 0.3)),
-              Text(
-                '총 ${allLogs.length}회',
-                style: AppTextStyles.mono(11, FontWeight.w700,
-                    color: AppColors.paleInk3),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final logsAsync = ref.watch(routineLogsProvider(routineId));
 
-          // 로딩
-          if (isLoading)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Center(
-                  child: SizedBox(width: 20, height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2))),
-            )
-          // 빈 상태
-          else if (allLogs.isEmpty)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 18),
-              decoration: BoxDecoration(
-                border: Border.all(color: AppColors.paleLine, width: 1.5,
-                    style: BorderStyle.solid),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                '아직 수행 기록이 없어요',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    fontSize: 12.5, fontWeight: FontWeight.w600,
-                    color: AppColors.paleInk3),
-              ),
-            )
-          // 기록 리스트
-          else
-            Column(
+    return logsAsync.when(
+      loading: () => const Center(
+          child: SizedBox(width: 18, height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2))),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (logs) {
+        // 이번 달 기준 day → ok map
+        final now = DateTime.now();
+        final map = <int, bool>{};
+        for (final l in logs) {
+          if (l.executedAt.year == now.year &&
+              l.executedAt.month == now.month) {
+            map[l.executedAt.day] = l.status == RoutineLogStatus.COMPLETED;
+          }
+        }
+
+        final firstWd = DateTime(now.year, now.month, 1).weekday % 7; // 0=일
+        final daysInMonth =
+            DateTime(now.year, now.month + 1, 0).day;
+        final cells = <int?>[
+          ...List.filled(firstWd, null),
+          ...List.generate(daysInMonth, (i) => i + 1),
+        ];
+
+        return Column(
+          children: [
+            // 요일 헤더
+            Row(
+              children: ['일', '월', '화', '수', '목', '금', '토'].map((w) {
+                return Expanded(
+                  child: Text(w,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 8,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.paleInk3,
+                      )),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 3),
+            // 날짜 그리드
+            GridView.count(
+              crossAxisCount: 7,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: 3,
+              crossAxisSpacing: 3,
+              children: cells.map((d) {
+                if (d == null) return const SizedBox.shrink();
+                final has  = map.containsKey(d);
+                final done = map[d] == true;
+                return Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(5),
+                    border: has
+                        ? Border.all(color: accentColor, width: 1.5)
+                        : null,
+                    color: done ? accentColor : Colors.transparent,
+                  ),
+                  child: Center(
+                    child: Text('$d',
+                        style: TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          color: done ? AppColors.paleBg : AppColors.paleInk3,
+                        )),
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 9),
+            // 범례
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                ...visible.asMap().entries.map((e) {
-                  final i   = e.key;
-                  final log = e.value;
-                  final ok  = log.status == RoutineLogStatus.COMPLETED;
-                  return Container(
-                    padding: const EdgeInsets.symmetric(vertical: 9),
+                _Legend(color: accentColor, filled: true, label: '완료'),
+                const SizedBox(width: 14),
+                _Legend(color: accentColor, filled: false, label: '미완료'),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _Legend extends StatelessWidget {
+  final Color color;
+  final bool filled;
+  final String label;
+  const _Legend({required this.color, required this.filled, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 11, height: 11,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(3),
+            color: filled ? color : Colors.transparent,
+            border: filled ? null : Border.all(color: color, width: 1.5),
+          ),
+        ),
+        const SizedBox(width: 5),
+        Text(label,
+            style: const TextStyle(
+                fontSize: 10, fontWeight: FontWeight.w600,
+                color: AppColors.paleInk2)),
+      ],
+    );
+  }
+}
+
+// ── AddPetToRoutinesSheet 오버레이 ────────────────────────────────
+
+class _AddPetToRoutinesSheet extends ConsumerStatefulWidget {
+  final int petId;
+  final VoidCallback onClose;
+  final VoidCallback onAdded;
+
+  const _AddPetToRoutinesSheet({
+    required this.petId,
+    required this.onClose,
+    required this.onAdded,
+  });
+
+  @override
+  ConsumerState<_AddPetToRoutinesSheet> createState() =>
+      _AddPetToRoutinesSheetState();
+}
+
+class _AddPetToRoutinesSheetState
+    extends ConsumerState<_AddPetToRoutinesSheet> {
+  final _searchCtrl = TextEditingController();
+  String _query = '';
+  RoutineType? _filter;
+  final Set<int> _picked = {};
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  bool _isJoined(Routine r, List<RoutineWithSubscription> joined) =>
+      joined.any((j) => j.routine.id == r.id && j.subscribed);
+
+  Future<void> _apply(List<Routine> all) async {
+    if (_picked.isEmpty) return;
+    setState(() => _saving = true);
+    try {
+      for (final id in _picked) {
+        await ref.read(routineRepositoryProvider)
+            .subscribePet(id, widget.petId);
+      }
+      if (mounted) widget.onAdded();
+    } catch (e) {
+      if (mounted) showToast(context, '오류: $e', type: ToastType.error);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final allAsync    = ref.watch(routineListProvider);
+    final joinedAsync = ref.watch(routinesForPetProvider(widget.petId));
+
+    final allRoutines    = allAsync.valueOrNull    ?? <Routine>[];
+    final joinedRoutines = joinedAsync.valueOrNull ?? <RoutineWithSubscription>[];
+
+    final q = _query.toLowerCase();
+    final visible = allRoutines.where((r) {
+      final matchType  = _filter == null || r.routineType == _filter;
+      final matchQuery = q.isEmpty ||
+          r.title.toLowerCase().contains(q);
+      return matchType && matchQuery;
+    }).toList();
+
+    return GestureDetector(
+      onTap: widget.onClose,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        color: Colors.black54,
+        child: GestureDetector(
+          onTap: () {}, // 시트 내부 탭은 닫힘 방지
+          child: DraggableScrollableSheet(
+            initialChildSize: 0.88,
+            minChildSize: 0.5,
+            maxChildSize: 0.95,
+            builder: (_, ctrl) => Container(
+              decoration: const BoxDecoration(
+                color: AppColors.paleBg,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+              ),
+              child: Column(
+                children: [
+                  // 핸들
+                  Container(
+                    width: 40, height: 4,
+                    margin: const EdgeInsets.fromLTRB(0, 10, 0, 0),
                     decoration: BoxDecoration(
-                      border: i < visible.length - 1
-                          ? const Border(bottom: BorderSide(
-                              color: AppColors.paleLineSoft))
-                          : null,
+                      color: AppColors.paleLine,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  // 헤더
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(22, 12, 22, 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('ADD TO ROUTINE',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.paleInk2,
+                              letterSpacing: 0.4,
+                            )),
+                        const SizedBox(height: 4),
+                        const Text('루틴에 추가',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary,
+                              letterSpacing: -0.4,
+                            )),
+                        const SizedBox(height: 2),
+                        const Text(
+                            '이미 만들어진 루틴에 이 개체를 추가합니다.\n새 루틴은 "루틴 관리"에서 만들어요.',
+                            style: TextStyle(
+                                fontSize: 12, color: AppColors.paleInk2)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // 검색창
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 22),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.card,
+                        border: Border.all(color: AppColors.paleLine),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: TextField(
+                        controller: _searchCtrl,
+                        onChanged: (v) => setState(() => _query = v),
+                        style: const TextStyle(
+                            fontSize: 14, color: AppColors.primary),
+                        decoration: const InputDecoration(
+                          hintText: '루틴 이름 검색…',
+                          hintStyle: TextStyle(
+                              color: AppColors.paleInk3, fontSize: 13),
+                          prefixIcon: Icon(Icons.search,
+                              size: 18, color: AppColors.paleInk2),
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 11),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  // 종류 필터칩
+                  SizedBox(
+                    height: 36,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 22),
+                      children: [
+                        _FilterChip(
+                          label: '전체',
+                          count: allRoutines.length,
+                          active: _filter == null,
+                          onTap: () => setState(() => _filter = null),
+                        ),
+                        ...RoutineType.values.map((t) {
+                          final cnt =
+                              allRoutines.where((r) => r.routineType == t).length;
+                          final label = switch (t) {
+                            RoutineType.FEEDING  => '피딩',
+                            RoutineType.CLEANING => '청소',
+                            RoutineType.WEIGHT   => '체중',
+                            RoutineType.CUSTOM   => '사용자',
+                          };
+                          return _FilterChip(
+                            label: label,
+                            count: cnt,
+                            active: _filter == t,
+                            onTap: () =>
+                                setState(() => _filter = _filter == t ? null : t),
+                          );
+                        }),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  // 구분선
+                  const Divider(color: AppColors.paleLineSoft, height: 1),
+                  // 루틴 리스트
+                  Expanded(
+                    child: ListView.builder(
+                      controller: ctrl,
+                      padding: const EdgeInsets.fromLTRB(22, 10, 22, 10),
+                      itemCount: visible.length,
+                      itemBuilder: (_, i) {
+                        final r = visible[i];
+                        final joined = _isJoined(r, joinedRoutines);
+                        final on = _picked.contains(r.id);
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: GestureDetector(
+                            onTap: joined ? null : () => setState(() {
+                              if (on) _picked.remove(r.id);
+                              else _picked.add(r.id);
+                            }),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 120),
+                              padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
+                              decoration: BoxDecoration(
+                                color: on ? AppColors.petPeach : AppColors.card,
+                                border: Border.all(
+                                  color: on ? AppColors.petPeachInk : AppColors.paleLine,
+                                  width: on ? 1.5 : 1,
+                                ),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Opacity(
+                                opacity: joined ? 0.55 : 1.0,
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 40, height: 40,
+                                      decoration: BoxDecoration(
+                                        color: on
+                                            ? Colors.white.withValues(alpha: 0.55)
+                                            : _rtypeBg(r.routineType),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Icon(_rtypeIcon(r.routineType),
+                                          size: 20, color: AppColors.primary),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(r.title,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 14,
+                                                color: AppColors.primary,
+                                              )),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            '${_cycleLabel(r)} · ${r.alarmTime ?? "시간 미설정"} · ${r.petCount}마리',
+                                            style: const TextStyle(
+                                              fontFamily: 'monospace',
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                              color: AppColors.paleInk2,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    if (joined)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 9, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.paleBgAlt,
+                                          border: Border.all(
+                                              color: AppColors.paleLine),
+                                          borderRadius:
+                                              BorderRadius.circular(999),
+                                        ),
+                                        child: const Text('추가됨',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                              color: AppColors.paleInk2,
+                                            )),
+                                      )
+                                    else
+                                      AnimatedContainer(
+                                        duration:
+                                            const Duration(milliseconds: 120),
+                                        width: 22, height: 22,
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(7),
+                                          color: on
+                                              ? AppColors.petPeachInk
+                                              : AppColors.paleBg,
+                                          border: Border.all(
+                                            color: on
+                                                ? AppColors.petPeachInk
+                                                : AppColors.paleLine,
+                                            width: 1.5,
+                                          ),
+                                        ),
+                                        child: on
+                                            ? const Icon(Icons.check,
+                                                size: 13,
+                                                color: AppColors.paleBg)
+                                            : null,
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  // 푸터
+                  Container(
+                    padding: EdgeInsets.fromLTRB(
+                        22, 12, 22,
+                        MediaQuery.of(context).padding.bottom + 16),
+                    decoration: const BoxDecoration(
+                      color: AppColors.paleBg,
+                      border: Border(
+                          top: BorderSide(color: AppColors.paleLineSoft)),
                     ),
                     child: Row(
                       children: [
-                        // 16×16 상태 배지
-                        Container(
-                          width: 16, height: 16,
-                          decoration: BoxDecoration(
-                            color: ok ? paleInk : AppColors.paleLine,
-                            borderRadius: BorderRadius.circular(5),
-                          ),
-                          alignment: Alignment.center,
-                          child: Icon(
-                            ok ? Icons.check : Icons.close,
-                            size: 10,
-                            color: ok ? AppColors.card : AppColors.paleInk2,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        // note (1줄 말줄임)
-                        Expanded(
-                          child: Text(
-                            log.memo ?? (ok ? '완료' : '건너뜀'),
-                            style: const TextStyle(
-                                fontSize: 12.5, fontWeight: FontWeight.w600,
-                                color: AppColors.primary),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                        GestureDetector(
+                          onTap: widget.onClose,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 18, vertical: 14),
+                            decoration: BoxDecoration(
+                              color: AppColors.card,
+                              border: Border.all(color: AppColors.paleLine),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: const Text('취소',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                  color: AppColors.primary,
+                                )),
                           ),
                         ),
                         const SizedBox(width: 8),
-                        // 날짜/시각 2줄 우측 정렬
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              _fmtDate(log.executedAt),
-                              style: AppTextStyles.mono(10, FontWeight.w600,
-                                  color: AppColors.paleInk3),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: _picked.isEmpty || _saving
+                                ? null
+                                : () => _apply(allRoutines),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 150),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: _picked.isNotEmpty
+                                    ? AppColors.primary
+                                    : AppColors.paleLineSoft,
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: _saving
+                                  ? const SizedBox(
+                                      width: 18, height: 18,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: AppColors.paleBg))
+                                  : Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text('루틴에 추가',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 14,
+                                              color: _picked.isNotEmpty
+                                                  ? AppColors.paleBg
+                                                  : AppColors.paleInk3,
+                                            )),
+                                        if (_picked.isNotEmpty) ...[
+                                          const SizedBox(width: 8),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 8, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white
+                                                  .withValues(alpha: 0.18),
+                                              borderRadius:
+                                                  BorderRadius.circular(999),
+                                            ),
+                                            child: Text('${_picked.length}',
+                                                style: const TextStyle(
+                                                  fontFamily: 'monospace',
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: AppColors.paleBg,
+                                                )),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
                             ),
-                            Text(
-                              _fmtTime(log.executedAt),
-                              style: AppTextStyles.mono(10, FontWeight.w600,
-                                  color: AppColors.paleInk2),
-                            ),
-                          ],
+                          ),
                         ),
                       ],
                     ),
-                  );
-                }),
-
-                // 더보기 버튼
-                if (moreCount > 0)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: GestureDetector(
-                      onTap: onMore,
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 9),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: AppColors.paleLine),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text('이전 기록 더보기',
-                                style: TextStyle(
-                                    fontSize: 12, fontWeight: FontWeight.w700,
-                                    color: AppColors.paleInk2)),
-                            const SizedBox(width: 6),
-                            Text('+$moreCount',
-                                style: AppTextStyles.mono(10, FontWeight.w700,
-                                    color: AppColors.paleInk3)),
-                          ],
-                        ),
-                      ),
-                    ),
                   ),
-
-                // 접기 버튼 (전부 펼쳐진 상태 + 3건 초과)
-                if (moreCount <= 0 && allLogs.length > 3)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: GestureDetector(
-                      onTap: onCollapse,
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 9),
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: AppColors.paleLine),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text('접기',
-                            style: TextStyle(
-                                fontSize: 12, fontWeight: FontWeight.w700,
-                                color: AppColors.paleInk3)),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-        ],
-      ),
-    );
-  }
-
-  String _fmtDate(DateTime dt) =>
-      '${dt.month.toString().padLeft(2, '0')}.${dt.day.toString().padLeft(2, '0')} '
-      '${_weekKo[dt.weekday % 7]}';
-
-  String _fmtTime(DateTime dt) =>
-      '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-
-  static const _weekKo = ['일', '월', '화', '수', '목', '금', '토'];
-}
-
-// ── (C) 퀵 액션 2단 레이아웃 ─────────────────────────────────
-class _QuickActions extends StatelessWidget {
-  final VoidCallback onComplete;
-  final VoidCallback onSkip;
-  final VoidCallback onEdit;
-
-  const _QuickActions({
-    required this.onComplete,
-    required this.onSkip,
-    required this.onEdit,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-      child: Column(
-        children: [
-          // 1행: 풀폭 주요 버튼
-          GestureDetector(
-            onTap: onComplete,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(11),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.check, color: AppColors.paleBg, size: 16),
-                  const SizedBox(width: 7),
-                  Text('오늘 완료로 기록',
-                      style: TextStyle(
-                          fontSize: 13.5, fontWeight: FontWeight.w700,
-                          color: AppColors.paleBg)),
                 ],
               ),
             ),
           ),
-          const SizedBox(height: 7),
-          // 2행: 2등분 보조 버튼
-          Row(
-            children: [
-              Expanded(
-                child: _SecondaryBtn(label: '오늘은 건너뛰기', onTap: onSkip),
-              ),
-              const SizedBox(width: 7),
-              Expanded(
-                child: _SecondaryBtn(label: '루틴 편집', onTap: onEdit),
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
 }
 
-class _SecondaryBtn extends StatelessWidget {
+class _FilterChip extends StatelessWidget {
   final String label;
+  final int count;
+  final bool active;
   final VoidCallback onTap;
 
-  const _SecondaryBtn({required this.label, required this.onTap});
+  const _FilterChip({
+    required this.label,
+    required this.count,
+    required this.active,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 11),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          border: Border.all(color: AppColors.paleLine),
-          borderRadius: BorderRadius.circular(11),
-        ),
-        child: Text(label,
-            style: const TextStyle(
-                fontSize: 12.5, fontWeight: FontWeight.w600,
-                color: AppColors.primary)),
-      ),
-    );
-  }
-}
-
-// ── Toggle (38×22, on=#3A332B / off=paleLine) ─────────────────
-class _Toggle extends StatelessWidget {
-  final bool on;
-  final ValueChanged<bool> onChange;
-
-  const _Toggle({required this.on, required this.onChange});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => onChange(!on),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        width: 38, height: 22,
-        padding: const EdgeInsets.all(2),
+        margin: const EdgeInsets.only(right: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: on ? AppColors.primary : AppColors.paleLine,
-          borderRadius: BorderRadius.circular(11),
+          color: active ? AppColors.primary : AppColors.card,
+          borderRadius: BorderRadius.circular(999),
+          border: active ? null : Border.all(color: AppColors.paleLine),
         ),
-        alignment: on ? Alignment.centerRight : Alignment.centerLeft,
-        child: Container(
-          width: 18, height: 18,
-          decoration: const BoxDecoration(
-              color: AppColors.card, shape: BoxShape.circle),
+        child: Row(
+          children: [
+            Text(label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: active ? AppColors.paleBg : AppColors.primary,
+                )),
+            const SizedBox(width: 5),
+            Text('$count',
+                style: TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: active
+                      ? AppColors.paleBg.withValues(alpha: 0.6)
+                      : AppColors.paleInk3,
+                )),
+          ],
         ),
       ),
     );
