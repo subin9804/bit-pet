@@ -15,6 +15,8 @@ import '../../features/community/presentation/post_detail_screen.dart';
 import '../../features/community/presentation/post_compose_screen.dart';
 import '../../features/routine/presentation/routines_page.dart';
 import '../../features/routine/presentation/routine_form_screen.dart';
+import '../../features/group/presentation/group_setup_screen.dart';
+import '../../features/group/presentation/group_management_screen.dart';
 import '../../features/my/presentation/my_screen.dart';
 import '../../features/notification/data/notification_repository.dart';
 import '../../features/notification/data/models/notification_models.dart';
@@ -39,6 +41,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
       GoRoute(path: '/signup', builder: (_, __) => const SignupScreen()),
+      GoRoute(path: '/groups/setup', builder: (_, __) => const GroupSetupScreen()),
       ShellRoute(
         builder: (context, state, child) => HomeScreen(
           child: child,
@@ -107,6 +110,8 @@ final routerProvider = Provider<GoRouter>((ref) {
                 postId: int.tryParse(state.pathParameters['id']!)),
           ),
           GoRoute(path: '/my', builder: (_, __) => const MyScreen()),
+          GoRoute(path: '/groups/management',
+              builder: (_, __) => const GroupManagementScreen()),
         ],
       ),
     ],

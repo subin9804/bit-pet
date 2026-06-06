@@ -5,6 +5,8 @@ import '../../features/auth/data/models/auth_models.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/community/data/post_repository.dart';
 import '../../features/community/data/models/post_models.dart';
+import '../../features/group/data/group_repository.dart';
+import '../../features/group/data/models/group_models.dart';
 import '../../features/notification/data/notification_repository.dart';
 import '../../features/notification/data/models/notification_models.dart';
 import '../../features/pet/data/pet_repository.dart';
@@ -834,6 +836,45 @@ class MockPhotoRepository extends PhotoRepository {
 // Riverpod overrides — main.dart에서 사용
 // ────────────────────────────────────────────────────────────────────
 
+// ────────────────────────────────────────────────────────────────────
+// Group Mock
+// ────────────────────────────────────────────────────────────────────
+
+class MockGroupRepository extends GroupRepository {
+  MockGroupRepository() : super(Dio());
+
+  // 개발 중 그룹 설정 화면 건너뛰려면 아래 주석 해제
+  // static final _mockGroup = GroupInfo(id: 1, name: '고도네 사육실',
+  //     inviteCode: 'ABCD12', ownerId: 1, myRole: GroupRole.owner, members: []);
+
+  @override
+  Future<GroupInfo?> getMyGroup() async => null; // null = 온보딩 화면 진입
+
+  @override
+  Future<GroupInfo> createGroup(String name) async => GroupInfo(
+        id: 1, name: name, inviteCode: 'ABCD12',
+        ownerId: 1, myRole: GroupRole.owner,
+        members: [GroupMember(userId: 1, name: '테스트', email: 'mock@bitpet.io',
+            role: GroupRole.owner, joinedAt: DateTime.now())]);
+
+  @override
+  Future<GroupInfo> joinGroup(String inviteCode) async => GroupInfo(
+        id: 2, name: '공동 사육실', inviteCode: inviteCode,
+        ownerId: 2, myRole: GroupRole.member,
+        members: [GroupMember(userId: 2, name: '다른사람', email: 'other@bitpet.io',
+            role: GroupRole.owner, joinedAt: DateTime.now())]);
+
+  @override
+  Future<GroupInfo> updateGroupName(String name) async =>
+      (await getMyGroup())!;
+
+  @override
+  Future<void> leaveOrDisband() async {}
+
+  @override
+  Future<void> kickMember(int userId) async {}
+}
+
 List<Override> buildMockOverrides() => [
       authRepositoryProvider.overrideWithValue(MockAuthRepository()),
       authStateProvider.overrideWith((ref) => MockAuthNotifier()),
@@ -844,4 +885,5 @@ List<Override> buildMockOverrides() => [
           .overrideWithValue(MockNotificationRepository()),
       postRepositoryProvider.overrideWithValue(MockPostRepository()),
       photoRepositoryProvider.overrideWithValue(MockPhotoRepository()),
+      groupRepositoryProvider.overrideWithValue(MockGroupRepository()),
     ];

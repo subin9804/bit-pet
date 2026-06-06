@@ -3,6 +3,7 @@ package io.bitpet.pet.repository;
 import io.bitpet.pet.domain.PetGender;
 import io.bitpet.pet.domain.PetMst;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -23,6 +24,19 @@ public interface PetMstRepository extends JpaRepository<PetMst, Long> {
     List<PetMst> findAllByUserIdAndSpeciesId(Long userId, Long speciesId);
 
     List<PetMst> findAllByUserIdAndGender(Long userId, PetGender gender);
+
+    // 그룹 할당/해제 (bulk)
+    @Modifying
+    @Query("UPDATE PetMst p SET p.groupId = :groupId WHERE p.userId = :userId")
+    void assignGroupToUserPets(@Param("userId") Long userId, @Param("groupId") Long groupId);
+
+    @Modifying
+    @Query("UPDATE PetMst p SET p.groupId = NULL WHERE p.userId = :userId AND p.groupId = :groupId")
+    void removeGroupFromUserPets(@Param("userId") Long userId, @Param("groupId") Long groupId);
+
+    @Modifying
+    @Query("UPDATE PetMst p SET p.groupId = NULL WHERE p.groupId = :groupId")
+    void removeGroupFromAllPets(@Param("groupId") Long groupId);
 
     @Query("SELECT p FROM PetMst p WHERE p.userId = :userId " +
            "AND (:speciesId IS NULL OR p.species.id = :speciesId) " +

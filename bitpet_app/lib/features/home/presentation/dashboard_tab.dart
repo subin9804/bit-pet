@@ -15,6 +15,7 @@ import '../../routine/data/models/routine_models.dart';
 import '../../routine/providers/routine_provider.dart';
 import '../../routine/presentation/bulk_confirm_sheet.dart';
 import '../../routine/presentation/per_pet_confirm_sheet.dart';
+import '../../group/providers/group_provider.dart';
 
 
 class DashboardTab extends ConsumerStatefulWidget {
@@ -39,6 +40,17 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
   Widget build(BuildContext context) {
     final authAsync    = ref.watch(authStateProvider);
     final userName     = authAsync.valueOrNull?.name ?? '사용자';
+
+    // 그룹이 없으면 설정 화면으로 이동
+    ref.listen(myGroupProvider, (_, next) {
+      next.whenData((group) {
+        if (group == null) {
+          WidgetsBinding.instance.addPostFrameCallback(
+              (_) => context.go('/groups/setup'));
+        }
+      });
+    });
+
     final todayAsync   = ref.watch(todayRoutinesProvider);
     final petsAsync    = ref.watch(petListProvider);
     final recentAsync  = ref.watch(recentRecordsProvider);

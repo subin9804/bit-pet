@@ -82,6 +82,9 @@ public class PetMst extends BaseSyncEntity {
     @Column(name = "profile_photo_id")
     private Long profilePhotoId;
 
+    @Column(name = "group_id")
+    private Long groupId;
+
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
@@ -118,6 +121,10 @@ public class PetMst extends BaseSyncEntity {
     public void setProfilePhoto(Long photoId) {
         this.profilePhotoId = photoId;
     }
+
+    public void assignGroup(Long groupId) { this.groupId = groupId; }
+
+    public void removeGroup() { this.groupId = null; }
 
     public void softDelete() {
         this.deletedAt = Instant.now();

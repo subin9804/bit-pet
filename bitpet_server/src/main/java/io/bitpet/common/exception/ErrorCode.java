@@ -83,6 +83,15 @@ public enum ErrorCode {
     PHOTO_NOT_FOUND(HttpStatus.NOT_FOUND, "Photo not found"),
     PHOTO_ENTITY_TYPE_INVALID(HttpStatus.BAD_REQUEST, "Invalid entityType"),
 
+    // --- Group ---
+    GROUP_NOT_FOUND(HttpStatus.NOT_FOUND, "Breeding group not found"),
+    GROUP_ALREADY_JOINED(HttpStatus.CONFLICT, "You are already in a group"),
+    GROUP_INVITE_CODE_INVALID(HttpStatus.BAD_REQUEST, "Invalid invite code"),
+    GROUP_ACCESS_DENIED(HttpStatus.FORBIDDEN, "Only the group owner can perform this action"),
+    GROUP_CANNOT_KICK_OWNER(HttpStatus.BAD_REQUEST, "Cannot kick the group owner"),
+    GROUP_MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "Member not found in this group"),
+    GROUP_NOT_MEMBER(HttpStatus.BAD_REQUEST, "You are not in any group"),
+
     // --- Community ---
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "Post not found"),
     POST_ACCESS_DENIED(HttpStatus.FORBIDDEN, "You do not own this post"),

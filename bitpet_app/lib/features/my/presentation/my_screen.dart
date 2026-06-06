@@ -68,6 +68,12 @@ class MyScreen extends ConsumerWidget {
             const SizedBox(height: 24),
             // 메뉴 목록
             _MenuItem(
+              icon: Icons.group_outlined,
+              label: '그룹 관리',
+              onTap: () => context.push('/groups/management'),
+            ),
+            const Divider(height: 1, color: AppColors.paleLine),
+            _MenuItem(
               icon: Icons.notifications_outlined,
               label: '알림 설정',
               onTap: () {},
