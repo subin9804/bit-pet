@@ -209,22 +209,22 @@ final _mockRoutines = [
 ];
 
 final _mockSpecies = [
-  // 뱀
-  Species(id: 1, code: 'BALL_PYTHON', category: '뱀', nameKo: '볼파이톤', nameEn: 'Ball Python'),
-  Species(id: 3, code: 'CORN_SNAKE', category: '뱀', nameKo: '콘스네이크', nameEn: 'Corn Snake'),
-  Species(id: 7, code: 'HOGNOSE', category: '뱀', nameKo: '호그노즈', nameEn: 'Hognose Snake'),
-  Species(id: 8, code: 'KINGSNAKE', category: '뱀', nameKo: '킹스네이크', nameEn: 'Kingsnake'),
-  // 도마뱀
-  Species(id: 4, code: 'BEARDED_DRAGON', category: '도마뱀', nameKo: '수염도마뱀', nameEn: 'Bearded Dragon'),
-  Species(id: 5, code: 'BLUE_TONGUE_SKINK', category: '도마뱀', nameKo: '블루텅스킨크', nameEn: 'Blue-tongue Skink'),
-  Species(id: 9, code: 'LEACHIANUS', category: '도마뱀', nameKo: '리키에너스게코', nameEn: 'Leachianus Gecko'),
-  // 게코
-  Species(id: 2, code: 'LEOPARD_GECKO', category: '게코', nameKo: '레오파드게코', nameEn: 'Leopard Gecko'),
-  Species(id: 6, code: 'CRESTED_GECKO', category: '게코', nameKo: '크레스티드게코', nameEn: 'Crested Gecko'),
-  Species(id: 10, code: 'GARGOYLE_GECKO', category: '게코', nameKo: '가고일게코', nameEn: 'Gargoyle Gecko'),
-  // 거북
-  Species(id: 11, code: 'RUSSIAN_TORTOISE', category: '거북', nameKo: '러시안육지거북', nameEn: 'Russian Tortoise'),
-  Species(id: 12, code: 'HERMANN_TORTOISE', category: '거북', nameKo: '헤르만육지거북', nameEn: "Hermann's Tortoise"),
+  // 게코 (GECKO)
+  Species(id: 2,  code: 'LEOPARD_GECKO',  category: 'gecko', nameKo: '레오파드게코',   nameEn: 'Leopard Gecko'),
+  Species(id: 6,  code: 'CRESTED_GECKO',  category: 'gecko', nameKo: '크레스티드게코', nameEn: 'Crested Gecko'),
+  Species(id: 10, code: 'GARGOYLE_GECKO', category: 'gecko', nameKo: '가고일게코',     nameEn: 'Gargoyle Gecko'),
+  // 도마뱀 (LIZARD)
+  Species(id: 4,  code: 'BEARDED_DRAGON',    category: 'lizard', nameKo: '수염도마뱀',   nameEn: 'Bearded Dragon'),
+  Species(id: 5,  code: 'BLUE_TONGUE_SKINK', category: 'lizard', nameKo: '블루텅스킨크', nameEn: 'Blue-tongue Skink'),
+  Species(id: 9,  code: 'LEACHIANUS',         category: 'lizard', nameKo: '리키에너스게코', nameEn: 'Leachianus Gecko'),
+  // 뱀 (SNAKE)
+  Species(id: 1,  code: 'BALL_PYTHON', category: 'snake', nameKo: '볼파이톤',   nameEn: 'Ball Python'),
+  Species(id: 3,  code: 'CORN_SNAKE',  category: 'snake', nameKo: '콘스네이크', nameEn: 'Corn Snake'),
+  Species(id: 7,  code: 'HOGNOSE',     category: 'snake', nameKo: '호그노즈',   nameEn: 'Hognose Snake'),
+  Species(id: 8,  code: 'KINGSNAKE',   category: 'snake', nameKo: '킹스네이크', nameEn: 'Kingsnake'),
+  // 거북 (TURTLE)
+  Species(id: 11, code: 'RUSSIAN_TORTOISE',  category: 'turtle', nameKo: '러시안육지거북', nameEn: 'Russian Tortoise'),
+  Species(id: 12, code: 'HERMANN_TORTOISE', category: 'turtle', nameKo: '헤르만육지거북', nameEn: "Hermann's Tortoise"),
 ];
 
 // 종(speciesId)별 모프 카탈로그 — 개체 등록 화면의 모프 추천/선택용 mock

@@ -42,6 +42,9 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
 
   Species? _species;
   String? _morphText;
+  int? _selectedMorphId;
+  // 선택된 Morph 객체 (카탈로그 선택 시 한글 라벨용)
+  Morph? _selectedMorph;
   String _gender = '수컷';
   DateTime? _hatchDate;
   bool _hatchUnknown = false;
@@ -87,6 +90,8 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
       setState(() {
         _species = result;
         _morphText = null;
+        _selectedMorphId = null;
+        _selectedMorph = null;
       });
     }
   }
@@ -160,7 +165,13 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
         ],
       ),
     );
-    if (result != null) setState(() => _morphText = result.isEmpty ? null : result);
+    if (result != null) {
+      setState(() {
+        _morphText = result.isEmpty ? null : result;
+        _selectedMorphId = null;
+        _selectedMorph = null;
+      });
+    }
   }
 
   Future<void> _submit() async {
@@ -325,38 +336,149 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
               ),
             ),
           ),
-          SField(
-            label: '모프',
-            hint: _species == null ? '종 먼저' : null,
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                if (_morphText != null)
-                  Chip(
-                    label: Text(_morphText!, style: const TextStyle(fontSize: 12)),
-                    backgroundColor: AppColors.paleBgAlt,
-                    side: const BorderSide(color: AppColors.paleLine),
-                    onDeleted: () => setState(() => _morphText = null),
-                    deleteIconColor: AppColors.paleInk2,
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          Consumer(
+            builder: (ctx, ref, _) {
+              final morphsAsync = _species == null
+                  ? const AsyncValue<List<Morph>>.data([])
+                  : ref.watch(morphsBySpeciesProvider(_species!.id));
+
+              return SField(
+                label: '모프',
+                hint: _species == null ? '종 먼저' : null,
+                child: morphsAsync.when(
+                  loading: () => const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: LinearProgressIndicator(),
                   ),
-                GestureDetector(
-                  onTap: _openMorphInput,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppColors.paleLine),
-                    ),
-                    child: const Text(
-                      '+ 직접 입력',
-                      style: TextStyle(fontSize: 12, color: AppColors.paleInk2, fontWeight: FontWeight.w600),
-                    ),
+                  error: (_, __) => const SizedBox.shrink(),
+                  data: (morphs) => Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      // 카탈로그 모프 추천 칩
+                      ...morphs.map((m) {
+                        final selected = _selectedMorphId == m.id;
+                        return GestureDetector(
+                          onTap: () => setState(() {
+                            if (selected) {
+                              _selectedMorphId = null;
+                              _selectedMorph = null;
+                              _morphText = null;
+                            } else {
+                              _selectedMorphId = m.id;
+                              _selectedMorph = m;
+                              _morphText = m.nameEn ?? m.nameKo;
+                            }
+                          }),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                            decoration: BoxDecoration(
+                              color: selected ? AppColors.primary : AppColors.surface,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: selected ? AppColors.primary : AppColors.paleLine,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  m.nameKo,
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: selected ? AppColors.paleBg : AppColors.primary,
+                                  ),
+                                ),
+                                if (m.nameEn != null) ...[
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    m.nameEn!,
+                                    style: TextStyle(
+                                      fontSize: 10.5,
+                                      color: selected ? AppColors.paleBg.withValues(alpha: 0.75) : AppColors.paleInk2,
+                                    ),
+                                  ),
+                                ],
+                                if (m.hasHealthConcern) ...[
+                                  const SizedBox(width: 4),
+                                  Tooltip(
+                                    message: '건강 우려 모프',
+                                    child: Icon(
+                                      Icons.warning_amber_rounded,
+                                      size: 13,
+                                      color: selected ? AppColors.paleBg.withValues(alpha: 0.85) : const Color(0xFFCC8800),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        );
+                      }),
+                      // 직접 입력 버튼
+                      GestureDetector(
+                        onTap: _openMorphInput,
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: (_selectedMorphId == null && _morphText != null)
+                                  ? AppColors.primary
+                                  : AppColors.paleLine,
+                              style: BorderStyle.solid,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                (_selectedMorphId == null && _morphText != null)
+                                    ? _morphText!
+                                    : '+ 직접 입력',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: (_selectedMorphId == null && _morphText != null)
+                                      ? AppColors.primary
+                                      : AppColors.paleInk2,
+                                ),
+                              ),
+                              if (_selectedMorphId == null && _morphText != null) ...[
+                                const SizedBox(width: 6),
+                                GestureDetector(
+                                  onTap: () => setState(() => _morphText = null),
+                                  child: const Icon(Icons.close, size: 13, color: AppColors.paleInk2),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                      // 건강 우려 안내
+                      if (morphs.any((m) => m.hasHealthConcern))
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: const [
+                              Icon(Icons.warning_amber_rounded, size: 12, color: Color(0xFFCC8800)),
+                              SizedBox(width: 4),
+                              Text(
+                                '건강 우려 모프가 포함되어 있어요',
+                                style: TextStyle(fontSize: 10.5, color: Color(0xFFCC8800), fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
                   ),
                 ),
-              ],
-            ),
+              );
+            },
           ),
         ],
       ),
@@ -515,7 +637,13 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
           ]),
           StepSummaryGroup(label: '종·모프', step: 1, rows: [
             StepSummaryRow(k: '종', v: _species?.nameKo ?? ''),
-            StepSummaryRow(k: '모프', v: _morphText ?? '', muted: _morphText == null),
+            StepSummaryRow(
+              k: '모프',
+              v: _selectedMorph != null
+                  ? '${_selectedMorph!.nameKo}${_selectedMorph!.nameEn != null ? " (${_selectedMorph!.nameEn})" : ""}'
+                  : (_morphText ?? ''),
+              muted: _morphText == null,
+            ),
           ]),
           StepSummaryGroup(label: '성별·날짜', step: 2, rows: [
             StepSummaryRow(k: '성별', v: _gender),
