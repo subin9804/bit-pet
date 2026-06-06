@@ -477,7 +477,6 @@ class _TodayRoutineCard extends StatelessWidget {
     final allDone   = routine.isAllCompleted;
     final done      = routine.completedPetCount;
     final totalPets = routine.totalPetCount;
-    final pets      = routine.petStatuses;
 
     return Opacity(
       opacity: allDone ? 0.62 : 1.0,
@@ -572,50 +571,9 @@ class _TodayRoutineCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
 
-            // 개체 아바타 strip + 진행도
+            // 진행도
             Row(
               children: [
-                // 아바타 (최대 5, 겹침)
-                SizedBox(
-                  height: 26,
-                  width: _avatarStripWidth(pets.length.clamp(0, 5)),
-                  child: Stack(
-                    children: pets.take(5).toList().asMap().entries.map((e) {
-                      final i = e.key;
-                      final s = e.value;
-                      return Positioned(
-                        left: i * 19.0,
-                        child: Container(
-                          width: 26, height: 26,
-                          decoration: BoxDecoration(
-                            color: s.isCompleted
-                                ? PalePalette.pale(PalePalette.keyFromHex(s.colorCode))
-                                : Colors.white.withValues(alpha: 0.55),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: _bg, width: 1.5),
-                          ),
-                          child: Icon(Icons.pets,
-                              size: 12, color: AppColors.primary),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-                if (pets.length > 5) ...[
-                  Container(
-                    margin: const EdgeInsets.only(left: 4),
-                    width: 26, height: 26,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.55),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: _bg, width: 1.5),
-                    ),
-                    child: Center(
-                      child: Text('+${pets.length - 5}',
-                          style: AppTextStyles.mono(9, FontWeight.w700)),
-                    ),
-                  ),
-                ],
                 const Spacer(),
                 Text('$done / $totalPets 완료',
                     style: AppTextStyles.mono(11, FontWeight.w700)),
@@ -695,10 +653,6 @@ class _TodayRoutineCard extends StatelessWidget {
     );
   }
 
-  static double _avatarStripWidth(int count) {
-    if (count == 0) return 0;
-    return 26 + (count - 1) * 19.0;
-  }
 }
 
 // ── 개체 아바타 아이템 (64px, 이름만) ────────────────────────────

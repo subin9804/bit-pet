@@ -6,8 +6,10 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.SQLRestriction;
 
+import java.sql.Types;
 import java.time.Instant;
 
 @Entity
@@ -29,7 +31,8 @@ public class BreedingGroupMst extends BaseTimeEntity {
     @Column(nullable = false, length = 100)
     private String name;
 
-    @Column(name = "invite_code", nullable = false, length = 6, updatable = false)
+    @JdbcTypeCode(Types.CHAR)
+    @Column(name = "invite_code", nullable = false, columnDefinition = "CHAR(6)", updatable = false)
     private String inviteCode;
 
     @Column(name = "owner_id", nullable = false)

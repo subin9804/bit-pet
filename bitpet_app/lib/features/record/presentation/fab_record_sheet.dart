@@ -9,7 +9,6 @@ import '../../../core/widgets/step_dots.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../../pet/data/models/pet_models.dart';
 import '../../pet/providers/pet_provider.dart';
-import '../data/models/feed_models.dart';
 import '../data/record_repository.dart';
 import '../providers/record_provider.dart';
 import '../providers/feed_provider.dart';
@@ -141,8 +140,8 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
 
   // ── 저장 ─────────────────────────────────────────────────────
   Future<void> _saveBulk(List<Pet> pets) async {
-    if (_bulkForm.items.isEmpty) {
-      showToast(context, '급여를 추가해 주세요', type: ToastType.warning);
+    if (!_bulkForm.isValid) {
+      showToast(context, '먹이 종류를 선택해 주세요', type: ToastType.warning);
       return;
     }
     setState(() => _saving = true);
@@ -150,15 +149,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
       final repo = ref.read(recordRepositoryProvider);
       final now  = DateTime.now();
       for (final pet in pets) {
-        for (final item in _bulkForm.items) {
-          await repo.addFeeding(pet.id, {
-            'foodType': item.food,
-            'amount':   item.amt.toDouble(),
-            'unit':     '마리',
-            'fedAt':    now.toIso8601String(),
-            if (_bulkForm.memo.isNotEmpty) 'memo': _bulkForm.memo,
-          });
-        }
+        await repo.addFeeding(pet.id, _bulkForm.toApiMap(fedAt: now));
         ref.invalidate(feedSessionsProvider(pet.id));
         ref.invalidate(petDetailProvider(pet.id));
       }
@@ -182,15 +173,8 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
       for (final pet in pets) {
         final entry = _perPetForms[pet.id];
         if (entry == null || !entry.filled) continue;
-        for (final item in entry.form.items) {
-          await repo.addFeeding(pet.id, {
-            'foodType': item.food,
-            'amount':   item.amt.toDouble(),
-            'unit':     '마리',
-            'fedAt':    now.toIso8601String(),
-            if (entry.form.memo.isNotEmpty) 'memo': entry.form.memo,
-          });
-        }
+        if (!entry.form.isValid) continue;
+        await repo.addFeeding(pet.id, entry.form.toApiMap(fedAt: now));
         ref.invalidate(feedSessionsProvider(pet.id));
         ref.invalidate(petDetailProvider(pet.id));
         count++;
@@ -517,8 +501,8 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
           onBack: _goBack,
           nextLabel: '완료',
           nextIcon: Icons.check,
-          nextEnabled: _bulkForm.hasItems && !_saving,
-          nextBadge: _bulkForm.hasItems ? '${_bulkForm.items.length}종 저장' : null,
+          nextEnabled: _bulkForm.isValid && !_saving,
+          nextBadge: _bulkForm.isValid ? _bulkForm.summary : null,
           loading: _saving,
           onNext: () => _saveBulk(pets),
         ),

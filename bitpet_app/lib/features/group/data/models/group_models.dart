@@ -34,14 +34,12 @@ class GroupInfo {
 class GroupMember {
   final int userId;
   final String name;
-  final String email;
   final GroupRole role;
   final DateTime joinedAt;
 
   const GroupMember({
     required this.userId,
     required this.name,
-    required this.email,
     required this.role,
     required this.joinedAt,
   });
@@ -51,7 +49,6 @@ class GroupMember {
   factory GroupMember.fromJson(Map<String, dynamic> json) => GroupMember(
         userId:   json['userId'] as int,
         name:     json['name'] as String,
-        email:    json['email'] as String,
         role:     GroupRole.fromString(json['role'] as String? ?? 'MEMBER'),
         joinedAt: DateTime.parse(json['joinedAt'] as String),
       );

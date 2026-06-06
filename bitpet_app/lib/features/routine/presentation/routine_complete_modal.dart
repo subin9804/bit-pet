@@ -31,7 +31,6 @@ class _RoutineCompleteModalState extends ConsumerState<RoutineCompleteModal> {
   final _memoController = TextEditingController();
   final _foodTypeController = TextEditingController();
   String _cleaningType = 'FULL';
-  String _feedResponse = 'COMPLETE';
   int _currentCardIndex = 0;
 
   bool get _isSinglePet => widget.routine.petCount <= 1;
@@ -207,13 +206,6 @@ class _RoutineCompleteModalState extends ConsumerState<RoutineCompleteModal> {
               decoration: const InputDecoration(hintText: '귀뚜라미, 두비아 등'),
             ),
             const SizedBox(height: 12),
-            Text('먹이 반응', style: AppTextStyles.label),
-            const SizedBox(height: 4),
-            _FeedResponsePicker(
-              value: _feedResponse,
-              onChanged: (v) => setState(() => _feedResponse = v),
-            ),
-            const SizedBox(height: 12),
             _MemoField(controller: _memoController),
           ],
         ),
@@ -257,9 +249,6 @@ class _RoutineCompleteModalState extends ConsumerState<RoutineCompleteModal> {
         cleaningType: widget.routine.routineType == RoutineType.CLEANING
             ? _cleaningType
             : null,
-        feedResponse: widget.routine.routineType == RoutineType.FEEDING
-            ? _feedResponse
-            : null,
         memo: _memoController.text.trim().isEmpty
             ? null
             : _memoController.text.trim(),
@@ -295,9 +284,6 @@ class _RoutineCompleteModalState extends ConsumerState<RoutineCompleteModal> {
             : null,
         cleaningType: widget.routine.routineType == RoutineType.CLEANING
             ? _cleaningType
-            : null,
-        feedResponse: widget.routine.routineType == RoutineType.FEEDING
-            ? _feedResponse
             : null,
         memo: _memoController.text.trim().isEmpty
             ? null
@@ -384,36 +370,6 @@ class _MemoField extends StatelessWidget {
       controller: controller,
       decoration: const InputDecoration(hintText: '메모 (선택)'),
       maxLines: 2,
-    );
-  }
-}
-
-class _FeedResponsePicker extends StatelessWidget {
-  final String value;
-  final ValueChanged<String> onChanged;
-
-  const _FeedResponsePicker({required this.value, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    const options = [
-      ('COMPLETE', '완식', Colors.green),
-      ('PARTIAL', '부분', Colors.orange),
-      ('REFUSED', '거절', Colors.red),
-    ];
-    return Row(
-      children: options.map((o) {
-        final selected = value == o.$1;
-        return Padding(
-          padding: const EdgeInsets.only(right: 8),
-          child: ChoiceChip(
-            label: Text(o.$2),
-            selected: selected,
-            selectedColor: o.$3.withValues(alpha: 0.2),
-            onSelected: (_) => onChanged(o.$1),
-          ),
-        );
-      }).toList(),
     );
   }
 }

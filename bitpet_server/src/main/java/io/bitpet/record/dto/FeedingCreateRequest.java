@@ -1,6 +1,6 @@
 package io.bitpet.record.dto;
 
-import io.bitpet.record.domain.FeedResponse;
+import io.bitpet.record.domain.FeedingSupplement;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -12,7 +12,8 @@ public record FeedingCreateRequest(
         @NotBlank @Size(max = 50) String foodType,
         BigDecimal amount,
         @Size(max = 10) String unit,
-        FeedResponse feedResponse,
+        @Size(max = 10) String sizeLabel,
+        FeedingSupplement supplement,
         @NotNull Instant fedAt,
         String memo
 ) {}

@@ -1,6 +1,6 @@
 package io.bitpet.record.dto;
 
-import io.bitpet.record.domain.FeedResponse;
+import io.bitpet.record.domain.FeedingSupplement;
 import io.bitpet.record.domain.FeedingDtl;
 
 import java.math.BigDecimal;
@@ -13,7 +13,8 @@ public record FeedingResponse(
         String foodType,
         BigDecimal amount,
         String unit,
-        FeedResponse feedResponse,
+        String sizeLabel,
+        FeedingSupplement supplement,
         Instant fedAt,
         String memo,
         Instant createdAt
@@ -22,7 +23,8 @@ public record FeedingResponse(
         return new FeedingResponse(
                 f.getId(), f.getPetId(), f.getRoutineId(),
                 f.getFoodType(), f.getAmount(), f.getUnit(),
-                f.getFeedResponse(), f.getFedAt(), f.getMemo(), f.getCreatedAt()
+                f.getSizeLabel(), f.getSupplement(),
+                f.getFedAt(), f.getMemo(), f.getCreatedAt()
         );
     }
 }

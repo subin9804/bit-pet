@@ -438,11 +438,6 @@ class _MembersCard extends StatelessWidget {
                             ),
                           ],
                         ),
-                        Text(m.email,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: AppColors.paleInk3,
-                            )),
                       ],
                     ),
                   ),

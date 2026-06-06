@@ -1,6 +1,6 @@
 package io.bitpet.routine.dto;
 
-import io.bitpet.record.domain.FeedResponse;
+import io.bitpet.record.domain.FeedingSupplement;
 import io.bitpet.routine.domain.RoutineLogStatus;
 import jakarta.validation.constraints.NotNull;
 
@@ -15,7 +15,8 @@ public record RoutineCompleteIndividualRequest(
         String foodType,
         BigDecimal amount,
         String unit,
-        FeedResponse feedResponse,
+        String sizeLabel,
+        FeedingSupplement supplement,
         // CLEANING fields
         String cleaningType,
         // WEIGHT fields

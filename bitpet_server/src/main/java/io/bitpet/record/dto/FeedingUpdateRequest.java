@@ -1,6 +1,6 @@
 package io.bitpet.record.dto;
 
-import io.bitpet.record.domain.FeedResponse;
+import io.bitpet.record.domain.FeedingSupplement;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
@@ -10,7 +10,8 @@ public record FeedingUpdateRequest(
         @Size(max = 50) String foodType,
         BigDecimal amount,
         @Size(max = 10) String unit,
-        FeedResponse feedResponse,
+        @Size(max = 10) String sizeLabel,
+        FeedingSupplement supplement,
         Instant fedAt,
         String memo
 ) {}

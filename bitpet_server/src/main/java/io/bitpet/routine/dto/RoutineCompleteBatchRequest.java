@@ -1,6 +1,6 @@
 package io.bitpet.routine.dto;
 
-import io.bitpet.record.domain.FeedResponse;
+import io.bitpet.record.domain.FeedingSupplement;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -11,7 +11,8 @@ public record RoutineCompleteBatchRequest(
         String foodType,
         BigDecimal amount,
         String unit,
-        FeedResponse feedResponse,
+        String sizeLabel,
+        FeedingSupplement supplement,
         // CLEANING fields
         String cleaningType,
         // WEIGHT fields

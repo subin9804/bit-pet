@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/api/api_response.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/step_shell.dart';
 import '../../../core/widgets/toast_message.dart';
@@ -53,6 +54,25 @@ class _GroupSetupScreenState extends ConsumerState<GroupSetupScreen> {
     try {
       await ref.read(groupActionProvider.notifier).join(code);
       if (mounted) context.go('/home');
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      if (e.errorCode == 'GROUP_INVITE_CODE_INVALID') {
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text('초대코드 오류'),
+            content: const Text('유효하지 않은 초대코드예요.\n코드를 다시 확인해 주세요.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('확인'),
+              ),
+            ],
+          ),
+        );
+      } else {
+        ToastMessage.show(context, e.message, type: ToastType.error);
+      }
     } catch (e) {
       if (mounted) ToastMessage.show(context, e.toString(), type: ToastType.error);
     } finally {
@@ -62,6 +82,31 @@ class _GroupSetupScreenState extends ConsumerState<GroupSetupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final groupAsync = ref.watch(myGroupProvider);
+
+    // 그룹이 이미 있으면 홈으로
+    return groupAsync.when(
+      loading: () => const Scaffold(
+        backgroundColor: AppColors.paleBg,
+        body: Center(child: CircularProgressIndicator()),
+      ),
+      error: (_, __) => _buildSetupBody(context),
+      data: (group) {
+        if (group != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) context.go('/home');
+          });
+          return const Scaffold(
+            backgroundColor: AppColors.paleBg,
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        return _buildSetupBody(context);
+      },
+    );
+  }
+
+  Widget _buildSetupBody(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.paleBg,
       body: SafeArea(
@@ -193,16 +238,21 @@ class _GroupSetupScreenState extends ConsumerState<GroupSetupScreen> {
                           borderRadius: BorderRadius.circular(13),
                         ),
                         alignment: Alignment.center,
-                        child: Text(
-                          '그룹 참여',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14,
-                            color: _codeCtrl.text.trim().length == 6
-                                ? AppColors.paleBg
-                                : AppColors.paleInk3,
-                          ),
-                        ),
+                        child: _loading
+                            ? const SizedBox(
+                                width: 18, height: 18,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: AppColors.paleBg))
+                            : Text(
+                                '그룹 참여',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                  color: _codeCtrl.text.trim().length == 6
+                                      ? AppColors.paleBg
+                                      : AppColors.paleInk3,
+                                ),
+                              ),
                       ),
                     ),
                   ],

@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/auth/data/auth_repository.dart';
+import '../api/api_response.dart';
 import '../../features/auth/data/models/auth_models.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/community/data/post_repository.dart';
@@ -326,7 +327,9 @@ class MockAuthNotifier extends AuthNotifier {
     // super 생성자의 _init()은 비동기로 state를 null로 설정하므로,
     // 이벤트 루프 다음 틱에 mock 유저로 덮어씀
     Future.delayed(Duration.zero, () {
-      if (mounted) state = const AsyncValue.data(_mockUser);
+      if (mounted) {
+        state = const AsyncValue.data(_mockUser);
+      }
     });
   }
 }
@@ -430,10 +433,11 @@ class MockRecordRepository extends RecordRepository {
         FeedingRecord(
           id: 1,
           petId: petId,
-          foodType: '냉동 마우스',
+          foodType: 'FROZEN_MOUSE',
           amount: 1,
-          unit: '마리',
-          feedResponse: FeedResponse.COMPLETE,
+          unit: 'PIECE',
+          sizeLabel: null,
+          supplement: null,
           fedAt: _now.subtract(const Duration(days: 2)),
         ),
       ];
@@ -444,6 +448,8 @@ class MockRecordRepository extends RecordRepository {
         id: 100,
         petId: petId,
         foodType: data['foodType'] as String? ?? '기타',
+        sizeLabel: data['sizeLabel'] as String?,
+        supplement: null,
         fedAt: DateTime.now(),
       );
 
@@ -843,33 +849,55 @@ class MockPhotoRepository extends PhotoRepository {
 class MockGroupRepository extends GroupRepository {
   MockGroupRepository() : super(Dio());
 
-  // 개발 중 그룹 설정 화면 건너뛰려면 아래 주석 해제
-  // static final _mockGroup = GroupInfo(id: 1, name: '고도네 사육실',
-  //     inviteCode: 'ABCD12', ownerId: 1, myRole: GroupRole.owner, members: []);
+  GroupInfo? _group; // null = 그룹 없음 (설정 화면 진입)
+
+  // 유효한 초대코드로 취급할 mock 코드
+  static const _validCode = 'MOCK01';
 
   @override
-  Future<GroupInfo?> getMyGroup() async => null; // null = 온보딩 화면 진입
+  Future<GroupInfo?> getMyGroup() async => _group;
 
   @override
-  Future<GroupInfo> createGroup(String name) async => GroupInfo(
-        id: 1, name: name, inviteCode: 'ABCD12',
-        ownerId: 1, myRole: GroupRole.owner,
-        members: [GroupMember(userId: 1, name: '테스트', email: 'mock@bitpet.io',
-            role: GroupRole.owner, joinedAt: DateTime.now())]);
+  Future<GroupInfo> createGroup(String name) async {
+    _group = GroupInfo(
+      id: 1, name: name, inviteCode: 'ABCD12',
+      ownerId: 1, myRole: GroupRole.owner,
+      members: [GroupMember(userId: 1, name: '테스트',
+          role: GroupRole.owner, joinedAt: DateTime.now())],
+    );
+    return _group!;
+  }
 
   @override
-  Future<GroupInfo> joinGroup(String inviteCode) async => GroupInfo(
-        id: 2, name: '공동 사육실', inviteCode: inviteCode,
-        ownerId: 2, myRole: GroupRole.member,
-        members: [GroupMember(userId: 2, name: '다른사람', email: 'other@bitpet.io',
-            role: GroupRole.owner, joinedAt: DateTime.now())]);
+  Future<GroupInfo> joinGroup(String inviteCode) async {
+    if (inviteCode != _validCode) {
+      throw ApiException(
+        statusCode: 400,
+        message: 'Invalid invite code',
+        errorCode: 'GROUP_INVITE_CODE_INVALID',
+      );
+    }
+    _group = GroupInfo(
+      id: 2, name: '공동 사육실', inviteCode: inviteCode,
+      ownerId: 2, myRole: GroupRole.member,
+      members: [GroupMember(userId: 2, name: '다른사람',
+          role: GroupRole.owner, joinedAt: DateTime.now())],
+    );
+    return _group!;
+  }
 
   @override
-  Future<GroupInfo> updateGroupName(String name) async =>
-      (await getMyGroup())!;
+  Future<GroupInfo> updateGroupName(String name) async {
+    _group = GroupInfo(
+      id: _group!.id, name: name, inviteCode: _group!.inviteCode,
+      ownerId: _group!.ownerId, myRole: _group!.myRole,
+      members: _group!.members,
+    );
+    return _group!;
+  }
 
   @override
-  Future<void> leaveOrDisband() async {}
+  Future<void> leaveOrDisband() async => _group = null;
 
   @override
   Future<void> kickMember(int userId) async {}

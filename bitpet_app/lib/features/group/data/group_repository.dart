@@ -4,6 +4,16 @@ import '../../../core/api/api_client.dart';
 import '../../../core/api/api_response.dart';
 import 'models/group_models.dart';
 
+Never _mapDioError(DioException e, String fallback) {
+  final data = e.response?.data as Map<String, dynamic>?;
+  final error = data?['error'] as Map<String, dynamic>?;
+  throw ApiException(
+    statusCode: e.response?.statusCode ?? 0,
+    message: error?['message'] as String? ?? fallback,
+    errorCode: error?['code'] as String?,
+  );
+}
+
 final groupRepositoryProvider = Provider<GroupRepository>((ref) {
   return GroupRepository(ref.watch(dioProvider));
 });
@@ -36,16 +46,22 @@ class GroupRepository {
   }
 
   Future<GroupInfo> joinGroup(String inviteCode) async {
-    final res = await _dio.post('/groups/join', data: {'inviteCode': inviteCode});
-    final apiRes = ApiResponse.fromJson(
-      res.data as Map<String, dynamic>,
-      (d) => GroupInfo.fromJson(d as Map<String, dynamic>),
-    );
-    if (!apiRes.success || apiRes.data == null) {
-      throw ApiException(statusCode: res.statusCode ?? 0,
-          message: apiRes.message ?? '그룹 참여 실패');
+    try {
+      final res = await _dio.post('/groups/join', data: {'inviteCode': inviteCode});
+      final apiRes = ApiResponse.fromJson(
+        res.data as Map<String, dynamic>,
+        (d) => GroupInfo.fromJson(d as Map<String, dynamic>),
+      );
+      if (!apiRes.success || apiRes.data == null) {
+        throw ApiException(
+            statusCode: res.statusCode ?? 0,
+            message: apiRes.message ?? '그룹 참여 실패',
+            errorCode: apiRes.errorCode);
+      }
+      return apiRes.data!;
+    } on DioException catch (e) {
+      _mapDioError(e, '그룹 참여 실패');
     }
-    return apiRes.data!;
   }
 
   Future<GroupInfo> updateGroupName(String name) async {

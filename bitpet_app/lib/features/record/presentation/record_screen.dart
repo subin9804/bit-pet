@@ -8,6 +8,7 @@ import '../../../core/widgets/toast_message.dart';
 import '../providers/record_provider.dart';
 import '../data/models/record_models.dart';
 import '../data/record_repository.dart';
+import 'widgets/feed_composer_fields.dart';
 
 class RecordScreen extends ConsumerStatefulWidget {
   final int petId;
@@ -164,18 +165,13 @@ class _FeedingList extends ConsumerWidget {
           separatorBuilder: (_, __) => const SizedBox(height: 8),
           itemBuilder: (_, i) {
             final r = records[i];
-            final responseColor = switch (r.feedResponse) {
-              FeedResponse.COMPLETE => AppColors.success,
-              FeedResponse.PARTIAL => AppColors.warning,
-              FeedResponse.REFUSED => AppColors.error,
-              null => AppColors.textSecondary,
-            };
-            final responseLabel = switch (r.feedResponse) {
-              FeedResponse.COMPLETE => '완식',
-              FeedResponse.PARTIAL => '부분',
-              FeedResponse.REFUSED => '거절',
-              null => '-',
-            };
+            final parts = <String>[];
+            if (r.sizeLabel != null) parts.add(r.sizeLabel!);
+            if (r.amount != null) {
+              final u = r.unit == 'PIECE' ? '마리' : (r.unit ?? '');
+              parts.add('${r.amount!.toStringAsFixed(r.amount! % 1 == 0 ? 0 : 1)}$u');
+            }
+            final subtitle = parts.isEmpty ? r.foodType : '${r.foodType} · ${parts.join(' ')}';
             return Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -192,16 +188,13 @@ class _FeedingList extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(r.foodType, style: AppTextStyles.bodyBold),
+                        Text(subtitle, style: AppTextStyles.bodyBold),
                         Text(
                             '${r.fedAt.year}.${r.fedAt.month}.${r.fedAt.day}',
                             style: AppTextStyles.caption),
                       ],
                     ),
                   ),
-                  Text(responseLabel,
-                      style: AppTextStyles.bodyBold
-                          .copyWith(color: responseColor)),
                 ],
               ),
             );
@@ -357,9 +350,8 @@ class _InputSheet extends ConsumerStatefulWidget {
 class _InputSheetState extends ConsumerState<_InputSheet> {
   final _weightCtrl = TextEditingController();
   final _memoCtrl = TextEditingController();
-  final _foodTypeCtrl = TextEditingController();
   final _contentCtrl = TextEditingController();
-  String _feedResponse = 'COMPLETE';
+  FeedFormData _feedForm = const FeedFormData();
   CleaningType _cleaningType = CleaningType.FULL;
   bool _isLoading = false;
 
@@ -367,7 +359,6 @@ class _InputSheetState extends ConsumerState<_InputSheet> {
   void dispose() {
     _weightCtrl.dispose();
     _memoCtrl.dispose();
-    _foodTypeCtrl.dispose();
     _contentCtrl.dispose();
     super.dispose();
   }
@@ -383,13 +374,8 @@ class _InputSheetState extends ConsumerState<_InputSheet> {
           await repo.addWeight(widget.petId, w, DateTime.now(),
               _memoCtrl.text.isEmpty ? null : _memoCtrl.text);
         case 'feeding':
-          if (_foodTypeCtrl.text.isEmpty) throw Exception('먹이 종류를 입력하세요');
-          await repo.addFeeding(widget.petId, {
-            'foodType': _foodTypeCtrl.text,
-            'feedResponse': _feedResponse,
-            'fedAt': DateTime.now().toIso8601String(),
-            if (_memoCtrl.text.isNotEmpty) 'memo': _memoCtrl.text,
-          });
+          if (!_feedForm.isValid) throw Exception('먹이 종류를 선택하세요');
+          await repo.addFeeding(widget.petId, _feedForm.toApiMap(fedAt: DateTime.now()));
         case 'cleaning':
           await repo.addCleaning(
               widget.petId,
@@ -436,22 +422,10 @@ class _InputSheetState extends ConsumerState<_InputSheet> {
           ] else if (widget.recordType == 'feeding') ...[
             Text('급여 기록', style: AppTextStyles.h3),
             const SizedBox(height: 16),
-            TextFormField(
-              controller: _foodTypeCtrl,
-              decoration:
-                  const InputDecoration(labelText: '먹이 종류 (귀뚜라미, 두비아 등)'),
-              autofocus: true,
-            ),
-            const SizedBox(height: 12),
-            SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(value: 'COMPLETE', label: Text('완식')),
-                ButtonSegment(value: 'PARTIAL', label: Text('부분')),
-                ButtonSegment(value: 'REFUSED', label: Text('거절')),
-              ],
-              selected: {_feedResponse},
-              onSelectionChanged: (s) =>
-                  setState(() => _feedResponse = s.first),
+            FeedComposerFields(
+              form: _feedForm,
+              onChanged: (f) => setState(() => _feedForm = f),
+              showMemo: false,
             ),
           ] else if (widget.recordType == 'cleaning') ...[
             Text('청소 기록', style: AppTextStyles.h3),
@@ -478,7 +452,7 @@ class _InputSheetState extends ConsumerState<_InputSheet> {
             ),
           ],
           const SizedBox(height: 12),
-          if (widget.recordType != 'memo')
+          if (widget.recordType != 'memo' && widget.recordType != 'feeding')
             TextFormField(
               controller: _memoCtrl,
               decoration: const InputDecoration(labelText: '메모 (선택)'),

@@ -15,13 +15,14 @@ class ApiResponse<T> {
     Map<String, dynamic> json,
     T Function(dynamic)? fromData,
   ) {
+    final error = json['error'] as Map<String, dynamic>?;
     return ApiResponse<T>(
       success: json['success'] as bool? ?? false,
       data: json['data'] != null && fromData != null
           ? fromData(json['data'])
           : json['data'] as T?,
-      message: json['message'] as String?,
-      errorCode: json['errorCode'] as String?,
+      message: error?['message'] as String?,
+      errorCode: error?['code'] as String?,
     );
   }
 }

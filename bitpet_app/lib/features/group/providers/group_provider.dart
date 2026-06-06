@@ -22,14 +22,26 @@ class GroupActionNotifier extends AsyncNotifier<GroupInfo?> {
 
   Future<void> create(String name) async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() => _repo.createGroup(name));
-    ref.invalidate(myGroupProvider);
+    try {
+      final result = await _repo.createGroup(name);
+      state = AsyncData(result);
+      ref.invalidate(myGroupProvider);
+    } catch (e, st) {
+      state = AsyncError(e, st);
+      rethrow;
+    }
   }
 
   Future<void> join(String inviteCode) async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() => _repo.joinGroup(inviteCode));
-    ref.invalidate(myGroupProvider);
+    try {
+      final result = await _repo.joinGroup(inviteCode);
+      state = AsyncData(result);
+      ref.invalidate(myGroupProvider);
+    } catch (e, st) {
+      state = AsyncError(e, st);
+      rethrow;
+    }
   }
 
   Future<void> updateName(String name) async {

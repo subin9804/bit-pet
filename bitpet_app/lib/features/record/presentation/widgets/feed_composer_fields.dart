@@ -1,56 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
-import '../../data/models/feed_models.dart';
+import '../../data/food_catalog.dart';
 
-const _kFeedOptions = [
-  '귀뚜라미', '슈퍼웜', '밀웜', '버터웜', '핑키마우스', '직접 입력',
-];
+export '../../data/food_catalog.dart' show FeedFormData, FoodType, FeedingSupplement, FoodInputMode;
 
-/// 급여 폼 상태 — 드래프트(컴포저) + 쌓인 아이템 + 메모
-class FeedFormData {
-  final String draftFood;
-  final int draftAmount;
-  final List<FeedItem> items;
-  final String memo;
-
-  const FeedFormData({
-    this.draftFood = '귀뚜라미',
-    this.draftAmount = 5,
-    this.items = const [],
-    this.memo = '',
-  });
-
-  FeedFormData copyWith({
-    String? draftFood,
-    int? draftAmount,
-    List<FeedItem>? items,
-    String? memo,
-  }) =>
-      FeedFormData(
-        draftFood: draftFood ?? this.draftFood,
-        draftAmount: draftAmount ?? this.draftAmount,
-        items: items ?? this.items,
-        memo: memo ?? this.memo,
-      );
-
-  int get totalAmt => items.fold(0, (s, i) => s + i.amt);
-  bool get hasItems => items.isNotEmpty;
-}
-
-/// 급여 추가 컴포저 — 06d·06e에서 공통으로 재사용.
-/// [form]  현재 폼 상태 (immutable)
-/// [onChanged] 상태 변경 콜백
-/// [bandColor] 프리셋·목록추가버튼에 사용되는 피딩 색
+/// 급여 입력 컴포저 — bulk_confirm_sheet, per_pet_confirm_sheet, feeding_record_sheet 공유
 class FeedComposerFields extends StatelessWidget {
   final FeedFormData form;
   final ValueChanged<FeedFormData> onChanged;
   final Color bandColor;
-  /// 내장 메모 입력 노출 여부. 확인 시트(01c/01d)처럼 메모를 별도 아코디언으로
-  /// 분리하는 경우 false 로 끈다.
   final bool showMemo;
-  /// "급여 추가" 컴포저 카드를 [label] 래퍼 없이 평평하게 표시할지 여부.
-  final bool compact;
 
   const FeedComposerFields({
     super.key,
@@ -58,305 +19,100 @@ class FeedComposerFields extends StatelessWidget {
     required this.onChanged,
     this.bandColor = AppColors.feedBand,
     this.showMemo = true,
-    this.compact = false,
   });
 
-  void _setDraft(String? food, int? amount) => onChanged(form.copyWith(
-        draftFood: food,
-        draftAmount: amount,
-      ));
-
-  void _addItem() {
-    if (form.draftAmount < 1) return;
-    onChanged(form.copyWith(
-      items: [
-        ...form.items,
-        FeedItem(food: form.draftFood, amt: form.draftAmount),
-      ],
-    ));
-  }
-
-  void _removeItem(int idx) {
-    final next = [...form.items]..removeAt(idx);
-    onChanged(form.copyWith(items: next));
-  }
+  void _selectType(FoodType ft) => onChanged(FeedFormData(
+    foodType: ft,
+    supplement: form.supplement,
+    memo: form.memo,
+  ));
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── 급여 추가 컴포저 카드 ──────────────────────────
-        _FormRow(
-          label: '급여 추가',
-          child: Container(
-            decoration: BoxDecoration(
-              color: AppColors.card,
-              border: Border.all(color: AppColors.paleLine),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 13),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 급여 종류 드롭다운
-                DropdownButtonFormField<String>(
-                  value: form.draftFood,
-                  onChanged: (v) => _setDraft(v, null),
-                  items: _kFeedOptions.map((o) => DropdownMenuItem(
-                    value: o,
-                    child: Text(o,
-                        style: const TextStyle(
-                            fontSize: 14, fontWeight: FontWeight.w600,
-                            color: AppColors.primary)),
-                  )).toList(),
-                  decoration: InputDecoration(
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide:
-                            const BorderSide(color: AppColors.paleLine)),
-                    enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide:
-                            const BorderSide(color: AppColors.paleLine)),
-                    filled: true,
-                    fillColor: AppColors.paleBg,
-                  ),
-                ),
-                const SizedBox(height: 8),
-
-                // 급여량 스테퍼: − [숫자] + 44×44
-                Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.paleBg,
-                    border: Border.all(color: AppColors.paleLine),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    children: [
-                      _StepperBtn.right(
-                          label: '−',
-                          onTap: () => _setDraft(
-                              null, (form.draftAmount - 1).clamp(1, 99))),
-                      Expanded(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.baseline,
-                          textBaseline: TextBaseline.alphabetic,
-                          children: [
-                            SizedBox(
-                              width: 56,
-                              child: TextField(
-                                key: ValueKey(form.draftAmount),
-                                controller: TextEditingController(
-                                    text: '${form.draftAmount}'),
-                                keyboardType: TextInputType.number,
-                                textAlign: TextAlign.center,
-                                style: AppTextStyles.mono(
-                                    20, FontWeight.w700),
-                                decoration: const InputDecoration.collapsed(
-                                    hintText: '0'),
-                                onChanged: (v) {
-                                  final n = int.tryParse(v);
-                                  if (n != null && n > 0) {
-                                    _setDraft(null, n);
-                                  }
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Text('마리',
-                                style: TextStyle(
-                                    fontSize: 13, color: AppColors.paleInk2,
-                                    fontWeight: FontWeight.w600)),
-                          ],
-                        ),
-                      ),
-                      _StepperBtn.left(
-                          label: '＋',
-                          onTap: () =>
-                              _setDraft(null, form.draftAmount + 1)),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 8),
-
-                // 프리셋 칩: 1·3·5·7·10
-                Wrap(
-                  spacing: 6,
-                  children: [1, 3, 5, 7, 10].map((n) {
-                    final active = form.draftAmount == n;
-                    return GestureDetector(
-                      onTap: () => _setDraft(null, n),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: active ? bandColor : AppColors.paleBg,
-                          border: Border.all(
-                              color: active
-                                  ? Colors.transparent
-                                  : AppColors.paleLine),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text('$n마리',
-                            style: AppTextStyles.mono(11, FontWeight.w700)),
-                      ),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 12),
-
-                // 목록에 추가 버튼
-                GestureDetector(
-                  onTap: _addItem,
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      color: bandColor,
-                      border: Border.all(color: AppColors.primary, width: 1.5),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.add,
-                            size: 16, color: AppColors.primary),
-                        const SizedBox(width: 8),
-                        const Text('목록에 추가',
-                            style: TextStyle(
-                                fontSize: 14, fontWeight: FontWeight.w700,
-                                color: AppColors.primary)),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-
-        // ── 추가한 급여 리스트 ──────────────────────────────
-        const SizedBox(height: 18),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text('추가한 급여',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
-                    color: AppColors.primary, letterSpacing: -0.2)),
-            Text(
-              '${form.items.length}종 · 총 ${form.totalAmt}마리',
-              style: AppTextStyles.mono(11, FontWeight.w700,
-                  color: AppColors.paleInk2),
-            ),
-          ],
-        ),
+        // ── 먹이 종류 ───────────────────────────────────────────
+        _Label('먹이 종류'),
         const SizedBox(height: 8),
+        Wrap(
+          spacing: 7, runSpacing: 7,
+          children: FoodType.all.map((ft) {
+            final sel = form.foodType == ft;
+            return GestureDetector(
+              onTap: () => _selectType(ft),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 140),
+                padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+                decoration: BoxDecoration(
+                  color: sel ? bandColor : AppColors.card,
+                  border: Border.all(color: sel ? Colors.transparent : AppColors.paleLine),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  ft.label,
+                  style: TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w700,
+                    color: sel ? AppColors.primary : AppColors.paleInk2,
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
 
-        form.hasItems
-            ? Container(
+        // ── 서브 입력 ────────────────────────────────────────────
+        if (form.foodType != null) ...[
+          const SizedBox(height: 14),
+          _SubInput(form: form, onChanged: onChanged, bandColor: bandColor),
+        ],
+
+        // ── 영양제 ───────────────────────────────────────────────
+        const SizedBox(height: 14),
+        _Label('영양제', optional: true),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 7,
+          children: FeedingSupplement.values.map((s) {
+            final sel = form.supplement == s;
+            return GestureDetector(
+              onTap: () => onChanged(form.copyWith(
+                supplement: sel ? null : s,
+              )),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 140),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                 decoration: BoxDecoration(
-                  color: AppColors.card,
-                  border: Border.all(color: AppColors.paleLine),
-                  borderRadius: BorderRadius.circular(12),
+                  color: sel ? AppColors.petLilac : AppColors.card,
+                  border: Border.all(color: sel ? Colors.transparent : AppColors.paleLine),
+                  borderRadius: BorderRadius.circular(999),
                 ),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-                child: Column(
-                  children: form.items.asMap().entries.map((e) {
-                    final idx = e.key;
-                    final item = e.value;
-                    return Container(
-                      padding: const EdgeInsets.symmetric(vertical: 11),
-                      decoration: BoxDecoration(
-                        border: idx < form.items.length - 1
-                            ? const Border(
-                                bottom: BorderSide(
-                                    color: AppColors.paleLineSoft))
-                            : null,
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 8, height: 8,
-                            decoration: const BoxDecoration(
-                              color: AppColors.feedDot,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(item.food,
-                                style: const TextStyle(
-                                    fontSize: 14, fontWeight: FontWeight.w600,
-                                    color: AppColors.primary),
-                                overflow: TextOverflow.ellipsis),
-                          ),
-                          Text('×${item.amt}',
-                              style: AppTextStyles.monoBody),
-                          Text(' 마리',
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  color: AppColors.paleInk2,
-                                  fontWeight: FontWeight.w600)),
-                          const SizedBox(width: 4),
-                          GestureDetector(
-                            onTap: () => _removeItem(idx),
-                            child: Container(
-                              width: 26, height: 26,
-                              alignment: Alignment.center,
-                              child: const Icon(Icons.close,
-                                  size: 15, color: AppColors.paleInk3),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                ),
-              )
-            : Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 20),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  border: Border.all(
-                      color: AppColors.paleLine,
-                      width: 1.5,
-                      style: BorderStyle.solid),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text('위에서 급여를 골라 추가해 주세요',
+                child: Text(s.label,
                     style: TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.w600,
-                        color: AppColors.paleInk3)),
+                      fontSize: 12, fontWeight: FontWeight.w700,
+                      color: sel ? AppColors.primary : AppColors.paleInk2,
+                    )),
               ),
+            );
+          }).toList(),
+        ),
 
-        // ── 메모 (optional) ──────────────────────────────────
+        // ── 메모 ─────────────────────────────────────────────────
         if (showMemo) ...[
-          const SizedBox(height: 16),
-          _FormRow(
-            label: '메모',
-            optional: true,
-            child: TextField(
-              controller: TextEditingController(text: form.memo),
-              onChanged: (v) => onChanged(form.copyWith(memo: v)),
-              maxLines: 2,
-              style: const TextStyle(fontSize: 13, color: AppColors.primary),
-              decoration: InputDecoration(
-                hintText: '예: 1마리 남김 · 식욕 좋음',
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: AppColors.paleLine)),
-                enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: AppColors.paleLine)),
-              ),
+          const SizedBox(height: 14),
+          _Label('메모', optional: true),
+          const SizedBox(height: 8),
+          TextField(
+            onChanged: (v) => onChanged(form.copyWith(memo: v)),
+            maxLines: 2,
+            style: const TextStyle(fontSize: 13, color: AppColors.primary),
+            decoration: InputDecoration(
+              hintText: '특이사항 (선택)',
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(11),
+                  borderSide: const BorderSide(color: AppColors.paleLine)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(11),
+                  borderSide: const BorderSide(color: AppColors.paleLine)),
             ),
           ),
         ],
@@ -365,82 +121,298 @@ class FeedComposerFields extends StatelessWidget {
   }
 }
 
-// ── 레이블 + optional 태그 래퍼 ────────────────────────────────
-class _FormRow extends StatelessWidget {
-  final String label;
+// ── 레이블 ────────────────────────────────────────────────────────────────────
+class _Label extends StatelessWidget {
+  final String text;
   final bool optional;
-  final Widget child;
+  const _Label(this.text, {this.optional = false});
 
-  const _FormRow({
-    required this.label,
-    this.optional = false,
-    required this.child,
-  });
+  @override
+  Widget build(BuildContext context) => Row(children: [
+    Text(text, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary, letterSpacing: -0.2)),
+    if (optional) ...[
+      const SizedBox(width: 6),
+      Text('OPTIONAL', style: AppTextStyles.mono(9, FontWeight.w700, color: AppColors.paleInk3)),
+    ],
+  ]);
+}
+
+// ── 서브 입력 (먹이 종류 선택 후 표시) ──────────────────────────────────────────
+class _SubInput extends StatelessWidget {
+  final FeedFormData form;
+  final ValueChanged<FeedFormData> onChanged;
+  final Color bandColor;
+  const _SubInput({required this.form, required this.onChanged, required this.bandColor});
+
+  @override
+  Widget build(BuildContext context) {
+    final ft = form.foodType!;
+    return switch (ft.inputMode) {
+      FoodInputMode.sizeCount   => _SizeCountInput(form: form, onChanged: onChanged, bandColor: bandColor),
+      FoodInputMode.mlOrVolume  => _MlOrVolumeInput(form: form, onChanged: onChanged, bandColor: bandColor),
+      FoodInputMode.volume      => _VolumeInput(form: form, onChanged: onChanged, bandColor: bandColor),
+      FoodInputMode.custom      => _CustomTextInput(form: form, onChanged: onChanged),
+    };
+  }
+}
+
+// ── 사이즈 + 마릿수 ────────────────────────────────────────────────────────────
+class _SizeCountInput extends StatelessWidget {
+  final FeedFormData form;
+  final ValueChanged<FeedFormData> onChanged;
+  final Color bandColor;
+  const _SizeCountInput({required this.form, required this.onChanged, required this.bandColor});
+
+  @override
+  Widget build(BuildContext context) {
+    final sizes = form.foodType!.sizeOptions ?? [];
+    final count = form.count ?? 0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 사이즈 칩
+        _Label('사이즈', optional: true),
+        const SizedBox(height: 8),
+        Wrap(spacing: 7, children: sizes.map((s) {
+          final sel = form.sizeLabel == s;
+          return GestureDetector(
+            onTap: () => onChanged(form.copyWith(sizeLabel: sel ? null : s)),
+            child: _Chip(label: s, selected: sel, color: bandColor),
+          );
+        }).toList()),
+        const SizedBox(height: 12),
+        // 마릿수
+        _Label('마릿수', optional: true),
+        const SizedBox(height: 8),
+        _CountStepper(
+          count: count,
+          bandColor: bandColor,
+          onChanged: (v) => onChanged(form.copyWith(count: v == 0 ? null : v)),
+        ),
+      ],
+    );
+  }
+}
+
+// ── ml 또는 용량 레이블 ─────────────────────────────────────────────────────────
+class _MlOrVolumeInput extends StatelessWidget {
+  final FeedFormData form;
+  final ValueChanged<FeedFormData> onChanged;
+  final Color bandColor;
+  const _MlOrVolumeInput({required this.form, required this.onChanged, required this.bandColor});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Text(label,
-                style: const TextStyle(
-                    fontSize: 12, fontWeight: FontWeight.w700,
-                    color: AppColors.primary, letterSpacing: -0.2)),
-            if (optional) ...[
-              const SizedBox(width: 6),
-              Text('OPTIONAL',
-                  style: AppTextStyles.mono(9, FontWeight.w700,
-                      color: AppColors.paleInk3)),
-            ],
-          ],
-        ),
-        const SizedBox(height: 6),
-        child,
+        // 모드 토글
+        Row(children: [
+          _ModeToggle(label: 'ml 직접입력', active: form.useMl, color: bandColor,
+              onTap: () => onChanged(form.copyWith(useMl: true, sizeLabel: null, mlAmount: null))),
+          const SizedBox(width: 8),
+          _ModeToggle(label: '용량 선택', active: !form.useMl, color: bandColor,
+              onTap: () => onChanged(form.copyWith(useMl: false, mlAmount: null, sizeLabel: null))),
+        ]),
+        const SizedBox(height: 10),
+        if (form.useMl)
+          _MlInput(ml: form.mlAmount, onChanged: (v) => onChanged(form.copyWith(mlAmount: v)))
+        else
+          _VolumeChips(
+            options: form.foodType!.volumeOptions ?? [],
+            selected: form.sizeLabel,
+            color: bandColor,
+            onSelect: (v) => onChanged(form.copyWith(sizeLabel: form.sizeLabel == v ? null : v)),
+          ),
       ],
     );
   }
 }
 
-// ── 스테퍼 좌우 버튼 (44×44) ──────────────────────────────────
-// borderRight/borderLeft 방향을 지정
-enum _StepperSide { left, right }
-
-class _StepperBtn extends StatelessWidget {
-  final String label;
-  final _StepperSide side;
-  final VoidCallback onTap;
-
-  const _StepperBtn.right({
-    required this.label,
-    required this.onTap,
-  }) : side = _StepperSide.right;
-
-  const _StepperBtn.left({
-    required this.label,
-    required this.onTap,
-  }) : side = _StepperSide.left;
+// ── 용량 레이블만 ──────────────────────────────────────────────────────────────
+class _VolumeInput extends StatelessWidget {
+  final FeedFormData form;
+  final ValueChanged<FeedFormData> onChanged;
+  final Color bandColor;
+  const _VolumeInput({required this.form, required this.onChanged, required this.bandColor});
 
   @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 44, height: 46,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          border: side == _StepperSide.right
-              ? const Border(
-                  right: BorderSide(color: AppColors.paleLine))
-              : const Border(
-                  left: BorderSide(color: AppColors.paleLine)),
-        ),
-        child: Text(label,
-            style: const TextStyle(
-                fontSize: 18, fontWeight: FontWeight.w700,
-                color: AppColors.primary)),
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      _Label('용량', optional: true),
+      const SizedBox(height: 8),
+      _VolumeChips(
+        options: form.foodType!.volumeOptions ?? [],
+        selected: form.sizeLabel,
+        color: bandColor,
+        onSelect: (v) => onChanged(form.copyWith(sizeLabel: form.sizeLabel == v ? null : v)),
       ),
-    );
-  }
+    ],
+  );
+}
+
+// ── 직접입력 텍스트 ────────────────────────────────────────────────────────────
+class _CustomTextInput extends StatelessWidget {
+  final FeedFormData form;
+  final ValueChanged<FeedFormData> onChanged;
+  const _CustomTextInput({required this.form, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) => TextField(
+    onChanged: (v) => onChanged(form.copyWith(customText: v)),
+    autofocus: true,
+    style: const TextStyle(fontSize: 14, color: AppColors.primary),
+    decoration: InputDecoration(
+      hintText: '먹이 이름 직접 입력',
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(11),
+          borderSide: const BorderSide(color: AppColors.paleLine)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(11),
+          borderSide: const BorderSide(color: AppColors.paleLine)),
+    ),
+  );
+}
+
+// ── 마릿수 스테퍼 ──────────────────────────────────────────────────────────────
+class _CountStepper extends StatelessWidget {
+  final int count;
+  final Color bandColor;
+  final ValueChanged<int> onChanged;
+  const _CountStepper({required this.count, required this.bandColor, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      Container(
+        decoration: BoxDecoration(
+          color: AppColors.paleBg,
+          border: Border.all(color: AppColors.paleLine),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(children: [
+          _StepBtn('−', onTap: () { if (count > 0) onChanged(count - 1); }),
+          Expanded(child: Center(child: Text('$count', style: AppTextStyles.mono(22, FontWeight.w700)))),
+          _StepBtn('＋', onTap: () => onChanged(count + 1)),
+        ]),
+      ),
+      const SizedBox(height: 8),
+      Wrap(spacing: 6, children: [1, 3, 5, 10].map((n) {
+        final sel = count == n;
+        return GestureDetector(
+          onTap: () => onChanged(n),
+          child: _Chip(label: '$n마리', selected: sel, color: bandColor),
+        );
+      }).toList()),
+    ],
+  );
+}
+
+// ── ml 직접입력 ────────────────────────────────────────────────────────────────
+class _MlInput extends StatelessWidget {
+  final double? ml;
+  final ValueChanged<double?> onChanged;
+  const _MlInput({required this.ml, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) => TextField(
+    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
+    style: const TextStyle(fontSize: 14, color: AppColors.primary),
+    decoration: InputDecoration(
+      hintText: '용량 (ml)',
+      suffixText: 'ml',
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(11),
+          borderSide: const BorderSide(color: AppColors.paleLine)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(11),
+          borderSide: const BorderSide(color: AppColors.paleLine)),
+    ),
+    onChanged: (v) => onChanged(double.tryParse(v)),
+  );
+}
+
+// ── 용량 칩 목록 ───────────────────────────────────────────────────────────────
+class _VolumeChips extends StatelessWidget {
+  final List<String> options;
+  final String? selected;
+  final Color color;
+  final ValueChanged<String> onSelect;
+  const _VolumeChips({required this.options, required this.selected, required this.color, required this.onSelect});
+
+  @override
+  Widget build(BuildContext context) => Wrap(
+    spacing: 7,
+    children: options.map((o) => GestureDetector(
+      onTap: () => onSelect(o),
+      child: _Chip(label: o, selected: selected == o, color: color),
+    )).toList(),
+  );
+}
+
+// ── 모드 토글 버튼 ─────────────────────────────────────────────────────────────
+class _ModeToggle extends StatelessWidget {
+  final String label;
+  final bool active;
+  final Color color;
+  final VoidCallback onTap;
+  const _ModeToggle({required this.label, required this.active, required this.color, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 140),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: active ? color : AppColors.card,
+        border: Border.all(color: active ? Colors.transparent : AppColors.paleLine),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(label, style: TextStyle(
+        fontSize: 12, fontWeight: FontWeight.w700,
+        color: active ? AppColors.primary : AppColors.paleInk2,
+      )),
+    ),
+  );
+}
+
+// ── 공통 칩 ───────────────────────────────────────────────────────────────────
+class _Chip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final Color color;
+  const _Chip({required this.label, required this.selected, required this.color});
+
+  @override
+  Widget build(BuildContext context) => AnimatedContainer(
+    duration: const Duration(milliseconds: 140),
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+    decoration: BoxDecoration(
+      color: selected ? color : AppColors.card,
+      border: Border.all(color: selected ? Colors.transparent : AppColors.paleLine),
+      borderRadius: BorderRadius.circular(999),
+    ),
+    child: Text(label, style: TextStyle(
+      fontSize: 12, fontWeight: FontWeight.w700,
+      color: selected ? AppColors.primary : AppColors.paleInk2,
+    )),
+  );
+}
+
+// ── 스테퍼 버튼 ────────────────────────────────────────────────────────────────
+class _StepBtn extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  const _StepBtn(this.label, {required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: Container(
+      width: 48, height: 48,
+      alignment: Alignment.center,
+      child: Text(label, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.primary)),
+    ),
+  );
 }

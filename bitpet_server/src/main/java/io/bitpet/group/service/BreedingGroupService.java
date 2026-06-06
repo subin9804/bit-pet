@@ -177,9 +177,8 @@ public class BreedingGroupService {
         List<GroupMemberResponse> members = rlsList.stream()
                 .map(rls -> {
                     var user = userRepo.findById(rls.getUserId()).orElse(null);
-                    String name  = user != null ? user.getName()  : "알 수 없음";
-                    String email = user != null ? user.getEmail() : "";
-                    return GroupMemberResponse.of(rls, name, email);
+                    String name = user != null ? user.getName() : "알 수 없음";
+                    return GroupMemberResponse.of(rls, name);
                 })
                 .toList();
         return GroupResponse.of(group, myRole, members);

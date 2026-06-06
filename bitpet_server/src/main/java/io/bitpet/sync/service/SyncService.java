@@ -354,11 +354,12 @@ public class SyncService {
             return PushResult.conflict(changeId, Map.of("id", f.getId(), "updatedAt", f.getUpdatedAt()));
         }
 
-        String feedResponseStr = str(data.get("feedResponse"));
-        io.bitpet.record.domain.FeedResponse feedResponse = feedResponseStr != null
-                ? io.bitpet.record.domain.FeedResponse.valueOf(feedResponseStr) : null;
+        String supplementStr = str(data.get("supplement"));
+        io.bitpet.record.domain.FeedingSupplement supplement = supplementStr != null
+                ? io.bitpet.record.domain.FeedingSupplement.valueOf(supplementStr) : null;
         f.update(str(data.get("foodType")), toBigDecimal(data.get("amount")),
-                str(data.get("unit")), feedResponse, toInstant(data.get("fedAt")), str(data.get("memo")));
+                str(data.get("unit")), str(data.get("sizeLabel")), supplement,
+                toInstant(data.get("fedAt")), str(data.get("memo")));
         if (changeId != null) f.stampClientChange(clientId, changeId);
         feedingRepo.save(f);
         return PushResult.applied(changeId, f.getId(), f.getUpdatedAt(), f.getSyncVersion());

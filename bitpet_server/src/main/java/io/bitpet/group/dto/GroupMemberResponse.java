@@ -8,15 +8,13 @@ import java.time.Instant;
 public record GroupMemberResponse(
         Long userId,
         String name,
-        String email,
         GroupRole role,
         Instant joinedAt
 ) {
-    public static GroupMemberResponse of(BreedingGroupUserRls rls, String name, String email) {
+    public static GroupMemberResponse of(BreedingGroupUserRls rls, String name) {
         return new GroupMemberResponse(
                 rls.getUserId(),
                 name,
-                email,
                 rls.getRole(),
                 rls.getJoinedAt()
         );

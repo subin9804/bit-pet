@@ -1,3 +1,5 @@
+import '../food_catalog.dart';
+
 class WeightRecord {
   final int id;
   final int petId;
@@ -25,8 +27,6 @@ class WeightRecord {
       );
 }
 
-enum FeedResponse { COMPLETE, PARTIAL, REFUSED }
-
 class FeedingRecord {
   final int id;
   final int petId;
@@ -34,7 +34,8 @@ class FeedingRecord {
   final String foodType;
   final double? amount;
   final String? unit;
-  final FeedResponse? feedResponse;
+  final String? sizeLabel;
+  final FeedingSupplement? supplement;
   final DateTime fedAt;
   final String? memo;
 
@@ -45,7 +46,8 @@ class FeedingRecord {
     required this.foodType,
     this.amount,
     this.unit,
-    this.feedResponse,
+    this.sizeLabel,
+    this.supplement,
     required this.fedAt,
     this.memo,
   });
@@ -57,11 +59,11 @@ class FeedingRecord {
         foodType: json['foodType'] as String,
         amount: (json['amount'] as num?)?.toDouble(),
         unit: json['unit'] as String?,
-        feedResponse: json['feedResponse'] != null
-            ? FeedResponse.values.firstWhere(
-                (e) => e.name == json['feedResponse'],
-                orElse: () => FeedResponse.COMPLETE,
-              )
+        sizeLabel: json['sizeLabel'] as String?,
+        supplement: json['supplement'] != null
+            ? FeedingSupplement.values.firstWhere(
+                (e) => e.name == json['supplement'],
+                orElse: () => FeedingSupplement.OTHER)
             : null,
         fedAt: DateTime.parse(json['fedAt'] as String),
         memo: json['memo'] as String?,

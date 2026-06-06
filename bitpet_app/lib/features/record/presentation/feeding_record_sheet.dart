@@ -1,9 +1,7 @@
-﻿// Screen 06e: 피딩 기록 바텀시트 (per-pet navigation)
+// Screen 06e: 피딩 기록 바텀시트 (per-pet navigation)
 // - 상단 개체 탭 칩
-// - 현재 개체 카드 (컬러 bg, 이름, 종, 체중)
-// - 급여 종류 드롭다운 (이전 입력값 선택 포함)
-// - 급여량 stepper + 퀵 칩
-// - 메모 입력
+// - 현재 개체 카드 (컬러 bg, 이름, 종)
+// - FeedComposerFields (먹이 종류/사이즈/수량/ml/용량/직접입력/영양제/메모)
 // - 완료/미완료 버튼
 // - 다음 개체 / 뒤로 / 닫기
 import 'package:flutter/material.dart';
@@ -15,6 +13,7 @@ import '../../routine/data/models/routine_models.dart';
 import '../../routine/data/routine_repository.dart';
 import '../../routine/providers/routine_provider.dart';
 import '../data/record_repository.dart';
+import 'widgets/feed_composer_fields.dart';
 
 class FeedingRecordSheet extends ConsumerStatefulWidget {
   final TodayRoutine routine;
@@ -35,17 +34,9 @@ class FeedingRecordSheet extends ConsumerStatefulWidget {
 
 class _FeedingRecordSheetState extends ConsumerState<FeedingRecordSheet> {
   late int _currentIndex;
-  final Map<int, _FeedingEntry> _entries = {};
+  final Map<int, FeedFormData> _forms = {};
+  final Map<int, bool> _saved = {};
   bool _saving = false;
-
-  // 이전에 사용한 급여 종류 목록 (자동완성)
-  final List<String> _foodSuggestions = [
-    '귀뚜라미',
-    '두비아',
-    '밀웜',
-    '슈퍼웜',
-    '핑키',
-  ];
 
   @override
   void initState() {
@@ -55,18 +46,17 @@ class _FeedingRecordSheetState extends ConsumerState<FeedingRecordSheet> {
         ? pets.indexWhere((s) => s.petId == widget.initialPetId)
             .clamp(0, pets.length - 1)
         : 0;
-    // 각 개체마다 entry 초기화
     for (final s in pets) {
-      _entries[s.petId] = _FeedingEntry();
+      _forms[s.petId] = const FeedFormData();
+      _saved[s.petId] = false;
     }
   }
 
   List<TodayPetStatus> get _pets => widget.routine.petStatuses;
   TodayPetStatus get _current => _pets[_currentIndex];
-  _FeedingEntry get _currentEntry => _entries[_current.petId]!;
+  FeedFormData get _currentForm => _forms[_current.petId]!;
 
-  int get _savedCount =>
-      _entries.values.where((e) => e.isSaved).length;
+  int get _savedCount => _saved.values.where((v) => v).length;
 
   void _prev() {
     if (_currentIndex > 0) {
@@ -81,45 +71,33 @@ class _FeedingRecordSheetState extends ConsumerState<FeedingRecordSheet> {
   }
 
   Future<void> _toggleComplete() async {
-    final entry = _currentEntry;
-    if (entry.isSaved) {
-      // 미완료로 되돌리기
-      setState(() {
-        _entries[_current.petId] = _FeedingEntry()..isSaved = false;
-      });
-      // TODO: 서버 로그 삭제 (logId 있는 경우)
+    if (_saved[_current.petId] == true) {
+      setState(() => _saved[_current.petId] = false);
       return;
     }
-    // 완료 저장
     setState(() => _saving = true);
     try {
+      final form = _currentForm;
+      if (!form.isValid) { showToast(context, '먹이 종류를 선택해 주세요'); return; }
+      final now = DateTime.now();
+      final feedMap = form.toApiMap(fedAt: now);
       final repo = ref.read(recordRepositoryProvider);
-      await repo.addFeeding(_current.petId, {
-        'foodType': entry.foodType.isEmpty ? '기타' : entry.foodType,
-        if (entry.amount > 0) 'amount': entry.amount.toDouble(),
-        if (entry.unit.isNotEmpty) 'unit': entry.unit,
-        if (entry.memo.isNotEmpty) 'memo': entry.memo,
-        'fedAt': DateTime.now().toIso8601String(),
-        'routineId': widget.routine.id,
-      });
-      // routineLog도 저장
+      await repo.addFeeding(_current.petId, feedMap);
       await ref.read(routineRepositoryProvider).completeIndividual(
-            widget.routine.id,
-            RoutineCompleteIndividualRequest(
-              petId: _current.petId,
-              status: RoutineLogStatus.COMPLETED,
-              foodType: entry.foodType.isEmpty ? '기타' : entry.foodType,
-              amount: entry.amount > 0 ? entry.amount.toDouble() : null,
-              unit: entry.unit.isNotEmpty ? entry.unit : null,
-              memo: entry.memo.isNotEmpty ? entry.memo : null,
-            ),
-          );
-      setState(() {
-        _entries[_current.petId]!.isSaved = true;
-      });
-      ref
-          .read(todayRoutinesProvider.notifier)
-          .updatePetStatus(widget.routine.id, _current.petId, true);
+        widget.routine.id,
+        RoutineCompleteIndividualRequest(
+          petId:      _current.petId,
+          status:     RoutineLogStatus.COMPLETED,
+          foodType:   feedMap['foodType']  as String?,
+          amount:     (feedMap['amount']   as num?)?.toDouble(),
+          unit:       feedMap['unit']      as String?,
+          sizeLabel:  feedMap['sizeLabel'] as String?,
+          supplement: form.supplement,
+          memo:       feedMap['memo']      as String?,
+        ),
+      );
+      setState(() => _saved[_current.petId] = true);
+      ref.read(todayRoutinesProvider.notifier).updatePetStatus(widget.routine.id, _current.petId, true);
     } catch (e) {
       if (mounted) showToast(context, '저장 실패: $e');
     } finally {
@@ -207,7 +185,7 @@ class _FeedingRecordSheetState extends ConsumerState<FeedingRecordSheet> {
                     const SizedBox(width: 8),
                 itemBuilder: (_, i) {
                   final s = _pets[i];
-                  final entry = _entries[s.petId]!;
+                  final isSaved = _saved[s.petId] == true;
                   final isActive = i == _currentIndex;
                   return GestureDetector(
                     onTap: () => setState(() => _currentIndex = i),
@@ -242,11 +220,11 @@ class _FeedingRecordSheetState extends ConsumerState<FeedingRecordSheet> {
                                           FontWeight.w600)),
                           const SizedBox(width: 4),
                           Icon(
-                            entry.isSaved
+                            isSaved
                                 ? Icons.check_circle
                                 : Icons.circle_outlined,
                             size: 12,
-                            color: entry.isSaved
+                            color: isSaved
                                 ? AppColors.primary
                                 : AppColors.border,
                           ),
@@ -270,81 +248,20 @@ class _FeedingRecordSheetState extends ConsumerState<FeedingRecordSheet> {
                     _CurrentPetCard(
                         status: _current, bgColor: _petBg(_current)),
                     const SizedBox(height: 16),
-                    // 급여 종류
-                    Text('급여 종류',
-                        style: AppTextStyles.bodyBold
-                            .copyWith(fontSize: 13)),
-                    const SizedBox(height: 6),
-                    _FoodTypeDropdown(
-                      value: _currentEntry.foodType,
-                      suggestions: _foodSuggestions,
-                      onChanged: (v) => setState(() {
-                        _currentEntry.foodType = v;
-                        _currentEntry.isSaved = false;
-                      }),
-                    ),
-                    const SizedBox(height: 14),
-                    // 급여량
-                    Text('급여량',
-                        style: AppTextStyles.bodyBold
-                            .copyWith(fontSize: 13)),
-                    const SizedBox(height: 6),
-                    _AmountStepper(
-                      amount: _currentEntry.amount,
-                      unit: _currentEntry.unit,
-                      onAmountChanged: (v) => setState(() {
-                        _currentEntry.amount = v;
-                        _currentEntry.isSaved = false;
-                      }),
-                      onUnitChanged: (v) => setState(() {
-                        _currentEntry.unit = v;
-                        _currentEntry.isSaved = false;
-                      }),
-                    ),
-                    const SizedBox(height: 6),
-                    // 퀵 칩
-                    _QuickAmountChips(
-                      unit: _currentEntry.unit,
-                      selected: _currentEntry.amount,
-                      onTap: (v) => setState(() {
-                        _currentEntry.amount = v;
-                        _currentEntry.isSaved = false;
-                      }),
-                    ),
-                    const SizedBox(height: 14),
-                    // 메모
-                    Row(
-                      children: [
-                        Text('메모',
-                            style: AppTextStyles.bodyBold
-                                .copyWith(fontSize: 13)),
-                        const SizedBox(width: 6),
-                        Text('OPTIONAL',
-                            style: AppTextStyles.label
-                                .copyWith(fontSize: 10)),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    TextField(
-                      onChanged: (v) => setState(() {
-                        _currentEntry.memo = v;
-                        _currentEntry.isSaved = false;
-                      }),
-                      decoration: const InputDecoration(
-                          hintText: '특이사항 입력 (선택)'),
-                      maxLines: 3,
-                      controller: TextEditingController(
-                          text: _currentEntry.memo),
+                    // 급여 입력 컴포저
+                    FeedComposerFields(
+                      form: _currentForm,
+                      bandColor: AppColors.petPeach,
+                      showMemo: true,
+                      onChanged: (f) => setState(() => _forms[_current.petId] = f),
                     ),
                     const SizedBox(height: 16),
                     // 완료/저장됨 상태 버튼
-                    _currentEntry.isSaved
+                    _saved[_current.petId] == true
                         ? _SavedStatusRow(
                             petName: _current.petName,
                             onUndo: () => setState(() {
-                              _entries[_current.petId] =
-                                  _FeedingEntry()
-                                    ..isSaved = false;
+                              _saved[_current.petId] = false;
                             }),
                           )
                         : SizedBox(
@@ -507,247 +424,6 @@ class _CurrentPetCard extends StatelessWidget {
   }
 }
 
-// ── 급여 종류 드롭다운 ────────────────────────────────────────────────────────
-
-class _FoodTypeDropdown extends StatefulWidget {
-  final String value;
-  final List<String> suggestions;
-  final ValueChanged<String> onChanged;
-
-  const _FoodTypeDropdown({
-    required this.value,
-    required this.suggestions,
-    required this.onChanged,
-  });
-
-  @override
-  State<_FoodTypeDropdown> createState() => _FoodTypeDropdownState();
-}
-
-class _FoodTypeDropdownState extends State<_FoodTypeDropdown> {
-  late final TextEditingController _controller;
-  bool _showSuggestions = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(text: widget.value);
-  }
-
-  @override
-  void didUpdateWidget(_FoodTypeDropdown old) {
-    super.didUpdateWidget(old);
-    if (old.value != widget.value) {
-      _controller.text = widget.value;
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        TextField(
-          controller: _controller,
-          onChanged: (v) {
-            widget.onChanged(v);
-            setState(() => _showSuggestions = v.isEmpty);
-          },
-          onTap: () =>
-              setState(() => _showSuggestions = _controller.text.isEmpty),
-          decoration: InputDecoration(
-            hintText: '귀뚜라미, 두비아 등',
-            suffixIcon: IconButton(
-              icon: Icon(
-                _showSuggestions
-                    ? Icons.keyboard_arrow_up
-                    : Icons.keyboard_arrow_down,
-                size: 20,
-              ),
-              onPressed: () =>
-                  setState(() => _showSuggestions = !_showSuggestions),
-            ),
-          ),
-        ),
-        if (_showSuggestions)
-          Container(
-            margin: const EdgeInsets.only(top: 4),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              border: Border.all(color: AppColors.border),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Column(
-              children: widget.suggestions.map((s) {
-                return InkWell(
-                  onTap: () {
-                    _controller.text = s;
-                    widget.onChanged(s);
-                    setState(() => _showSuggestions = false);
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 10),
-                    child: Row(
-                      children: [
-                        Text(s, style: AppTextStyles.body),
-                      ],
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-// ── 급여량 스텝퍼 ─────────────────────────────────────────────────────────────
-
-class _AmountStepper extends StatelessWidget {
-  final int amount;
-  final String unit;
-  final ValueChanged<int> onAmountChanged;
-  final ValueChanged<String> onUnitChanged;
-
-  const _AmountStepper({
-    required this.amount,
-    required this.unit,
-    required this.onAmountChanged,
-    required this.onUnitChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        // - 버튼
-        _StepBtn(
-          icon: Icons.remove,
-          onTap: () {
-            if (amount > 0) onAmountChanged(amount - 1);
-          },
-        ),
-        // 수량 표시
-        Expanded(
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 8),
-            padding:
-                const EdgeInsets.symmetric(vertical: 12),
-            decoration: BoxDecoration(
-              border: Border.all(color: AppColors.border),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Center(
-              child: Text('$amount', style: AppTextStyles.title),
-            ),
-          ),
-        ),
-        // 단위 선택
-        DropdownButton<String>(
-          value: unit.isEmpty ? '마리' : unit,
-          items: ['마리', 'g', 'ml', '개']
-              .map((u) => DropdownMenuItem(value: u, child: Text(u)))
-              .toList(),
-          onChanged: (v) => onUnitChanged(v ?? '마리'),
-          underline: const SizedBox(),
-        ),
-        const SizedBox(width: 8),
-        // + 버튼
-        _StepBtn(
-          icon: Icons.add,
-          onTap: () => onAmountChanged(amount + 1),
-        ),
-      ],
-    );
-  }
-}
-
-class _StepBtn extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _StepBtn({required this.icon, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          border: Border.all(color: AppColors.border),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(icon, size: 20, color: AppColors.primary),
-      ),
-    );
-  }
-}
-
-// ── 퀵 급여량 칩 ──────────────────────────────────────────────────────────────
-
-class _QuickAmountChips extends StatelessWidget {
-  final String unit;
-  final int selected;
-  final ValueChanged<int> onTap;
-
-  const _QuickAmountChips({
-    required this.unit,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final u = unit.isEmpty ? '마리' : unit;
-    const amounts = [1, 3, 5, 7, 10];
-    return Wrap(
-      spacing: 8,
-      children: amounts.map((a) {
-        final isSelected = selected == a;
-        return GestureDetector(
-          onTap: () => onTap(a),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            padding: const EdgeInsets.symmetric(
-                horizontal: 14, vertical: 6),
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? AppColors.petColorMint
-                  : AppColors.surface,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: isSelected
-                    ? AppColors.primary.withValues(alpha: 0.4)
-                    : AppColors.border,
-              ),
-            ),
-            child: Text(
-              '$a$u',
-              style: AppTextStyles.caption.copyWith(
-                color: isSelected
-                    ? AppColors.primary
-                    : AppColors.textSecondary,
-                fontWeight: isSelected
-                    ? FontWeight.w600
-                    : FontWeight.normal,
-              ),
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-}
-
 // ── 저장됨 상태 행 ────────────────────────────────────────────────────────────
 
 class _SavedStatusRow extends StatelessWidget {
@@ -813,14 +489,4 @@ class _SavedStatusRow extends StatelessWidget {
       ),
     );
   }
-}
-
-// ── 급여 입력 엔트리 모델 ─────────────────────────────────────────────────────
-
-class _FeedingEntry {
-  String foodType = '';
-  int amount = 0;
-  String unit = '마리';
-  String memo = '';
-  bool isSaved = false;
 }

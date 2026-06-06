@@ -7,8 +7,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/pale_palette.dart';
 import '../../../core/widgets/toast_message.dart';
-import '../../record/data/record_repository.dart';
-import '../../record/providers/feed_provider.dart';
 import '../../record/presentation/widgets/feed_composer_fields.dart';
 import '../data/models/routine_models.dart';
 import '../data/routine_repository.dart';
@@ -26,6 +24,7 @@ class BulkConfirmSheet extends ConsumerStatefulWidget {
 class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
   FeedFormData _feedForm = const FeedFormData();
   String _memo = '';
+  bool _petsOpen = false;
   bool _feedOpen = false;
   bool _memoOpen = false;
   bool _saving = false;
@@ -47,65 +46,35 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
       };
 
   Future<void> _confirm() async {
-    final pending =
-        widget.routine.petStatuses.where((s) => !s.isCompleted).toList();
-    if (pending.isEmpty) {
-      Navigator.of(context).pop();
-      return;
-    }
+    final pending = widget.routine.petStatuses.where((s) => !s.isCompleted).toList();
+    if (pending.isEmpty) { Navigator.of(context).pop(); return; }
     setState(() => _saving = true);
     try {
-      final repo       = ref.read(routineRepositoryProvider);
-      final recordRepo = ref.read(recordRepositoryProvider);
-      final items      = _feedForm.items;
-      final memo       = _memo.trim().isEmpty ? null : _memo.trim();
-      final now        = DateTime.now();
+      final repo = ref.read(routineRepositoryProvider);
+      final memo = _memo.trim().isEmpty ? null : _memo.trim();
+      final now  = DateTime.now();
 
       for (final pet in pending) {
-        if (_isFeed && items.isNotEmpty) {
-          // 첫 급여는 루틴 완료로 기록 (routine_log + feeding_dtl 양쪽 INSERT)
-          await repo.completeIndividual(
-            widget.routine.id,
-            RoutineCompleteIndividualRequest(
-              petId: pet.petId,
-              status: RoutineLogStatus.COMPLETED,
-              foodType: items.first.food,
-              amount: items.first.amt.toDouble(),
-              unit: '마리',
-              memo: memo,
-            ),
-          );
-          // 나머지 급여 아이템은 별도 피딩 기록
-          for (final item in items.skip(1)) {
-            await recordRepo.addFeeding(pet.petId, {
-              'foodType': item.food,
-              'amount': item.amt.toDouble(),
-              'unit': '마리',
-              'fedAt': now.toIso8601String(),
-              if (memo != null) 'memo': memo,
-            });
-          }
-          ref.invalidate(feedSessionsProvider(pet.petId));
-        } else {
-          await repo.completeIndividual(
-            widget.routine.id,
-            RoutineCompleteIndividualRequest(
-              petId: pet.petId,
-              status: RoutineLogStatus.COMPLETED,
-              memo: memo,
-            ),
-          );
-        }
-        ref
-            .read(todayRoutinesProvider.notifier)
-            .updatePetStatus(widget.routine.id, pet.petId, true);
+        final feedMap = _isFeed ? _feedForm.toApiMap(fedAt: now) : <String, dynamic>{};
+        await repo.completeIndividual(
+          widget.routine.id,
+          RoutineCompleteIndividualRequest(
+            petId:      pet.petId,
+            status:     RoutineLogStatus.COMPLETED,
+            foodType:   feedMap['foodType'] as String?,
+            amount:     (feedMap['amount'] as num?)?.toDouble(),
+            unit:       feedMap['unit']      as String?,
+            sizeLabel:  feedMap['sizeLabel'] as String?,
+            supplement: _feedForm.supplement,
+            memo:       memo,
+          ),
+        );
+        ref.read(todayRoutinesProvider.notifier).updatePetStatus(widget.routine.id, pet.petId, true);
       }
       ref.invalidate(routineTodayStatusProvider(widget.routine.id));
-
       if (mounted) {
         Navigator.of(context).pop();
-        showToast(context, '${pending.length}마리 완료 처리됐어요',
-            type: ToastType.success);
+        showToast(context, '${pending.length}마리 완료 처리됐어요', type: ToastType.success);
       }
     } catch (e) {
       if (mounted) showToast(context, '저장 실패: $e', type: ToastType.error);
@@ -205,11 +174,55 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
                               _QuestionText(title: routine.title, accent: _accent),
                               const SizedBox(height: 16),
 
-                              // 대상 개체 strip
-                              _AffectedPets(
-                                pets: pets,
-                                done: done,
-                                pending: pending,
+                              // 대상 개체 아코디언
+                              ConfirmAccordion(
+                                label: '대상 개체',
+                                summary: done > 0
+                                    ? '대기 ${pending}마리'
+                                    : '${pets.length}마리',
+                                summaryActive: true,
+                                open: _petsOpen,
+                                onToggle: () =>
+                                    setState(() => _petsOpen = !_petsOpen),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
+                                      children: pets
+                                          .map((s) => _NameChip(status: s))
+                                          .toList(),
+                                    ),
+                                    if (done > 0) ...[
+                                      const SizedBox(height: 10),
+                                      Text.rich(
+                                        TextSpan(
+                                          style: const TextStyle(
+                                              fontSize: 11.5,
+                                              color: AppColors.paleInk2,
+                                              height: 1.5,
+                                              fontWeight: FontWeight.w500),
+                                          children: [
+                                            const TextSpan(text: '이미 완료된 '),
+                                            TextSpan(
+                                                text: '$done마리',
+                                                style: const TextStyle(
+                                                    fontWeight: FontWeight.w700,
+                                                    color: AppColors.primary)),
+                                            const TextSpan(text: '는 그대로 두고, 남은 '),
+                                            TextSpan(
+                                                text: '$pending마리',
+                                                style: const TextStyle(
+                                                    fontWeight: FontWeight.w700,
+                                                    color: AppColors.primary)),
+                                            const TextSpan(text: '만 완료로 바꿔요.'),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
                               ),
 
                               // 급여 내용 아코디언 (feed 타입만)
@@ -217,10 +230,8 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
                                 ConfirmAccordion(
                                   label: '급여 내용',
                                   optional: true,
-                                  summary: _feedForm.hasItems
-                                      ? '${_feedForm.items.length}종 · ${_feedForm.totalAmt}마리'
-                                      : null,
-                                  summaryActive: _feedForm.hasItems,
+                                  summary: _feedForm.summary.isEmpty ? null : _feedForm.summary,
+                                  summaryActive: _feedForm.isValid,
                                   open: _feedOpen,
                                   onToggle: () =>
                                       setState(() => _feedOpen = !_feedOpen),
@@ -380,141 +391,6 @@ class _QuestionText extends StatelessWidget {
   }
 }
 
-// ── 대상 개체 strip ───────────────────────────────────────────
-class _AffectedPets extends StatelessWidget {
-  final List<TodayPetStatus> pets;
-  final int done;
-  final int pending;
-
-  const _AffectedPets({
-    required this.pets,
-    required this.done,
-    required this.pending,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        border: Border.all(color: AppColors.paleLine),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('대상 개체',
-                  style: const TextStyle(
-                      fontSize: 12, fontWeight: FontWeight.w700,
-                      color: AppColors.paleInk2)),
-              Text('${pets.length}마리 전체',
-                  style: AppTextStyles.mono(11, FontWeight.w700)),
-            ],
-          ),
-          const SizedBox(height: 10),
-          if (pets.length <= 6)
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: pets.map((s) => _NameChip(status: s)).toList(),
-            )
-          else
-            Row(
-              children: [
-                SizedBox(
-                  height: 30,
-                  width: _stackWidth(pets.length.clamp(0, 7)),
-                  child: Stack(
-                    children: pets.take(7).toList().asMap().entries.map((e) {
-                      final i = e.key;
-                      final s = e.value;
-                      final pale = PalePalette.pale(
-                          PalePalette.keyFromHex(s.colorCode));
-                      return Positioned(
-                        left: i * 22.0,
-                        child: Container(
-                          width: 30, height: 30,
-                          decoration: BoxDecoration(
-                            color: s.isCompleted ? AppColors.paleBgAlt : pale,
-                            borderRadius: BorderRadius.circular(9),
-                            border: Border.all(
-                                color: AppColors.card, width: 2),
-                          ),
-                          child: Icon(Icons.pets, size: 13,
-                              color: s.isCompleted
-                                  ? AppColors.paleInk3
-                                  : AppColors.primary),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-                if (pets.length > 7) ...[
-                  Container(
-                    margin: const EdgeInsets.only(left: 4),
-                    width: 30, height: 30,
-                    decoration: BoxDecoration(
-                      color: AppColors.paleBgAlt,
-                      borderRadius: BorderRadius.circular(9),
-                      border: Border.all(color: AppColors.card, width: 2),
-                    ),
-                    child: Center(
-                      child: Text('+${pets.length - 7}',
-                          style: AppTextStyles.mono(10, FontWeight.w700,
-                              color: AppColors.paleInk2)),
-                    ),
-                  ),
-                ],
-                const Spacer(),
-                Text('완료 $done · 남음 $pending',
-                    style: AppTextStyles.mono(11, FontWeight.w700,
-                        color: AppColors.paleInk2)),
-              ],
-            ),
-          if (done > 0) ...[
-            Container(
-              margin: const EdgeInsets.only(top: 11),
-              padding: const EdgeInsets.only(top: 10),
-              decoration: const BoxDecoration(
-                border: Border(
-                    top: BorderSide(color: AppColors.paleLineSoft)),
-              ),
-              child: Text.rich(
-                TextSpan(
-                  style: const TextStyle(
-                      fontSize: 11.5, color: AppColors.paleInk2,
-                      height: 1.5, fontWeight: FontWeight.w500),
-                  children: [
-                    const TextSpan(text: '이미 완료된 '),
-                    TextSpan(text: '$done마리',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.primary)),
-                    const TextSpan(text: '는 그대로 두고, 남은 '),
-                    TextSpan(text: '$pending마리',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.primary)),
-                    const TextSpan(text: '만 완료로 바꿔요.'),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  static double _stackWidth(int count) {
-    if (count == 0) return 0;
-    return 30 + (count - 1) * 22.0;
-  }
-}
 
 class _NameChip extends StatelessWidget {
   final TodayPetStatus status;

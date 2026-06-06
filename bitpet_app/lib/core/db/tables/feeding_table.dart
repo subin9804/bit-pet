@@ -12,8 +12,9 @@ class FeedingTable extends Table {
   TextColumn get foodType => text().withLength(max: 50)();
   RealColumn get amount => real().nullable()();
   TextColumn get unit => text().nullable()();
-  // COMPLETE / PARTIAL / REFUSED
-  TextColumn get feedResponse => text().nullable()();
+  TextColumn get sizeLabel => text().nullable()();
+  // CALCIUM / PROBIOTIC / VITAMIN / OTHER
+  TextColumn get supplement => text().nullable()();
   DateTimeColumn get fedAt => dateTime()();
   TextColumn get memo => text().nullable()();
   DateTimeColumn get deletedAt => dateTime().nullable()();

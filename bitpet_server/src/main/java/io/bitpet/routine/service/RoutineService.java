@@ -253,8 +253,8 @@ public class RoutineService {
         }
 
         RoutineCompleteBatchRequest batchReq = new RoutineCompleteBatchRequest(
-                executedAt, req.foodType(), req.amount(), req.unit(), req.feedResponse(),
-                req.cleaningType(), req.weightG(), req.memo()
+                executedAt, req.foodType(), req.amount(), req.unit(), req.sizeLabel(),
+                req.supplement(), req.cleaningType(), req.weightG(), req.memo()
         );
         return saveSingleLog(routine, req.petId(),
                 RoutineLogStatus.COMPLETED, executedAt, batchReq);
@@ -313,7 +313,8 @@ public class RoutineService {
                     .foodType(req.foodType() != null ? req.foodType() : "")
                     .amount(req.amount())
                     .unit(req.unit())
-                    .feedResponse(req.feedResponse())
+                    .sizeLabel(req.sizeLabel())
+                    .supplement(req.supplement())
                     .fedAt(executedAt)
                     .memo(req.memo())
                     .build());

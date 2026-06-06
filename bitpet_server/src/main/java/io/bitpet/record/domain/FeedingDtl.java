@@ -51,9 +51,12 @@ public class FeedingDtl extends BaseSyncEntity {
     @Column(length = 10)
     private String unit;
 
+    @Column(name = "size_label", length = 10)
+    private String sizeLabel;
+
     @Enumerated(EnumType.STRING)
-    @Column(name = "feed_response", length = 20)
-    private FeedResponse feedResponse;
+    @Column(name = "supplement", length = 20)
+    private FeedingSupplement supplement;
 
     @Column(name = "fed_at", nullable = false)
     private Instant fedAt;
@@ -66,25 +69,29 @@ public class FeedingDtl extends BaseSyncEntity {
 
     @Builder
     private FeedingDtl(Long petId, Long routineId, String foodType, BigDecimal amount,
-                       String unit, FeedResponse feedResponse, Instant fedAt, String memo) {
-        this.petId        = petId;
-        this.routineId    = routineId;
-        this.foodType     = foodType;
-        this.amount       = amount;
-        this.unit         = unit;
-        this.feedResponse = feedResponse;
-        this.fedAt        = fedAt;
-        this.memo         = memo;
+                       String unit, String sizeLabel, FeedingSupplement supplement,
+                       Instant fedAt, String memo) {
+        this.petId       = petId;
+        this.routineId   = routineId;
+        this.foodType    = foodType;
+        this.amount      = amount;
+        this.unit        = unit;
+        this.sizeLabel   = sizeLabel;
+        this.supplement  = supplement;
+        this.fedAt       = fedAt;
+        this.memo        = memo;
     }
 
     public void update(String foodType, BigDecimal amount, String unit,
-                       FeedResponse feedResponse, Instant fedAt, String memo) {
-        if (foodType != null)     this.foodType     = foodType;
-        if (amount != null)       this.amount       = amount;
-        if (unit != null)         this.unit         = unit;
-        if (feedResponse != null) this.feedResponse = feedResponse;
-        if (fedAt != null)        this.fedAt        = fedAt;
-        if (memo != null)         this.memo         = memo;
+                       String sizeLabel, FeedingSupplement supplement,
+                       Instant fedAt, String memo) {
+        if (foodType != null)    this.foodType   = foodType;
+        if (amount != null)      this.amount     = amount;
+        if (unit != null)        this.unit       = unit;
+        if (sizeLabel != null)   this.sizeLabel  = sizeLabel;
+        if (supplement != null)  this.supplement = supplement;
+        if (fedAt != null)       this.fedAt      = fedAt;
+        if (memo != null)        this.memo       = memo;
     }
 
     public void softDelete() {

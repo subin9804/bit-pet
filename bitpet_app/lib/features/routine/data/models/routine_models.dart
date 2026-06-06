@@ -2,6 +2,8 @@
 // Routine domain models (v3.1 redesign — user-owned routines)
 // ============================================================
 
+import '../../../record/data/food_catalog.dart';
+
 enum RoutineType { FEEDING, CLEANING, WEIGHT, CUSTOM }
 
 enum RoutineLogStatus { COMPLETED, REFUSED }
@@ -265,32 +267,29 @@ class RoutineCompleteBatchRequest {
   final String? foodType;
   final double? amount;
   final String? unit;
-  final String? feedResponse; // COMPLETE / PARTIAL / REFUSED
-  final String? cleaningType; // FULL / PARTIAL / WATER_CHANGE
+  final String? sizeLabel;
+  final FeedingSupplement? supplement;
+  final String? cleaningType;
   final double? weightG;
   final String? memo;
 
   const RoutineCompleteBatchRequest({
-    this.executedAt,
-    this.foodType,
-    this.amount,
-    this.unit,
-    this.feedResponse,
-    this.cleaningType,
-    this.weightG,
-    this.memo,
+    this.executedAt, this.foodType, this.amount, this.unit,
+    this.sizeLabel, this.supplement,
+    this.cleaningType, this.weightG, this.memo,
   });
 
   Map<String, dynamic> toJson() => {
-        if (executedAt != null) 'executedAt': executedAt!.toIso8601String(),
-        if (foodType != null) 'foodType': foodType,
-        if (amount != null) 'amount': amount,
-        if (unit != null) 'unit': unit,
-        if (feedResponse != null) 'feedResponse': feedResponse,
-        if (cleaningType != null) 'cleaningType': cleaningType,
-        if (weightG != null) 'weightG': weightG,
-        if (memo != null) 'memo': memo,
-      };
+    if (executedAt != null) 'executedAt': executedAt!.toIso8601String(),
+    if (foodType   != null) 'foodType':   foodType,
+    if (amount     != null) 'amount':     amount,
+    if (unit       != null) 'unit':       unit,
+    if (sizeLabel  != null) 'sizeLabel':  sizeLabel,
+    if (supplement != null) 'supplement': supplement!.name,
+    if (cleaningType != null) 'cleaningType': cleaningType,
+    if (weightG    != null) 'weightG':    weightG,
+    if (memo       != null) 'memo':       memo,
+  };
 }
 
 class RoutineCompleteIndividualRequest {
@@ -300,7 +299,8 @@ class RoutineCompleteIndividualRequest {
   final String? foodType;
   final double? amount;
   final String? unit;
-  final String? feedResponse;
+  final String? sizeLabel;
+  final FeedingSupplement? supplement;
   final String? cleaningType;
   final double? weightG;
   final String? memo;
@@ -308,26 +308,22 @@ class RoutineCompleteIndividualRequest {
   const RoutineCompleteIndividualRequest({
     required this.petId,
     required this.status,
-    this.executedAt,
-    this.foodType,
-    this.amount,
-    this.unit,
-    this.feedResponse,
-    this.cleaningType,
-    this.weightG,
-    this.memo,
+    this.executedAt, this.foodType, this.amount, this.unit,
+    this.sizeLabel, this.supplement,
+    this.cleaningType, this.weightG, this.memo,
   });
 
   Map<String, dynamic> toJson() => {
-        'petId': petId,
-        'status': status.name,
-        if (executedAt != null) 'executedAt': executedAt!.toIso8601String(),
-        if (foodType != null) 'foodType': foodType,
-        if (amount != null) 'amount': amount,
-        if (unit != null) 'unit': unit,
-        if (feedResponse != null) 'feedResponse': feedResponse,
-        if (cleaningType != null) 'cleaningType': cleaningType,
-        if (weightG != null) 'weightG': weightG,
-        if (memo != null) 'memo': memo,
-      };
+    'petId':  petId,
+    'status': status.name,
+    if (executedAt   != null) 'executedAt':   executedAt!.toIso8601String(),
+    if (foodType     != null) 'foodType':     foodType,
+    if (amount       != null) 'amount':       amount,
+    if (unit         != null) 'unit':         unit,
+    if (sizeLabel    != null) 'sizeLabel':    sizeLabel,
+    if (supplement   != null) 'supplement':   supplement!.name,
+    if (cleaningType != null) 'cleaningType': cleaningType,
+    if (weightG      != null) 'weightG':      weightG,
+    if (memo         != null) 'memo':         memo,
+  };
 }
