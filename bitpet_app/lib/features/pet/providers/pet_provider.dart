@@ -38,8 +38,15 @@ final petDetailProvider =
   return ref.watch(petRepositoryProvider).getPet(id);
 });
 
+// 전체 종 목록 (SpeciesBottomSheet 초기 로드 및 검색용)
 final speciesListProvider = FutureProvider<List<Species>>((ref) {
   return ref.watch(petRepositoryProvider).getSpecies();
+});
+
+// subcategory 코드(G/L/C/S/T/F/N)별 종 목록
+final speciesBySubcategoryProvider =
+    FutureProvider.family<List<Species>, String>((ref, subcategory) {
+  return ref.watch(petRepositoryProvider).getSpecies(subcategory: subcategory);
 });
 
 // 종별 모프 목록 (개체 등록/수정 시 모프 선택용)

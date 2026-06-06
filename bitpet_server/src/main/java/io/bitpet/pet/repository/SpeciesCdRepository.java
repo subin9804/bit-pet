@@ -12,5 +12,7 @@ public interface SpeciesCdRepository extends JpaRepository<SpeciesCd, Long> {
 
     List<SpeciesCd> findAllByCategoryAndIsActiveTrueOrderByDisplayOrderAsc(String category);
 
+    List<SpeciesCd> findAllBySubcategoryAndIsActiveTrueOrderByDisplayOrderAsc(String subcategory);
+
     Optional<SpeciesCd> findByCode(String code);
 }

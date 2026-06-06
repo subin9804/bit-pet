@@ -79,8 +79,12 @@ class PetRepository {
     }
   }
 
-  Future<List<Species>> getSpecies() async {
-    final res = await _dio.get('/species');
+  // subcategory(G/L/C/S/T/F/N) 또는 category(R/A) 필터 가능, 둘 다 null이면 전체
+  Future<List<Species>> getSpecies({String? subcategory, String? category}) async {
+    final params = <String, String>{};
+    if (subcategory != null) params['subcategory'] = subcategory;
+    if (category != null && subcategory == null) params['category'] = category;
+    final res = await _dio.get('/species', queryParameters: params.isEmpty ? null : params);
     final apiRes = ApiResponse.fromJson(
       res.data as Map<String, dynamic>,
       (d) => (d as List)

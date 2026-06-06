@@ -25,15 +25,25 @@ public class SpeciesController {
     private final SpeciesCdRepository speciesRepository;
     private final MorphCdRepository morphRepository;
 
-    @Operation(summary = "종 목록 조회 (category 필터 가능)")
+    @Operation(summary = "종 목록 조회 (subcategory 또는 category 필터 가능)",
+            description = "subcategory(G/L/C/S/T/F/N) 우선, 없으면 category(R/A), 둘 다 없으면 전체 반환.")
     @GetMapping
     public ApiResponse<List<SpeciesCdResponse>> list(
-            @RequestParam(required = false) String category) {
-        List<SpeciesCdResponse> result = category != null && !category.isBlank()
-                ? speciesRepository.findAllByCategoryAndIsActiveTrueOrderByDisplayOrderAsc(category)
-                        .stream().map(SpeciesCdResponse::from).toList()
-                : speciesRepository.findAllByIsActiveTrueOrderByDisplayOrderAsc()
-                        .stream().map(SpeciesCdResponse::from).toList();
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String subcategory) {
+        List<SpeciesCdResponse> result;
+        if (subcategory != null && !subcategory.isBlank()) {
+            result = speciesRepository
+                    .findAllBySubcategoryAndIsActiveTrueOrderByDisplayOrderAsc(subcategory.toUpperCase())
+                    .stream().map(SpeciesCdResponse::from).toList();
+        } else if (category != null && !category.isBlank()) {
+            result = speciesRepository
+                    .findAllByCategoryAndIsActiveTrueOrderByDisplayOrderAsc(category.toUpperCase())
+                    .stream().map(SpeciesCdResponse::from).toList();
+        } else {
+            result = speciesRepository.findAllByIsActiveTrueOrderByDisplayOrderAsc()
+                    .stream().map(SpeciesCdResponse::from).toList();
+        }
         return ApiResponse.ok(result);
     }
 
