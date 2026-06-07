@@ -1018,7 +1018,7 @@ class _HomeCalendarState extends ConsumerState<_HomeCalendar> {
   }
 }
 
-// ── 선택일 기록 섹션 ─────────────────────────────────────────────
+// ── 선택일 기록 섹션 (개체별 그룹핑) ────────────────────────────
 class _DayRecordSection extends StatelessWidget {
   final String dateStr;
   final List<String> weekKo;
@@ -1031,20 +1031,44 @@ class _DayRecordSection extends StatelessWidget {
   });
 
   static const _catLabel = {
-    'FEEDING': '급여', 'WEIGHT': '체중',
-    'CLEANING': '청소', 'MEMO': '메모',
+    'FEEDING': '급여', 'WEIGHT': '체중', 'CLEANING': '청소',
+    'MEMO': '메모', 'MATING': '교배', 'LAYING': '산란',
   };
-  static Color _catColor(String cat) => switch (cat) {
-        'FEEDING'  => AppColors.petPeach,
-        'WEIGHT'   => AppColors.petSage,
-        'CLEANING' => AppColors.petSky,
-        'MEMO'     => AppColors.petLilac,
-        _ => AppColors.paleInk3,
-      };
+
+  // 개체별로 records 그룹핑 (순서 유지)
+  static List<({int petId, String petName, String? colorCode, List<RecentRecord> records})>
+      _group(List<RecentRecord> records) {
+    final order = <int>[];
+    final map = <int, List<RecentRecord>>{};
+    for (final r in records) {
+      if (!map.containsKey(r.petId)) {
+        order.add(r.petId);
+        map[r.petId] = [];
+      }
+      map[r.petId]!.add(r);
+    }
+    return order.map((id) {
+      final recs = map[id]!;
+      return (
+        petId: id,
+        petName: recs.first.petName,
+        colorCode: recs.first.colorCode,
+        records: recs,
+      );
+    }).toList();
+  }
+
+  static Color _petColor(String? colorCode) {
+    if (colorCode == null) return AppColors.petSage;
+    try {
+      return Color(int.parse(colorCode.replaceFirst('#', '0xFF')));
+    } catch (_) {
+      return AppColors.petSage;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final async = recordsAsync;
     final dt = DateTime.parse(dateStr);
     final header = '${dt.month}.${dt.day} (${weekKo[dt.weekday % 7]})';
 
@@ -1058,15 +1082,16 @@ class _DayRecordSection extends StatelessWidget {
                 style: const TextStyle(
                     fontSize: 14, fontWeight: FontWeight.w700,
                     color: AppColors.primary, letterSpacing: -0.3)),
-            async.whenOrNull(data: (recs) =>
-                  Text('${recs.length}건',
-                      style: AppTextStyles.mono(11, FontWeight.w700,
-                          color: AppColors.paleInk2))) ??
-                const SizedBox.shrink(),
+            recordsAsync.whenOrNull(data: (recs) {
+              final groups = _group(recs);
+              return Text('${groups.length}개체',
+                  style: AppTextStyles.mono(11, FontWeight.w700,
+                      color: AppColors.paleInk2));
+            }) ?? const SizedBox.shrink(),
           ],
         ),
         const SizedBox(height: 8),
-        async.when(
+        recordsAsync.when(
           loading: () => const Padding(
             padding: EdgeInsets.symmetric(vertical: 16),
             child: Center(child: CircularProgressIndicator(strokeWidth: 1.5)),
@@ -1088,22 +1113,27 @@ class _DayRecordSection extends StatelessWidget {
                 ),
               );
             }
+            final groups = _group(records);
             return Container(
               decoration: BoxDecoration(
                 color: AppColors.card,
                 border: Border.all(color: AppColors.paleLine),
                 borderRadius: BorderRadius.circular(12),
               ),
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 14, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
               child: Column(
-                children: records.asMap().entries.map((e) {
-                  final i = e.key;
-                  final r = e.value;
+                children: groups.asMap().entries.map((e) {
+                  final i   = e.key;
+                  final g   = e.value;
+                  // 카테고리 중복 제거 후 레이블 조합
+                  final cats = g.records
+                      .map((r) => _catLabel[r.recordType] ?? r.recordType)
+                      .toSet()
+                      .toList();
                   return Container(
                     padding: const EdgeInsets.symmetric(vertical: 11),
                     decoration: BoxDecoration(
-                      border: i < records.length - 1
+                      border: i < groups.length - 1
                           ? const Border(bottom: BorderSide(
                               color: AppColors.paleLineSoft))
                           : null,
@@ -1112,29 +1142,22 @@ class _DayRecordSection extends StatelessWidget {
                       Container(
                         width: 8, height: 8,
                         decoration: BoxDecoration(
-                            color: _catColor(r.recordType),
+                            color: _petColor(g.colorCode),
                             shape: BoxShape.circle),
                       ),
                       const SizedBox(width: 10),
-                      Text(
-                        _catLabel[r.recordType] ?? r.recordType,
-                        style: const TextStyle(
-                            fontSize: 12, fontWeight: FontWeight.w700,
-                            color: AppColors.paleInk2),
-                      ),
+                      Text(g.petName,
+                          style: const TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w700,
+                              color: AppColors.primary)),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          '${r.petName}  ${r.summary}',
-                          style: const TextStyle(
-                              fontSize: 13, color: AppColors.primary),
+                          cats.join(' · '),
+                          style: TextStyle(
+                              fontSize: 12, color: AppColors.paleInk2),
                           overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                      Text(
-                        _timeStr(r.createdAt),
-                        style: AppTextStyles.mono(10, FontWeight.w600,
-                            color: AppColors.paleInk3),
                       ),
                     ]),
                   );
@@ -1147,8 +1170,6 @@ class _DayRecordSection extends StatelessWidget {
     );
   }
 
-  static String _timeStr(DateTime dt) =>
-      '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
 }
 
 class _CalendarGrid extends StatelessWidget {
