@@ -149,6 +149,7 @@ final _now = DateTime.now();
 final _mockRecentRecords = [
   RecentRecord(
     id: 1,
+    petId: 1,
     petName: '까망이',
     colorCode: '#3D2B1F',
     recordType: 'FEEDING',
@@ -157,6 +158,7 @@ final _mockRecentRecords = [
   ),
   RecentRecord(
     id: 2,
+    petId: 2,
     petName: '노을이',
     colorCode: '#E8A87C',
     recordType: 'WEIGHT',
@@ -165,6 +167,7 @@ final _mockRecentRecords = [
   ),
   RecentRecord(
     id: 3,
+    petId: 3,
     petName: '하양이',
     colorCode: '#F5E6CA',
     recordType: 'CLEANING',
