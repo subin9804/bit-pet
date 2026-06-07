@@ -3,10 +3,11 @@ package io.bitpet.record.dto;
 import java.time.Instant;
 
 public record RecentRecordResponse(
-        String type,
-        Long recordId,
+        String recordType,
+        Long id,
         Long petId,
         String petName,
-        Instant occurredAt,
+        String colorCode,
+        Instant createdAt,
         String summary
 ) {}

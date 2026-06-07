@@ -168,8 +168,11 @@ public class RecordService {
         if (pets.isEmpty()) return List.of();
 
         List<Long> petIds = pets.stream().map(PetMst::getId).toList();
-        Map<Long, String> petNameMap = pets.stream()
+        Map<Long, String> petNameMap  = pets.stream()
                 .collect(Collectors.toMap(PetMst::getId, PetMst::getName));
+        Map<Long, String> petColorMap = pets.stream()
+                .collect(Collectors.toMap(PetMst::getId,
+                        p -> p.getColorCode() != null ? p.getColorCode() : ""));
 
         PageRequest page = PageRequest.of(0, limit);
         List<RecentRecordResponse> all = new ArrayList<>();
@@ -177,28 +180,31 @@ public class RecordService {
         feedingRepository.findAllByPetIdInOrderByFedAtDesc(petIds, page).forEach(f ->
                 all.add(new RecentRecordResponse("FEEDING", f.getId(), f.getPetId(),
                         petNameMap.getOrDefault(f.getPetId(), ""),
+                        petColorMap.get(f.getPetId()),
                         f.getFedAt(), buildFeedingSummary(f))));
 
         weightRepository.findAllByPetIdInOrderByMeasuredAtDesc(petIds, page).forEach(w ->
                 all.add(new RecentRecordResponse("WEIGHT", w.getId(), w.getPetId(),
                         petNameMap.getOrDefault(w.getPetId(), ""),
+                        petColorMap.get(w.getPetId()),
                         w.getMeasuredAt(), w.getWeightG() + "g")));
 
         cleaningRepository.findAllByPetIdInOrderByCleanedAtDesc(petIds, page).forEach(c ->
                 all.add(new RecentRecordResponse("CLEANING", c.getId(), c.getPetId(),
                         petNameMap.getOrDefault(c.getPetId(), ""),
+                        petColorMap.get(c.getPetId()),
                         c.getCleanedAt(), c.getCleaningType() != null ? c.getCleaningType().name() : "")));
 
-        // v5: health_memo → memo
         memoRepository.findAllByPetIdInOrderByLoggedAtDesc(petIds, page).forEach(m ->
                 all.add(new RecentRecordResponse("MEMO", m.getId(), m.getPetId(),
                         petNameMap.getOrDefault(m.getPetId(), ""),
+                        petColorMap.get(m.getPetId()),
                         m.getLoggedAt(),
                         m.getContent() != null && m.getContent().length() > 50
                                 ? m.getContent().substring(0, 50) + "…"
                                 : m.getContent())));
 
-        all.sort(Comparator.comparing(RecentRecordResponse::occurredAt).reversed());
+        all.sort(Comparator.comparing(RecentRecordResponse::createdAt).reversed());
         return all.subList(0, Math.min(limit, all.size()));
     }
 
@@ -207,8 +213,11 @@ public class RecordService {
         if (pets.isEmpty()) return List.of();
 
         List<Long> petIds = pets.stream().map(PetMst::getId).toList();
-        Map<Long, String> petNameMap = pets.stream()
+        Map<Long, String> petNameMap  = pets.stream()
                 .collect(Collectors.toMap(PetMst::getId, PetMst::getName));
+        Map<Long, String> petColorMap = pets.stream()
+                .collect(Collectors.toMap(PetMst::getId,
+                        p -> p.getColorCode() != null ? p.getColorCode() : ""));
 
         Instant from = date.atStartOfDay(ZoneOffset.UTC).toInstant();
         Instant to   = date.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
@@ -218,27 +227,31 @@ public class RecordService {
         feedingRepository.findAllByPetIdInAndFedAtBetweenOrderByFedAtDesc(petIds, from, to)
                 .forEach(f -> all.add(new RecentRecordResponse("FEEDING", f.getId(), f.getPetId(),
                         petNameMap.getOrDefault(f.getPetId(), ""),
+                        petColorMap.get(f.getPetId()),
                         f.getFedAt(), buildFeedingSummary(f))));
 
         weightRepository.findAllByPetIdInAndMeasuredAtBetweenOrderByMeasuredAtDesc(petIds, from, to)
                 .forEach(w -> all.add(new RecentRecordResponse("WEIGHT", w.getId(), w.getPetId(),
                         petNameMap.getOrDefault(w.getPetId(), ""),
+                        petColorMap.get(w.getPetId()),
                         w.getMeasuredAt(), w.getWeightG() + "g")));
 
         cleaningRepository.findAllByPetIdInAndCleanedAtBetweenOrderByCleanedAtDesc(petIds, from, to)
                 .forEach(c -> all.add(new RecentRecordResponse("CLEANING", c.getId(), c.getPetId(),
                         petNameMap.getOrDefault(c.getPetId(), ""),
+                        petColorMap.get(c.getPetId()),
                         c.getCleanedAt(), c.getCleaningType() != null ? c.getCleaningType().name() : "")));
 
         memoRepository.findAllByPetIdInAndLoggedAtBetweenOrderByLoggedAtDesc(petIds, from, to)
                 .forEach(m -> all.add(new RecentRecordResponse("MEMO", m.getId(), m.getPetId(),
                         petNameMap.getOrDefault(m.getPetId(), ""),
+                        petColorMap.get(m.getPetId()),
                         m.getLoggedAt(),
                         m.getContent() != null && m.getContent().length() > 50
                                 ? m.getContent().substring(0, 50) + "…"
                                 : m.getContent())));
 
-        all.sort(Comparator.comparing(RecentRecordResponse::occurredAt).reversed());
+        all.sort(Comparator.comparing(RecentRecordResponse::createdAt).reversed());
         return all;
     }
 
