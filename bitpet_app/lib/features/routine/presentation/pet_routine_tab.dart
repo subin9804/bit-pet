@@ -513,29 +513,30 @@ class _RoutineCardState extends ConsumerState<_RoutineCard> {
     if (r.alarmTime == null) return '알람 미설정';
     final hm = r.alarmTime!;
 
-    // nextDueAt 우선, 없으면 lastExecutedAt + cycleDays로 추정
+    final now   = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    // nextDueAt → lastExecutedAt+cycle → today+cycle 순으로 추정
     DateTime? nextDue = r.nextDueAt;
     if (nextDue == null && r.lastExecutedAt != null) {
       nextDue = r.lastExecutedAt!.add(Duration(days: r.cycleDays));
     }
-    if (nextDue == null) return hm;
+    if (nextDue == null) {
+      nextDue = today.add(Duration(days: r.cycleDays));
+    }
 
-    final now    = DateTime.now();
     final dueDay = DateTime(nextDue.year, nextDue.month, nextDue.day);
-    final today  = DateTime(now.year, now.month, now.day);
     final diff   = dueDay.difference(today).inDays;
-    const weekKo = ['일', '월', '화', '수', '목', '금', '토'];
 
     if (diff <= 0) return '오늘 $hm';
     if (diff == 1) return '내일 $hm';
-    if (diff < 7)  return '${weekKo[nextDue.weekday % 7]}요일 $hm';
-    return '${nextDue.month}.${nextDue.day} $hm';
+    return '${nextDue.month}/${nextDue.day} $hm';
   }
 }
 
 // ── 미니 루틴 캘린더 ─────────────────────────────────────────────
 
-class _MiniRoutineCalendar extends ConsumerWidget {
+class _MiniRoutineCalendar extends ConsumerStatefulWidget {
   final int routineId;
   final Color accentColor;
 
@@ -545,8 +546,29 @@ class _MiniRoutineCalendar extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final logsAsync = ref.watch(routineLogsProvider(routineId));
+  ConsumerState<_MiniRoutineCalendar> createState() =>
+      _MiniRoutineCalendarState();
+}
+
+class _MiniRoutineCalendarState
+    extends ConsumerState<_MiniRoutineCalendar> {
+  late DateTime _month;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _month = DateTime(now.year, now.month);
+  }
+
+  void _prev() =>
+      setState(() => _month = DateTime(_month.year, _month.month - 1));
+  void _next() =>
+      setState(() => _month = DateTime(_month.year, _month.month + 1));
+
+  @override
+  Widget build(BuildContext context) {
+    final logsAsync = ref.watch(routineLogsProvider(widget.routineId));
 
     return logsAsync.when(
       loading: () => const Center(
@@ -554,19 +576,17 @@ class _MiniRoutineCalendar extends ConsumerWidget {
               child: CircularProgressIndicator(strokeWidth: 2))),
       error: (_, __) => const SizedBox.shrink(),
       data: (logs) {
-        // 이번 달 기준 day → ok map
-        final now = DateTime.now();
+        // 선택된 달 기준 day → status map
         final map = <int, bool>{};
         for (final l in logs) {
-          if (l.executedAt.year == now.year &&
-              l.executedAt.month == now.month) {
+          if (l.executedAt.year == _month.year &&
+              l.executedAt.month == _month.month) {
             map[l.executedAt.day] = l.status == RoutineLogStatus.COMPLETED;
           }
         }
 
-        final firstWd = DateTime(now.year, now.month, 1).weekday % 7; // 0=일
-        final daysInMonth =
-            DateTime(now.year, now.month + 1, 0).day;
+        final firstWd = DateTime(_month.year, _month.month, 1).weekday % 7;
+        final daysInMonth = DateTime(_month.year, _month.month + 1, 0).day;
         final cells = <int?>[
           ...List.filled(firstWd, null),
           ...List.generate(daysInMonth, (i) => i + 1),
@@ -574,6 +594,32 @@ class _MiniRoutineCalendar extends ConsumerWidget {
 
         return Column(
           children: [
+            // 월 이동
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                GestureDetector(
+                  onTap: _prev,
+                  child: const Icon(Icons.chevron_left,
+                      size: 16, color: AppColors.paleInk3),
+                ),
+                Text(
+                  '${_month.year}.${_month.month.toString().padLeft(2, '0')}',
+                  style: const TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.paleInk2,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: _next,
+                  child: const Icon(Icons.chevron_right,
+                      size: 16, color: AppColors.paleInk3),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
             // 요일 헤더
             Row(
               children: ['일', '월', '화', '수', '목', '금', '토'].map((w) {
@@ -588,31 +634,32 @@ class _MiniRoutineCalendar extends ConsumerWidget {
                 );
               }).toList(),
             ),
-            const SizedBox(height: 3),
+            const SizedBox(height: 2),
             // 날짜 그리드
             GridView.count(
               crossAxisCount: 7,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 3,
-              crossAxisSpacing: 3,
+              mainAxisSpacing: 2,
+              crossAxisSpacing: 2,
+              childAspectRatio: 1.3,
               children: cells.map((d) {
                 if (d == null) return const SizedBox.shrink();
                 final has  = map.containsKey(d);
                 final done = map[d] == true;
                 return Container(
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(5),
+                    borderRadius: BorderRadius.circular(4),
                     border: has
-                        ? Border.all(color: accentColor, width: 1.5)
+                        ? Border.all(color: widget.accentColor, width: 1.5)
                         : null,
-                    color: done ? accentColor : Colors.transparent,
+                    color: done ? widget.accentColor : Colors.transparent,
                   ),
                   child: Center(
                     child: Text('$d',
                         style: TextStyle(
                           fontFamily: 'monospace',
-                          fontSize: 9,
+                          fontSize: 8,
                           fontWeight: FontWeight.w700,
                           color: done ? AppColors.paleBg : AppColors.paleInk3,
                         )),
@@ -620,14 +667,14 @@ class _MiniRoutineCalendar extends ConsumerWidget {
                 );
               }).toList(),
             ),
-            const SizedBox(height: 9),
+            const SizedBox(height: 7),
             // 범례
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _Legend(color: accentColor, filled: true, label: '완료'),
-                const SizedBox(width: 14),
-                _Legend(color: accentColor, filled: false, label: '미완료'),
+                _Legend(color: widget.accentColor, filled: true,  label: '완료'),
+                const SizedBox(width: 12),
+                _Legend(color: widget.accentColor, filled: false, label: '미완료'),
               ],
             ),
           ],
