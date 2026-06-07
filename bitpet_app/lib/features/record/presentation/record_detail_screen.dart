@@ -1095,23 +1095,7 @@ class _EditorSheetState extends State<_EditorSheet> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ── 청소 ──────────────────────────────
-                      if (widget.recordType == 'cleaning') ...[
-                        const Text('청소 종류',
-                            style: TextStyle(fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.primary)),
-                        const SizedBox(height: 10),
-                        SegmentedButton<CleaningType>(
-                          segments: const [
-                            ButtonSegment(value: CleaningType.FULL, label: Text('전체')),
-                            ButtonSegment(value: CleaningType.PARTIAL, label: Text('부분')),
-                            ButtonSegment(value: CleaningType.WATER_CHANGE, label: Text('물교체')),
-                          ],
-                          selected: {e.form['cleaningType'] as CleaningType},
-                          onSelectionChanged: (s) => _updateForm('cleaningType', s.first),
-                        ),
-                      ],
+                      // cleaning: 종류 선택 없음 — 메모만 입력
 
                       // ── 메모(메모 기록) ───────────────────
                       if (widget.recordType == 'memo') ...[
@@ -1145,15 +1129,35 @@ class _EditorSheetState extends State<_EditorSheet> {
                                 fontWeight: FontWeight.w700,
                                 color: AppColors.primary)),
                         const SizedBox(height: 10),
-                        SegmentedButton<bool?>(
-                          segments: const [
-                            ButtonSegment(value: null,  label: Text('미정')),
-                            ButtonSegment(value: true,  label: Text('성공')),
-                            ButtonSegment(value: false, label: Text('실패')),
+                        Row(
+                          children: [
+                            _MatingChip(
+                              label: '미정',
+                              selected: e.form['isSuccessful'] == null,
+                              color: AppColors.paleBgAlt,
+                              borderColor: AppColors.paleLine,
+                              textColor: AppColors.paleInk2,
+                              onTap: () => _updateForm('isSuccessful', null),
+                            ),
+                            const SizedBox(width: 8),
+                            _MatingChip(
+                              label: '성공',
+                              selected: e.form['isSuccessful'] == true,
+                              color: AppColors.petSage,
+                              borderColor: Colors.transparent,
+                              textColor: AppColors.primary,
+                              onTap: () => _updateForm('isSuccessful', true),
+                            ),
+                            const SizedBox(width: 8),
+                            _MatingChip(
+                              label: '실패',
+                              selected: e.form['isSuccessful'] == false,
+                              color: AppColors.petCoral,
+                              borderColor: Colors.transparent,
+                              textColor: AppColors.primary,
+                              onTap: () => _updateForm('isSuccessful', false),
+                            ),
                           ],
-                          selected: {e.form['isSuccessful'] as bool?},
-                          onSelectionChanged: (s) =>
-                              _updateForm('isSuccessful', s.first),
                         ),
                       ],
 
@@ -1384,6 +1388,55 @@ class _StepperBtn extends StatelessWidget {
         child: Text(label,
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700,
                 color: AppColors.primary)),
+      ),
+    );
+  }
+}
+
+// ── 교배 결과 칩 ─────────────────────────────────────────────────
+class _MatingChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final Color color;
+  final Color borderColor;
+  final Color textColor;
+  final VoidCallback onTap;
+
+  const _MatingChip({
+    required this.label,
+    required this.selected,
+    required this.color,
+    required this.borderColor,
+    required this.textColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 140),
+          padding: const EdgeInsets.symmetric(vertical: 11),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected ? color : AppColors.card,
+            border: Border.all(
+              color: selected ? borderColor : AppColors.paleLine,
+              width: selected ? 0 : 1,
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: selected ? textColor : AppColors.paleInk2,
+            ),
+          ),
+        ),
       ),
     );
   }
