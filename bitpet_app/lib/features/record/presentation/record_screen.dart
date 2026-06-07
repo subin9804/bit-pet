@@ -28,20 +28,24 @@ class _RecordScreenState extends ConsumerState<RecordScreen> {
   @override
   Widget build(BuildContext context) {
     final title = switch (widget.recordType) {
-      'weight' => '체중 기록',
-      'feeding' => '급여 기록',
+      'weight'   => '체중 기록',
+      'feeding'  => '급여 기록',
       'cleaning' => '청소 기록',
-      'memo' => '메모',
+      'memo'     => '메모',
+      'mating'   => '교배 기록',
+      'laying'   => '산란 기록',
       _ => '기록',
     };
 
     return Scaffold(
       appBar: AppBar(title: Text(title)),
       body: switch (widget.recordType) {
-        'weight' => _WeightList(petId: widget.petId),
-        'feeding' => _FeedingList(petId: widget.petId),
+        'weight'   => _WeightList(petId: widget.petId),
+        'feeding'  => _FeedingList(petId: widget.petId),
         'cleaning' => _CleaningList(petId: widget.petId),
-        'memo' => _MemoList(petId: widget.petId),
+        'memo'     => _MemoList(petId: widget.petId),
+        'mating'   => _MatingList(petId: widget.petId),
+        'laying'   => _LayingList(petId: widget.petId),
         _ => const EmptyState(message: '알 수 없는 기록 유형'),
       },
       floatingActionButton: FloatingActionButton(
@@ -73,6 +77,10 @@ class _RecordScreenState extends ConsumerState<RecordScreen> {
               ref.invalidate(cleaningListProvider(widget.petId));
             case 'memo':
               ref.invalidate(memoListProvider(widget.petId));
+          case 'mating':
+              ref.invalidate(matingListProvider(widget.petId));
+          case 'laying':
+              ref.invalidate(layingListProvider(widget.petId));
           }
         },
       ),
@@ -330,6 +338,134 @@ class _MemoList extends ConsumerWidget {
   }
 }
 
+// ── 교배 목록 ─────────────────────────────────────────────────
+
+class _MatingList extends ConsumerWidget {
+  final int petId;
+  const _MatingList({required this.petId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(matingListProvider(petId));
+    return async.when(
+      loading: () => const SkeletonCardList(),
+      error: (e, _) => EmptyState(message: e.toString()),
+      data: (records) {
+        if (records.isEmpty) {
+          return const EmptyState(
+              message: '교배 기록이 없어요', icon: Icons.favorite_outline);
+        }
+        return ListView.separated(
+          padding: const EdgeInsets.all(16),
+          itemCount: records.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          itemBuilder: (_, i) {
+            final r = records[i];
+            final dateStr =
+                '${r.triedAt.year}.${r.triedAt.month}.${r.triedAt.day}';
+            final resultLabel = r.isSuccessful == true
+                ? '성공'
+                : r.isSuccessful == false
+                    ? '실패'
+                    : '결과 미정';
+            return Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.card,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.favorite_outline, color: AppColors.female),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(dateStr, style: AppTextStyles.bodyBold),
+                        Text(resultLabel, style: AppTextStyles.caption),
+                      ],
+                    ),
+                  ),
+                  if (r.memo != null)
+                    Flexible(
+                        child: Text(r.memo!,
+                            style: AppTextStyles.caption,
+                            overflow: TextOverflow.ellipsis)),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+// ── 산란 목록 ─────────────────────────────────────────────────
+
+class _LayingList extends ConsumerWidget {
+  final int petId;
+  const _LayingList({required this.petId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(layingListProvider(petId));
+    return async.when(
+      loading: () => const SkeletonCardList(),
+      error: (e, _) => EmptyState(message: e.toString()),
+      data: (records) {
+        if (records.isEmpty) {
+          return const EmptyState(
+              message: '산란 기록이 없어요', icon: Icons.egg_outlined);
+        }
+        return ListView.separated(
+          padding: const EdgeInsets.all(16),
+          itemCount: records.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          itemBuilder: (_, i) {
+            final r = records[i];
+            final dateStr =
+                '${r.laidAt.year}.${r.laidAt.month}.${r.laidAt.day}';
+            return Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.card,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.egg_outlined, color: AppColors.primary),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('${r.totalCount}개 · $dateStr',
+                            style: AppTextStyles.bodyBold),
+                        if (r.hatches.isNotEmpty)
+                          Text('부화 ${r.hatches.length}건',
+                              style: AppTextStyles.caption),
+                      ],
+                    ),
+                  ),
+                  if (r.memo != null)
+                    Flexible(
+                        child: Text(r.memo!,
+                            style: AppTextStyles.caption,
+                            overflow: TextOverflow.ellipsis)),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
 // ── 입력 시트 ─────────────────────────────────────────────────
 
 class _InputSheet extends ConsumerStatefulWidget {
@@ -351,8 +487,10 @@ class _InputSheetState extends ConsumerState<_InputSheet> {
   final _weightCtrl = TextEditingController();
   final _memoCtrl = TextEditingController();
   final _contentCtrl = TextEditingController();
+  final _countCtrl = TextEditingController();
   FeedFormData _feedForm = const FeedFormData();
   CleaningType _cleaningType = CleaningType.FULL;
+  bool? _matingSuccess;
   bool _isLoading = false;
 
   @override
@@ -360,6 +498,7 @@ class _InputSheetState extends ConsumerState<_InputSheet> {
     _weightCtrl.dispose();
     _memoCtrl.dispose();
     _contentCtrl.dispose();
+    _countCtrl.dispose();
     super.dispose();
   }
 
@@ -387,6 +526,20 @@ class _InputSheetState extends ConsumerState<_InputSheet> {
           await repo.addMemo(widget.petId, {
             'content': _contentCtrl.text.trim(),
             'loggedAt': DateTime.now().toIso8601String(),
+          });
+        case 'mating':
+          await repo.addMating(widget.petId, {
+            'triedAt': DateTime.now().toIso8601String(),
+            if (_matingSuccess != null) 'isSuccessful': _matingSuccess,
+            if (_memoCtrl.text.isNotEmpty) 'memo': _memoCtrl.text,
+          });
+        case 'laying':
+          final cnt = int.tryParse(_countCtrl.text);
+          if (cnt == null || cnt <= 0) throw Exception('산란 수를 입력하세요');
+          await repo.addLaying(widget.petId, {
+            'laidAt': DateTime.now().toIso8601String(),
+            'totalCount': cnt,
+            if (_memoCtrl.text.isNotEmpty) 'memo': _memoCtrl.text,
           });
       }
       widget.onSaved();
@@ -448,6 +601,28 @@ class _InputSheetState extends ConsumerState<_InputSheet> {
               controller: _contentCtrl,
               decoration: const InputDecoration(labelText: '내용 *'),
               maxLines: 3,
+              autofocus: true,
+            ),
+          ] else if (widget.recordType == 'mating') ...[
+            Text('교배 기록', style: AppTextStyles.h3),
+            const SizedBox(height: 16),
+            SegmentedButton<bool?>(
+              segments: const [
+                ButtonSegment(value: null,  label: Text('미정')),
+                ButtonSegment(value: true,  label: Text('성공')),
+                ButtonSegment(value: false, label: Text('실패')),
+              ],
+              selected: {_matingSuccess},
+              onSelectionChanged: (s) =>
+                  setState(() => _matingSuccess = s.first),
+            ),
+          ] else if (widget.recordType == 'laying') ...[
+            Text('산란 기록', style: AppTextStyles.h3),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _countCtrl,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: '산란 수 *', suffixText: '개'),
               autofocus: true,
             ),
           ],

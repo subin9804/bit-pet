@@ -264,7 +264,18 @@ class _RecordTabState extends ConsumerState<RecordTab> {
           final isEmpty = item == null;
           return GestureDetector(
             onTap: () {
-              if (cat == 'FEEDING') context.push('/pets/${widget.petId}/feeding');
+              switch (cat) {
+                case 'FEEDING':
+                  context.push('/pets/${widget.petId}/feeding');
+                case 'CLEANING':
+                  context.push('/pets/${widget.petId}/records/cleaning');
+                case 'MEMO':
+                  context.push('/pets/${widget.petId}/records/memo');
+                case 'MATING':
+                  context.push('/pets/${widget.petId}/records/mating');
+                case 'LAYING':
+                  context.push('/pets/${widget.petId}/records/laying');
+              }
             },
             child: Opacity(
               opacity: isEmpty ? 0.6 : 1.0,
