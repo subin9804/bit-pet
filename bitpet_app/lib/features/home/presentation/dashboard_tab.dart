@@ -897,6 +897,9 @@ class _HomeCalendarState extends ConsumerState<_HomeCalendar> {
   @override
   Widget build(BuildContext context) {
     final calAsync = ref.watch(homeCalendarProvider(_yearMonth));
+    final dayAsync = _selDate != null
+        ? ref.watch(homeDayRecordsProvider(_selDate!))
+        : null;
     final now = DateTime.now();
     final isCurrentMonth =
         _month.year == now.year && _month.month == now.month;
@@ -980,9 +983,13 @@ class _HomeCalendarState extends ConsumerState<_HomeCalendar> {
         ),
 
         // 선택일 기록
-        if (_selDate != null) ...[
+        if (_selDate != null && dayAsync != null) ...[
           const SizedBox(height: 12),
-          _DayRecordSection(dateStr: _selDate!, weekKo: _weekKo),
+          _DayRecordSection(
+            dateStr: _selDate!,
+            weekKo: _weekKo,
+            recordsAsync: dayAsync,
+          ),
         ],
       ],
     );
@@ -990,12 +997,16 @@ class _HomeCalendarState extends ConsumerState<_HomeCalendar> {
 }
 
 // ── 선택일 기록 섹션 ─────────────────────────────────────────────
-class _DayRecordSection extends ConsumerWidget {
+class _DayRecordSection extends StatelessWidget {
   final String dateStr;
   final List<String> weekKo;
+  final AsyncValue<List<RecentRecord>> recordsAsync;
 
-  const _DayRecordSection(
-      {required this.dateStr, required this.weekKo});
+  const _DayRecordSection({
+    required this.dateStr,
+    required this.weekKo,
+    required this.recordsAsync,
+  });
 
   static const _catLabel = {
     'FEEDING': '급여', 'WEIGHT': '체중',
@@ -1010,8 +1021,8 @@ class _DayRecordSection extends ConsumerWidget {
       };
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(homeDayRecordsProvider(dateStr));
+  Widget build(BuildContext context) {
+    final async = recordsAsync;
     final dt = DateTime.parse(dateStr);
     final header = '${dt.month}.${dt.day} (${weekKo[dt.weekday % 7]})';
 

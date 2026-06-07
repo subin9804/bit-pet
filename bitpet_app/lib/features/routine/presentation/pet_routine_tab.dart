@@ -510,13 +510,26 @@ class _RoutineCardState extends ConsumerState<_RoutineCard> {
   }
 
   String _nextLabel(Routine r) {
-    if (r.alarmTime == null) return '시간 미설정';
-    if (r.nextDueAt == null) return r.alarmTime!;
-    final diff = r.nextDueAt!.difference(DateTime.now()).inDays;
+    if (r.alarmTime == null) return '알람 미설정';
     final hm = r.alarmTime!;
-    if (diff == 0) return '오늘 $hm';
+
+    // nextDueAt 우선, 없으면 lastExecutedAt + cycleDays로 추정
+    DateTime? nextDue = r.nextDueAt;
+    if (nextDue == null && r.lastExecutedAt != null) {
+      nextDue = r.lastExecutedAt!.add(Duration(days: r.cycleDays));
+    }
+    if (nextDue == null) return hm;
+
+    final now    = DateTime.now();
+    final dueDay = DateTime(nextDue.year, nextDue.month, nextDue.day);
+    final today  = DateTime(now.year, now.month, now.day);
+    final diff   = dueDay.difference(today).inDays;
+    const weekKo = ['일', '월', '화', '수', '목', '금', '토'];
+
+    if (diff <= 0) return '오늘 $hm';
     if (diff == 1) return '내일 $hm';
-    return '${r.nextDueAt!.month}.${r.nextDueAt!.day} $hm';
+    if (diff < 7)  return '${weekKo[nextDue.weekday % 7]}요일 $hm';
+    return '${nextDue.month}.${nextDue.day} $hm';
   }
 }
 
