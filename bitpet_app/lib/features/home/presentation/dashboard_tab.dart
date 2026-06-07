@@ -978,20 +978,13 @@ class _HomeCalendarState extends ConsumerState<_HomeCalendar> {
                     .toList(),
               ),
               const SizedBox(height: 6),
-              // 날짜 그리드
-              calAsync.when(
-                loading: () => const SizedBox(
-                    height: 120,
-                    child: Center(
-                        child: CircularProgressIndicator(strokeWidth: 1.5))),
-                error: (_, __) => const SizedBox(height: 120),
-                data: (days) => _CalendarGrid(
-                  month: _month,
-                  days: days,
-                  today: now,
-                  selDate: _selDate,
-                  onSelect: _selectDate,
-                ),
+              // 날짜 그리드 — 기록 dot 유무와 무관하게 항상 렌더링
+              _CalendarGrid(
+                month: _month,
+                days: calAsync.valueOrNull ?? const [],
+                today: now,
+                selDate: _selDate,
+                onSelect: _selectDate,
               ),
             ],
           ),
