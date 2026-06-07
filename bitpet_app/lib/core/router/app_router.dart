@@ -10,6 +10,7 @@ import '../../features/pet/presentation/pet_list_screen.dart';
 import '../../features/pet/presentation/pet_detail_screen.dart';
 import '../../features/pet/presentation/pet_form_screen.dart';
 import '../../features/record/presentation/record_screen.dart';
+import '../../features/record/presentation/record_detail_screen.dart';
 import '../../features/community/presentation/community_feed_screen.dart';
 import '../../features/community/presentation/post_detail_screen.dart';
 import '../../features/community/presentation/post_compose_screen.dart';
@@ -63,10 +64,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/pets/:id/records/:type',
-            builder: (_, state) => RecordScreen(
-              petId: int.parse(state.pathParameters['id']!),
-              recordType: state.pathParameters['type']!,
-            ),
+            builder: (_, state) {
+              final petId = int.parse(state.pathParameters['id']!);
+              final type = state.pathParameters['type']!;
+              return switch (type) {
+                'cleaning' || 'memo' || 'mating' || 'laying' =>
+                    RecordDetailScreen(petId: petId, recordType: type),
+                _ => RecordScreen(petId: petId, recordType: type),
+              };
+            },
           ),
           // 05 몸무게 추이 화면
           GoRoute(

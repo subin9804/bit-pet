@@ -88,6 +88,22 @@ class RecordRepository {
     return apiRes.data ?? [];
   }
 
+  Future<void> deleteCleaning(int id) async {
+    await _dio.delete('/cleanings/$id');
+  }
+
+  Future<CleaningRecord> updateCleaning(int id, Map<String, dynamic> data) async {
+    final res = await _dio.patch('/cleanings/$id', data: data);
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => CleaningRecord.fromJson(d as Map<String, dynamic>),
+    );
+    if (!apiRes.success || apiRes.data == null) {
+      throw ApiException(statusCode: res.statusCode ?? 0, message: apiRes.message ?? '청소 수정 실패');
+    }
+    return apiRes.data!;
+  }
+
   Future<CleaningRecord> addCleaning(
       int petId, CleaningType type, DateTime cleanedAt, String? memo) async {
     final res = await _dio.post('/pets/$petId/cleanings', data: {
@@ -180,6 +196,18 @@ class RecordRepository {
     return apiRes.data ?? [];
   }
 
+  Future<MatingRecord> updateMating(int id, Map<String, dynamic> data) async {
+    final res = await _dio.put('/matings/$id', data: data);
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => MatingRecord.fromJson(d as Map<String, dynamic>),
+    );
+    if (!apiRes.success || apiRes.data == null) {
+      throw ApiException(statusCode: res.statusCode ?? 0, message: apiRes.message ?? '교배 수정 실패');
+    }
+    return apiRes.data!;
+  }
+
   Future<MatingRecord> addMating(int petId, Map<String, dynamic> data) async {
     final res = await _dio.post('/pets/$petId/matings', data: data);
     final apiRes = ApiResponse.fromJson(
@@ -209,6 +237,18 @@ class RecordRepository {
           .toList(),
     );
     return apiRes.data ?? [];
+  }
+
+  Future<LayingRecord> updateLaying(int id, Map<String, dynamic> data) async {
+    final res = await _dio.put('/layings/$id', data: data);
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => LayingRecord.fromJson(d as Map<String, dynamic>),
+    );
+    if (!apiRes.success || apiRes.data == null) {
+      throw ApiException(statusCode: res.statusCode ?? 0, message: apiRes.message ?? '산란 수정 실패');
+    }
+    return apiRes.data!;
   }
 
   Future<LayingRecord> addLaying(int petId, Map<String, dynamic> data) async {
