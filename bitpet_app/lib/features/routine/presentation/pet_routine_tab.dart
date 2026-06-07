@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/pale_palette.dart';
+import '../../../core/widgets/confirm_modal.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../data/models/routine_models.dart';
@@ -489,7 +490,17 @@ class _RoutineCardState extends ConsumerState<_RoutineCard> {
                 const SizedBox(width: 8),
                 // 해제(휴지통) 버튼
                 GestureDetector(
-                  onTap: widget.onRemove,
+                  onTap: () async {
+                    final r = widget.item.routine;
+                    final ok = await ConfirmModal.show(
+                      context,
+                      title: '루틴 해제',
+                      message: '\'${r.title}\' 루틴에서 이 개체를 해제할까요?\n기존에 기록된 데이터는 삭제되지 않아요.',
+                      confirmLabel: '해제',
+                      cancelLabel: '취소',
+                    );
+                    if (ok == true) widget.onRemove();
+                  },
                   child: Container(
                     width: 40, height: 40,
                     decoration: BoxDecoration(
@@ -497,7 +508,7 @@ class _RoutineCardState extends ConsumerState<_RoutineCard> {
                       border: Border.all(color: AppColors.paleLine),
                       borderRadius: BorderRadius.circular(11),
                     ),
-                    child: const Icon(Icons.delete_outline,
+                    child: const Icon(Icons.link_off,
                         size: 18, color: AppColors.paleInk3),
                   ),
                 ),
