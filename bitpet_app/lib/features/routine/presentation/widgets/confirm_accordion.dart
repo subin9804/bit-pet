@@ -43,15 +43,17 @@ class ConfirmAccordion extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
               child: Row(
                 children: [
-                  Text(label,
-                      style: const TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w700,
-                          color: AppColors.primary, letterSpacing: -0.2)),
-                  if (optional) ...[
-                    const SizedBox(width: 7),
-                    Text('OPTIONAL',
-                        style: AppTextStyles.mono(9, FontWeight.w700,
-                            color: AppColors.paleInk3)),
+                  if (label.isNotEmpty) ...[
+                    Text(label,
+                        style: const TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w700,
+                            color: AppColors.primary, letterSpacing: -0.2)),
+                    if (optional) ...[
+                      const SizedBox(width: 7),
+                      Text('OPTIONAL',
+                          style: AppTextStyles.mono(9, FontWeight.w700,
+                              color: AppColors.paleInk3)),
+                    ],
                   ],
                   const Spacer(),
                   if (summary != null)

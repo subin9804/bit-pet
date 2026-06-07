@@ -86,14 +86,10 @@ class _FeedingRecordSheetState extends ConsumerState<FeedingRecordSheet> {
       await ref.read(routineRepositoryProvider).completeIndividual(
         widget.routine.id,
         RoutineCompleteIndividualRequest(
-          petId:      _current.petId,
-          status:     RoutineLogStatus.COMPLETED,
-          foodType:   feedMap['foodType']  as String?,
-          amount:     (feedMap['amount']   as num?)?.toDouble(),
-          unit:       feedMap['unit']      as String?,
-          sizeLabel:  feedMap['sizeLabel'] as String?,
-          supplement: form.supplement,
-          memo:       feedMap['memo']      as String?,
+          petId:     _current.petId,
+          status:    RoutineLogStatus.COMPLETED,
+          feedItems: form.foodType != null ? [form] : const [],
+          memo:      feedMap['memo'] as String?,
         ),
       );
       setState(() => _saved[_current.petId] = true);

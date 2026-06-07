@@ -264,31 +264,29 @@ class CreateRoutineRequest {
 
 class RoutineCompleteBatchRequest {
   final DateTime? executedAt;
-  final String? foodType;
-  final double? amount;
-  final String? unit;
-  final String? sizeLabel;
-  final FeedingSupplement? supplement;
+  final List<FeedFormData> feedItems;
   final String? cleaningType;
   final double? weightG;
   final String? memo;
 
   const RoutineCompleteBatchRequest({
-    this.executedAt, this.foodType, this.amount, this.unit,
-    this.sizeLabel, this.supplement,
-    this.cleaningType, this.weightG, this.memo,
+    this.executedAt,
+    this.feedItems = const [],
+    this.cleaningType,
+    this.weightG,
+    this.memo,
   });
 
   Map<String, dynamic> toJson() => {
     if (executedAt != null) 'executedAt': executedAt!.toIso8601String(),
-    if (foodType   != null) 'foodType':   foodType,
-    if (amount     != null) 'amount':     amount,
-    if (unit       != null) 'unit':       unit,
-    if (sizeLabel  != null) 'sizeLabel':  sizeLabel,
-    if (supplement != null) 'supplement': supplement!.name,
+    if (feedItems.isNotEmpty)
+      'feedItems': feedItems
+          .map((f) => f.toApiMap())
+          .where((m) => m.isNotEmpty)
+          .toList(),
     if (cleaningType != null) 'cleaningType': cleaningType,
-    if (weightG    != null) 'weightG':    weightG,
-    if (memo       != null) 'memo':       memo,
+    if (weightG != null) 'weightG': weightG,
+    if (memo != null) 'memo': memo,
   };
 }
 
@@ -296,11 +294,7 @@ class RoutineCompleteIndividualRequest {
   final int petId;
   final RoutineLogStatus status;
   final DateTime? executedAt;
-  final String? foodType;
-  final double? amount;
-  final String? unit;
-  final String? sizeLabel;
-  final FeedingSupplement? supplement;
+  final List<FeedFormData> feedItems;
   final String? cleaningType;
   final double? weightG;
   final String? memo;
@@ -308,22 +302,24 @@ class RoutineCompleteIndividualRequest {
   const RoutineCompleteIndividualRequest({
     required this.petId,
     required this.status,
-    this.executedAt, this.foodType, this.amount, this.unit,
-    this.sizeLabel, this.supplement,
-    this.cleaningType, this.weightG, this.memo,
+    this.executedAt,
+    this.feedItems = const [],
+    this.cleaningType,
+    this.weightG,
+    this.memo,
   });
 
   Map<String, dynamic> toJson() => {
     'petId':  petId,
     'status': status.name,
-    if (executedAt   != null) 'executedAt':   executedAt!.toIso8601String(),
-    if (foodType     != null) 'foodType':     foodType,
-    if (amount       != null) 'amount':       amount,
-    if (unit         != null) 'unit':         unit,
-    if (sizeLabel    != null) 'sizeLabel':    sizeLabel,
-    if (supplement   != null) 'supplement':   supplement!.name,
+    if (executedAt != null) 'executedAt': executedAt!.toIso8601String(),
+    if (feedItems.isNotEmpty)
+      'feedItems': feedItems
+          .map((f) => f.toApiMap())
+          .where((m) => m.isNotEmpty)
+          .toList(),
     if (cleaningType != null) 'cleaningType': cleaningType,
-    if (weightG      != null) 'weightG':      weightG,
-    if (memo         != null) 'memo':         memo,
+    if (weightG != null) 'weightG': weightG,
+    if (memo != null) 'memo': memo,
   };
 }

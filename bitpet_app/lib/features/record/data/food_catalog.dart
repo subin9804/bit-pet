@@ -84,6 +84,7 @@ class FeedFormData {
       final s = mlAmount! % 1 == 0 ? mlAmount!.toInt().toString() : mlAmount!.toStringAsFixed(1);
       p.add('${s}ml');
     }
+    if (supplement != null) p.add(supplement!.label);
     return p.join(' · ');
   }
 

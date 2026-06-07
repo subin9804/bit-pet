@@ -6,12 +6,14 @@ import '../../data/food_catalog.dart';
 
 export '../../data/food_catalog.dart' show FeedFormData, FoodType, FeedingSupplement, FoodInputMode;
 
-/// 급여 입력 컴포저 — bulk_confirm_sheet, per_pet_confirm_sheet, feeding_record_sheet 공유
+/// 급여 단일 아이템 컴포저 — FeedItemsEditor 내부 또는 단독 사용
+/// onAdd != null → 하단에 "추가하기" 버튼 표시
 class FeedComposerFields extends StatelessWidget {
   final FeedFormData form;
   final ValueChanged<FeedFormData> onChanged;
   final Color bandColor;
   final bool showMemo;
+  final VoidCallback? onAdd;
 
   const FeedComposerFields({
     super.key,
@@ -19,55 +21,65 @@ class FeedComposerFields extends StatelessWidget {
     required this.onChanged,
     this.bandColor = AppColors.feedBand,
     this.showMemo = true,
+    this.onAdd,
   });
 
-  void _selectType(FoodType ft) => onChanged(FeedFormData(
-    foodType: ft,
-    supplement: form.supplement,
-    memo: form.memo,
-  ));
+  void _selectType(FoodType? ft) {
+    if (ft == null) return;
+    onChanged(FeedFormData(
+      foodType: ft,
+      supplement: form.supplement,
+      memo: form.memo,
+    ));
+  }
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── 먹이 종류 ───────────────────────────────────────────
+        // ── 먹이 종류 ─────────────────────────────────────────
         _Label('먹이 종류'),
         const SizedBox(height: 8),
-        Wrap(
-          spacing: 7, runSpacing: 7,
-          children: FoodType.all.map((ft) {
-            final sel = form.foodType == ft;
-            return GestureDetector(
-              onTap: () => _selectType(ft),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 140),
-                padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
-                decoration: BoxDecoration(
-                  color: sel ? bandColor : AppColors.card,
-                  border: Border.all(color: sel ? Colors.transparent : AppColors.paleLine),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  ft.label,
-                  style: TextStyle(
-                    fontSize: 13, fontWeight: FontWeight.w700,
-                    color: sel ? AppColors.primary : AppColors.paleInk2,
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
+        DropdownButtonFormField<FoodType>(
+          value: form.foodType,
+          decoration: InputDecoration(
+            hintText: '종류 선택',
+            hintStyle: TextStyle(fontSize: 14, color: AppColors.paleInk3, fontWeight: FontWeight.w500),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            filled: true,
+            fillColor: AppColors.card,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppColors.paleLine),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppColors.paleLine),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: bandColor, width: 1.5),
+            ),
+          ),
+          items: FoodType.all.map((ft) => DropdownMenuItem(
+            value: ft,
+            child: Text(ft.label, style: const TextStyle(
+              fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.primary,
+            )),
+          )).toList(),
+          onChanged: _selectType,
+          dropdownColor: AppColors.paleBg,
+          iconEnabledColor: AppColors.paleInk2,
         ),
 
-        // ── 서브 입력 ────────────────────────────────────────────
+        // ── 서브 입력 ───────────────────────────────────────
         if (form.foodType != null) ...[
           const SizedBox(height: 14),
           _SubInput(form: form, onChanged: onChanged, bandColor: bandColor),
         ],
 
-        // ── 영양제 ───────────────────────────────────────────────
+        // ── 영양제 ──────────────────────────────────────────
         const SizedBox(height: 14),
         _Label('영양제', optional: true),
         const SizedBox(height: 8),
@@ -97,7 +109,7 @@ class FeedComposerFields extends StatelessWidget {
           }).toList(),
         ),
 
-        // ── 메모 ─────────────────────────────────────────────────
+        // ── 메모 ────────────────────────────────────────────
         if (showMemo) ...[
           const SizedBox(height: 14),
           _Label('메모', optional: true),
@@ -116,12 +128,43 @@ class FeedComposerFields extends StatelessWidget {
             ),
           ),
         ],
+
+        // ── 추가하기 버튼 ────────────────────────────────────
+        if (onAdd != null) ...[
+          const SizedBox(height: 16),
+          GestureDetector(
+            onTap: form.foodType != null ? onAdd : null,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 140),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: form.foodType != null ? bandColor : AppColors.paleBgAlt,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.add, size: 15,
+                      color: form.foodType != null ? AppColors.primary : AppColors.paleInk3),
+                  const SizedBox(width: 6),
+                  Text('추가하기',
+                    style: TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w700,
+                      color: form.foodType != null ? AppColors.primary : AppColors.paleInk3,
+                    )),
+                ],
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
 }
 
-// ── 레이블 ────────────────────────────────────────────────────────────────────
+// ── 레이블 ─────────────────────────────────────────────────────────────────────
 class _Label extends StatelessWidget {
   final String text;
   final bool optional;
@@ -137,7 +180,7 @@ class _Label extends StatelessWidget {
   ]);
 }
 
-// ── 서브 입력 (먹이 종류 선택 후 표시) ──────────────────────────────────────────
+// ── 서브 입력 ──────────────────────────────────────────────────────────────────
 class _SubInput extends StatelessWidget {
   final FeedFormData form;
   final ValueChanged<FeedFormData> onChanged;
@@ -170,7 +213,6 @@ class _SizeCountInput extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 사이즈 칩
         _Label('사이즈', optional: true),
         const SizedBox(height: 8),
         Wrap(spacing: 7, children: sizes.map((s) {
@@ -181,7 +223,6 @@ class _SizeCountInput extends StatelessWidget {
           );
         }).toList()),
         const SizedBox(height: 12),
-        // 마릿수
         _Label('마릿수', optional: true),
         const SizedBox(height: 8),
         _CountStepper(
@@ -206,7 +247,6 @@ class _MlOrVolumeInput extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 모드 토글
         Row(children: [
           _ModeToggle(label: 'ml 직접입력', active: form.useMl, color: bandColor,
               onTap: () => onChanged(form.copyWith(useMl: true, sizeLabel: null, mlAmount: null))),

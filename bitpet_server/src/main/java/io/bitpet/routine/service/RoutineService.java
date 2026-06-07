@@ -253,8 +253,7 @@ public class RoutineService {
         }
 
         RoutineCompleteBatchRequest batchReq = new RoutineCompleteBatchRequest(
-                executedAt, req.foodType(), req.amount(), req.unit(), req.sizeLabel(),
-                req.supplement(), req.cleaningType(), req.weightG(), req.memo()
+                executedAt, req.feedItems(), req.cleaningType(), req.weightG(), req.memo()
         );
         return saveSingleLog(routine, req.petId(),
                 RoutineLogStatus.COMPLETED, executedAt, batchReq);
@@ -307,18 +306,20 @@ public class RoutineService {
                                               RoutineLogStatus status,
                                               Instant executedAt, RoutineCompleteBatchRequest req) {
         if (routine.getRoutineType() == RoutineType.FEEDING) {
-            FeedingDtl feeding = feedingRepository.save(FeedingDtl.builder()
-                    .petId(petId)
-                    .routineId(routine.getId())
-                    .foodType(req.foodType() != null ? req.foodType() : "")
-                    .amount(req.amount())
-                    .unit(req.unit())
-                    .sizeLabel(req.sizeLabel())
-                    .supplement(req.supplement())
-                    .fedAt(executedAt)
-                    .memo(req.memo())
-                    .build());
-            // Return a synthetic log response for consistency
+            List<FeedItemRequest> items = req.feedItems() != null ? req.feedItems() : List.of();
+            for (FeedItemRequest item : items) {
+                feedingRepository.save(FeedingDtl.builder()
+                        .petId(petId)
+                        .routineId(routine.getId())
+                        .foodType(item.foodType() != null ? item.foodType() : "")
+                        .amount(item.amount())
+                        .unit(item.unit())
+                        .sizeLabel(item.sizeLabel())
+                        .supplement(item.supplement())
+                        .fedAt(executedAt)
+                        .memo(req.memo())
+                        .build());
+            }
             RoutineLogDtl log = routineLogRepository.save(RoutineLogDtl.builder()
                     .routineId(routine.getId())
                     .petId(petId)

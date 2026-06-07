@@ -7,7 +7,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/pale_palette.dart';
 import '../../../core/widgets/toast_message.dart';
-import '../../record/presentation/widgets/feed_composer_fields.dart';
+import '../../record/presentation/widgets/feed_items_editor.dart';
 import '../data/models/routine_models.dart';
 import '../data/routine_repository.dart';
 import '../providers/routine_provider.dart';
@@ -22,7 +22,7 @@ class BulkConfirmSheet extends ConsumerStatefulWidget {
 }
 
 class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
-  FeedFormData _feedForm = const FeedFormData();
+  List<FeedFormData> _feedItems = const [];
   String _memo = '';
   bool _petsOpen = false;
   bool _feedOpen = false;
@@ -52,21 +52,15 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
     try {
       final repo = ref.read(routineRepositoryProvider);
       final memo = _memo.trim().isEmpty ? null : _memo.trim();
-      final now  = DateTime.now();
 
       for (final pet in pending) {
-        final feedMap = _isFeed ? _feedForm.toApiMap(fedAt: now) : <String, dynamic>{};
         await repo.completeIndividual(
           widget.routine.id,
           RoutineCompleteIndividualRequest(
-            petId:      pet.petId,
-            status:     RoutineLogStatus.COMPLETED,
-            foodType:   feedMap['foodType'] as String?,
-            amount:     (feedMap['amount'] as num?)?.toDouble(),
-            unit:       feedMap['unit']      as String?,
-            sizeLabel:  feedMap['sizeLabel'] as String?,
-            supplement: _feedForm.supplement,
-            memo:       memo,
+            petId:     pet.petId,
+            status:    RoutineLogStatus.COMPLETED,
+            feedItems: _isFeed ? _feedItems : const [],
+            memo:      memo,
           ),
         );
         ref.read(todayRoutinesProvider.notifier).updatePetStatus(widget.routine.id, pet.petId, true);
@@ -230,17 +224,16 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
                                 ConfirmAccordion(
                                   label: '급여 내용',
                                   optional: true,
-                                  summary: _feedForm.summary.isEmpty ? null : _feedForm.summary,
-                                  summaryActive: _feedForm.isValid,
+                                  summary: null,
+                                  summaryActive: false,
                                   open: _feedOpen,
                                   onToggle: () =>
                                       setState(() => _feedOpen = !_feedOpen),
-                                  child: FeedComposerFields(
-                                    form: _feedForm,
+                                  child: FeedItemsEditor(
+                                    items: _feedItems,
                                     bandColor: _accent,
-                                    showMemo: false,
-                                    onChanged: (f) =>
-                                        setState(() => _feedForm = f),
+                                    onChanged: (items) =>
+                                        setState(() => _feedItems = items),
                                   ),
                                 ),
 
@@ -248,8 +241,8 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
                               ConfirmAccordion(
                                 label: '메모',
                                 optional: true,
-                                summary: _memo.trim().isEmpty ? '없음' : '작성됨',
-                                summaryActive: _memo.trim().isNotEmpty,
+                                summary: null,
+                                summaryActive: false,
                                 open: _memoOpen,
                                 onToggle: () =>
                                     setState(() => _memoOpen = !_memoOpen),

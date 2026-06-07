@@ -6,7 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/pale_palette.dart';
 import '../../../core/widgets/toast_message.dart';
-import '../../record/presentation/widgets/feed_composer_fields.dart';
+import '../../record/presentation/widgets/feed_items_editor.dart';
 import '../data/models/routine_models.dart';
 import '../data/routine_repository.dart';
 import '../providers/routine_provider.dart';
@@ -14,13 +14,13 @@ import 'widgets/confirm_accordion.dart';
 
 // 개체별 입력 상태
 class _PerPetRec {
-  FeedFormData feed;
+  List<FeedFormData> feedItems;
   String memo;
   bool done;
   bool feedOpen;
   bool memoOpen;
   _PerPetRec({required this.done})
-      : feed = const FeedFormData(),
+      : feedItems = const [],
         memo = '',
         feedOpen = false,
         memoOpen = false;
@@ -79,25 +79,16 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
   Future<void> _completePet(TodayPetStatus pet) async {
     final rec  = _rec[pet.petId]!;
     final memo = rec.memo.trim().isEmpty ? null : rec.memo.trim();
-    final now  = DateTime.now();
     setState(() => _saving = true);
     try {
       final repo = ref.read(routineRepositoryProvider);
-      final feedMap = (_isFeed && rec.feed.isValid)
-          ? rec.feed.toApiMap(fedAt: now)
-          : <String, dynamic>{};
-
       await repo.completeIndividual(
         widget.routine.id,
         RoutineCompleteIndividualRequest(
-          petId:      pet.petId,
-          status:     RoutineLogStatus.COMPLETED,
-          foodType:   feedMap['foodType']  as String?,
-          amount:     (feedMap['amount']   as num?)?.toDouble(),
-          unit:       feedMap['unit']      as String?,
-          sizeLabel:  feedMap['sizeLabel'] as String?,
-          supplement: rec.feed.supplement,
-          memo:       memo,
+          petId:     pet.petId,
+          status:    RoutineLogStatus.COMPLETED,
+          feedItems: _isFeed ? rec.feedItems : const [],
+          memo:      memo,
         ),
       );
       ref.read(todayRoutinesProvider.notifier).updatePetStatus(widget.routine.id, pet.petId, true);
@@ -424,19 +415,18 @@ class _PetPage extends StatelessWidget {
               ConfirmAccordion(
                 label: '급여 내용',
                 optional: true,
-                summary: rec.feed.summary.isEmpty ? null : rec.feed.summary,
-                summaryActive: rec.feed.isValid,
+                summary: null,
+                summaryActive: false,
                 open: rec.feedOpen,
                 onToggle: () {
                   rec.feedOpen = !rec.feedOpen;
                   onChanged();
                 },
-                child: FeedComposerFields(
-                  form: rec.feed,
+                child: FeedItemsEditor(
+                  items: rec.feedItems,
                   bandColor: accent,
-                  showMemo: false,
-                  onChanged: (f) {
-                    rec.feed = f;
+                  onChanged: (items) {
+                    rec.feedItems = items;
                     onChanged();
                   },
                 ),
@@ -446,8 +436,8 @@ class _PetPage extends StatelessWidget {
             ConfirmAccordion(
               label: '메모',
               optional: true,
-              summary: rec.memo.trim().isEmpty ? '없음' : '작성됨',
-              summaryActive: rec.memo.trim().isNotEmpty,
+              summary: null,
+              summaryActive: false,
               open: rec.memoOpen,
               onToggle: () {
                 rec.memoOpen = !rec.memoOpen;
