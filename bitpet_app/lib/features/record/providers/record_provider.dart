@@ -41,6 +41,12 @@ final recentRecordsProvider = FutureProvider<List<RecentRecord>>((ref) {
   return ref.watch(recordRepositoryProvider).getRecentRecords();
 });
 
+// ── 홈 — 날짜별 전체 기록 ─────────────────────────────────────
+final homeDayRecordsProvider =
+    FutureProvider.family<List<RecentRecord>, String>((ref, date) {
+  return ref.watch(recordRepositoryProvider).getRecordsByDate(date);
+});
+
 // ── 홈 — 전체 개체 달력 ───────────────────────────────────────
 final homeCalendarProvider =
     FutureProvider.family<List<CalendarDay>, String>((ref, yearMonth) {

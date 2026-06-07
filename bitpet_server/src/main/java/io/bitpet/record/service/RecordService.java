@@ -26,6 +26,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -197,6 +200,46 @@ public class RecordService {
 
         all.sort(Comparator.comparing(RecentRecordResponse::occurredAt).reversed());
         return all.subList(0, Math.min(limit, all.size()));
+    }
+
+    public List<RecentRecordResponse> getRecordsByDate(Long userId, LocalDate date) {
+        List<PetMst> pets = petRepository.findAllByUserId(userId);
+        if (pets.isEmpty()) return List.of();
+
+        List<Long> petIds = pets.stream().map(PetMst::getId).toList();
+        Map<Long, String> petNameMap = pets.stream()
+                .collect(Collectors.toMap(PetMst::getId, PetMst::getName));
+
+        Instant from = date.atStartOfDay(ZoneOffset.UTC).toInstant();
+        Instant to   = date.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+
+        List<RecentRecordResponse> all = new ArrayList<>();
+
+        feedingRepository.findAllByPetIdInAndFedAtBetweenOrderByFedAtDesc(petIds, from, to)
+                .forEach(f -> all.add(new RecentRecordResponse("FEEDING", f.getId(), f.getPetId(),
+                        petNameMap.getOrDefault(f.getPetId(), ""),
+                        f.getFedAt(), buildFeedingSummary(f))));
+
+        weightRepository.findAllByPetIdInAndMeasuredAtBetweenOrderByMeasuredAtDesc(petIds, from, to)
+                .forEach(w -> all.add(new RecentRecordResponse("WEIGHT", w.getId(), w.getPetId(),
+                        petNameMap.getOrDefault(w.getPetId(), ""),
+                        w.getMeasuredAt(), w.getWeightG() + "g")));
+
+        cleaningRepository.findAllByPetIdInAndCleanedAtBetweenOrderByCleanedAtDesc(petIds, from, to)
+                .forEach(c -> all.add(new RecentRecordResponse("CLEANING", c.getId(), c.getPetId(),
+                        petNameMap.getOrDefault(c.getPetId(), ""),
+                        c.getCleanedAt(), c.getCleaningType() != null ? c.getCleaningType().name() : "")));
+
+        memoRepository.findAllByPetIdInAndLoggedAtBetweenOrderByLoggedAtDesc(petIds, from, to)
+                .forEach(m -> all.add(new RecentRecordResponse("MEMO", m.getId(), m.getPetId(),
+                        petNameMap.getOrDefault(m.getPetId(), ""),
+                        m.getLoggedAt(),
+                        m.getContent() != null && m.getContent().length() > 50
+                                ? m.getContent().substring(0, 50) + "…"
+                                : m.getContent())));
+
+        all.sort(Comparator.comparing(RecentRecordResponse::occurredAt).reversed());
+        return all;
     }
 
     private String buildFeedingSummary(FeedingDtl f) {

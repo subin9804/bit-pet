@@ -15,5 +15,8 @@ public interface FeedingDtlRepository extends JpaRepository<FeedingDtl, Long> {
 
     List<FeedingDtl> findAllByPetIdInOrderByFedAtDesc(Collection<Long> petIds, Pageable pageable);
 
+    List<FeedingDtl> findAllByPetIdInAndFedAtBetweenOrderByFedAtDesc(
+            Collection<Long> petIds, java.time.Instant from, java.time.Instant to);
+
     Optional<FeedingDtl> findByClientIdAndClientChangeId(String clientId, UUID clientChangeId);
 }

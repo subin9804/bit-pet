@@ -865,25 +865,32 @@ class _HomeCalendar extends ConsumerStatefulWidget {
 
 class _HomeCalendarState extends ConsumerState<_HomeCalendar> {
   late DateTime _month;
+  String? _selDate; // YYYY-MM-DD, null = 미선택
+
+  static const _weekKo = ['일', '월', '화', '수', '목', '금', '토'];
 
   @override
   void initState() {
     super.initState();
-    final now = DateTime.now();
-    _month = DateTime(now.year, now.month);
+    _month = DateTime(DateTime.now().year, DateTime.now().month);
   }
 
   String get _yearMonth =>
       '${_month.year}-${_month.month.toString().padLeft(2, '0')}';
 
-  void _prev() => setState(
-      () => _month = DateTime(_month.year, _month.month - 1));
+  void _prev() => setState(() {
+        _month = DateTime(_month.year, _month.month - 1);
+        _selDate = null;
+      });
 
   void _next() {
     final now = DateTime.now();
     final next = DateTime(_month.year, _month.month + 1);
     if (!next.isAfter(DateTime(now.year, now.month))) {
-      setState(() => _month = next);
+      setState(() {
+        _month = next;
+        _selDate = null;
+      });
     }
   }
 
@@ -894,105 +901,262 @@ class _HomeCalendarState extends ConsumerState<_HomeCalendar> {
     final isCurrentMonth =
         _month.year == now.year && _month.month == now.month;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        border: Border.all(color: AppColors.paleLine),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      child: Column(
-        children: [
-          // 월 네비게이션
-          Row(children: [
-            GestureDetector(
-              onTap: _prev,
-              child: const Icon(Icons.chevron_left,
-                  size: 20, color: AppColors.paleInk2),
-            ),
-            Expanded(
-              child: Center(
-                child: Text(
-                  '${_month.year}년 ${_month.month}월',
-                  style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            border: Border.all(color: AppColors.paleLine),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          child: Column(
+            children: [
+              // 월 네비게이션
+              Row(children: [
+                GestureDetector(
+                  onTap: _prev,
+                  child: const Icon(Icons.chevron_left,
+                      size: 20, color: AppColors.paleInk2),
+                ),
+                Expanded(
+                  child: Center(
+                    child: Text(
+                      '${_month.year}년 ${_month.month}월',
+                      style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary),
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: isCurrentMonth ? null : _next,
+                  child: Icon(Icons.chevron_right,
+                      size: 20,
+                      color: isCurrentMonth
+                          ? AppColors.paleLine
+                          : AppColors.paleInk2),
+                ),
+              ]),
+              const SizedBox(height: 10),
+              // 요일 헤더
+              Row(
+                children: _weekKo
+                    .map((d) => Expanded(
+                          child: Center(
+                            child: Text(d,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: d == '일'
+                                      ? AppColors.petPeach
+                                      : AppColors.paleInk3,
+                                )),
+                          ),
+                        ))
+                    .toList(),
+              ),
+              const SizedBox(height: 6),
+              // 날짜 그리드
+              calAsync.when(
+                loading: () => const SizedBox(
+                    height: 120,
+                    child: Center(
+                        child: CircularProgressIndicator(strokeWidth: 1.5))),
+                error: (_, __) => const SizedBox(height: 120),
+                data: (days) => _CalendarGrid(
+                  month: _month,
+                  days: days,
+                  today: now,
+                  selDate: _selDate,
+                  onSelect: (ds) =>
+                      setState(() => _selDate = _selDate == ds ? null : ds),
                 ),
               ),
-            ),
-            GestureDetector(
-              onTap: isCurrentMonth ? null : _next,
-              child: Icon(Icons.chevron_right,
-                  size: 20,
-                  color: isCurrentMonth
-                      ? AppColors.paleLine
-                      : AppColors.paleInk2),
-            ),
-          ]),
-          const SizedBox(height: 10),
-          // 요일 헤더
-          Row(
-            children: ['일', '월', '화', '수', '목', '금', '토']
-                .map((d) => Expanded(
-                      child: Center(
-                        child: Text(d,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: d == '일'
-                                  ? AppColors.petPeach
-                                  : AppColors.paleInk3,
-                            )),
-                      ),
-                    ))
-                .toList(),
+            ],
           ),
-          const SizedBox(height: 6),
-          // 날짜 그리드
-          calAsync.when(
-            loading: () => const SizedBox(
-                height: 120,
-                child: Center(
-                    child:
-                        CircularProgressIndicator(strokeWidth: 1.5))),
-            error: (_, __) => const SizedBox(height: 120),
-            data: (days) =>
-                _CalendarGrid(month: _month, days: days, today: now),
-          ),
+        ),
+
+        // 선택일 기록
+        if (_selDate != null) ...[
+          const SizedBox(height: 12),
+          _DayRecordSection(dateStr: _selDate!, weekKo: _weekKo),
         ],
-      ),
+      ],
     );
   }
+}
+
+// ── 선택일 기록 섹션 ─────────────────────────────────────────────
+class _DayRecordSection extends ConsumerWidget {
+  final String dateStr;
+  final List<String> weekKo;
+
+  const _DayRecordSection(
+      {required this.dateStr, required this.weekKo});
+
+  static const _catLabel = {
+    'FEEDING': '급여', 'WEIGHT': '체중',
+    'CLEANING': '청소', 'MEMO': '메모',
+  };
+  static Color _catColor(String cat) => switch (cat) {
+        'FEEDING'  => AppColors.petPeach,
+        'WEIGHT'   => AppColors.petSage,
+        'CLEANING' => AppColors.petSky,
+        'MEMO'     => AppColors.petLilac,
+        _ => AppColors.paleInk3,
+      };
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(homeDayRecordsProvider(dateStr));
+    final dt = DateTime.parse(dateStr);
+    final header = '${dt.month}.${dt.day} (${weekKo[dt.weekday % 7]})';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(header,
+                style: const TextStyle(
+                    fontSize: 14, fontWeight: FontWeight.w700,
+                    color: AppColors.primary, letterSpacing: -0.3)),
+            async.whenOrNull(data: (recs) =>
+                  Text('${recs.length}건',
+                      style: AppTextStyles.mono(11, FontWeight.w700,
+                          color: AppColors.paleInk2))) ??
+                const SizedBox.shrink(),
+          ],
+        ),
+        const SizedBox(height: 8),
+        async.when(
+          loading: () => const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Center(child: CircularProgressIndicator(strokeWidth: 1.5)),
+          ),
+          error: (_, __) => const SizedBox.shrink(),
+          data: (records) {
+            if (records.isEmpty) {
+              return Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.paleBgAlt,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: Text('이 날의 기록이 없어요',
+                      style: TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600,
+                          color: AppColors.paleInk3)),
+                ),
+              );
+            }
+            return Container(
+              decoration: BoxDecoration(
+                color: AppColors.card,
+                border: Border.all(color: AppColors.paleLine),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 14, vertical: 4),
+              child: Column(
+                children: records.asMap().entries.map((e) {
+                  final i = e.key;
+                  final r = e.value;
+                  return Container(
+                    padding: const EdgeInsets.symmetric(vertical: 11),
+                    decoration: BoxDecoration(
+                      border: i < records.length - 1
+                          ? const Border(bottom: BorderSide(
+                              color: AppColors.paleLineSoft))
+                          : null,
+                    ),
+                    child: Row(children: [
+                      Container(
+                        width: 8, height: 8,
+                        decoration: BoxDecoration(
+                            color: _catColor(r.category),
+                            shape: BoxShape.circle),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        _catLabel[r.category] ?? r.category,
+                        style: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w700,
+                            color: AppColors.paleInk2),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '${r.petName}  ${r.summary}',
+                          style: const TextStyle(
+                              fontSize: 13, color: AppColors.primary),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Text(
+                        _timeStr(r.createdAt),
+                        style: AppTextStyles.mono(10, FontWeight.w600,
+                            color: AppColors.paleInk3),
+                      ),
+                    ]),
+                  );
+                }).toList(),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  static String _timeStr(DateTime dt) =>
+      '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
 }
 
 class _CalendarGrid extends StatelessWidget {
   final DateTime month;
   final List<CalendarDay> days;
   final DateTime today;
+  final String? selDate;
+  final ValueChanged<String> onSelect;
 
-  const _CalendarGrid(
-      {required this.month, required this.days, required this.today});
+  const _CalendarGrid({
+    required this.month,
+    required this.days,
+    required this.today,
+    required this.selDate,
+    required this.onSelect,
+  });
 
   @override
   Widget build(BuildContext context) {
     final recordMap = {for (final d in days) d.date: d.categories};
 
     final firstDay = DateTime(month.year, month.month, 1);
-    final startOffset = firstDay.weekday % 7; // 0=일, 1=월 ... 6=토
+    final startOffset = firstDay.weekday % 7;
     final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
+    final ym = '${month.year}-${month.month.toString().padLeft(2, '0')}';
 
     final cells = <Widget>[
       for (int i = 0; i < startOffset; i++) const SizedBox(),
       for (int d = 1; d <= daysInMonth; d++)
         _DayCell(
           day: d,
+          dateStr: '$ym-${d.toString().padLeft(2, '0')}',
           categories: recordMap[
-                  '${month.year}-${month.month.toString().padLeft(2, '0')}-${d.toString().padLeft(2, '0')}'] ??
+                  '$ym-${d.toString().padLeft(2, '0')}'] ??
               const [],
           isToday: d == today.day &&
               month.year == today.year &&
               month.month == today.month,
+          isSelected: selDate ==
+              '$ym-${d.toString().padLeft(2, '0')}',
+          onTap: onSelect,
         ),
     ];
 
@@ -1009,13 +1173,20 @@ class _CalendarGrid extends StatelessWidget {
 
 class _DayCell extends StatelessWidget {
   final int day;
+  final String dateStr;
   final List<String> categories;
   final bool isToday;
+  final bool isSelected;
+  final ValueChanged<String> onTap;
 
-  const _DayCell(
-      {required this.day,
-      required this.categories,
-      required this.isToday});
+  const _DayCell({
+    required this.day,
+    required this.dateStr,
+    required this.categories,
+    required this.isToday,
+    required this.isSelected,
+    required this.onTap,
+  });
 
   static Color _catColor(String cat) => switch (cat) {
         'FEEDING'  => AppColors.petPeach,
@@ -1027,45 +1198,50 @@ class _DayCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Container(
-          width: 26,
-          height: 26,
-          alignment: Alignment.center,
-          decoration: isToday
-              ? BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(8),
-                )
-              : null,
-          child: Text(
-            '$day',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: isToday ? AppColors.paleBg : AppColors.primary,
+    return GestureDetector(
+      onTap: () => onTap(dateStr),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 26,
+            height: 26,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? AppColors.primary
+                  : isToday
+                      ? AppColors.paleBgAlt
+                      : Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              '$day',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: isSelected ? AppColors.paleBg : AppColors.primary,
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 2),
-        if (categories.isNotEmpty)
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: categories.take(3).map((c) => Container(
-                  width: 4,
-                  height: 4,
-                  margin: const EdgeInsets.symmetric(horizontal: 1),
-                  decoration: BoxDecoration(
-                    color: _catColor(c),
-                    shape: BoxShape.circle,
-                  ),
-                )).toList(),
-          )
-        else
-          const SizedBox(height: 6),
-      ],
+          const SizedBox(height: 2),
+          if (categories.isNotEmpty)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: categories.take(3).map((c) => Container(
+                    width: 4,
+                    height: 4,
+                    margin: const EdgeInsets.symmetric(horizontal: 1),
+                    decoration: BoxDecoration(
+                      color: _catColor(c),
+                      shape: BoxShape.circle,
+                    ),
+                  )).toList(),
+            )
+          else
+            const SizedBox(height: 6),
+        ],
+      ),
     );
   }
 }

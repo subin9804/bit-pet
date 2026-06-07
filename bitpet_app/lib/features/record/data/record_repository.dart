@@ -349,6 +349,17 @@ class RecordRepository {
 
   // ── 홈 최근 기록 ──────────────────────────────────────────
 
+  Future<List<RecentRecord>> getRecordsByDate(String date) async {
+    final res = await _dio.get('/records', queryParameters: {'date': date});
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => (d as List)
+          .map((e) => RecentRecord.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+    return apiRes.data ?? [];
+  }
+
   Future<List<RecentRecord>> getRecentRecords({int limit = 5}) async {
     final res = await _dio.get('/records/recent',
         queryParameters: {'limit': limit});

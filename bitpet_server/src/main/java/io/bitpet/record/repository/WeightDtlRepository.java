@@ -15,5 +15,8 @@ public interface WeightDtlRepository extends JpaRepository<WeightDtl, Long> {
 
     List<WeightDtl> findAllByPetIdInOrderByMeasuredAtDesc(Collection<Long> petIds, Pageable pageable);
 
+    List<WeightDtl> findAllByPetIdInAndMeasuredAtBetweenOrderByMeasuredAtDesc(
+            Collection<Long> petIds, java.time.Instant from, java.time.Instant to);
+
     Optional<WeightDtl> findByClientIdAndClientChangeId(String clientId, UUID clientChangeId);
 }

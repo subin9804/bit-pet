@@ -15,5 +15,8 @@ public interface CleaningDtlRepository extends JpaRepository<CleaningDtl, Long> 
 
     List<CleaningDtl> findAllByPetIdInOrderByCleanedAtDesc(Collection<Long> petIds, Pageable pageable);
 
+    List<CleaningDtl> findAllByPetIdInAndCleanedAtBetweenOrderByCleanedAtDesc(
+            Collection<Long> petIds, java.time.Instant from, java.time.Instant to);
+
     Optional<CleaningDtl> findByClientIdAndClientChangeId(String clientId, UUID clientChangeId);
 }

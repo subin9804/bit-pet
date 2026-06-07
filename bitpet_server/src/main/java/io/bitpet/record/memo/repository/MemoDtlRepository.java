@@ -20,6 +20,9 @@ public interface MemoDtlRepository extends JpaRepository<MemoDtl, Long> {
 
     List<MemoDtl> findAllByPetIdInOrderByLoggedAtDesc(List<Long> petIds, Pageable pageable);
 
+    List<MemoDtl> findAllByPetIdInAndLoggedAtBetweenOrderByLoggedAtDesc(
+            List<Long> petIds, Instant from, Instant to);
+
     @Query("""
             SELECT DISTINCT m FROM MemoDtl m
             JOIN MemoTagRls r ON r.memoId = m.id

@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -19,6 +20,14 @@ import java.util.List;
 public class RecordController {
 
     private final RecordService recordService;
+
+    @GetMapping
+    public ApiResponse<List<RecentRecordResponse>> getRecordsByDate(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @RequestParam String date) {
+        return ApiResponse.ok(recordService.getRecordsByDate(
+                principal.userId(), LocalDate.parse(date)));
+    }
 
     @GetMapping("/recent")
     public ApiResponse<List<RecentRecordResponse>> getRecentRecords(
