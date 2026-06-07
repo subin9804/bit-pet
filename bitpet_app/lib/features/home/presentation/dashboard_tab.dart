@@ -865,7 +865,8 @@ class _HomeCalendar extends ConsumerStatefulWidget {
 
 class _HomeCalendarState extends ConsumerState<_HomeCalendar> {
   late DateTime _month;
-  String? _selDate; // YYYY-MM-DD, null = 미선택
+  String? _selDate;
+  final Map<String, AsyncValue<List<RecentRecord>>> _dayCache = {};
 
   static const _weekKo = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -894,12 +895,26 @@ class _HomeCalendarState extends ConsumerState<_HomeCalendar> {
     }
   }
 
+  void _selectDate(String date) {
+    if (_selDate == date) {
+      setState(() => _selDate = null);
+      return;
+    }
+    setState(() => _selDate = date);
+    if (!_dayCache.containsKey(date)) {
+      setState(() => _dayCache[date] = const AsyncLoading());
+      ref.read(recordRepositoryProvider).getRecordsByDate(date).then((records) {
+        if (mounted) setState(() => _dayCache[date] = AsyncData(records));
+      }).catchError((e, s) {
+        if (mounted) setState(() => _dayCache[date] = AsyncError(e, s));
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final calAsync = ref.watch(homeCalendarProvider(_yearMonth));
-    final dayAsync = _selDate != null
-        ? ref.watch(homeDayRecordsProvider(_selDate!))
-        : null;
+    final dayAsync = _selDate != null ? _dayCache[_selDate!] : null;
     final now = DateTime.now();
     final isCurrentMonth =
         _month.year == now.year && _month.month == now.month;
@@ -974,8 +989,7 @@ class _HomeCalendarState extends ConsumerState<_HomeCalendar> {
                   days: days,
                   today: now,
                   selDate: _selDate,
-                  onSelect: (ds) =>
-                      setState(() => _selDate = _selDate == ds ? null : ds),
+                  onSelect: _selectDate,
                 ),
               ),
             ],
@@ -983,12 +997,12 @@ class _HomeCalendarState extends ConsumerState<_HomeCalendar> {
         ),
 
         // 선택일 기록
-        if (_selDate != null && dayAsync != null) ...[
+        if (_selDate != null) ...[
           const SizedBox(height: 12),
           _DayRecordSection(
             dateStr: _selDate!,
             weekKo: _weekKo,
-            recordsAsync: dayAsync,
+            recordsAsync: dayAsync ?? const AsyncLoading(),
           ),
         ],
       ],
@@ -1090,12 +1104,12 @@ class _DayRecordSection extends StatelessWidget {
                       Container(
                         width: 8, height: 8,
                         decoration: BoxDecoration(
-                            color: _catColor(r.category),
+                            color: _catColor(r.recordType),
                             shape: BoxShape.circle),
                       ),
                       const SizedBox(width: 10),
                       Text(
-                        _catLabel[r.category] ?? r.category,
+                        _catLabel[r.recordType] ?? r.recordType,
                         style: const TextStyle(
                             fontSize: 12, fontWeight: FontWeight.w700,
                             color: AppColors.paleInk2),
