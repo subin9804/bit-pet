@@ -41,6 +41,12 @@ final recentRecordsProvider = FutureProvider<List<RecentRecord>>((ref) {
   return ref.watch(recordRepositoryProvider).getRecentRecords();
 });
 
+// ── 홈 — 전체 개체 달력 ───────────────────────────────────────
+final homeCalendarProvider =
+    FutureProvider.family<List<CalendarDay>, String>((ref, yearMonth) {
+  return ref.watch(recordRepositoryProvider).getHomeCalendar(yearMonth);
+});
+
 // ── 개체 상세 — 달력 (월별 카테고리 점) ─────────────────────
 class PetYearMonth {
   final int petId;

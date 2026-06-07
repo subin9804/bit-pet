@@ -83,6 +83,8 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
     final pets    = routine.petStatuses;
     final done    = pets.where((s) => s.isCompleted).length;
     final pending = pets.length - done;
+    final screenH = MediaQuery.of(context).size.height;
+    final cardH   = (screenH - 112).clamp(0.0, 524.0);
 
     return Material(
       type: MaterialType.transparency,
@@ -98,11 +100,10 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 26),
               child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: 320,
-                  maxHeight: MediaQuery.of(context).size.height - 112,
-                ),
-                child: Container(
+                constraints: const BoxConstraints(maxWidth: 320),
+                child: SizedBox(
+                  height: cardH,
+                  child: Container(
                   decoration: BoxDecoration(
                     color: AppColors.paleBg,
                     borderRadius: BorderRadius.circular(24),
@@ -342,7 +343,7 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }

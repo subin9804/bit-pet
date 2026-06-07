@@ -257,9 +257,27 @@ class RecordRepository {
     });
     final apiRes = ApiResponse.fromJson(
       res.data as Map<String, dynamic>,
-      (d) => (d as List)
-          .map((e) => CalendarDay.fromJson(e as Map<String, dynamic>))
-          .toList(),
+      (d) {
+        final map = d as Map<String, dynamic>;
+        return (map['days'] as List)
+            .map((e) => CalendarDay.fromJson(e as Map<String, dynamic>))
+            .toList();
+      },
+    );
+    return apiRes.data ?? [];
+  }
+
+  Future<List<CalendarDay>> getHomeCalendar(String yearMonth) async {
+    final res = await _dio.get('/calendar',
+        queryParameters: {'yearMonth': yearMonth});
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) {
+        final map = d as Map<String, dynamic>;
+        return (map['days'] as List)
+            .map((e) => CalendarDay.fromJson(e as Map<String, dynamic>))
+            .toList();
+      },
     );
     return apiRes.data ?? [];
   }

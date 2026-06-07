@@ -23,6 +23,14 @@ public class CalendarController {
 
     private final CalendarService calendarService;
 
+    @Operation(summary = "전체 개체 월별 캘린더 조회 — 홈 대시보드용 (yearMonth=YYYY-MM)")
+    @GetMapping("/api/v1/calendar")
+    public ApiResponse<CalendarResponse> getUserCalendar(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @RequestParam(required = false) String yearMonth) {
+        return ApiResponse.ok(calendarService.getUserCalendar(principal.userId(), yearMonth));
+    }
+
     @Operation(summary = "개체 월별 캘린더 조회 (yearMonth=YYYY-MM)")
     @GetMapping("/api/v1/pets/{petId}/calendar")
     public ApiResponse<CalendarResponse> getCalendar(

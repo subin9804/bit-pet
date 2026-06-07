@@ -31,6 +31,69 @@ public class CalendarService {
     private final JdbcTemplate jdbc;
     private final PetMstRepository petRepo;
 
+    // ── 전체 개체 월별 캘린더 (홈 대시보드용) ─────────────────────
+    public CalendarResponse getUserCalendar(Long userId, String yearMonthStr) {
+        if (yearMonthStr == null || !YEAR_MONTH_PATTERN.matcher(yearMonthStr).matches()) {
+            throw new BusinessException(ErrorCode.CALENDAR_MONTH_INVALID);
+        }
+
+        YearMonth yearMonth = YearMonth.parse(yearMonthStr);
+        LocalDate start = yearMonth.atDay(1);
+        LocalDate end   = yearMonth.atEndOfMonth();
+
+        Map<LocalDate, Map<String, Integer>> dayMap = new LinkedHashMap<>();
+
+        for (RecordCategory cat : List.of(
+                RecordCategory.FEEDING, RecordCategory.WEIGHT,
+                RecordCategory.CLEANING, RecordCategory.MEMO)) {
+            String sql = buildUserSql(cat);
+            jdbc.query(sql,
+                    ps -> {
+                        ps.setLong(1, userId);
+                        ps.setObject(2, start);
+                        ps.setObject(3, end);
+                    },
+                    rs -> {
+                        LocalDate date = rs.getDate("day").toLocalDate();
+                        int cnt = rs.getInt("cnt");
+                        dayMap.computeIfAbsent(date, k -> new HashMap<>())
+                                .put(cat.name(), cnt);
+                    });
+        }
+
+        List<CalendarDayDto> days = dayMap.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(e -> new CalendarDayDto(
+                        e.getKey(),
+                        new ArrayList<>(e.getValue().keySet()),
+                        e.getValue()))
+                .toList();
+
+        return new CalendarResponse(null, yearMonthStr, days);
+    }
+
+    private String buildUserSql(RecordCategory cat) {
+        String table, timeCol;
+        switch (cat) {
+            case WEIGHT   -> { table = "weight_dtl";   timeCol = "measured_at"; }
+            case FEEDING  -> { table = "feeding_dtl";  timeCol = "fed_at"; }
+            case CLEANING -> { table = "cleaning_dtl"; timeCol = "cleaned_at"; }
+            case MEMO     -> { table = "memo_dtl";     timeCol = "logged_at"; }
+            default -> throw new IllegalArgumentException("Unsupported: " + cat);
+        }
+        return String.format("""
+                SELECT DATE(t.%s AT TIME ZONE 'UTC') AS day, COUNT(*) AS cnt
+                FROM %s t
+                JOIN pet_mst p ON p.id = t.pet_id
+                WHERE p.user_id = ?
+                  AND DATE(t.%s AT TIME ZONE 'UTC') BETWEEN ? AND ?
+                  AND t.deleted_at IS NULL
+                  AND p.deleted_at IS NULL
+                GROUP BY day
+                """, timeCol, table, timeCol);
+    }
+
+    // ── 개체별 월별 캘린더 ─────────────────────────────────────
     public CalendarResponse getCalendar(Long petId, Long userId,
                                          String yearMonthStr,
                                          List<RecordCategory> categories) {

@@ -17,6 +17,8 @@ import '../../routine/presentation/bulk_confirm_sheet.dart';
 import '../../routine/presentation/per_pet_confirm_sheet.dart';
 import '../../group/providers/group_provider.dart';
 
+// ignore_for_file: prefer_const_constructors_in_immutables
+
 
 class DashboardTab extends ConsumerStatefulWidget {
   const DashboardTab({super.key});
@@ -154,15 +156,15 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
                           scrollDirection: Axis.horizontal,
                           padding: const EdgeInsets.fromLTRB(22, 0, 22, 4),
                           children: [
+                            // + 추가 (점선) — 제일 앞
+                            _AddPetButton(onTap: () => context.push('/pets/new')),
                             ...pets.map((p) => Padding(
-                              padding: const EdgeInsets.only(right: 14),
+                              padding: const EdgeInsets.only(left: 14),
                               child: _PetAvatarItem(
                                 pet: p,
                                 onTap: () => context.push('/pets/${p.id}'),
                               ),
                             )),
-                            // + 추가 (점선)
-                            _AddPetButton(onTap: () => context.push('/pets/new')),
                           ],
                         ),
                       ),
@@ -205,19 +207,20 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
                             ),
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 4),
-                            child: Column(
-                              children: records.take(4).toList().asMap().entries.map((e) {
-                                final i = e.key;
-                                final r = e.value;
-                                return _RecentTile(
-                                  record: r,
-                                  hasDivider: i < records.take(4).length - 1,
-                                );
-                              }).toList(),
+                            child: _RecentTile(
+                              record: records.first,
+                              hasDivider: false,
                             ),
                           );
                         },
                       ),
+                    ),
+
+                    // ── 기록 캘린더 섹션 ─────────────────────────
+                    const SizedBox(height: 4),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(22, 0, 22, 0),
+                      child: _HomeCalendar(),
                     ),
                   ],
                 ),
@@ -850,6 +853,219 @@ class _RecentTile extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ── 홈 기록 캘린더 ──────────────────────────────────────────────
+class _HomeCalendar extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<_HomeCalendar> createState() => _HomeCalendarState();
+}
+
+class _HomeCalendarState extends ConsumerState<_HomeCalendar> {
+  late DateTime _month;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _month = DateTime(now.year, now.month);
+  }
+
+  String get _yearMonth =>
+      '${_month.year}-${_month.month.toString().padLeft(2, '0')}';
+
+  void _prev() => setState(
+      () => _month = DateTime(_month.year, _month.month - 1));
+
+  void _next() {
+    final now = DateTime.now();
+    final next = DateTime(_month.year, _month.month + 1);
+    if (!next.isAfter(DateTime(now.year, now.month))) {
+      setState(() => _month = next);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final calAsync = ref.watch(homeCalendarProvider(_yearMonth));
+    final now = DateTime.now();
+    final isCurrentMonth =
+        _month.year == now.year && _month.month == now.month;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        border: Border.all(color: AppColors.paleLine),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      child: Column(
+        children: [
+          // 월 네비게이션
+          Row(children: [
+            GestureDetector(
+              onTap: _prev,
+              child: const Icon(Icons.chevron_left,
+                  size: 20, color: AppColors.paleInk2),
+            ),
+            Expanded(
+              child: Center(
+                child: Text(
+                  '${_month.year}년 ${_month.month}월',
+                  style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary),
+                ),
+              ),
+            ),
+            GestureDetector(
+              onTap: isCurrentMonth ? null : _next,
+              child: Icon(Icons.chevron_right,
+                  size: 20,
+                  color: isCurrentMonth
+                      ? AppColors.paleLine
+                      : AppColors.paleInk2),
+            ),
+          ]),
+          const SizedBox(height: 10),
+          // 요일 헤더
+          Row(
+            children: ['일', '월', '화', '수', '목', '금', '토']
+                .map((d) => Expanded(
+                      child: Center(
+                        child: Text(d,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: d == '일'
+                                  ? AppColors.petPeach
+                                  : AppColors.paleInk3,
+                            )),
+                      ),
+                    ))
+                .toList(),
+          ),
+          const SizedBox(height: 6),
+          // 날짜 그리드
+          calAsync.when(
+            loading: () => const SizedBox(
+                height: 120,
+                child: Center(
+                    child:
+                        CircularProgressIndicator(strokeWidth: 1.5))),
+            error: (_, __) => const SizedBox(height: 120),
+            data: (days) =>
+                _CalendarGrid(month: _month, days: days, today: now),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CalendarGrid extends StatelessWidget {
+  final DateTime month;
+  final List<CalendarDay> days;
+  final DateTime today;
+
+  const _CalendarGrid(
+      {required this.month, required this.days, required this.today});
+
+  @override
+  Widget build(BuildContext context) {
+    final recordMap = {for (final d in days) d.date: d.categories};
+
+    final firstDay = DateTime(month.year, month.month, 1);
+    final startOffset = firstDay.weekday % 7; // 0=일, 1=월 ... 6=토
+    final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
+
+    final cells = <Widget>[
+      for (int i = 0; i < startOffset; i++) const SizedBox(),
+      for (int d = 1; d <= daysInMonth; d++)
+        _DayCell(
+          day: d,
+          categories: recordMap[
+                  '${month.year}-${month.month.toString().padLeft(2, '0')}-${d.toString().padLeft(2, '0')}'] ??
+              const [],
+          isToday: d == today.day &&
+              month.year == today.year &&
+              month.month == today.month,
+        ),
+    ];
+
+    return GridView.count(
+      crossAxisCount: 7,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      childAspectRatio: 0.88,
+      mainAxisSpacing: 2,
+      children: cells,
+    );
+  }
+}
+
+class _DayCell extends StatelessWidget {
+  final int day;
+  final List<String> categories;
+  final bool isToday;
+
+  const _DayCell(
+      {required this.day,
+      required this.categories,
+      required this.isToday});
+
+  static Color _catColor(String cat) => switch (cat) {
+        'FEEDING'  => AppColors.petPeach,
+        'WEIGHT'   => AppColors.petSage,
+        'CLEANING' => AppColors.petSky,
+        'MEMO'     => AppColors.petLilac,
+        _ => AppColors.paleInk3,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          width: 26,
+          height: 26,
+          alignment: Alignment.center,
+          decoration: isToday
+              ? BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(8),
+                )
+              : null,
+          child: Text(
+            '$day',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: isToday ? AppColors.paleBg : AppColors.primary,
+            ),
+          ),
+        ),
+        const SizedBox(height: 2),
+        if (categories.isNotEmpty)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: categories.take(3).map((c) => Container(
+                  width: 4,
+                  height: 4,
+                  margin: const EdgeInsets.symmetric(horizontal: 1),
+                  decoration: BoxDecoration(
+                    color: _catColor(c),
+                    shape: BoxShape.circle,
+                  ),
+                )).toList(),
+          )
+        else
+          const SizedBox(height: 6),
+      ],
     );
   }
 }

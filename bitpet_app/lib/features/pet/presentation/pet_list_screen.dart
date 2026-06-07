@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
@@ -7,48 +7,12 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/skeleton_loader.dart';
 import '../data/models/pet_models.dart';
 import '../providers/pet_provider.dart';
-import '../../routine/providers/routine_provider.dart';
-import '../../routine/presentation/routine_screen.dart';
 
-class PetListScreen extends ConsumerStatefulWidget {
+class PetListScreen extends ConsumerWidget {
   const PetListScreen({super.key});
 
   @override
-  ConsumerState<PetListScreen> createState() => _PetListScreenState();
-}
-
-class _PetListScreenState extends ConsumerState<PetListScreen>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    _tabController.addListener(() => setState(() {}));
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  void _onAdd() {
-    if (_tabController.index == 0) {
-      context.push('/pets/new');
-    } else {
-      context.push('/routines/new');
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final petsAsync = ref.watch(petListProvider);
-    final routinesAsync = ref.watch(routineListProvider);
-    final petCount = petsAsync.valueOrNull?.length ?? 0;
-    final routineCount = routinesAsync.valueOrNull?.length ?? 0;
-
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       backgroundColor: AppColors.bg,
       appBar: AppBar(
@@ -69,9 +33,9 @@ class _PetListScreenState extends ConsumerState<PetListScreen>
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: ElevatedButton.icon(
-              onPressed: _onAdd,
+              onPressed: () => context.push('/pets/new'),
               icon: const Icon(Icons.add, size: 16),
-              label: Text(_tabController.index == 0 ? '추가' : '루틴'),
+              label: const Text('추가'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
@@ -83,50 +47,8 @@ class _PetListScreenState extends ConsumerState<PetListScreen>
             ),
           ),
         ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(52),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-            child: Container(
-              decoration: BoxDecoration(
-                color: AppColors.bg2,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: TabBar(
-                controller: _tabController,
-                indicator: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.border.withValues(alpha: 0.5),
-                      blurRadius: 4,
-                      offset: const Offset(0, 1),
-                    ),
-                  ],
-                ),
-                indicatorSize: TabBarIndicatorSize.tab,
-                dividerColor: Colors.transparent,
-                labelColor: AppColors.textPrimary,
-                unselectedLabelColor: AppColors.textDisabled,
-                labelStyle: AppTextStyles.bodyBold,
-                unselectedLabelStyle: AppTextStyles.body,
-                tabs: [
-                  Tab(text: '개체  $petCount'),
-                  Tab(text: '루틴  $routineCount'),
-                ],
-              ),
-            ),
-          ),
-        ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: const [
-          _PetTab(),
-          RoutineScreen(),
-        ],
-      ),
+      body: const _PetTab(),
     );
   }
 }
@@ -159,20 +81,17 @@ class _PetTabState extends ConsumerState<_PetTab> {
 
     return Column(
       children: [
-        // 검색창
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
           child: TextField(
             onChanged: (v) => setState(() => _query = v),
-            decoration: InputDecoration(
+            decoration: const InputDecoration(
               hintText: '이름 또는 종 검색...',
-              prefixIcon: const Icon(Icons.search, size: 20),
-              contentPadding: const EdgeInsets.symmetric(vertical: 10),
-              fillColor: AppColors.surface,
+              prefixIcon: Icon(Icons.search, size: 20),
+              contentPadding: EdgeInsets.symmetric(vertical: 10),
             ),
           ),
         ),
-        // 필터칩 + 뷰 토글
         SizedBox(
           height: 44,
           child: Row(
@@ -194,8 +113,7 @@ class _PetTabState extends ConsumerState<_PetTab> {
                         child: _FilterChip(
                           label: c,
                           selected: _selectedCategory == c,
-                          onTap: () =>
-                              setState(() => _selectedCategory = c),
+                          onTap: () => setState(() => _selectedCategory = c),
                         ),
                       ),
                     ),
@@ -205,30 +123,26 @@ class _PetTabState extends ConsumerState<_PetTab> {
               Row(
                 children: [
                   IconButton(
-                    icon: Icon(
-                      Icons.grid_view,
-                      color: _isGridView
-                          ? AppColors.primary
-                          : AppColors.textDisabled,
-                      size: 20,
-                    ),
+                    icon: Icon(Icons.grid_view,
+                        color: _isGridView
+                            ? AppColors.primary
+                            : AppColors.textDisabled,
+                        size: 20),
                     onPressed: () => setState(() => _isGridView = true),
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(
-                        minWidth: 32, minHeight: 32),
+                    constraints:
+                        const BoxConstraints(minWidth: 32, minHeight: 32),
                   ),
                   IconButton(
-                    icon: Icon(
-                      Icons.list,
-                      color: !_isGridView
-                          ? AppColors.primary
-                          : AppColors.textDisabled,
-                      size: 20,
-                    ),
+                    icon: Icon(Icons.list,
+                        color: !_isGridView
+                            ? AppColors.primary
+                            : AppColors.textDisabled,
+                        size: 20),
                     onPressed: () => setState(() => _isGridView = false),
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(
-                        minWidth: 32, minHeight: 32),
+                    constraints:
+                        const BoxConstraints(minWidth: 32, minHeight: 32),
                   ),
                   const SizedBox(width: 8),
                 ],
@@ -237,7 +151,6 @@ class _PetTabState extends ConsumerState<_PetTab> {
           ),
         ),
         const SizedBox(height: 4),
-        // 개체 목록
         Expanded(
           child: petsAsync.when(
             loading: () => const SkeletonCardList(),
@@ -249,17 +162,12 @@ class _PetTabState extends ConsumerState<_PetTab> {
               onAction: () => ref.read(petListProvider.notifier).load(),
             ),
             data: (allPets) {
-              // 검색 + 필터 적용
               final pets = allPets.where((p) {
                 final matchQuery = _query.isEmpty ||
-                    p.name
-                        .toLowerCase()
-                        .contains(_query.toLowerCase()) ||
+                    p.name.toLowerCase().contains(_query.toLowerCase()) ||
                     p.speciesName
                         .toLowerCase()
                         .contains(_query.toLowerCase());
-                // 종 카테고리 필터는 species 정보 필요 — 현재 Pet 모델에 category 없음
-                // speciesName으로 대신 필터
                 final matchCategory = _selectedCategory == null;
                 return matchQuery && matchCategory;
               }).toList();
@@ -273,8 +181,7 @@ class _PetTabState extends ConsumerState<_PetTab> {
                 );
               }
               return RefreshIndicator(
-                onRefresh: () =>
-                    ref.read(petListProvider.notifier).load(),
+                onRefresh: () => ref.read(petListProvider.notifier).load(),
                 child: _isGridView
                     ? _PetGrid(pets: pets)
                     : _PetListView(pets: pets),
@@ -286,8 +193,6 @@ class _PetTabState extends ConsumerState<_PetTab> {
     );
   }
 }
-
-// ── 개체 그리드 ──────────────────────────────────────────────────────────────
 
 class _PetGrid extends StatelessWidget {
   final List<Pet> pets;
@@ -308,8 +213,6 @@ class _PetGrid extends StatelessWidget {
     );
   }
 }
-
-// ── 개체 카드 (그리드) ────────────────────────────────────────────────────────
 
 class _PetCard extends StatelessWidget {
   final Pet pet;
@@ -349,7 +252,6 @@ class _PetCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 사진 영역
             Expanded(
               flex: 5,
               child: Stack(
@@ -365,12 +267,9 @@ class _PetCard extends StatelessWidget {
                         ? ClipRRect(
                             borderRadius: const BorderRadius.vertical(
                                 top: Radius.circular(14)),
-                            child: Image.network(
-                              pet.profileImageUrl!,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) =>
-                                  _spriteIcon(),
-                            ),
+                            child: Image.network(pet.profileImageUrl!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => _spriteIcon()),
                           )
                         : _spriteIcon(),
                   ),
@@ -384,14 +283,12 @@ class _PetCard extends StatelessWidget {
                         color: AppColors.surface.withValues(alpha: 0.85),
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(_genderIcon,
-                          size: 14, color: _genderColor),
+                      child: Icon(_genderIcon, size: 14, color: _genderColor),
                     ),
                   ),
                 ],
               ),
             ),
-            // 정보 영역
             Expanded(
               flex: 4,
               child: Padding(
@@ -408,20 +305,15 @@ class _PetCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis),
                     const Spacer(),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            pet.latestWeightG != null
-                                ? '${pet.latestWeightG!.toStringAsFixed(0)}g'
-                                : '',
-                            style: AppTextStyles.caption.copyWith(
-                                color: AppColors.textDisabled),
-                            textAlign: TextAlign.right,
-                          ),
+                    if (pet.latestWeightG != null)
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Text(
+                          '${pet.latestWeightG!.toStringAsFixed(0)}g',
+                          style: AppTextStyles.caption
+                              .copyWith(color: AppColors.textDisabled),
                         ),
-                      ],
-                    ),
+                      ),
                   ],
                 ),
               ),
@@ -432,15 +324,10 @@ class _PetCard extends StatelessWidget {
     );
   }
 
-  Widget _spriteIcon() {
-    return Center(
+  Widget _spriteIcon() => Center(
       child: Icon(Icons.pets,
-          size: 48, color: AppColors.primary.withValues(alpha: 0.3)),
-    );
-  }
+          size: 48, color: AppColors.primary.withValues(alpha: 0.3)));
 }
-
-// ── 개체 리스트 뷰 ────────────────────────────────────────────────────────────
 
 class _PetListView extends StatelessWidget {
   final List<Pet> pets;
@@ -458,18 +345,15 @@ class _PetListView extends StatelessWidget {
           onTap: () => context.push('/pets/${pet.id}'),
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10)),
           tileColor: AppColors.surface,
           leading: _PetAvatarSmall(pet: pet),
-          title:
-              Text(pet.name, style: AppTextStyles.bodyBold),
+          title: Text(pet.name, style: AppTextStyles.bodyBold),
           subtitle: Text(pet.speciesName, style: AppTextStyles.caption),
           trailing: pet.latestWeightG != null
-              ? Text(
-                  '${pet.latestWeightG!.toStringAsFixed(0)}g',
-                  style: AppTextStyles.caption,
-                )
+              ? Text('${pet.latestWeightG!.toStringAsFixed(0)}g',
+                  style: AppTextStyles.caption)
               : null,
         );
       },
@@ -499,26 +383,21 @@ class _PetAvatarSmall extends StatelessWidget {
       child: pet.profileImageUrl != null
           ? ClipOval(
               child: Image.network(pet.profileImageUrl!, fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) =>
-                      Icon(Icons.pets, color: AppColors.primary.withValues(alpha: 0.4), size: 22)))
+                  errorBuilder: (_, __, ___) => Icon(Icons.pets,
+                      color: AppColors.primary.withValues(alpha: 0.4),
+                      size: 22)))
           : Icon(Icons.pets,
               color: AppColors.primary.withValues(alpha: 0.4), size: 22),
     );
   }
 }
 
-// ── 필터 칩 ──────────────────────────────────────────────────────────────────
-
 class _FilterChip extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
-
-  const _FilterChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
+  const _FilterChip(
+      {required this.label, required this.selected, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -526,25 +405,21 @@ class _FilterChip extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
           color: selected ? AppColors.primary : AppColors.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: selected ? AppColors.primary : AppColors.border,
-          ),
+              color: selected ? AppColors.primary : AppColors.border),
         ),
         child: Text(
           label,
           style: AppTextStyles.caption.copyWith(
             color: selected ? Colors.white : AppColors.textPrimary,
-            fontWeight:
-                selected ? FontWeight.w600 : FontWeight.normal,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
           ),
         ),
       ),
     );
   }
 }
-
