@@ -10,6 +10,7 @@ import '../../notification/providers/notification_provider.dart';
 import '../../pet/data/models/pet_models.dart';
 import '../../pet/providers/pet_provider.dart';
 import '../../record/providers/record_provider.dart';
+import '../../record/data/record_repository.dart';
 import '../../record/data/models/record_models.dart';
 import '../../routine/data/models/routine_models.dart';
 import '../../routine/providers/routine_provider.dart';
