@@ -172,11 +172,7 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
                     ),
 
                     // ── 최근 기록 섹션 ──────────────────────────
-                    _SectionHeader(
-                      title: '최근 기록',
-                      trailing: '더보기 →',
-                      onTap: () => context.go('/pets'),
-                    ),
+                    _SectionHeader(title: '최근 기록'),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(22, 0, 22, 0),
                       child: recentAsync.when(
@@ -766,12 +762,12 @@ class _AddPetButton extends StatelessWidget {
 // ── 섹션 헤더 ─────────────────────────────────────────────────
 class _SectionHeader extends StatelessWidget {
   final String title;
-  final String trailing;
+  final String? trailing;
   final VoidCallback? onTap;
 
   const _SectionHeader({
     required this.title,
-    required this.trailing,
+    this.trailing,
     this.onTap,
   });
 
@@ -786,12 +782,13 @@ class _SectionHeader extends StatelessWidget {
               style: const TextStyle(
                   fontSize: 16, fontWeight: FontWeight.w700,
                   color: AppColors.primary, letterSpacing: -0.3)),
-          GestureDetector(
-            onTap: onTap,
-            child: Text(trailing,
-                style: TextStyle(
-                    fontSize: 12, color: AppColors.paleInk2)),
-          ),
+          if (trailing != null)
+            GestureDetector(
+              onTap: onTap,
+              child: Text(trailing!,
+                  style: TextStyle(
+                      fontSize: 12, color: AppColors.paleInk2)),
+            ),
         ],
       ),
     );
@@ -822,37 +819,54 @@ class _RecentTile extends StatelessWidget {
     return '${diff.inDays}일 전';
   }
 
+  String _routeFor(RecentRecord r) {
+    return switch (r.recordType) {
+      'FEEDING'  => '/pets/${r.petId}/feeding',
+      'WEIGHT'   => '/pets/${r.petId}/weight',
+      'CLEANING' => '/pets/${r.petId}/records/cleaning',
+      'MEMO'     => '/pets/${r.petId}/records/memo',
+      'MATING'   => '/pets/${r.petId}/records/mating',
+      'LAYING'   => '/pets/${r.petId}/records/laying',
+      _ => '/pets/${r.petId}',
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: hasDivider
-          ? const BoxDecoration(
-              border: Border(
-                  bottom: BorderSide(color: AppColors.paleLineSoft)))
-          : null,
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Row(
-        children: [
-          Container(
-            width: 8, height: 8,
-            margin: const EdgeInsets.only(right: 12),
-            decoration: BoxDecoration(
-              color: _dotColor, shape: BoxShape.circle),
-          ),
-          Expanded(
-            child: Text(
-              '${record.petName}  ${record.summary}',
-              style: const TextStyle(
-                  fontSize: 13, color: AppColors.primary),
-              overflow: TextOverflow.ellipsis,
+    return GestureDetector(
+      onTap: () => context.push(_routeFor(record)),
+      child: Container(
+        decoration: hasDivider
+            ? const BoxDecoration(
+                border: Border(
+                    bottom: BorderSide(color: AppColors.paleLineSoft)))
+            : null,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 8, height: 8,
+              margin: const EdgeInsets.only(right: 12),
+              decoration: BoxDecoration(
+                color: _dotColor, shape: BoxShape.circle),
             ),
-          ),
-          Text(
-            _timeAgo(record.createdAt),
-            style: AppTextStyles.mono(10, FontWeight.w600,
-                color: AppColors.paleInk3),
-          ),
-        ],
+            Expanded(
+              child: Text(
+                '${record.petName}  ${record.summary}',
+                style: const TextStyle(
+                    fontSize: 13, color: AppColors.primary),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const Icon(Icons.chevron_right, size: 14, color: AppColors.paleInk3),
+            const SizedBox(width: 2),
+            Text(
+              _timeAgo(record.createdAt),
+              style: AppTextStyles.mono(10, FontWeight.w600,
+                  color: AppColors.paleInk3),
+            ),
+          ],
+        ),
       ),
     );
   }

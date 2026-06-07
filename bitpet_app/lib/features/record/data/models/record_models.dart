@@ -318,6 +318,7 @@ class TimelineItem {
 
 class RecentRecord {
   final int id;
+  final int petId;
   final String petName;
   final String? colorCode;
   final String recordType; // FEEDING, WEIGHT, CLEANING, MEMO
@@ -326,6 +327,7 @@ class RecentRecord {
 
   const RecentRecord({
     required this.id,
+    required this.petId,
     required this.petName,
     this.colorCode,
     required this.recordType,
@@ -335,6 +337,7 @@ class RecentRecord {
 
   factory RecentRecord.fromJson(Map<String, dynamic> json) => RecentRecord(
         id: json['id'] as int,
+        petId: json['petId'] as int,
         petName: json['petName'] as String,
         colorCode: json['colorCode'] as String?,
         recordType: json['recordType'] as String,
