@@ -47,6 +47,21 @@ class AuthRepository {
     );
   }
 
+  // ── 이메일 중복확인 ───────────────────────────────────────
+  Future<bool> checkEmailAvailable(String email) async {
+    final res = await _dio.get('/auth/check-email', queryParameters: {'email': email});
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => d as Map<String, dynamic>,
+    );
+    if (!apiRes.success || apiRes.data == null) {
+      throw ApiException(
+          statusCode: res.statusCode ?? 0,
+          message: apiRes.message ?? '이메일 확인에 실패했습니다.');
+    }
+    return apiRes.data!['available'] as bool;
+  }
+
   // ── 회원가입 ──────────────────────────────────────────────
   // 서버 흐름:
   //   1) POST /auth/signup → UserResponse (토큰 없음)

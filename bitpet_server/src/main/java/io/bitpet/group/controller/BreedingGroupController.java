@@ -39,6 +39,13 @@ public class BreedingGroupController {
         return ApiResponse.ok(groupService.createGroup(principal.userId(), request.name()));
     }
 
+    @Operation(summary = "5분간 유효한 임시 초대코드 발급 (OWNER 전용)")
+    @PostMapping("/me/invite-code")
+    public ApiResponse<InviteCodeResponse> issueInviteCode(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return ApiResponse.ok(groupService.issueInviteCode(principal.userId()));
+    }
+
     @Operation(summary = "초대코드로 그룹 참여 (기존 그룹이 있으면 자동 처리)")
     @PostMapping("/join")
     public ApiResponse<GroupResponse> joinGroup(

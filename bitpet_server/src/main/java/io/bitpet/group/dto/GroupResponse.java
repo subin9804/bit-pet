@@ -8,7 +8,6 @@ import java.util.List;
 public record GroupResponse(
         Long id,
         String name,
-        String inviteCode,
         Long ownerId,
         GroupRole myRole,
         List<GroupMemberResponse> members
@@ -18,7 +17,6 @@ public record GroupResponse(
         return new GroupResponse(
                 group.getId(),
                 group.getName(),
-                group.getInviteCode(),
                 group.getOwnerId(),
                 myRole,
                 members

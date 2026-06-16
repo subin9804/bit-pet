@@ -12,7 +12,7 @@ import '../../pet/providers/pet_provider.dart';
 import '../data/record_repository.dart';
 import '../providers/record_provider.dart';
 import '../providers/feed_provider.dart';
-import 'widgets/feed_composer_fields.dart';
+import 'widgets/feed_items_editor.dart';
 import 'widgets/selected_pet_row.dart';
 
 // ── 플로우 단계 ────────────────────────────────────────────────
@@ -29,9 +29,9 @@ enum _FeedMode { bulk, perPet }
 
 // 개체별 폼 상태
 class _PerPetEntry {
-  FeedFormData form;
+  List<FeedFormData> items;
   bool filled;
-  _PerPetEntry() : form = const FeedFormData(), filled = false;
+  _PerPetEntry() : items = [], filled = false;
 }
 
 // ── 6 기록 종류 정의 ──────────────────────────────────────────
@@ -71,7 +71,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
   _FeedMode _feedMode = _FeedMode.bulk;
 
   // 06d 일괄 폼
-  FeedFormData _bulkForm = const FeedFormData();
+  List<FeedFormData> _bulkItems = [];
 
   // 06e 개별 폼
   final Map<int, _PerPetEntry> _perPetForms = {};
@@ -140,8 +140,8 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
 
   // ── 저장 ─────────────────────────────────────────────────────
   Future<void> _saveBulk(List<Pet> pets) async {
-    if (!_bulkForm.isValid) {
-      showToast(context, '먹이 종류를 선택해 주세요', type: ToastType.warning);
+    if (_bulkItems.isEmpty) {
+      showToast(context, '먹이를 목록에 추가해 주세요', type: ToastType.warning);
       return;
     }
     setState(() => _saving = true);
@@ -149,7 +149,9 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
       final repo = ref.read(recordRepositoryProvider);
       final now  = DateTime.now();
       for (final pet in pets) {
-        await repo.addFeeding(pet.id, _bulkForm.toApiMap(fedAt: now));
+        for (final item in _bulkItems) {
+          await repo.addFeeding(pet.id, item.toApiMap(fedAt: now));
+        }
         ref.invalidate(feedSessionsProvider(pet.id));
         ref.invalidate(petDetailProvider(pet.id));
       }
@@ -172,9 +174,10 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
       int count = 0;
       for (final pet in pets) {
         final entry = _perPetForms[pet.id];
-        if (entry == null || !entry.filled) continue;
-        if (!entry.form.isValid) continue;
-        await repo.addFeeding(pet.id, entry.form.toApiMap(fedAt: now));
+        if (entry == null || !entry.filled || entry.items.isEmpty) continue;
+        for (final item in entry.items) {
+          await repo.addFeeding(pet.id, item.toApiMap(fedAt: now));
+        }
         ref.invalidate(feedSessionsProvider(pet.id));
         ref.invalidate(petDetailProvider(pet.id));
         count++;
@@ -490,9 +493,9 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         Flexible(
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(22, 8, 22, 14),
-            child: FeedComposerFields(
-              form: _bulkForm,
-              onChanged: (f) => setState(() => _bulkForm = f),
+            child: FeedItemsEditor(
+              items: _bulkItems,
+              onChanged: (list) => setState(() => _bulkItems = list),
             ),
           ),
         ),
@@ -501,8 +504,8 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
           onBack: _goBack,
           nextLabel: '완료',
           nextIcon: Icons.check,
-          nextEnabled: _bulkForm.isValid && !_saving,
-          nextBadge: _bulkForm.isValid ? _bulkForm.summary : null,
+          nextEnabled: _bulkItems.isNotEmpty && !_saving,
+          nextBadge: _bulkItems.isNotEmpty ? '${_bulkItems.length}종 저장' : null,
           loading: _saving,
           onNext: () => _saveBulk(pets),
         ),
@@ -722,11 +725,11 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                 ),
                 const SizedBox(height: 14),
 
-                // FeedComposerFields (개체별)
-                FeedComposerFields(
-                  form: entry.form,
+                // FeedItemsEditor (개체별 — 목록에 추가)
+                FeedItemsEditor(
+                  items: entry.items,
                   bandColor: pale,
-                  onChanged: (f) => setState(() => entry.form = f),
+                  onChanged: (list) => setState(() => entry.items = list),
                 ),
                 const SizedBox(height: 18),
 
@@ -742,25 +745,38 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                   )
                 else
                   GestureDetector(
-                    onTap: () => _markFilled(activePet.id, true, pets),
+                    onTap: entry.items.isNotEmpty
+                        ? () => _markFilled(activePet.id, true, pets)
+                        : null,
                     child: Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: AppColors.primary,
+                        color: entry.items.isNotEmpty
+                            ? AppColors.primary
+                            : AppColors.paleLine,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.check,
-                              color: AppColors.paleBg, size: 16),
+                          Icon(Icons.check,
+                              color: entry.items.isNotEmpty
+                                  ? AppColors.paleBg
+                                  : AppColors.paleInk3,
+                              size: 16),
                           const SizedBox(width: 8),
-                          Text('${activePet.name} 완료',
-                              style: TextStyle(
-                                  fontSize: 14, fontWeight: FontWeight.w700,
-                                  color: AppColors.paleBg)),
+                          Text(
+                            entry.items.isEmpty
+                                ? '${activePet.name} 완료'
+                                : '${activePet.name} 완료 (${entry.items.length}종)',
+                            style: TextStyle(
+                                fontSize: 14, fontWeight: FontWeight.w700,
+                                color: entry.items.isNotEmpty
+                                    ? AppColors.paleBg
+                                    : AppColors.paleInk3),
+                          ),
                         ],
                       ),
                     ),

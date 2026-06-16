@@ -45,6 +45,26 @@ class GroupRepository {
     return apiRes.data!;
   }
 
+  /// OWNER 전용. 5분간 유효한 임시 초대코드 발급.
+  Future<InviteCode> issueInviteCode() async {
+    try {
+      final res = await _dio.post('/groups/me/invite-code');
+      final apiRes = ApiResponse.fromJson(
+        res.data as Map<String, dynamic>,
+        (d) => InviteCode.fromJson(d as Map<String, dynamic>),
+      );
+      if (!apiRes.success || apiRes.data == null) {
+        throw ApiException(
+            statusCode: res.statusCode ?? 0,
+            message: apiRes.message ?? '초대코드 발급 실패',
+            errorCode: apiRes.errorCode);
+      }
+      return apiRes.data!;
+    } on DioException catch (e) {
+      _mapDioError(e, '초대코드 발급 실패');
+    }
+  }
+
   Future<GroupInfo> joinGroup(String inviteCode) async {
     try {
       final res = await _dio.post('/groups/join', data: {'inviteCode': inviteCode});

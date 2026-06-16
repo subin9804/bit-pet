@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/step_shell.dart';
 import '../../../core/widgets/toast_message.dart';
+import '../data/auth_repository.dart';
 import '../providers/auth_provider.dart';
 
 // ════════════════════════════════════════════════════════════════
@@ -28,6 +29,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
   bool _obscurePw  = true;
   bool _obscurePw2 = true;
+
+  bool _emailChecking = false;
+  bool? _emailAvailable;
+  String? _emailCheckedFor;
 
   bool _agreeAll       = false;
   bool _agreeTos       = false; // 필수
@@ -81,6 +86,29 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         RegExp(r'[^A-Za-z0-9]').hasMatch(_pwCtrl.text),
       ].where((e) => e).length >= 2;
   bool get _pw2Match => _pwCtrl.text.isNotEmpty && _pwCtrl.text == _pw2Ctrl.text;
+
+  Future<void> _checkEmail() async {
+    if (!_emailValid || _emailChecking) return;
+    final email = _emailCtrl.text.trim();
+    setState(() {
+      _emailChecking = true;
+      _emailAvailable = null;
+    });
+    try {
+      final available =
+          await ref.read(authRepositoryProvider).checkEmailAvailable(email);
+      if (!mounted) return;
+      setState(() {
+        _emailAvailable = available;
+        _emailCheckedFor = email;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ToastMessage.show(context, '이메일 확인에 실패했습니다', type: ToastType.error);
+    } finally {
+      if (mounted) setState(() => _emailChecking = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -226,7 +254,12 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     StepConfig(
       title: '로그인 정보',
       desc: '이메일과 비밀번호를 입력하세요.',
-      valid: () => _emailValid && _pwValid && _pw2Match,
+      valid: () =>
+          _emailValid &&
+          _emailCheckedFor == _emailCtrl.text.trim() &&
+          _emailAvailable == true &&
+          _pwValid &&
+          _pw2Match,
       render: (_) => ListenableBuilder(
         listenable: Listenable.merge([_emailCtrl, _pwCtrl, _pw2Ctrl]),
         builder: (_, __) {
@@ -244,11 +277,68 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             children: [
               SField(
                 label: '이메일',
-                child: PaleTextField(
-                  controller: _emailCtrl,
-                  placeholder: 'name@example.com',
-                  keyboardType: TextInputType.emailAddress,
-                  onChanged: (_) => setState(() {}),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: PaleTextField(
+                            controller: _emailCtrl,
+                            placeholder: 'name@example.com',
+                            keyboardType: TextInputType.emailAddress,
+                            onChanged: (_) => setState(() {}),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: _emailValid ? _checkEmail : null,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 13),
+                            decoration: BoxDecoration(
+                              color: AppColors.surface,
+                              borderRadius: BorderRadius.circular(11),
+                              border: Border.all(color: AppColors.paleLine),
+                            ),
+                            child: _emailChecking
+                                ? const SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2),
+                                  )
+                                : Text(
+                                    '중복확인',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 12,
+                                      color: _emailValid
+                                          ? AppColors.primary
+                                          : AppColors.paleInk3,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (_emailCheckedFor != null &&
+                        _emailCheckedFor == _emailCtrl.text.trim()) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        _emailAvailable == true
+                            ? '✓ 사용 가능한 이메일입니다'
+                            : '✗ 이미 가입된 이메일입니다',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: _emailAvailable == true
+                              ? const Color(0xFF3A8854)
+                              : const Color(0xFFCC4422),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
               SField(

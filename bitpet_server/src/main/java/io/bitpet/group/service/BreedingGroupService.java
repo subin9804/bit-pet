@@ -8,6 +8,8 @@ import io.bitpet.group.domain.BreedingGroupUserRls;
 import io.bitpet.group.domain.GroupRole;
 import io.bitpet.group.dto.GroupMemberResponse;
 import io.bitpet.group.dto.GroupResponse;
+import io.bitpet.group.dto.InviteCodeResponse;
+import io.bitpet.group.redis.GroupInviteCodeStore;
 import io.bitpet.group.repository.BreedingGroupMstRepository;
 import io.bitpet.group.repository.BreedingGroupUserRlsRepository;
 import io.bitpet.pet.repository.PetMstRepository;
@@ -15,7 +17,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.security.SecureRandom;
 import java.util.List;
 import java.util.Optional;
 
@@ -24,15 +25,11 @@ import java.util.Optional;
 @Transactional(readOnly = true)
 public class BreedingGroupService {
 
-    private static final String CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    private static final int    CODE_LEN   = 6;
-    private static final int    CODE_RETRY = 10;
-
     private final BreedingGroupMstRepository     groupRepo;
     private final BreedingGroupUserRlsRepository memberRepo;
     private final PetMstRepository               petRepo;
     private final UserMstRepository              userRepo;
-    private final SecureRandom                   random = new SecureRandom();
+    private final GroupInviteCodeStore            inviteCodeStore;
 
     // ── 조회 ──────────────────────────────────────────────────────────
 
@@ -57,10 +54,8 @@ public class BreedingGroupService {
             throw new BusinessException(ErrorCode.GROUP_ALREADY_JOINED);
         }
 
-        String code   = generateUniqueCode();
         BreedingGroupMst group = BreedingGroupMst.builder()
                 .name(name)
-                .inviteCode(code)
                 .ownerId(userId)
                 .build();
         groupRepo.save(group);
@@ -70,6 +65,16 @@ public class BreedingGroupService {
         petRepo.assignGroupToUserPets(userId, group.getId());
 
         return buildGroupResponse(group, GroupRole.OWNER);
+    }
+
+    // ── 초대코드 발급 (OWNER 전용) ────────────────────────────────────
+
+    /** 5분간 유효한 임시 초대코드 발급. DB에 저장하지 않고 Redis TTL로만 관리한다. */
+    @Transactional
+    public InviteCodeResponse issueInviteCode(Long userId) {
+        BreedingGroupUserRls membership = getOwnerMembership(userId);
+        String code = inviteCodeStore.issue(membership.getGroupId());
+        return new InviteCodeResponse(code, (int) GroupInviteCodeStore.TTL.toSeconds());
     }
 
     // ── 참여 ──────────────────────────────────────────────────────────
@@ -82,7 +87,9 @@ public class BreedingGroupService {
      */
     @Transactional
     public GroupResponse joinGroup(Long userId, String inviteCode) {
-        BreedingGroupMst target = groupRepo.findByInviteCode(inviteCode.toUpperCase())
+        Long targetGroupId = inviteCodeStore.findGroupId(inviteCode.toUpperCase())
+                .orElseThrow(() -> new BusinessException(ErrorCode.GROUP_INVITE_CODE_INVALID));
+        BreedingGroupMst target = groupRepo.findById(targetGroupId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.GROUP_INVITE_CODE_INVALID));
 
         // 이미 이 그룹에 속해 있으면 그냥 반환
@@ -182,17 +189,5 @@ public class BreedingGroupService {
                 })
                 .toList();
         return GroupResponse.of(group, myRole, members);
-    }
-
-    private String generateUniqueCode() {
-        for (int i = 0; i < CODE_RETRY; i++) {
-            StringBuilder sb = new StringBuilder(CODE_LEN);
-            for (int j = 0; j < CODE_LEN; j++) {
-                sb.append(CODE_CHARS.charAt(random.nextInt(CODE_CHARS.length())));
-            }
-            String code = sb.toString();
-            if (!groupRepo.existsByInviteCode(code)) return code;
-        }
-        throw new BusinessException(ErrorCode.INTERNAL_ERROR, "초대코드 생성에 실패했습니다");
     }
 }

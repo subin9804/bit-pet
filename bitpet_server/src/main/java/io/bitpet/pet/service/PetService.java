@@ -2,6 +2,7 @@ package io.bitpet.pet.service;
 
 import io.bitpet.common.exception.BusinessException;
 import io.bitpet.common.exception.ErrorCode;
+import io.bitpet.group.repository.BreedingGroupUserRlsRepository;
 import io.bitpet.pet.domain.MorphCd;
 import io.bitpet.pet.domain.PetGender;
 import io.bitpet.pet.domain.PetMorphRls;
@@ -34,6 +35,7 @@ public class PetService {
     private final MorphCdRepository morphRepository;
     private final PetRelationRlsRepository relationRepository;
     private final SerialNumberGenerator serialNumberGenerator;
+    private final BreedingGroupUserRlsRepository groupMembershipRepository;
 
     // -------------------------------------------------------------------------
     // D2: Pet CRUD
@@ -59,6 +61,8 @@ public class PetService {
                 .hatchingDate(req.hatchingDate())
                 .adoptionDate(req.adoptionDate())
                 .build();
+        groupMembershipRepository.findByIdUserId(userId)
+                .ifPresent(membership -> pet.assignGroup(membership.getId().getGroupId()));
         petRepository.save(pet);
 
         attachMorphs(pet, req.morphIds(), species);

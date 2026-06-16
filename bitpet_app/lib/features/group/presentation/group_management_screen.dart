@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -146,7 +148,7 @@ class _GroupManagementScreenState
               const SizedBox(height: 16),
 
               // ── 초대코드 카드 ──────────────────────────────────
-              _InviteCodeCard(inviteCode: group.inviteCode),
+              _InviteCodeCard(group: group),
 
               const SizedBox(height: 16),
 
@@ -258,14 +260,69 @@ class _InfoCard extends StatelessWidget {
 }
 
 // ── 초대코드 카드 ──────────────────────────────────────────────────
+// OWNER가 누를 때마다 5분간 유효한 임시 코드를 발급한다 (DB 미저장, Redis TTL).
 
-class _InviteCodeCard extends StatelessWidget {
-  final String inviteCode;
+class _InviteCodeCard extends ConsumerStatefulWidget {
+  final GroupInfo group;
 
-  const _InviteCodeCard({required this.inviteCode});
+  const _InviteCodeCard({required this.group});
+
+  @override
+  ConsumerState<_InviteCodeCard> createState() => _InviteCodeCardState();
+}
+
+class _InviteCodeCardState extends ConsumerState<_InviteCodeCard> {
+  String? _code;
+  int? _remainingSeconds;
+  Timer? _timer;
+  bool _loading = false;
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _issue() async {
+    setState(() => _loading = true);
+    try {
+      final result =
+          await ref.read(groupActionProvider.notifier).issueInviteCode();
+      _timer?.cancel();
+      setState(() {
+        _code = result.code;
+        _remainingSeconds = result.expiresInSeconds;
+      });
+      _timer = Timer.periodic(const Duration(seconds: 1), (t) {
+        if (!mounted) return;
+        final remaining = (_remainingSeconds ?? 0) - 1;
+        if (remaining <= 0) {
+          t.cancel();
+          setState(() {
+            _code = null;
+            _remainingSeconds = null;
+          });
+        } else {
+          setState(() => _remainingSeconds = remaining);
+        }
+      });
+    } catch (e) {
+      if (mounted) ToastMessage.show(context, e.toString(), type: ToastType.error);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  String get _mmss {
+    final s = _remainingSeconds ?? 0;
+    final m = s ~/ 60;
+    final r = s % 60;
+    return '${m.toString().padLeft(2, '0')}:${r.toString().padLeft(2, '0')}';
+  }
 
   @override
   Widget build(BuildContext context) {
+    final isOwner = widget.group.isOwner;
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       decoration: BoxDecoration(
@@ -280,52 +337,90 @@ class _InviteCodeCard extends StatelessWidget {
               style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
                   color: AppColors.paleInk3, letterSpacing: 0.3)),
           const SizedBox(height: 10),
-          Row(
-            children: [
-              Text(
-                inviteCode,
-                style: const TextStyle(
-                  fontFamily: 'monospace',
-                  fontSize: 28,
-                  fontWeight: FontWeight.w700,
+          if (!isOwner)
+            const Text('그룹장만 초대코드를 발급할 수 있어요.',
+                style: TextStyle(fontSize: 12.5, color: AppColors.paleInk2))
+          else if (_code == null)
+            GestureDetector(
+              onTap: _loading ? null : _issue,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
                   color: AppColors.primary,
-                  letterSpacing: 6,
+                  borderRadius: BorderRadius.circular(10),
                 ),
+                child: _loading
+                    ? const SizedBox(
+                        width: 16, height: 16,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
+                    : const Text('초대코드 발급 (5분간 유효)',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          color: Colors.white,
+                        )),
               ),
-              const Spacer(),
-              GestureDetector(
-                onTap: () {
-                  Clipboard.setData(ClipboardData(text: inviteCode));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('초대코드가 복사되었어요')),
-                  );
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: AppColors.paleBgAlt,
-                    borderRadius: BorderRadius.circular(9),
-                    border: Border.all(color: AppColors.paleLine),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.copy_outlined,
-                          size: 14, color: AppColors.primary),
-                      SizedBox(width: 5),
-                      Text('복사',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.primary,
-                          )),
-                    ],
-                  ),
+            )
+          else
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      _code!,
+                      style: const TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 28,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary,
+                        letterSpacing: 6,
+                      ),
+                    ),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: () {
+                        Clipboard.setData(ClipboardData(text: _code!));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('초대코드가 복사되었어요')),
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.paleBgAlt,
+                          borderRadius: BorderRadius.circular(9),
+                          border: Border.all(color: AppColors.paleLine),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.copy_outlined,
+                                size: 14, color: AppColors.primary),
+                            SizedBox(width: 5),
+                            Text('복사',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.primary,
+                                )),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
-          ),
+                const SizedBox(height: 6),
+                Text('남은 시간 $_mmss · 만료되면 자동으로 사라져요',
+                    style: const TextStyle(
+                        fontSize: 11.5, color: AppColors.paleInk3)),
+              ],
+            ),
           const SizedBox(height: 6),
-          const Text('이 코드를 공유하면 다른 사람이 그룹에 참여할 수 있어요.',
+          const Text('발급된 코드를 직접 전달하면 5분 안에 그룹에 참여할 수 있어요.',
               style: TextStyle(fontSize: 11.5, color: AppColors.paleInk3)),
         ],
       ),

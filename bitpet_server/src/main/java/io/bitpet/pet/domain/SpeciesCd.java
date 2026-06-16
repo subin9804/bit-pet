@@ -11,6 +11,9 @@ import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+
+import java.sql.Types;
 
 @Entity
 @Getter
@@ -31,7 +34,8 @@ public class SpeciesCd extends BaseTimeEntity {
     @Column(nullable = false, length = 50, unique = true)
     private String code;
 
-    @Column(nullable = false, length = 20)
+    @JdbcTypeCode(Types.CHAR)
+    @Column(nullable = false, columnDefinition = "CHAR(2)")
     private String category;
 
     @Column(length = 20)

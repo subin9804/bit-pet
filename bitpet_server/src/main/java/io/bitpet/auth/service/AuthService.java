@@ -1,6 +1,7 @@
 package io.bitpet.auth.service;
 
 import io.bitpet.auth.domain.UserMst;
+import io.bitpet.auth.dto.EmailCheckResponse;
 import io.bitpet.auth.dto.LoginRequest;
 import io.bitpet.auth.dto.SignupRequest;
 import io.bitpet.auth.dto.TokenResponse;
@@ -26,6 +27,10 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider tokenProvider;
     private final RefreshTokenStore refreshTokenStore;
+
+    public EmailCheckResponse checkEmail(String email) {
+        return new EmailCheckResponse(!userRepository.existsByEmail(email));
+    }
 
     @Transactional
     public UserResponse signup(SignupRequest request) {

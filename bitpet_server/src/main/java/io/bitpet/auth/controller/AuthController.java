@@ -1,5 +1,6 @@
 package io.bitpet.auth.controller;
 
+import io.bitpet.auth.dto.EmailCheckResponse;
 import io.bitpet.auth.dto.LoginRequest;
 import io.bitpet.auth.dto.RefreshRequest;
 import io.bitpet.auth.dto.SignupRequest;
@@ -15,9 +16,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -28,6 +31,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+
+    @Operation(summary = "이메일 중복확인")
+    @GetMapping("/check-email")
+    public ApiResponse<EmailCheckResponse> checkEmail(@RequestParam String email) {
+        return ApiResponse.ok(authService.checkEmail(email));
+    }
 
     @Operation(summary = "회원가입 (이메일 + 비밀번호)")
     @PostMapping("/signup")

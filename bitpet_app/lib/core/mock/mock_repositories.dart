@@ -863,13 +863,17 @@ class MockGroupRepository extends GroupRepository {
   @override
   Future<GroupInfo> createGroup(String name) async {
     _group = GroupInfo(
-      id: 1, name: name, inviteCode: 'ABCD12',
+      id: 1, name: name,
       ownerId: 1, myRole: GroupRole.owner,
       members: [GroupMember(userId: 1, name: '테스트',
           role: GroupRole.owner, joinedAt: DateTime.now())],
     );
     return _group!;
   }
+
+  @override
+  Future<InviteCode> issueInviteCode() async =>
+      const InviteCode(code: _validCode, expiresInSeconds: 300);
 
   @override
   Future<GroupInfo> joinGroup(String inviteCode) async {
@@ -881,7 +885,7 @@ class MockGroupRepository extends GroupRepository {
       );
     }
     _group = GroupInfo(
-      id: 2, name: '공동 사육실', inviteCode: inviteCode,
+      id: 2, name: '공동 사육실',
       ownerId: 2, myRole: GroupRole.member,
       members: [GroupMember(userId: 2, name: '다른사람',
           role: GroupRole.owner, joinedAt: DateTime.now())],
@@ -892,7 +896,7 @@ class MockGroupRepository extends GroupRepository {
   @override
   Future<GroupInfo> updateGroupName(String name) async {
     _group = GroupInfo(
-      id: _group!.id, name: name, inviteCode: _group!.inviteCode,
+      id: _group!.id, name: name,
       ownerId: _group!.ownerId, myRole: _group!.myRole,
       members: _group!.members,
     );

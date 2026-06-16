@@ -32,6 +32,8 @@ class GroupActionNotifier extends AsyncNotifier<GroupInfo?> {
     }
   }
 
+  Future<InviteCode> issueInviteCode() => _repo.issueInviteCode();
+
   Future<void> join(String inviteCode) async {
     state = const AsyncLoading();
     try {

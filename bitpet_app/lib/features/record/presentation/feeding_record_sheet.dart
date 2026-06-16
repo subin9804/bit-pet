@@ -13,7 +13,7 @@ import '../../routine/data/models/routine_models.dart';
 import '../../routine/data/routine_repository.dart';
 import '../../routine/providers/routine_provider.dart';
 import '../data/record_repository.dart';
-import 'widgets/feed_composer_fields.dart';
+import 'widgets/feed_items_editor.dart';
 
 class FeedingRecordSheet extends ConsumerStatefulWidget {
   final TodayRoutine routine;
@@ -34,7 +34,8 @@ class FeedingRecordSheet extends ConsumerStatefulWidget {
 
 class _FeedingRecordSheetState extends ConsumerState<FeedingRecordSheet> {
   late int _currentIndex;
-  final Map<int, FeedFormData> _forms = {};
+  final Map<int, List<FeedFormData>> _items = {};
+  final Map<int, String> _memos = {};
   final Map<int, bool> _saved = {};
   bool _saving = false;
 
@@ -47,14 +48,15 @@ class _FeedingRecordSheetState extends ConsumerState<FeedingRecordSheet> {
             .clamp(0, pets.length - 1)
         : 0;
     for (final s in pets) {
-      _forms[s.petId] = const FeedFormData();
+      _items[s.petId] = [];
+      _memos[s.petId] = '';
       _saved[s.petId] = false;
     }
   }
 
   List<TodayPetStatus> get _pets => widget.routine.petStatuses;
   TodayPetStatus get _current => _pets[_currentIndex];
-  FeedFormData get _currentForm => _forms[_current.petId]!;
+  List<FeedFormData> get _currentItems => _items[_current.petId]!;
 
   int get _savedCount => _saved.values.where((v) => v).length;
 
@@ -75,21 +77,23 @@ class _FeedingRecordSheetState extends ConsumerState<FeedingRecordSheet> {
       setState(() => _saved[_current.petId] = false);
       return;
     }
+    final items = _currentItems;
+    if (items.isEmpty) { showToast(context, '먹이를 목록에 추가해 주세요'); return; }
     setState(() => _saving = true);
     try {
-      final form = _currentForm;
-      if (!form.isValid) { showToast(context, '먹이 종류를 선택해 주세요'); return; }
       final now = DateTime.now();
-      final feedMap = form.toApiMap(fedAt: now);
       final repo = ref.read(recordRepositoryProvider);
-      await repo.addFeeding(_current.petId, feedMap);
+      for (final item in items) {
+        await repo.addFeeding(_current.petId, item.toApiMap(fedAt: now));
+      }
+      final memo = _memos[_current.petId]!.trim();
       await ref.read(routineRepositoryProvider).completeIndividual(
         widget.routine.id,
         RoutineCompleteIndividualRequest(
           petId:     _current.petId,
           status:    RoutineLogStatus.COMPLETED,
-          feedItems: form.foodType != null ? [form] : const [],
-          memo:      feedMap['memo'] as String?,
+          feedItems: items,
+          memo:      memo.isEmpty ? null : memo,
         ),
       );
       setState(() => _saved[_current.petId] = true);
@@ -244,12 +248,26 @@ class _FeedingRecordSheetState extends ConsumerState<FeedingRecordSheet> {
                     _CurrentPetCard(
                         status: _current, bgColor: _petBg(_current)),
                     const SizedBox(height: 16),
-                    // 급여 입력 컴포저
-                    FeedComposerFields(
-                      form: _currentForm,
+                    // 급여 입력 컴포저 (목록에 추가)
+                    FeedItemsEditor(
+                      items: _currentItems,
                       bandColor: AppColors.petPeach,
-                      showMemo: true,
-                      onChanged: (f) => setState(() => _forms[_current.petId] = f),
+                      onChanged: (list) => setState(() => _items[_current.petId] = list),
+                    ),
+                    const SizedBox(height: 14),
+                    TextField(
+                      onChanged: (v) => _memos[_current.petId] = v,
+                      maxLines: 2,
+                      decoration: InputDecoration(
+                        hintText: '특이사항 (선택)',
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(11),
+                            borderSide: const BorderSide(color: AppColors.border)),
+                        enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(11),
+                            borderSide: const BorderSide(color: AppColors.border)),
+                      ),
                     ),
                     const SizedBox(height: 16),
                     // 완료/저장됨 상태 버튼
@@ -272,7 +290,9 @@ class _FeedingRecordSheetState extends ConsumerState<FeedingRecordSheet> {
                                   ? const CircularProgressIndicator(
                                       color: Colors.white,
                                       strokeWidth: 2)
-                                  : const Text('완료'),
+                                  : Text(_currentItems.isEmpty
+                                      ? '완료'
+                                      : '완료 (${_currentItems.length}종 저장)'),
                             ),
                           ),
                     const SizedBox(height: 10),

@@ -16,6 +16,7 @@ import io.bitpet.routine.domain.RoutinePetRls;
 import io.bitpet.routine.domain.RoutineType;
 import io.bitpet.routine.dto.RoutineCompleteBatchRequest;
 import io.bitpet.routine.dto.RoutineCompleteIndividualRequest;
+import io.bitpet.routine.dto.FeedItemRequest;
 import io.bitpet.routine.dto.RoutineCreateRequest;
 import io.bitpet.routine.dto.RoutineLogResponse;
 import io.bitpet.routine.dto.RoutineResponse;

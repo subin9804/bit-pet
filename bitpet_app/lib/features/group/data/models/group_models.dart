@@ -3,7 +3,6 @@
 class GroupInfo {
   final int id;
   final String name;
-  final String inviteCode;
   final int ownerId;
   final GroupRole myRole;
   final List<GroupMember> members;
@@ -11,7 +10,6 @@ class GroupInfo {
   const GroupInfo({
     required this.id,
     required this.name,
-    required this.inviteCode,
     required this.ownerId,
     required this.myRole,
     required this.members,
@@ -20,14 +18,26 @@ class GroupInfo {
   bool get isOwner => myRole == GroupRole.owner;
 
   factory GroupInfo.fromJson(Map<String, dynamic> json) => GroupInfo(
-        id:         json['id'] as int,
-        name:       json['name'] as String,
-        inviteCode: json['inviteCode'] as String,
-        ownerId:    json['ownerId'] as int,
-        myRole:     GroupRole.fromString(json['myRole'] as String? ?? 'MEMBER'),
+        id:      json['id'] as int,
+        name:    json['name'] as String,
+        ownerId: json['ownerId'] as int,
+        myRole:  GroupRole.fromString(json['myRole'] as String? ?? 'MEMBER'),
         members: (json['members'] as List<dynamic>? ?? [])
             .map((e) => GroupMember.fromJson(e as Map<String, dynamic>))
             .toList(),
+      );
+}
+
+/// OWNER가 발급한 5분 유효 임시 초대코드. DB에 저장되지 않는다.
+class InviteCode {
+  final String code;
+  final int expiresInSeconds;
+
+  const InviteCode({required this.code, required this.expiresInSeconds});
+
+  factory InviteCode.fromJson(Map<String, dynamic> json) => InviteCode(
+        code:             json['code'] as String,
+        expiresInSeconds: json['expiresInSeconds'] as int,
       );
 }
 
