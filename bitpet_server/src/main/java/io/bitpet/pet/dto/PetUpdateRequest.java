@@ -16,5 +16,6 @@ public record PetUpdateRequest(
         String description,
         LocalDate breedingDate,
         LocalDate hatchingDate,
-        LocalDate adoptionDate
+        LocalDate adoptionDate,
+        @Pattern(regexp = "^[YN]$", message = "privateYn은 Y 또는 N이어야 합니다") String privateYn
 ) {}

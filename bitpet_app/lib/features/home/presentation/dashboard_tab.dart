@@ -171,50 +171,9 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
                       ),
                     ),
 
-                    // ── 최근 기록 섹션 ──────────────────────────
-                    _SectionHeader(title: '최근 기록'),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(22, 0, 22, 0),
-                      child: recentAsync.when(
-                        loading: () => const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 24),
-                          child: Center(
-                              child: CircularProgressIndicator(strokeWidth: 2)),
-                        ),
-                        error: (_, __) => const SizedBox.shrink(),
-                        data: (records) {
-                          if (records.isEmpty) {
-                            return Container(
-                              padding: const EdgeInsets.all(18),
-                              decoration: BoxDecoration(
-                                color: AppColors.paleBgAlt,
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              child: Text('아직 기록이 없어요',
-                                  style: TextStyle(
-                                      color: AppColors.paleInk3,
-                                      fontSize: 13)),
-                            );
-                          }
-                          return Container(
-                            decoration: BoxDecoration(
-                              color: AppColors.card,
-                              border: Border.all(color: AppColors.paleLine),
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 4),
-                            child: _RecentTile(
-                              record: records.first,
-                              hasDivider: false,
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-
                     // ── 기록 캘린더 섹션 ─────────────────────────
-                    const SizedBox(height: 4),
+                    _SectionHeader(title: '기록 캘린더'),
+                    const SizedBox(height: 0),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(22, 0, 22, 0),
                       child: _HomeCalendar(),
@@ -376,7 +335,7 @@ class _TodayDeck extends StatelessWidget {
         return Column(
           children: [
             SizedBox(
-              height: 216,
+              height: 220,
               child: PageView.builder(
                 controller: pageController,
                 onPageChanged: onPageChanged,
@@ -888,7 +847,21 @@ class _HomeCalendarState extends ConsumerState<_HomeCalendar> {
   @override
   void initState() {
     super.initState();
-    _month = DateTime(DateTime.now().year, DateTime.now().month);
+    final now = DateTime.now();
+    _month = DateTime(now.year, now.month);
+    // 오늘 날짜 자동 선택 및 기록 로드
+    final todayStr =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    _selDate = todayStr;
+    _dayCache[todayStr] = const AsyncLoading();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(recordRepositoryProvider).getRecordsByDate(todayStr).then((records) {
+        if (mounted) setState(() => _dayCache[todayStr] = AsyncData(records));
+      }).catchError((e, s) {
+        if (mounted) setState(() => _dayCache[todayStr] = AsyncError(e, s));
+      });
+    });
   }
 
   String get _yearMonth =>
@@ -953,17 +926,24 @@ class _HomeCalendarState extends ConsumerState<_HomeCalendar> {
                   child: const Icon(Icons.chevron_left,
                       size: 20, color: AppColors.paleInk2),
                 ),
-                Expanded(
-                  child: Center(
-                    child: Text(
-                      '${_month.year}년 ${_month.month}월',
-                      style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primary),
-                    ),
-                  ),
+                const SizedBox(width: 6),
+                const Icon(Icons.calendar_today_outlined,
+                    size: 16, color: AppColors.primary),
+                const SizedBox(width: 7),
+                Text(
+                  '${_month.year}년 ${_month.month}월',
+                  style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary),
                 ),
+                const Spacer(),
+                Text(
+                  '전체 개체',
+                  style: AppTextStyles.mono(11, FontWeight.w700,
+                      color: AppColors.paleInk3),
+                ),
+                const SizedBox(width: 6),
                 GestureDetector(
                   onTap: isCurrentMonth ? null : _next,
                   child: Icon(Icons.chevron_right,
@@ -1019,6 +999,7 @@ class _HomeCalendarState extends ConsumerState<_HomeCalendar> {
 }
 
 // ── 선택일 기록 섹션 (개체별 그룹핑) ────────────────────────────
+// ── 날짜별 기록 섹션 (카테고리 행 + 개체 칩) ────────────────
 class _DayRecordSection extends StatelessWidget {
   final String dateStr;
   final List<String> weekKo;
@@ -1030,47 +1011,45 @@ class _DayRecordSection extends StatelessWidget {
     required this.recordsAsync,
   });
 
+  static const _catOrder = ['FEEDING', 'WEIGHT', 'CLEANING', 'MEMO', 'MATING', 'LAYING'];
   static const _catLabel = {
-    'FEEDING': '급여', 'WEIGHT': '체중', 'CLEANING': '청소',
-    'MEMO': '메모', 'MATING': '교배', 'LAYING': '산란',
+    'FEEDING': '피딩', 'WEIGHT': '몸무게', 'CLEANING': '청소',
+    'MEMO': '메모', 'MATING': '메이팅', 'LAYING': '산란',
+  };
+  static const _catIcon = {
+    'FEEDING': Icons.restaurant_outlined,
+    'WEIGHT': Icons.monitor_weight_outlined,
+    'CLEANING': Icons.cleaning_services_outlined,
+    'MEMO': Icons.sticky_note_2_outlined,
+    'MATING': Icons.favorite_outline,
+    'LAYING': Icons.egg_outlined,
   };
 
-  // 개체별로 records 그룹핑 (순서 유지)
-  static List<({int petId, String petName, String? colorCode, List<RecentRecord> records})>
-      _group(List<RecentRecord> records) {
-    final order = <int>[];
-    final map = <int, List<RecentRecord>>{};
-    for (final r in records) {
-      if (!map.containsKey(r.petId)) {
-        order.add(r.petId);
-        map[r.petId] = [];
-      }
-      map[r.petId]!.add(r);
-    }
-    return order.map((id) {
-      final recs = map[id]!;
-      return (
-        petId: id,
-        petName: recs.first.petName,
-        colorCode: recs.first.colorCode,
-        records: recs,
-      );
-    }).toList();
+  static Color _petColor(String? code) {
+    if (code == null || code.isEmpty) return AppColors.petSage;
+    try { return Color(int.parse(code.replaceFirst('#', '0xFF'))); }
+    catch (_) { return AppColors.petSage; }
   }
 
-  static Color _petColor(String? colorCode) {
-    if (colorCode == null) return AppColors.petSage;
-    try {
-      return Color(int.parse(colorCode.replaceFirst('#', '0xFF')));
-    } catch (_) {
-      return AppColors.petSage;
-    }
+  void _openDetail(BuildContext ctx, String type, List<RecentRecord> recs) {
+    showModalBottomSheet(
+      context: ctx,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => _CategoryDetailSheet(
+        type: type,
+        label: _catLabel[type] ?? type,
+        records: recs,
+        petColor: _petColor,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final dt = DateTime.parse(dateStr);
     final header = '${dt.month}.${dt.day} (${weekKo[dt.weekday % 7]})';
+    final totalCount = recordsAsync.valueOrNull?.length ?? 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1079,15 +1058,12 @@ class _DayRecordSection extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(header,
-                style: const TextStyle(
-                    fontSize: 14, fontWeight: FontWeight.w700,
-                    color: AppColors.primary, letterSpacing: -0.3)),
-            recordsAsync.whenOrNull(data: (recs) {
-              final groups = _group(recs);
-              return Text('${groups.length}개체',
-                  style: AppTextStyles.mono(11, FontWeight.w700,
-                      color: AppColors.paleInk2));
-            }) ?? const SizedBox.shrink(),
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700,
+                    color: AppColors.primary, letterSpacing: -0.2)),
+            if (recordsAsync.hasValue)
+              Text('$totalCount건',
+                  style: AppTextStyles.mono(12, FontWeight.w700,
+                      color: AppColors.paleInk2)),
           ],
         ),
         const SizedBox(height: 8),
@@ -1100,20 +1076,27 @@ class _DayRecordSection extends StatelessWidget {
           data: (records) {
             if (records.isEmpty) {
               return Container(
-                padding: const EdgeInsets.all(16),
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 22),
                 decoration: BoxDecoration(
-                  color: AppColors.paleBgAlt,
-                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.paleLine, width: 1.5),
+                  borderRadius: BorderRadius.circular(14),
                 ),
-                child: Center(
+                child: const Center(
                   child: Text('이 날의 기록이 없어요',
-                      style: TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w600,
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
                           color: AppColors.paleInk3)),
                 ),
               );
             }
-            final groups = _group(records);
+
+            // 카테고리별 그룹핑 (정해진 순서)
+            final grouped = <String, List<RecentRecord>>{};
+            for (final r in records) {
+              grouped.putIfAbsent(r.recordType, () => []).add(r);
+            }
+            final categories = _catOrder.where((c) => grouped.containsKey(c)).toList();
+
             return Container(
               decoration: BoxDecoration(
                 color: AppColors.card,
@@ -1122,44 +1105,18 @@ class _DayRecordSection extends StatelessWidget {
               ),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
               child: Column(
-                children: groups.asMap().entries.map((e) {
-                  final i   = e.key;
-                  final g   = e.value;
-                  // 카테고리 중복 제거 후 레이블 조합
-                  final cats = g.records
-                      .map((r) => _catLabel[r.recordType] ?? r.recordType)
-                      .toSet()
-                      .toList();
-                  return Container(
-                    padding: const EdgeInsets.symmetric(vertical: 11),
-                    decoration: BoxDecoration(
-                      border: i < groups.length - 1
-                          ? const Border(bottom: BorderSide(
-                              color: AppColors.paleLineSoft))
-                          : null,
-                    ),
-                    child: Row(children: [
-                      Container(
-                        width: 8, height: 8,
-                        decoration: BoxDecoration(
-                            color: _petColor(g.colorCode),
-                            shape: BoxShape.circle),
-                      ),
-                      const SizedBox(width: 10),
-                      Text(g.petName,
-                          style: const TextStyle(
-                              fontSize: 13, fontWeight: FontWeight.w700,
-                              color: AppColors.primary)),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          cats.join(' · '),
-                          style: TextStyle(
-                              fontSize: 12, color: AppColors.paleInk2),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ]),
+                children: categories.asMap().entries.map((e) {
+                  final idx  = e.key;
+                  final type = e.value;
+                  final recs = grouped[type]!;
+                  return _CategoryRow(
+                    isLast: idx == categories.length - 1,
+                    type: type,
+                    icon: _catIcon[type] ?? Icons.circle_outlined,
+                    label: _catLabel[type] ?? type,
+                    records: recs,
+                    petColor: _petColor,
+                    onTap: () => _openDetail(context, type, recs),
                   );
                 }).toList(),
               ),
@@ -1169,7 +1126,216 @@ class _DayRecordSection extends StatelessWidget {
       ],
     );
   }
+}
 
+// ── 카테고리 행 ──────────────────────────────────────────────
+class _CategoryRow extends StatelessWidget {
+  final bool isLast;
+  final String type;
+  final IconData icon;
+  final String label;
+  final List<RecentRecord> records;
+  final Color Function(String?) petColor;
+  final VoidCallback onTap;
+
+  const _CategoryRow({
+    required this.isLast,
+    required this.type,
+    required this.icon,
+    required this.label,
+    required this.records,
+    required this.petColor,
+    required this.onTap,
+  });
+
+  static Color _catBg(String t) => switch (t) {
+    'FEEDING'  => AppColors.catFeed,
+    'WEIGHT'   => AppColors.catWeight,
+    'CLEANING' => AppColors.catClean,
+    'MEMO'     => AppColors.catMemo,
+    'MATING'   => AppColors.catMating,
+    'LAYING'   => AppColors.catLaying,
+    _ => AppColors.paleBgAlt,
+  };
+
+  static Color _catIconInk(String t) => switch (t) {
+    'FEEDING'  => AppColors.catFeedInk,
+    'WEIGHT'   => AppColors.catWeightInk,
+    'CLEANING' => AppColors.catCleanInk,
+    'MEMO'     => AppColors.catMemoInk,
+    'MATING'   => AppColors.catMatingInk,
+    'LAYING'   => AppColors.catLayingInk,
+    _ => AppColors.paleInk2,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final names = records.map((r) => (name: r.petName, color: r.colorCode)).toList();
+    const showMax = 2;
+    final overflow = names.length > showMax ? names.length - showMax : 0;
+    final visible = names.take(showMax).toList();
+    final chipBg = _catBg(type);
+
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          border: isLast ? null
+              : const Border(bottom: BorderSide(color: AppColors.paleLineSoft)),
+        ),
+        child: Row(children: [
+          // 카테고리 아이콘 칩
+          Container(
+            width: 30, height: 30,
+            decoration: BoxDecoration(
+              color: chipBg,
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: Icon(icon, size: 14, color: _catIconInk(type)),
+          ),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 44,
+            child: Text(label,
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
+                    color: AppColors.paleInk2)),
+          ),
+          const Spacer(),
+          // 개체 칩들 (우측 정렬, 카테고리 색 배경)
+          ...visible.map((n) => Padding(
+            padding: const EdgeInsets.only(left: 5),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: chipBg,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(n.name,
+                  style: TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w700,
+                      color: _catIconInk(type)),
+                  overflow: TextOverflow.ellipsis),
+            ),
+          )),
+          if (overflow > 0) Padding(
+            padding: const EdgeInsets.only(left: 5),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: AppColors.paleBgAlt,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text('+$overflow',
+                  style: AppTextStyles.mono(11, FontWeight.w700,
+                      color: AppColors.paleInk2)),
+            ),
+          ),
+          const SizedBox(width: 4),
+          const Icon(Icons.chevron_right, size: 14, color: AppColors.paleInk3),
+        ]),
+      ),
+    );
+  }
+}
+
+// ── 카테고리 상세 바텀시트 ────────────────────────────────────
+class _CategoryDetailSheet extends StatelessWidget {
+  final String type;
+  final String label;
+  final List<RecentRecord> records;
+  final Color Function(String?) petColor;
+
+  const _CategoryDetailSheet({
+    required this.type,
+    required this.label,
+    required this.records,
+    required this.petColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.paleBg,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 36, height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                  color: AppColors.paleLine, borderRadius: BorderRadius.circular(2)),
+            ),
+          ),
+          Text(label,
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700,
+                  color: AppColors.primary, letterSpacing: -0.3)),
+          const SizedBox(height: 14),
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.55,
+            ),
+            child: ListView.separated(
+              shrinkWrap: true,
+              itemCount: records.length,
+              separatorBuilder: (_, __) =>
+                  const Divider(height: 1, color: AppColors.paleLineSoft),
+              itemBuilder: (_, i) {
+                final r = records[i];
+                final hasMemo = r.memo != null && r.memo!.isNotEmpty;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 8, height: 8,
+                        margin: const EdgeInsets.only(top: 4),
+                        decoration: BoxDecoration(
+                            color: petColor(r.colorCode), shape: BoxShape.circle),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(r.petName,
+                                style: const TextStyle(
+                                    fontSize: 13, fontWeight: FontWeight.w700,
+                                    color: AppColors.primary)),
+                            if (r.summary.isNotEmpty) ...[
+                              const SizedBox(height: 2),
+                              Text(r.summary,
+                                  style: const TextStyle(
+                                      fontSize: 12, color: AppColors.paleInk2)),
+                            ],
+                            if (hasMemo) ...[
+                              const SizedBox(height: 4),
+                              Text(r.memo!,
+                                  style: const TextStyle(
+                                      fontSize: 12, color: AppColors.paleInk3,
+                                      fontStyle: FontStyle.italic)),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _CalendarGrid extends StatelessWidget {
@@ -1243,10 +1409,12 @@ class _DayCell extends StatelessWidget {
   });
 
   static Color _catColor(String cat) => switch (cat) {
-        'FEEDING'  => AppColors.petPeach,
-        'WEIGHT'   => AppColors.petSage,
-        'CLEANING' => AppColors.petSky,
-        'MEMO'     => AppColors.petLilac,
+        'FEEDING'  => AppColors.catFeedInk,
+        'WEIGHT'   => AppColors.catWeightInk,
+        'CLEANING' => AppColors.catCleanInk,
+        'MEMO'     => AppColors.catMemoInk,
+        'MATING'   => AppColors.catMatingInk,
+        'LAYING'   => AppColors.catLayingInk,
         _ => AppColors.paleInk3,
       };
 

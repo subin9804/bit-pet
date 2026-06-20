@@ -85,6 +85,9 @@ public class PetMst extends BaseSyncEntity {
     @Column(name = "group_id")
     private Long groupId;
 
+    @Column(name = "private_yn", nullable = false, length = 1)
+    private String privateYn = "Y";
+
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
@@ -103,6 +106,7 @@ public class PetMst extends BaseSyncEntity {
         this.breedingDate = breedingDate;
         this.hatchingDate = hatchingDate;
         this.adoptionDate = adoptionDate;
+        this.privateYn = "Y";
     }
 
     public void updateProfile(String name, SpeciesCd species, PetGender gender,
@@ -116,6 +120,10 @@ public class PetMst extends BaseSyncEntity {
         if (breedingDate != null) this.breedingDate = breedingDate;
         if (hatchingDate != null) this.hatchingDate = hatchingDate;
         if (adoptionDate != null) this.adoptionDate = adoptionDate;
+    }
+
+    public void updatePrivacy(String privateYn) {
+        if (privateYn != null) this.privateYn = privateYn;
     }
 
     public void setProfilePhoto(Long photoId) {

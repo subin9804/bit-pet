@@ -211,14 +211,16 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
   @override
   Widget build(BuildContext context) {
     final petsAsync = ref.watch(petListProvider);
+    final isFormStep = _step == _FabStep.feedBulk || _step == _FabStep.feedPerPet;
+    final screenH = MediaQuery.of(context).size.height;
 
-    return Container(
+    final sheet = Container(
       decoration: const BoxDecoration(
         color: AppColors.paleBg,
         borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
       ),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: isFormStep ? MainAxisSize.max : MainAxisSize.min,
         children: [
           // 그랩 핸들
           Container(
@@ -236,6 +238,11 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         ],
       ),
     );
+
+    if (isFormStep) {
+      return SizedBox(height: screenH * 0.85, child: sheet);
+    }
+    return sheet;
   }
 
   Widget _buildStep(AsyncValue<List<Pet>> petsAsync) {

@@ -95,6 +95,7 @@ public class PetService {
         SpeciesCd effectiveSpecies = species != null ? species : pet.getSpecies();
         pet.updateProfile(req.name(), species, req.gender(), req.colorCode(),
                 req.description(), req.breedingDate(), req.hatchingDate(), req.adoptionDate());
+        pet.updatePrivacy(req.privateYn());
 
         if (req.morphIds() != null) {
             pet.getMorphs().clear();

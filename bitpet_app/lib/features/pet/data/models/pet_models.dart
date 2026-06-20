@@ -71,6 +71,8 @@ class Pet {
   final DateTime? hatchingDate;
   final DateTime? adoptionDate;
   final double? latestWeightG;
+  // 'Y' = 비공개(기본), 'N' = 공개(전체 검색 허용)
+  final String privateYn;
 
   const Pet({
     required this.id,
@@ -87,7 +89,10 @@ class Pet {
     this.hatchingDate,
     this.adoptionDate,
     this.latestWeightG,
+    this.privateYn = 'Y',
   });
+
+  bool get isPrivate => privateYn == 'Y';
 
   factory Pet.fromJson(Map<String, dynamic> json) => Pet(
         id: json['id'] as int,
@@ -108,6 +113,7 @@ class Pet {
             ? DateTime.tryParse(json['adoptionDate'] as String)
             : null,
         latestWeightG: (json['latestWeightG'] as num?)?.toDouble(),
+        privateYn: json['privateYn'] as String? ?? 'Y',
       );
 }
 

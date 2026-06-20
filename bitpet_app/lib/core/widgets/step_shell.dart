@@ -36,6 +36,8 @@ class StepShell extends StatefulWidget {
   final String doneLabel;
   final Future<void> Function()? onDone;
   final VoidCallback? onCancel;
+  final int initialStep;
+  final bool alwaysCancel;
 
   const StepShell({
     super.key,
@@ -45,6 +47,8 @@ class StepShell extends StatefulWidget {
     this.doneLabel = '완료',
     this.onDone,
     this.onCancel,
+    this.initialStep = 0,
+    this.alwaysCancel = false,
   });
 
   @override
@@ -52,8 +56,14 @@ class StepShell extends StatefulWidget {
 }
 
 class _StepShellState extends State<StepShell> {
-  int _idx = 0;
+  late int _idx;
   bool _submitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _idx = widget.initialStep.clamp(0, widget.steps.length - 1);
+  }
 
   StepConfig get _step => widget.steps[_idx];
   bool get _isLast => _idx == widget.steps.length - 1;
@@ -107,6 +117,7 @@ class _StepShellState extends State<StepShell> {
           title: widget.headerTitle,
           onPrev: _goPrev,
           onCancel: widget.onCancel,
+          alwaysCancel: widget.alwaysCancel,
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(22, 12, 22, 0),
@@ -188,6 +199,7 @@ class _StepTopBar extends StatelessWidget {
   final String title;
   final VoidCallback onPrev;
   final VoidCallback? onCancel;
+  final bool alwaysCancel;
 
   const _StepTopBar({
     required this.idx,
@@ -195,10 +207,15 @@ class _StepTopBar extends StatelessWidget {
     required this.title,
     required this.onPrev,
     this.onCancel,
+    this.alwaysCancel = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isBack = idx == 0 || alwaysCancel;
+    final VoidCallback backAction =
+        onCancel ?? () => Navigator.of(context).maybePop();
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(8, 10, 16, 4),
       child: Row(
@@ -206,15 +223,13 @@ class _StepTopBar extends StatelessWidget {
           SizedBox(
             width: 68,
             child: TextButton(
-              onPressed: idx == 0
-                  ? (onCancel ?? () => Navigator.of(context).maybePop())
-                  : onPrev,
+              onPressed: isBack ? backAction : onPrev,
               style: TextButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 foregroundColor: AppColors.paleInk2,
               ),
               child: Text(
-                idx == 0 ? '취소' : '이전',
+                isBack ? '뒤로' : '이전',
                 style: const TextStyle(
                   fontWeight: FontWeight.w600,
                   fontSize: 13,

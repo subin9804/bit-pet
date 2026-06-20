@@ -23,6 +23,7 @@ public record PetResponse(
         LocalDate hatchingDate,
         LocalDate adoptionDate,
         Long profilePhotoId,
+        String privateYn,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -46,6 +47,7 @@ public record PetResponse(
                 pet.getHatchingDate(),
                 pet.getAdoptionDate(),
                 pet.getProfilePhotoId(),
+                pet.getPrivateYn(),
                 pet.getCreatedAt(),
                 pet.getUpdatedAt()
         );

@@ -318,30 +318,33 @@ class TimelineItem {
 
 class RecentRecord {
   final int id;
-  final int petId;
+  final int? petId;
   final String petName;
   final String? colorCode;
-  final String recordType; // FEEDING, WEIGHT, CLEANING, MEMO
+  final String recordType;
   final String summary;
+  final String? memo;
   final DateTime createdAt;
 
   const RecentRecord({
     required this.id,
-    required this.petId,
+    this.petId,
     required this.petName,
     this.colorCode,
     required this.recordType,
     required this.summary,
+    this.memo,
     required this.createdAt,
   });
 
   factory RecentRecord.fromJson(Map<String, dynamic> json) => RecentRecord(
-        id: json['id'] as int,
-        petId: json['petId'] as int,
-        petName: json['petName'] as String,
+        id: (json['id'] as num).toInt(),
+        petId: (json['petId'] as num?)?.toInt(),
+        petName: json['petName'] as String? ?? '',
         colorCode: json['colorCode'] as String?,
         recordType: json['recordType'] as String,
-        summary: json['summary'] as String,
+        summary: json['summary'] as String? ?? '',
+        memo: json['memo'] as String?,
         createdAt: DateTime.parse(json['createdAt'] as String),
       );
 }

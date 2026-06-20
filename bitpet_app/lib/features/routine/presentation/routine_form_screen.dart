@@ -65,7 +65,8 @@ const _intervalPresets = [
 // ════════════════════════════════════════════════════════════════
 
 class RoutineFormScreen extends ConsumerStatefulWidget {
-  const RoutineFormScreen({super.key});
+  final Routine? initialRoutine;
+  const RoutineFormScreen({super.key, this.initialRoutine});
 
   @override
   ConsumerState<RoutineFormScreen> createState() => _RoutineFormScreenState();
@@ -74,7 +75,7 @@ class RoutineFormScreen extends ConsumerStatefulWidget {
 class _RoutineFormScreenState extends ConsumerState<RoutineFormScreen> {
   // ── 상태 ────────────────────────────────────────────────────────────────────
   RoutineType _type = RoutineType.FEEDING;
-  final _titleCtrl = TextEditingController(text: '급여');
+  late final TextEditingController _titleCtrl;
   bool _titleEdited = false;
 
   Set<int> _petIds = {};
@@ -145,6 +146,31 @@ class _RoutineFormScreenState extends ConsumerState<RoutineFormScreen> {
     });
   }
 
+  bool get _isEditing => widget.initialRoutine != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final r = widget.initialRoutine;
+    if (r != null) {
+      _type        = r.routineType;
+      _titleCtrl   = TextEditingController(text: r.title);
+      _titleEdited = true;
+      _petIds      = Set<int>.from(r.petIds);
+      _interval    = r.cycleDays;
+      if (r.alarmTime != null) {
+        final parts = r.alarmTime!.split(':');
+        if (parts.length == 2) {
+          _alarmHour   = int.tryParse(parts[0]) ?? 9;
+          _alarmMinute = int.tryParse(parts[1]) ?? 0;
+        }
+      }
+      _alarmOn = r.isAlarmEnabled;
+    } else {
+      _titleCtrl = TextEditingController(text: '급여');
+    }
+  }
+
   @override
   void dispose() {
     _titleCtrl.dispose();
@@ -153,19 +179,37 @@ class _RoutineFormScreenState extends ConsumerState<RoutineFormScreen> {
 
   // ── 제출 ──────────────────────────────────────────────────────────────────
   Future<void> _submit() async {
-    await ref.read(routineRepositoryProvider).createRoutine(
-      CreateRoutineRequest(
-        routineType: _type,
-        title: _titleCtrl.text.trim(),
-        cycleDays: _cycleDays,
-        alarmTime: _alarmOn ? _alarmTime : null,
-        alarmEnabled: _alarmOn,
-        petIds: _petIds.toList(),
-      ),
-    );
+    if (_isEditing) {
+      await ref.read(routineRepositoryProvider).updateRoutine(
+        widget.initialRoutine!.id,
+        {
+          'routineType': _type.name,
+          'title': _titleCtrl.text.trim(),
+          'cycleDays': _cycleDays,
+          'alarmTime': _alarmOn ? _alarmTime : null,
+          'alarmEnabled': _alarmOn,
+          'petIds': _petIds.toList(),
+        },
+      );
+    } else {
+      await ref.read(routineRepositoryProvider).createRoutine(
+        CreateRoutineRequest(
+          routineType: _type,
+          title: _titleCtrl.text.trim(),
+          cycleDays: _cycleDays,
+          alarmTime: _alarmOn ? _alarmTime : null,
+          alarmEnabled: _alarmOn,
+          petIds: _petIds.toList(),
+        ),
+      );
+    }
     if (mounted) {
       ref.read(routineListProvider.notifier).load();
-      ToastMessage.show(context, '루틴이 등록되었습니다!', type: ToastType.success);
+      ToastMessage.show(
+        context,
+        _isEditing ? '루틴이 수정되었습니다!' : '루틴이 등록되었습니다!',
+        type: ToastType.success,
+      );
       context.pop();
     }
   }
@@ -402,10 +446,12 @@ class _RoutineFormScreenState extends ConsumerState<RoutineFormScreen> {
       backgroundColor: AppColors.paleBg,
       body: SafeArea(
         child: StepShell(
-          headerTitle: '루틴 등록',
+          headerTitle: _isEditing ? '루틴 수정' : '루틴 등록',
           accentInk: _typeInk,
           steps: _steps,
-          doneLabel: '루틴 저장',
+          doneLabel: _isEditing ? '수정 완료' : '루틴 저장',
+          initialStep: _isEditing ? _steps.length - 1 : 0,
+          alwaysCancel: _isEditing,
           onDone: _submit,
           onCancel: () => context.pop(),
         ),

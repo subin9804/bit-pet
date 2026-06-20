@@ -36,6 +36,36 @@ public interface RoutineLogDtlRepository extends JpaRepository<RoutineLogDtl, Lo
 
     @Query("""
             SELECT r FROM RoutineLogDtl r
+            WHERE r.petId IN :petIds
+              AND r.executedAt >= :from
+              AND r.executedAt < :to
+              AND r.status = io.bitpet.routine.domain.RoutineLogStatus.COMPLETED
+              AND r.deletedAt IS NULL
+            ORDER BY r.executedAt DESC
+            """)
+    List<RoutineLogDtl> findCompletedByPetIdsAndDateRange(@Param("petIds") Collection<Long> petIds,
+                                                           @Param("from") Instant from,
+                                                           @Param("to") Instant to);
+
+    @Query("""
+            SELECT r FROM RoutineLogDtl r
+            JOIN RoutineMst rm ON rm.id = r.routineId
+            WHERE r.petId IN :petIds
+              AND r.executedAt >= :from
+              AND r.executedAt < :to
+              AND r.status = io.bitpet.routine.domain.RoutineLogStatus.COMPLETED
+              AND rm.routineType = :routineType
+              AND r.deletedAt IS NULL
+            ORDER BY r.executedAt DESC
+            """)
+    List<RoutineLogDtl> findCompletedByPetIdsAndRoutineTypeAndDateRange(
+            @Param("petIds") Collection<Long> petIds,
+            @Param("routineType") io.bitpet.routine.domain.RoutineType routineType,
+            @Param("from") Instant from,
+            @Param("to") Instant to);
+
+    @Query("""
+            SELECT r FROM RoutineLogDtl r
             WHERE r.routineId = :routineId
               AND r.petId IN :petIds
               AND r.executedAt >= :from

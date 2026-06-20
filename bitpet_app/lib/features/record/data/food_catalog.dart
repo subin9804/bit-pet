@@ -124,7 +124,7 @@ class FeedFormData {
     }
     if (supplement != null) m['supplement'] = supplement!.name;
     if (memo.trim().isNotEmpty) m['memo'] = memo.trim();
-    if (fedAt != null) m['fedAt'] = fedAt.toIso8601String();
+    if (fedAt != null) m['fedAt'] = fedAt.toUtc().toIso8601String();
     return m;
   }
 }

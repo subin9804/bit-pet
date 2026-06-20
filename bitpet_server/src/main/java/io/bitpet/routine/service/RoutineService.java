@@ -170,12 +170,15 @@ public class RoutineService {
                 .collect(Collectors.toMap(RoutineLogDtl::getPetId, l -> l, (a, b) -> a));
         return petIds.stream().map(petId -> {
             PetMst pet = petRepository.findById(petId).orElse(null);
-            String petName = pet != null ? pet.getName() : "";
-            RoutineLogDtl log = logByPetId.get(petId);
+            String petName     = pet != null ? pet.getName() : "";
+            String speciesName = (pet != null && pet.getSpecies() != null)
+                    ? pet.getSpecies().getNameKo() : "";
+            String colorCode   = pet != null ? pet.getColorCode() : null;
+            RoutineLogDtl log  = logByPetId.get(petId);
             return new TodayRoutineResponse.PetTodayStatus(
-                    petId, petName, log != null,
-                    log != null ? log.getId() : null,
-                    log != null ? log.getExecutedAt() : null
+                    petId, petName, speciesName, colorCode,
+                    log != null,
+                    log != null ? log.getId() : null
             );
         }).toList();
     }
@@ -339,6 +342,7 @@ public class RoutineService {
             extraData.put("weight_g", req.weightG());
             weightRepository.save(WeightDtl.builder()
                     .petId(petId)
+                    .routineId(routine.getId())
                     .weightG(req.weightG())
                     .measuredAt(executedAt)
                     .source(WeightSource.MANUAL)

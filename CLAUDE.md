@@ -139,8 +139,14 @@ features/
 | V21 | weight_dtl/feeding_dtl/cleaning_dtl 캘린더용 부분 인덱스 추가 |
 | V22 | (이전 작업) |
 | V23 | morph_cd v3.1/v3.2 — alias_list·has_health_concern 컬럼 추가, name_ko/name_en 100자 확장, pet_morph_rls 신설(N:N), pet_mst.morph_id·environment_memo 제거 |
+| V24 | breeding_group 관련 |
+| V25 | feeding_restructure |
+| V26 | breeding_group_invite_code_drop |
+| V27 | pet_mst.private_yn CHAR(1) 추가 — 'Y'=비공개(기본), 'N'=공개(전체 검색 허용) |
+| V28 | pet_mst.private_yn CHAR(1) → VARCHAR(1) 타입 변경 (Hibernate 호환) |
+| V29 | weight_dtl.routine_id 추가 (루틴 완료로 생성된 체중 기록 구분용) |
 
-> **다음 마이그레이션은 V24부터 작성.**
+> **다음 마이그레이션은 V30부터 작성.**
 
 ---
 
