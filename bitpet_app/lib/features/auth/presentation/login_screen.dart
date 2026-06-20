@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -49,9 +50,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
     if (!mounted) return;
     ref.read(authStateProvider).whenOrNull(
-      error: (e, _) => ToastMessage.show(
-        context, e.toString(), type: ToastType.error,
-      ),
+      error: (e, _) {
+        final msg = (e is DioException && e.response?.statusCode == 401)
+            ? '존재하지 않는 아이디/비밀번호 입니다.'
+            : '로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.';
+        ToastMessage.show(context, msg, type: ToastType.error);
+      },
     );
   }
 
