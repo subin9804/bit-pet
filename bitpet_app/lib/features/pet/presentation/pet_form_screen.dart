@@ -43,8 +43,8 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
   final _memoCtrl   = TextEditingController();
 
   Species? _species;
-  int? _selectedMorphId;
-  Morph? _selectedMorph;
+  final List<int>   _selectedMorphIds  = [];
+  final List<Morph> _selectedMorphs    = [];
   String _gender = '수컷';
   String _hatchPrecision = 'DAY'; // 'DAY'=정확한 날짜, 'MONTH'=연·월만
   DateTime? _hatchDate;           // DAY precision: full date
@@ -95,18 +95,8 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
     try {
       final pet = await ref.read(petDetailProvider(petId).future);
 
-      Morph? matchedMorph;
-      if (pet.speciesId > 0 && pet.morphName != null) {
-        try {
-          final morphs = await ref.read(morphsBySpeciesProvider(pet.speciesId).future);
-          for (final m in morphs) {
-            if (m.nameKo == pet.morphName || m.nameEn == pet.morphName) {
-              matchedMorph = m;
-              break;
-            }
-          }
-        } catch (_) {}
-      }
+      // 이미 pet.morphs에 N:N 목록이 들어있으므로 직접 사용
+      final matchedMorphs = List<Morph>.from(pet.morphs);
 
       if (!mounted) return;
 
@@ -122,11 +112,13 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
         _nameCtrl.text = pet.name;
         // 종 (스텁)
         _species = Species(id: pet.speciesId, code: '', category: '', nameKo: pet.speciesName);
-        // 모프
-        if (matchedMorph != null) {
-          _selectedMorphId = matchedMorph.id;
-          _selectedMorph = matchedMorph;
-        }
+        // 모프 (N:N)
+        _selectedMorphIds
+          ..clear()
+          ..addAll(matchedMorphs.map((m) => m.id));
+        _selectedMorphs
+          ..clear()
+          ..addAll(matchedMorphs);
         // 성별
         _gender = pet.gender == 'MALE' ? '수컷' : pet.gender == 'FEMALE' ? '암컷' : '미상';
         // 해칭일
@@ -166,8 +158,8 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
     if (result != null) {
       setState(() {
         _species = result;
-        _selectedMorphId = null;
-        _selectedMorph = null;
+        _selectedMorphIds.clear();
+        _selectedMorphs.clear();
       });
     }
   }
@@ -267,7 +259,7 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
         'speciesId': _species!.id,
         'gender': genderCode,
         'colorCode': _selectedHex,
-        if (_selectedMorphId != null) 'morphId': _selectedMorphId,
+        if (_selectedMorphIds.isNotEmpty) 'morphIds': _selectedMorphIds,
         if (hatchingDate != null) 'hatchingDate': hatchingDate,
         if (hatchingDatePrecision != null) 'hatchingDatePrecision': hatchingDatePrecision,
         'hatchingDateApproximate': _hatchApproximate,
@@ -287,6 +279,7 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
           name: _nameCtrl.text.trim(),
           gender: genderCode,
           colorCode: _selectedHex,
+          morphIds: List.from(_selectedMorphIds),
           hatchingDate: hatchingDate,
           hatchingDatePrecision: hatchingDatePrecision,
           hatchingDateApproximate: _hatchApproximate,
@@ -450,15 +443,15 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
                     children: [
                       // 카탈로그 모프 추천 칩
                       ...morphs.map((m) {
-                        final selected = _selectedMorphId == m.id;
+                        final selected = _selectedMorphIds.contains(m.id);
                         return GestureDetector(
                           onTap: () => setState(() {
                             if (selected) {
-                              _selectedMorphId = null;
-                              _selectedMorph = null;
+                              _selectedMorphIds.remove(m.id);
+                              _selectedMorphs.removeWhere((s) => s.id == m.id);
                             } else {
-                              _selectedMorphId = m.id;
-                              _selectedMorph = m;
+                              _selectedMorphIds.add(m.id);
+                              _selectedMorphs.add(m);
                             }
                           }),
                           child: AnimatedContainer(
@@ -696,10 +689,10 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
             StepSummaryRow(k: '종', v: _species?.nameKo ?? ''),
             StepSummaryRow(
               k: '모프',
-              v: _selectedMorph != null
-                  ? '${_selectedMorph!.nameKo}${_selectedMorph!.nameEn != null ? " (${_selectedMorph!.nameEn})" : ""}'
-                  : '',
-              muted: _selectedMorph == null,
+              v: _selectedMorphs.isEmpty
+                  ? ''
+                  : _selectedMorphs.map((m) => m.nameKo).join(', '),
+              muted: _selectedMorphs.isEmpty,
             ),
           ]),
           StepSummaryGroup(label: '성별·날짜', step: 2, rows: [

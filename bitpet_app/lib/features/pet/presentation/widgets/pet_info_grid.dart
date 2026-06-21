@@ -28,7 +28,12 @@ class PetInfoGrid extends StatelessWidget {
           // 2열 그리드
           Row(
             children: [
-              _Cell(label: '모프',   value: pet.morphName ?? '-'),
+              _Cell(
+                label: '모프',
+                value: pet.morphs.isNotEmpty
+                    ? pet.morphs.map((m) => m.nameKo).join(', ')
+                    : (pet.morphName ?? '-'),
+              ),
               const SizedBox(width: 12),
               _Cell(
                 label: '해칭일',

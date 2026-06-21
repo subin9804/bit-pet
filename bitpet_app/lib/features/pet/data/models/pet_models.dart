@@ -61,7 +61,8 @@ class Pet {
   final String serialNo;
   final int speciesId;
   final String speciesName;
-  final String? morphName; // 모프명 (백엔드에서 제공 시)
+  final String? morphName; // 모프명 (백엔드에서 제공 시, 단일 하위호환용)
+  final List<Morph> morphs; // N:N 모프 목록
   final String name;
   final String gender;
   final String? colorCode;
@@ -82,6 +83,7 @@ class Pet {
     required this.speciesId,
     required this.speciesName,
     this.morphName,
+    this.morphs = const [],
     required this.name,
     required this.gender,
     this.colorCode,
@@ -104,6 +106,10 @@ class Pet {
         speciesId: (json['speciesId'] as num?)?.toInt() ?? 0,
         speciesName: (json['speciesNameKo'] ?? json['speciesName']) as String? ?? '',
         morphName: json['morphName'] as String?,
+        morphs: (json['morphs'] as List<dynamic>?)
+                ?.map((e) => Morph.fromJson(e as Map<String, dynamic>))
+                .toList() ??
+            [],
         name: json['name'] as String? ?? '',
         gender: json['gender'] as String? ?? 'UNKNOWN',
         colorCode: json['colorCode'] as String?,
@@ -130,8 +136,7 @@ class CreatePetRequest {
   final String? colorCode;
   final String? description;
   final String? environmentMemo;
-  final int? morphId;
-  final String? morphText;      // 직접 입력 모프
+  final List<int> morphIds;
   final String? hatchingDate;
   final String? hatchingDatePrecision;   // 'DAY' or 'MONTH'
   final bool hatchingDateApproximate;
@@ -147,8 +152,7 @@ class CreatePetRequest {
     this.colorCode,
     this.description,
     this.environmentMemo,
-    this.morphId,
-    this.morphText,
+    this.morphIds = const [],
     this.hatchingDate,
     this.hatchingDatePrecision,
     this.hatchingDateApproximate = false,
@@ -165,8 +169,7 @@ class CreatePetRequest {
         if (colorCode != null) 'colorCode': colorCode,
         if (description != null) 'description': description,
         if (environmentMemo != null) 'environmentMemo': environmentMemo,
-        if (morphId != null) 'morphId': morphId,
-        if (morphText != null && morphId == null) 'morphText': morphText,
+        if (morphIds.isNotEmpty) 'morphIds': morphIds,
         if (hatchingDate != null) 'hatchingDate': hatchingDate,
         if (hatchingDatePrecision != null) 'hatchingDatePrecision': hatchingDatePrecision,
         'hatchingDateApproximate': hatchingDateApproximate,
