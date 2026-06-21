@@ -1323,6 +1323,7 @@ class _CategoryDetailSheet extends StatelessWidget {
                 final petRecs  = petGroups[key]!;
                 final first    = petRecs.first;
                 final isLast   = i == petKeys.length - 1;
+                final petId    = int.tryParse(key);
 
                 return Container(
                   padding: const EdgeInsets.symmetric(vertical: 12),
@@ -1347,11 +1348,27 @@ class _CategoryDetailSheet extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // 개체명
-                            Text(first.petName,
-                                style: const TextStyle(
-                                    fontSize: 13, fontWeight: FontWeight.w700,
-                                    color: AppColors.primary)),
+                            // 개체명 → 탭 시 상세 페이지로 이동
+                            GestureDetector(
+                              onTap: petId == null ? null : () {
+                                Navigator.of(context).pop();
+                                context.push('/pets/$petId');
+                              },
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(first.petName,
+                                      style: const TextStyle(
+                                          fontSize: 13, fontWeight: FontWeight.w700,
+                                          color: AppColors.primary)),
+                                  if (petId != null) ...[
+                                    const SizedBox(width: 2),
+                                    const Icon(Icons.chevron_right,
+                                        size: 14, color: AppColors.paleInk3),
+                                  ],
+                                ],
+                              ),
+                            ),
                             const SizedBox(height: 4),
                             // 해당 개체의 기록 목록
                             ...petRecs.map((r) {
