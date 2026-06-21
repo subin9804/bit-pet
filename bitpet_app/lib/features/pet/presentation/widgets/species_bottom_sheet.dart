@@ -4,19 +4,21 @@ import '../../../../core/theme/app_colors.dart';
 import '../../data/models/pet_models.dart';
 import '../../providers/pet_provider.dart';
 
-// ── subcategory 코드 → 한글 라벨 (ERD: G/L/C/S/T/F/N)
+// ── subcategory 코드 → 한글 라벨 (DB: GECKO/LIZARD/CHAMELEON/SNAKE/TURTLE/FROG/NEWT)
 const _kSubcategoryLabels = <String, String>{
-  'G': '게코',
-  'L': '도마뱀',
-  'C': '카멜레온',
-  'S': '뱀',
-  'T': '거북',
-  'F': '개구리',
-  'N': '도롱뇽',
+  'GECKO':     '게코',
+  'LIZARD':    '도마뱀',
+  'CHAMELEON': '카멜레온',
+  'SNAKE':     '뱀',
+  'TURTLE':    '거북',
+  'FROG':      '개구리',
+  'NEWT':      '도롱뇽',
 };
 
 // 레일 노출 순서
-const _kSubcategoryOrder = ['G', 'L', 'C', 'S', 'T', 'F', 'N'];
+const _kSubcategoryOrder = [
+  'GECKO', 'LIZARD', 'CHAMELEON', 'SNAKE', 'TURTLE', 'FROG', 'NEWT',
+];
 
 /// 03c — 종 선택 바텀시트
 ///   흐름: subcategory 레일 탭 → 해당 subcategory의 종 목록 → 검색
