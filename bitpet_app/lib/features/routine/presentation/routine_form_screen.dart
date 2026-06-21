@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
@@ -1222,7 +1223,7 @@ class _AlarmStep extends StatelessWidget {
   static const _presets = ['09:00', '12:00', '19:00', '21:00'];
 
   String get _timeStr =>
-      '${alarmHour.toString().padLeft(2,'0')}:${alarmMinute.toString().padLeft(2,'0')}';
+      '${alarmHour.toString().padLeft(2, '0')}:${alarmMinute.toString().padLeft(2, '0')}';
 
   @override
   Widget build(BuildContext context) {
@@ -1231,52 +1232,61 @@ class _AlarmStep extends StatelessWidget {
         SField(
           label: '알림 시간',
           child: Container(
-            padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
             decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(13),
               border: Border.all(color: AppColors.paleLine),
             ),
-            child: Row(
+            child: Column(
               children: [
-                // 시간 표시 (탭해서 선택)
-                GestureDetector(
-                  onTap: () async {
-                    final t = await showTimePicker(
-                      context: context,
-                      initialTime: TimeOfDay(hour: alarmHour, minute: alarmMinute),
-                      builder: (ctx, child) => Theme(
-                        data: Theme.of(ctx).copyWith(
-                          colorScheme: Theme.of(ctx).colorScheme.copyWith(primary: AppColors.primary),
-                        ),
-                        child: child!,
-                      ),
-                    );
-                    if (t != null) onTimeChanged(t.hour, t.minute);
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: AppColors.paleBg,
-                      borderRadius: BorderRadius.circular(10),
+                // ── 인라인 시간 스피너 ──
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    _TimeSpinner(
+                      value: alarmHour,
+                      min: 0, max: 23,
+                      wrap: false,
+                      typeBg: typeBg,
+                      onDelta: (d) => onTimeChanged((alarmHour + d).clamp(0, 23), alarmMinute),
+                      onSubmit: (t) {
+                        final v = int.tryParse(t);
+                        if (v != null) onTimeChanged(v.clamp(0, 23), alarmMinute);
+                      },
                     ),
-                    child: Text(
-                      _timeStr,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 28,
-                        color: AppColors.primary,
-                      ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      child: Text(':', style: TextStyle(
+                        fontSize: 40, fontWeight: FontWeight.w700,
+                        color: AppColors.primary, height: 0.9,
+                      )),
                     ),
-                  ),
+                    _TimeSpinner(
+                      value: alarmMinute,
+                      min: 0, max: 59,
+                      wrap: true,
+                      typeBg: typeBg,
+                      onDelta: (d) {
+                        final m = ((alarmMinute + d) % 60 + 60) % 60;
+                        onTimeChanged(alarmHour, m);
+                      },
+                      onSubmit: (t) {
+                        final v = int.tryParse(t);
+                        if (v != null) onTimeChanged(alarmHour, v.clamp(0, 59));
+                      },
+                    ),
+                  ],
                 ),
-                const Spacer(),
-                // 프리셋 칩
-                Column(
+                const SizedBox(height: 16),
+                // ── 프리셋 칩 ──
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: _presets.map((tp) {
                     final on = tp == _timeStr;
                     return Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
                       child: GestureDetector(
                         onTap: () {
                           final parts = tp.split(':').map(int.parse).toList();
@@ -1284,14 +1294,15 @@ class _AlarmStep extends StatelessWidget {
                         },
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 120),
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
                             color: on ? typeBg : AppColors.paleBg,
                             borderRadius: BorderRadius.circular(999),
                             border: on ? null : Border.all(color: AppColors.paleLine),
                           ),
-                          child: Text(tp, style: const TextStyle(
-                            fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primary,
+                          child: Text(tp, style: TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w700,
+                            color: on ? AppColors.primary : AppColors.paleInk2,
                           )),
                         ),
                       ),
@@ -1302,7 +1313,7 @@ class _AlarmStep extends StatelessWidget {
             ),
           ),
         ),
-        // 알림 토글 행
+        // ── 알림 토글 행 ──
         GestureDetector(
           onTap: onAlarmToggled,
           child: Container(
@@ -1315,17 +1326,13 @@ class _AlarmStep extends StatelessWidget {
             child: Row(
               children: [
                 Container(
-                  width: 34,
-                  height: 34,
+                  width: 34, height: 34,
                   decoration: BoxDecoration(
                     color: alarmOn ? typeBg : AppColors.paleBgAlt,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(
-                    Icons.notifications_outlined,
-                    size: 18,
-                    color: alarmOn ? AppColors.primary : AppColors.paleInk3,
-                  ),
+                  child: Icon(Icons.notifications_outlined, size: 18,
+                      color: alarmOn ? AppColors.primary : AppColors.paleInk3),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -1342,11 +1349,9 @@ class _AlarmStep extends StatelessWidget {
                     ],
                   ),
                 ),
-                // PALE 토글
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 150),
-                  width: 44,
-                  height: 26,
+                  width: 44, height: 26,
                   decoration: BoxDecoration(
                     color: alarmOn ? AppColors.primary : AppColors.paleLine,
                     borderRadius: BorderRadius.circular(13),
@@ -1356,17 +1361,159 @@ class _AlarmStep extends StatelessWidget {
                     alignment: alarmOn ? Alignment.centerRight : Alignment.centerLeft,
                     child: Container(
                       margin: const EdgeInsets.all(3),
-                      width: 20,
-                      height: 20,
-                      decoration: BoxDecoration(
-                        color: AppColors.paleBg,
-                        shape: BoxShape.circle,
-                      ),
+                      width: 20, height: 20,
+                      decoration: const BoxDecoration(color: AppColors.paleBg, shape: BoxShape.circle),
                     ),
                   ),
                 ),
               ],
             ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// 시간 스피너 — 위아래 화살표 + 직접 입력
+// ════════════════════════════════════════════════════════════════
+
+class _TimeSpinner extends StatefulWidget {
+  final int value;
+  final int min, max;
+  final bool wrap;
+  final Color typeBg;
+  final void Function(int) onDelta;
+  final void Function(String) onSubmit;
+
+  const _TimeSpinner({
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.wrap,
+    required this.typeBg,
+    required this.onDelta,
+    required this.onSubmit,
+  });
+
+  @override
+  State<_TimeSpinner> createState() => _TimeSpinnerState();
+}
+
+class _TimeSpinnerState extends State<_TimeSpinner> {
+  bool _editing = false;
+  late final TextEditingController _ctrl;
+  late final FocusNode _focus;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = TextEditingController();
+    _focus = FocusNode();
+    _focus.addListener(() {
+      if (!_focus.hasFocus && _editing) _commit();
+    });
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  void _startEdit() {
+    _ctrl.text = widget.value.toString().padLeft(2, '0');
+    _ctrl.selection = TextSelection(baseOffset: 0, extentOffset: 2);
+    setState(() => _editing = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _focus.requestFocus());
+  }
+
+  void _commit() {
+    final text = _ctrl.text.trim();
+    if (text.isNotEmpty) widget.onSubmit(text);
+    if (mounted) setState(() => _editing = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final label = widget.value.toString().padLeft(2, '0');
+    final canUp   = widget.wrap || widget.value < widget.max;
+    final canDown = widget.wrap || widget.value > widget.min;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // ▲ 위
+        GestureDetector(
+          onTap: canUp ? () => widget.onDelta(1) : null,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 100),
+            width: 64, height: 36,
+            decoration: BoxDecoration(
+              color: canUp ? AppColors.paleBgAlt : Colors.transparent,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(Icons.keyboard_arrow_up, size: 24,
+                color: canUp ? AppColors.paleInk2 : AppColors.paleLine),
+          ),
+        ),
+        const SizedBox(height: 4),
+        // 숫자 (탭 → 직접입력)
+        GestureDetector(
+          onTap: _editing ? null : _startEdit,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 120),
+            width: 80, height: 60,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: _editing
+                  ? widget.typeBg.withValues(alpha: 0.25)
+                  : AppColors.paleBgAlt,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: _editing ? widget.typeBg : Colors.transparent,
+                width: 2,
+              ),
+            ),
+            child: _editing
+                ? TextField(
+                    controller: _ctrl,
+                    focusNode: _focus,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    maxLength: 2,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 30, fontWeight: FontWeight.w700, color: AppColors.primary,
+                    ),
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      counterText: '',
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    onSubmitted: (_) => _commit(),
+                  )
+                : Text(label, style: const TextStyle(
+                    fontSize: 34, fontWeight: FontWeight.w700, color: AppColors.primary,
+                  )),
+          ),
+        ),
+        const SizedBox(height: 4),
+        // ▼ 아래
+        GestureDetector(
+          onTap: canDown ? () => widget.onDelta(-1) : null,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 100),
+            width: 64, height: 36,
+            decoration: BoxDecoration(
+              color: canDown ? AppColors.paleBgAlt : Colors.transparent,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(Icons.keyboard_arrow_down, size: 24,
+                color: canDown ? AppColors.paleInk2 : AppColors.paleLine),
           ),
         ),
       ],
