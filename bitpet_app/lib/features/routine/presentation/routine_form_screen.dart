@@ -1448,13 +1448,8 @@ class _TimeSpinnerState extends State<_TimeSpinner> {
         // ▲ 위
         GestureDetector(
           onTap: canUp ? () => widget.onDelta(1) : null,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 100),
+          child: SizedBox(
             width: 64, height: 36,
-            decoration: BoxDecoration(
-              color: canUp ? AppColors.paleBgAlt : Colors.transparent,
-              borderRadius: BorderRadius.circular(10),
-            ),
             child: Icon(Icons.keyboard_arrow_up, size: 24,
                 color: canUp ? AppColors.paleInk2 : AppColors.paleLine),
           ),
@@ -1505,13 +1500,8 @@ class _TimeSpinnerState extends State<_TimeSpinner> {
         // ▼ 아래
         GestureDetector(
           onTap: canDown ? () => widget.onDelta(-1) : null,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 100),
+          child: SizedBox(
             width: 64, height: 36,
-            decoration: BoxDecoration(
-              color: canDown ? AppColors.paleBgAlt : Colors.transparent,
-              borderRadius: BorderRadius.circular(10),
-            ),
             child: Icon(Icons.keyboard_arrow_down, size: 24,
                 color: canDown ? AppColors.paleInk2 : AppColors.paleLine),
           ),
