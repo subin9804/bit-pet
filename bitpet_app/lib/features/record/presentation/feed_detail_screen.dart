@@ -1012,8 +1012,6 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
                   // 스크롤 본문
                   Expanded(
                     child: SingleChildScrollView(
-                      keyboardDismissBehavior:
-                          ScrollViewKeyboardDismissBehavior.onDrag,
                       padding: EdgeInsets.fromLTRB(
                           22, 4, 22,
                           MediaQuery.of(context).viewInsets.bottom + 14),

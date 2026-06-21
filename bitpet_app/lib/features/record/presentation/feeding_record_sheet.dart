@@ -240,8 +240,6 @@ class _FeedingRecordSheetState extends ConsumerState<FeedingRecordSheet> {
             Expanded(
               child: SingleChildScrollView(
                 controller: controller,
-                keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: EdgeInsets.fromLTRB(
                     20, 0, 20, MediaQuery.of(context).viewInsets.bottom),
                 child: Column(

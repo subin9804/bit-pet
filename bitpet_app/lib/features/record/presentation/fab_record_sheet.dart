@@ -513,7 +513,6 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         // 본문 (스크롤)
         Flexible(
           child: SingleChildScrollView(
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: EdgeInsets.fromLTRB(
                 22, 8, 22, MediaQuery.of(context).viewInsets.bottom + 14),
             child: Column(
@@ -701,7 +700,6 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         // 본문 (스크롤)
         Flexible(
           child: SingleChildScrollView(
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: EdgeInsets.fromLTRB(
                 22, 10, 22, MediaQuery.of(context).viewInsets.bottom + 14),
             child: Column(
