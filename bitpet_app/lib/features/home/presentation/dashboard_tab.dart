@@ -1373,26 +1373,19 @@ class _CategoryDetailSheet extends StatelessWidget {
                             // 해당 개체의 기록 목록
                             ...petRecs.map((r) {
                               final hasMemo = r.memo != null && r.memo!.isNotEmpty;
+                              final display = [
+                                if (r.summary.isNotEmpty) r.summary,
+                                if (hasMemo) r.memo!,
+                              ].join('  ·  ');
                               return Padding(
                                 padding: const EdgeInsets.only(bottom: 3),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    if (r.summary.isNotEmpty)
-                                      Text(r.summary,
-                                          style: const TextStyle(
-                                              fontSize: 12,
-                                              color: AppColors.paleInk2)),
-                                    if (hasMemo)
-                                      Padding(
-                                        padding: const EdgeInsets.only(top: 2),
-                                        child: Text(r.memo!,
-                                            style: const TextStyle(
-                                                fontSize: 11.5,
-                                                color: AppColors.paleInk3,
-                                                fontStyle: FontStyle.italic)),
-                                      ),
-                                  ],
+                                child: Text(
+                                  display,
+                                  style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.paleInk2),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 2,
                                 ),
                               );
                             }),

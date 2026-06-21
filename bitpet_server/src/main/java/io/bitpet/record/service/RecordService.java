@@ -301,11 +301,36 @@ public class RecordService {
         return all;
     }
 
+    private static final Map<String, String> FOOD_TYPE_KO = Map.of(
+            "CRICKET",      "귀뚜라미",
+            "MEALWORM",     "밀웜",
+            "FRUIT_FLY",    "초파리",
+            "SUPERFOOD",    "슈퍼푸드",
+            "PELLET",       "사료",
+            "VEGETABLES",   "야채/과일",
+            "FROZEN_VEGE",  "냉짱",
+            "FROZEN_MOUSE", "마우스",
+            "FROZEN_RAT",   "래트"
+    );
+    private static final Map<String, String> SUPPLEMENT_KO = Map.of(
+            "CALCIUM",   "칼슘",
+            "PROBIOTIC", "유산균",
+            "VITAMIN",   "비타민",
+            "OTHER",     "영양제"
+    );
+
     private String buildFeedingSummary(FeedingDtl f) {
-        StringBuilder sb = new StringBuilder(f.getFoodType() != null ? f.getFoodType() : "");
+        String typeKo = f.getFoodType() != null
+                ? FOOD_TYPE_KO.getOrDefault(f.getFoodType(), f.getFoodType())
+                : "급여";
+        StringBuilder sb = new StringBuilder(typeKo);
         if (f.getAmount() != null) {
             sb.append(" ").append(f.getAmount().stripTrailingZeros().toPlainString());
             if (f.getUnit() != null) sb.append(f.getUnit());
+        }
+        if (f.getSupplement() != null) {
+            String supKo = SUPPLEMENT_KO.getOrDefault(f.getSupplement().name(), f.getSupplement().name());
+            sb.append(" + ").append(supKo);
         }
         return sb.toString().trim();
     }
