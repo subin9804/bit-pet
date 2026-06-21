@@ -116,11 +116,18 @@ public class CalendarService {
 
         for (RecordCategory cat : targets) {
             String sql = buildSql(cat);
+            final boolean isMating = cat == RecordCategory.MATING;
             jdbc.query(sql,
                     ps -> {
                         ps.setLong(1, petId);
-                        ps.setObject(2, start);
-                        ps.setObject(3, end);
+                        if (isMating) {
+                            ps.setLong(2, petId);    // female_pet_id
+                            ps.setObject(3, start);
+                            ps.setObject(4, end);
+                        } else {
+                            ps.setObject(2, start);
+                            ps.setObject(3, end);
+                        }
                     },
                     rs -> {
                         LocalDate date = rs.getDate("day").toLocalDate();
@@ -142,6 +149,16 @@ public class CalendarService {
     }
 
     private String buildSql(RecordCategory cat) {
+        if (cat == RecordCategory.MATING) {
+            return """
+                    SELECT DATE(tried_at AT TIME ZONE 'UTC') AS day, COUNT(*) AS cnt
+                    FROM mating_dtl
+                    WHERE (male_pet_id = ? OR female_pet_id = ?)
+                      AND DATE(tried_at AT TIME ZONE 'UTC') BETWEEN ? AND ?
+                      AND deleted_at IS NULL
+                    GROUP BY day
+                    """;
+        }
         String table;
         String timeCol;
         switch (cat) {
@@ -149,7 +166,6 @@ public class CalendarService {
             case FEEDING  -> { table = "feeding_dtl";  timeCol = "fed_at"; }
             case CLEANING -> { table = "cleaning_dtl"; timeCol = "cleaned_at"; }
             case MEMO     -> { table = "memo_dtl";     timeCol = "logged_at"; }
-            case MATING   -> { table = "mating_dtl";   timeCol = "tried_at"; }
             case LAYING   -> { table = "laying_dtl";   timeCol = "laid_at"; }
             default -> throw new IllegalArgumentException("Unknown category: " + cat);
         }

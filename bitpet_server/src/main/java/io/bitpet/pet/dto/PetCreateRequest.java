@@ -17,5 +17,8 @@ public record PetCreateRequest(
         String description,
         LocalDate breedingDate,
         LocalDate hatchingDate,
-        LocalDate adoptionDate
+        String hatchingDatePrecision,
+        Boolean hatchingDateApproximate,
+        LocalDate adoptionDate,
+        Double currentWeightG
 ) {}

@@ -9,8 +9,6 @@ import 'core/theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // 폰트를 네트워크에서 다운로드하지 않음 — 오프라인/에뮬레이터 DNS 실패 방지
-  // 앱 번들에 폰트 파일이 없으면 시스템 기본 폰트로 대체됨 (크래시 없음)
   GoogleFonts.config.allowRuntimeFetching = false;
   final db = AppDatabase();
   runApp(

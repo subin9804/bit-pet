@@ -37,7 +37,6 @@ class StepShell extends StatefulWidget {
   final Future<void> Function()? onDone;
   final VoidCallback? onCancel;
   final int initialStep;
-  final bool alwaysCancel;
 
   const StepShell({
     super.key,
@@ -48,7 +47,6 @@ class StepShell extends StatefulWidget {
     this.onDone,
     this.onCancel,
     this.initialStep = 0,
-    this.alwaysCancel = false,
   });
 
   @override
@@ -58,6 +56,7 @@ class StepShell extends StatefulWidget {
 class _StepShellState extends State<StepShell> {
   late int _idx;
   bool _submitting = false;
+  int? _returnStep; // 확인 페이지에서 수정 진입 시 돌아올 스텝
 
   @override
   void initState() {
@@ -73,6 +72,9 @@ class _StepShellState extends State<StepShell> {
     if (!_canNext) return;
     if (_isLast) {
       _done();
+    } else if (_returnStep != null) {
+      final ret = _returnStep!;
+      setState(() { _idx = ret; _returnStep = null; });
     } else {
       setState(() => _idx++);
     }
@@ -92,7 +94,9 @@ class _StepShellState extends State<StepShell> {
   }
 
   void _goEdit(int step) {
-    if (step >= 0 && step < widget.steps.length) setState(() => _idx = step);
+    if (step >= 0 && step < widget.steps.length) {
+      setState(() { _returnStep = _idx; _idx = step; });
+    }
   }
 
   Future<void> _done() async {
@@ -115,9 +119,7 @@ class _StepShellState extends State<StepShell> {
           idx: _idx,
           total: widget.steps.length,
           title: widget.headerTitle,
-          onPrev: _goPrev,
           onCancel: widget.onCancel,
-          alwaysCancel: widget.alwaysCancel,
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(22, 12, 22, 0),
@@ -184,6 +186,7 @@ class _StepShellState extends State<StepShell> {
           canNext: _canNext,
           submitting: _submitting,
           doneLabel: widget.doneLabel,
+          returnMode: _returnStep != null,
           onPrev: _goPrev,
           onNext: _goNext,
         ),
@@ -197,22 +200,17 @@ class _StepShellState extends State<StepShell> {
 class _StepTopBar extends StatelessWidget {
   final int idx, total;
   final String title;
-  final VoidCallback onPrev;
   final VoidCallback? onCancel;
-  final bool alwaysCancel;
 
   const _StepTopBar({
     required this.idx,
     required this.total,
     required this.title,
-    required this.onPrev,
     this.onCancel,
-    this.alwaysCancel = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isBack = idx == 0 || alwaysCancel;
     final VoidCallback backAction =
         onCancel ?? () => Navigator.of(context).maybePop();
 
@@ -223,14 +221,14 @@ class _StepTopBar extends StatelessWidget {
           SizedBox(
             width: 68,
             child: TextButton(
-              onPressed: isBack ? backAction : onPrev,
+              onPressed: backAction,
               style: TextButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 foregroundColor: AppColors.paleInk2,
               ),
-              child: Text(
-                isBack ? '뒤로' : '이전',
-                style: const TextStyle(
+              child: const Text(
+                '뒤로',
+                style: TextStyle(
                   fontWeight: FontWeight.w600,
                   fontSize: 13,
                   color: AppColors.paleInk2,
@@ -318,7 +316,7 @@ class StepProgressDots extends StatelessWidget {
 
 class _StepFooter extends StatelessWidget {
   final int idx;
-  final bool isLast, canNext, submitting;
+  final bool isLast, canNext, submitting, returnMode;
   final String doneLabel;
   final VoidCallback onPrev, onNext;
 
@@ -328,6 +326,7 @@ class _StepFooter extends StatelessWidget {
     required this.canNext,
     required this.submitting,
     required this.doneLabel,
+    this.returnMode = false,
     required this.onPrev,
     required this.onNext,
   });
@@ -397,7 +396,7 @@ class _StepFooter extends StatelessWidget {
                             const SizedBox(width: 8),
                           ],
                           Text(
-                            isLast ? doneLabel : '다음',
+                            isLast ? doneLabel : (returnMode ? '확인으로' : '다음'),
                             style: TextStyle(
                               fontWeight: FontWeight.w700,
                               fontSize: 14,

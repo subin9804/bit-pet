@@ -164,7 +164,7 @@ class Memo {
         petId: json['petId'] as int,
         content: json['content'] as String,
         loggedAt: DateTime.parse(json['loggedAt'] as String),
-        tags: (json['tags'] as List?)?.cast<String>() ?? [],
+        tags: (json['tags'] as List?)?.whereType<String>().toList() ?? [],
         vetExt: json['vetExt'] != null
             ? MemoVetExt.fromJson(json['vetExt'] as Map<String, dynamic>)
             : null,
@@ -287,7 +287,7 @@ class CalendarDay {
 
   factory CalendarDay.fromJson(Map<String, dynamic> json) => CalendarDay(
         date: json['date'] as String,
-        categories: (json['categories'] as List).cast<String>(),
+        categories: (json['categories'] as List?)?.whereType<String>().toList() ?? [],
       );
 }
 
@@ -307,10 +307,11 @@ class TimelineItem {
   });
 
   factory TimelineItem.fromJson(Map<String, dynamic> json) => TimelineItem(
-        id: json['id'] as int,
-        category: json['category'] as String,
-        summary: json['summary'] as String,
-        recordedAt: DateTime.parse(json['recordedAt'] as String),
+        id: ((json['recordId'] ?? json['id']) as num? ?? 0).toInt(),
+        category: json['category'] as String? ?? '',
+        summary: json['summary'] as String? ?? '',
+        recordedAt: DateTime.parse(
+            (json['loggedAt'] ?? json['recordedAt']) as String),
       );
 }
 

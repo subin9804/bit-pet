@@ -69,6 +69,8 @@ class Pet {
   final String? environmentMemo;
   final String? profileImageUrl;
   final DateTime? hatchingDate;
+  final String hatchingDatePrecision;  // 'DAY' or 'MONTH'
+  final bool hatchingDateApproximate;  // 날짜가 정확하지 않음
   final DateTime? adoptionDate;
   final double? latestWeightG;
   // 'Y' = 비공개(기본), 'N' = 공개(전체 검색 허용)
@@ -87,6 +89,8 @@ class Pet {
     this.environmentMemo,
     this.profileImageUrl,
     this.hatchingDate,
+    this.hatchingDatePrecision = 'DAY',
+    this.hatchingDateApproximate = false,
     this.adoptionDate,
     this.latestWeightG,
     this.privateYn = 'Y',
@@ -95,12 +99,12 @@ class Pet {
   bool get isPrivate => privateYn == 'Y';
 
   factory Pet.fromJson(Map<String, dynamic> json) => Pet(
-        id: json['id'] as int,
-        serialNo: json['serialNo'] as String,
-        speciesId: json['speciesId'] as int,
-        speciesName: json['speciesName'] as String? ?? '',
+        id: (json['id'] as num).toInt(),
+        serialNo: json['serialNo'] as String? ?? '',
+        speciesId: (json['speciesId'] as num?)?.toInt() ?? 0,
+        speciesName: (json['speciesNameKo'] ?? json['speciesName']) as String? ?? '',
         morphName: json['morphName'] as String?,
-        name: json['name'] as String,
+        name: json['name'] as String? ?? '',
         gender: json['gender'] as String? ?? 'UNKNOWN',
         colorCode: json['colorCode'] as String?,
         description: json['description'] as String?,
@@ -109,6 +113,8 @@ class Pet {
         hatchingDate: json['hatchingDate'] != null
             ? DateTime.tryParse(json['hatchingDate'] as String)
             : null,
+        hatchingDatePrecision: json['hatchingDatePrecision'] as String? ?? 'DAY',
+        hatchingDateApproximate: json['hatchingDateApproximate'] as bool? ?? false,
         adoptionDate: json['adoptionDate'] != null
             ? DateTime.tryParse(json['adoptionDate'] as String)
             : null,
@@ -127,6 +133,8 @@ class CreatePetRequest {
   final int? morphId;
   final String? morphText;      // 직접 입력 모프
   final String? hatchingDate;
+  final String? hatchingDatePrecision;   // 'DAY' or 'MONTH'
+  final bool hatchingDateApproximate;
   final String? adoptionDate;
   final double? currentWeightG; // 초기 몸무게 (g 기준)
   final int? fatherPetId;       // 부개체 연결
@@ -142,6 +150,8 @@ class CreatePetRequest {
     this.morphId,
     this.morphText,
     this.hatchingDate,
+    this.hatchingDatePrecision,
+    this.hatchingDateApproximate = false,
     this.adoptionDate,
     this.currentWeightG,
     this.fatherPetId,
@@ -158,6 +168,8 @@ class CreatePetRequest {
         if (morphId != null) 'morphId': morphId,
         if (morphText != null && morphId == null) 'morphText': morphText,
         if (hatchingDate != null) 'hatchingDate': hatchingDate,
+        if (hatchingDatePrecision != null) 'hatchingDatePrecision': hatchingDatePrecision,
+        'hatchingDateApproximate': hatchingDateApproximate,
         if (adoptionDate != null) 'adoptionDate': adoptionDate,
         if (currentWeightG != null) 'currentWeightG': currentWeightG,
         if (fatherPetId != null) 'fatherPetId': fatherPetId,

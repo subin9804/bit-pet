@@ -21,13 +21,20 @@ public record PetResponse(
         String description,
         LocalDate breedingDate,
         LocalDate hatchingDate,
+        String hatchingDatePrecision,
+        Boolean hatchingDateApproximate,
         LocalDate adoptionDate,
         Long profilePhotoId,
         String privateYn,
+        Double latestWeightG,
         Instant createdAt,
         Instant updatedAt
 ) {
     public static PetResponse from(PetMst pet) {
+        return from(pet, null);
+    }
+
+    public static PetResponse from(PetMst pet, Double latestWeightG) {
         List<MorphCdResponse> morphList = pet.getMorphs().stream()
                 .map(rls -> MorphCdResponse.from(rls.getMorph()))
                 .toList();
@@ -45,9 +52,12 @@ public record PetResponse(
                 pet.getDescription(),
                 pet.getBreedingDate(),
                 pet.getHatchingDate(),
+                pet.getHatchingDatePrecision() != null ? pet.getHatchingDatePrecision() : "DAY",
+                pet.getHatchingDateApproximate() != null ? pet.getHatchingDateApproximate() : false,
                 pet.getAdoptionDate(),
                 pet.getProfilePhotoId(),
                 pet.getPrivateYn(),
+                latestWeightG,
                 pet.getCreatedAt(),
                 pet.getUpdatedAt()
         );

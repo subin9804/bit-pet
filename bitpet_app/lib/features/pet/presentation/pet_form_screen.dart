@@ -35,19 +35,22 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
   ];
 
   // ── 상태 ────────────────────────────────────────────────────────────────────
+  bool _initialized = false; // 수정 모드에서 기존 데이터 로딩 완료 여부
+
   String _colorKey = 'coral';
   final _nameCtrl   = TextEditingController();
   final _weightCtrl = TextEditingController();
   final _memoCtrl   = TextEditingController();
 
   Species? _species;
-  String? _morphText;
   int? _selectedMorphId;
-  // 선택된 Morph 객체 (카탈로그 선택 시 한글 라벨용)
   Morph? _selectedMorph;
   String _gender = '수컷';
-  DateTime? _hatchDate;
-  bool _hatchUnknown = false;
+  String _hatchPrecision = 'DAY'; // 'DAY'=정확한 날짜, 'MONTH'=연·월만
+  DateTime? _hatchDate;           // DAY precision: full date
+  int? _hatchYear;                // MONTH precision: year
+  int? _hatchMonth;               // MONTH precision: month
+  bool _hatchApproximate = false; // 날짜가 정확하지 않음 표시
   DateTime? _adoptDate;
   bool _adoptUnknown = false;
   String _weightUnit = 'g';
@@ -71,11 +74,85 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.petId == null) {
+      _initialized = true;
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _loadForEdit(widget.petId!));
+    }
+  }
+
+  @override
   void dispose() {
     _nameCtrl.dispose();
     _weightCtrl.dispose();
     _memoCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadForEdit(int petId) async {
+    try {
+      final pet = await ref.read(petDetailProvider(petId).future);
+
+      Morph? matchedMorph;
+      if (pet.speciesId > 0 && pet.morphName != null) {
+        try {
+          final morphs = await ref.read(morphsBySpeciesProvider(pet.speciesId).future);
+          for (final m in morphs) {
+            if (m.nameKo == pet.morphName || m.nameEn == pet.morphName) {
+              matchedMorph = m;
+              break;
+            }
+          }
+        } catch (_) {}
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        // 식별색
+        for (final (k, _, __, hex) in _palette) {
+          if (hex.toLowerCase() == (pet.colorCode ?? '').toLowerCase()) {
+            _colorKey = k;
+            break;
+          }
+        }
+        // 이름
+        _nameCtrl.text = pet.name;
+        // 종 (스텁)
+        _species = Species(id: pet.speciesId, code: '', category: '', nameKo: pet.speciesName);
+        // 모프
+        if (matchedMorph != null) {
+          _selectedMorphId = matchedMorph.id;
+          _selectedMorph = matchedMorph;
+        }
+        // 성별
+        _gender = pet.gender == 'MALE' ? '수컷' : pet.gender == 'FEMALE' ? '암컷' : '미상';
+        // 해칭일
+        if (pet.hatchingDate != null) {
+          _hatchPrecision = pet.hatchingDatePrecision;
+          if (pet.hatchingDatePrecision == 'MONTH') {
+            _hatchYear = pet.hatchingDate!.year;
+            _hatchMonth = pet.hatchingDate!.month;
+          } else {
+            _hatchDate = pet.hatchingDate;
+          }
+        }
+        _hatchApproximate = pet.hatchingDateApproximate;
+        // 입양일
+        _adoptDate = pet.adoptionDate;
+        // 메모/설명
+        _memoCtrl.text = pet.description ?? '';
+
+        _initialized = true;
+      });
+    } catch (_) {
+      if (mounted) {
+        ToastMessage.show(context, '개체 정보를 불러올 수 없어요', type: ToastType.warning);
+        context.pop();
+      }
+    }
   }
 
   // ── 액션 ──────────────────────────────────────────────────────────────────
@@ -89,7 +166,6 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
     if (result != null) {
       setState(() {
         _species = result;
-        _morphText = null;
         _selectedMorphId = null;
         _selectedMorph = null;
       });
@@ -133,43 +209,27 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
     );
     if (picked != null) {
       setState(() {
-        if (isHatching) { _hatchDate = picked; _hatchUnknown = false; }
+        if (isHatching) _hatchDate = picked;
         else { _adoptDate = picked; _adoptUnknown = false; }
       });
     }
   }
 
-  Future<void> _openMorphInput() async {
-    final ctrl = TextEditingController(text: _morphText);
-    final result = await showDialog<String>(
+  Future<void> _pickYearMonth() async {
+    final now = DateTime.now();
+    final result = await showModalBottomSheet<(int, int)>(
       context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('모프 직접 입력',
-            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          decoration: const InputDecoration(hintText: '모프명을 입력하세요'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('취소'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, ctrl.text.trim()),
-            child: const Text('확인'),
-          ),
-        ],
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _YearMonthPickerSheet(
+        initialYear: _hatchYear ?? now.year,
+        initialMonth: _hatchMonth ?? now.month,
       ),
     );
     if (result != null) {
       setState(() {
-        _morphText = result.isEmpty ? null : result;
-        _selectedMorphId = null;
-        _selectedMorph = null;
+        _hatchYear = result.$1;
+        _hatchMonth = result.$2;
       });
     }
   }
@@ -189,25 +249,58 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
       return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
     }
 
-    await ref.read(petListProvider.notifier).add(
-      CreatePetRequest(
-        speciesId: _species!.id,
-        name: _nameCtrl.text.trim(),
-        gender: _gender == '수컷' ? 'MALE' : _gender == '암컷' ? 'FEMALE' : 'UNKNOWN',
-        colorCode: _selectedHex,
-        morphText: _morphText,
-        hatchingDate: _hatchUnknown ? null : fmt(_hatchDate),
-        adoptionDate: _adoptUnknown ? null : fmt(_adoptDate),
-        currentWeightG: weightG,
-        fatherPetId: _fatherPet?.id,
-        motherPetId: _motherPet?.id,
-        description: _memoCtrl.text.trim().isEmpty ? null : _memoCtrl.text.trim(),
-      ),
-    );
+    final genderCode = _gender == '수컷' ? 'MALE' : _gender == '암컷' ? 'FEMALE' : 'UNKNOWN';
 
-    if (mounted) {
-      ToastMessage.show(context, '개체가 등록되었습니다!', type: ToastType.success);
-      context.pop();
+    String? hatchingDate;
+    String? hatchingDatePrecision;
+    if (_hatchPrecision == 'DAY' && _hatchDate != null) {
+      hatchingDate = fmt(_hatchDate);
+      hatchingDatePrecision = 'DAY';
+    } else if (_hatchPrecision == 'MONTH' && _hatchYear != null && _hatchMonth != null) {
+      hatchingDate = '$_hatchYear-${_hatchMonth.toString().padLeft(2, '0')}-01';
+      hatchingDatePrecision = 'MONTH';
+    }
+
+    if (widget.petId != null) {
+      final data = <String, dynamic>{
+        'name': _nameCtrl.text.trim(),
+        'speciesId': _species!.id,
+        'gender': genderCode,
+        'colorCode': _selectedHex,
+        if (_selectedMorphId != null) 'morphId': _selectedMorphId,
+        if (hatchingDate != null) 'hatchingDate': hatchingDate,
+        if (hatchingDatePrecision != null) 'hatchingDatePrecision': hatchingDatePrecision,
+        'hatchingDateApproximate': _hatchApproximate,
+        'adoptionDate': _adoptUnknown ? null : fmt(_adoptDate),
+        if (weightG != null) 'currentWeightG': weightG,
+        'description': _memoCtrl.text.trim().isEmpty ? null : _memoCtrl.text.trim(),
+      };
+      await ref.read(petListProvider.notifier).update(widget.petId!, data);
+      if (mounted) {
+        ToastMessage.show(context, '수정되었습니다!', type: ToastType.success);
+        context.pop();
+      }
+    } else {
+      await ref.read(petListProvider.notifier).add(
+        CreatePetRequest(
+          speciesId: _species!.id,
+          name: _nameCtrl.text.trim(),
+          gender: genderCode,
+          colorCode: _selectedHex,
+          hatchingDate: hatchingDate,
+          hatchingDatePrecision: hatchingDatePrecision,
+          hatchingDateApproximate: _hatchApproximate,
+          adoptionDate: _adoptUnknown ? null : fmt(_adoptDate),
+          currentWeightG: weightG,
+          fatherPetId: _fatherPet?.id,
+          motherPetId: _motherPet?.id,
+          description: _memoCtrl.text.trim().isEmpty ? null : _memoCtrl.text.trim(),
+        ),
+      );
+      if (mounted) {
+        ToastMessage.show(context, '개체가 등록되었습니다!', type: ToastType.success);
+        context.pop();
+      }
     }
   }
 
@@ -363,11 +456,9 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
                             if (selected) {
                               _selectedMorphId = null;
                               _selectedMorph = null;
-                              _morphText = null;
                             } else {
                               _selectedMorphId = m.id;
                               _selectedMorph = m;
-                              _morphText = m.nameEn ?? m.nameKo;
                             }
                           }),
                           child: AnimatedContainer(
@@ -417,47 +508,6 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
                           ),
                         );
                       }),
-                      // 직접 입력 버튼
-                      GestureDetector(
-                        onTap: _openMorphInput,
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 150),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: (_selectedMorphId == null && _morphText != null)
-                                  ? AppColors.primary
-                                  : AppColors.paleLine,
-                              style: BorderStyle.solid,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                (_selectedMorphId == null && _morphText != null)
-                                    ? _morphText!
-                                    : '+ 직접 입력',
-                                style: TextStyle(
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w600,
-                                  color: (_selectedMorphId == null && _morphText != null)
-                                      ? AppColors.primary
-                                      : AppColors.paleInk2,
-                                ),
-                              ),
-                              if (_selectedMorphId == null && _morphText != null) ...[
-                                const SizedBox(width: 6),
-                                GestureDetector(
-                                  onTap: () => setState(() => _morphText = null),
-                                  child: const Icon(Icons.close, size: 13, color: AppColors.paleInk2),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ),
                       // 건강 우려 안내
                       if (morphs.any((m) => m.hasHealthConcern))
                         Padding(
@@ -487,7 +537,7 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
     // ── Step 3: 성별+날짜 ────────────────────────────────────────────────────
     StepConfig(
       title: '성별과 날짜',
-      desc: '모르는 날짜는 "모르겠어요"로 비워둘 수 있어요.',
+      desc: '연·월만 알고 있거나 날짜가 정확하지 않으면 체크해주세요.',
       render: (_) => Column(
         children: [
           SField(
@@ -500,14 +550,21 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
           ),
           SField(
             label: '해칭일',
-            child: _DateField(
+            child: _HatchDateField(
+              precision: _hatchPrecision,
               date: _hatchDate,
-              unknown: _hatchUnknown,
-              onTap: () => _pickDate(isHatching: true),
-              onUnknownChanged: (v) => setState(() {
-                _hatchUnknown = v;
-                if (v) _hatchDate = null;
+              year: _hatchYear,
+              month: _hatchMonth,
+              approximate: _hatchApproximate,
+              onPrecisionChanged: (p) => setState(() {
+                _hatchPrecision = p;
+                _hatchDate = null;
+                _hatchYear = null;
+                _hatchMonth = null;
               }),
+              onPickDay: () => _pickDate(isHatching: true),
+              onPickYearMonth: _pickYearMonth,
+              onApproximateChanged: (v) => setState(() => _hatchApproximate = v),
               fmtDate: _fmtDate,
             ),
           ),
@@ -626,7 +683,7 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
 
     // ── Step 6: 확인 ─────────────────────────────────────────────────────────
     StepConfig(
-      title: '등록 내용을 확인하세요',
+      title: widget.petId != null ? '수정 내용을 확인하세요' : '등록 내용을 확인하세요',
       desc: '"수정"으로 각 단계를 다시 고칠 수 있어요.',
       render: (ctx) => StepSummary(
         goEdit: ctx.goEdit,
@@ -641,16 +698,21 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
               k: '모프',
               v: _selectedMorph != null
                   ? '${_selectedMorph!.nameKo}${_selectedMorph!.nameEn != null ? " (${_selectedMorph!.nameEn})" : ""}'
-                  : (_morphText ?? ''),
-              muted: _morphText == null,
+                  : '',
+              muted: _selectedMorph == null,
             ),
           ]),
           StepSummaryGroup(label: '성별·날짜', step: 2, rows: [
             StepSummaryRow(k: '성별', v: _gender),
             StepSummaryRow(
               k: '해칭일',
-              v: _hatchUnknown ? '모름' : (_hatchDate != null ? _fmtDate(_hatchDate!) : ''),
-              muted: _hatchUnknown || _hatchDate == null,
+              v: () {
+                final base = _hatchPrecision == 'MONTH' && _hatchYear != null && _hatchMonth != null
+                    ? '$_hatchYear년 ${_hatchMonth}월 (연·월)'
+                    : (_hatchDate != null ? _fmtDate(_hatchDate!) : '');
+                return base.isEmpty ? '' : (_hatchApproximate ? '약 $base' : base);
+              }(),
+              muted: _hatchDate == null && (_hatchYear == null || _hatchMonth == null),
             ),
             StepSummaryRow(
               k: '입양일',
@@ -680,6 +742,14 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_initialized) {
+      return Scaffold(
+        backgroundColor: AppColors.paleBg,
+        body: const SafeArea(
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
     return Scaffold(
       backgroundColor: AppColors.paleBg,
       body: SafeArea(
@@ -690,6 +760,7 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
           doneLabel: widget.petId == null ? '개체 저장' : '수정 완료',
           onDone: _submit,
           onCancel: () => context.pop(),
+          initialStep: widget.petId != null ? 5 : 0,
         ),
       ),
     );
@@ -985,6 +1056,369 @@ class _ParentTile extends StatelessWidget {
             color: AppColors.paleInk3,
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── 해칭일 입력 필드 (정밀도 선택 포함) ─────────────────────────────────────────
+
+class _HatchDateField extends StatelessWidget {
+  final String precision;          // 'DAY' or 'MONTH'
+  final DateTime? date;            // DAY precision
+  final int? year;                 // MONTH precision
+  final int? month;                // MONTH precision
+  final bool approximate;
+  final void Function(String) onPrecisionChanged;
+  final VoidCallback onPickDay;
+  final VoidCallback onPickYearMonth;
+  final void Function(bool) onApproximateChanged;
+  final String Function(DateTime) fmtDate;
+
+  const _HatchDateField({
+    required this.precision,
+    required this.date,
+    required this.year,
+    required this.month,
+    required this.approximate,
+    required this.onPrecisionChanged,
+    required this.onPickDay,
+    required this.onPickYearMonth,
+    required this.onApproximateChanged,
+    required this.fmtDate,
+  });
+
+  String get _displayText {
+    if (precision == 'MONTH') {
+      if (year != null && month != null) return '$year년 ${month}월';
+      return '연·월 선택';
+    } else {
+      return date != null ? fmtDate(date!) : '날짜 선택';
+    }
+  }
+
+  bool get _hasValue => precision == 'MONTH'
+      ? (year != null && month != null)
+      : date != null;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // 정밀도 토글
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.paleBgAlt,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: AppColors.paleLine),
+          ),
+          padding: const EdgeInsets.all(3),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _PrecisionTab(
+                label: '연·월만',
+                active: precision == 'MONTH',
+                onTap: () => onPrecisionChanged('MONTH'),
+              ),
+              _PrecisionTab(
+                label: '정확한 날짜',
+                active: precision == 'DAY',
+                onTap: () => onPrecisionChanged('DAY'),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        // 날짜 선택 버튼
+        GestureDetector(
+          onTap: precision == 'MONTH' ? onPickYearMonth : onPickDay,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(11),
+              border: Border.all(color: AppColors.paleLine),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.calendar_today_outlined, size: 15, color: AppColors.paleInk2),
+                const SizedBox(width: 10),
+                Text(
+                  _displayText,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: _hasValue ? AppColors.primary : AppColors.paleInk3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        GestureDetector(
+          onTap: () => onApproximateChanged(!approximate),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                width: 18,
+                height: 18,
+                decoration: BoxDecoration(
+                  color: approximate ? AppColors.primary : AppColors.surface,
+                  borderRadius: BorderRadius.circular(5),
+                  border: Border.all(
+                    color: approximate ? AppColors.primary : AppColors.paleLine,
+                    width: 1.5,
+                  ),
+                ),
+                child: approximate
+                    ? const Icon(Icons.check, size: 12, color: AppColors.paleBg)
+                    : null,
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                '정확하지 않아요',
+                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: AppColors.paleInk2),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PrecisionTab extends StatelessWidget {
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  const _PrecisionTab({required this.label, required this.active, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 130),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: active ? AppColors.surface : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+            color: active ? AppColors.primary : AppColors.paleInk2,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── 연·월 선택 바텀시트 ──────────────────────────────────────────────────────────
+
+class _YearMonthPickerSheet extends StatefulWidget {
+  final int initialYear;
+  final int initialMonth;
+
+  const _YearMonthPickerSheet({
+    required this.initialYear,
+    required this.initialMonth,
+  });
+
+  @override
+  State<_YearMonthPickerSheet> createState() => _YearMonthPickerSheetState();
+}
+
+class _YearMonthPickerSheetState extends State<_YearMonthPickerSheet> {
+  late int _year;
+  late int _month;
+  late final TextEditingController _yearCtrl;
+
+  static const _monthLabels = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+
+  @override
+  void initState() {
+    super.initState();
+    _year = widget.initialYear;
+    _month = widget.initialMonth;
+    _yearCtrl = TextEditingController(text: '$_year');
+  }
+
+  @override
+  void dispose() {
+    _yearCtrl.dispose();
+    super.dispose();
+  }
+
+  void _commitYear() {
+    final v = int.tryParse(_yearCtrl.text);
+    final now = DateTime.now().year;
+    if (v != null && v >= 1990 && v <= now) {
+      setState(() => _year = v);
+    } else {
+      _yearCtrl.text = '$_year';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.paleBg,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 핸들
+          Center(
+            child: Container(
+              width: 40, height: 4,
+              margin: const EdgeInsets.only(top: 10, bottom: 16),
+              decoration: BoxDecoration(color: AppColors.paleLine, borderRadius: BorderRadius.circular(2)),
+            ),
+          ),
+          // 헤더
+          Padding(
+            padding: const EdgeInsets.fromLTRB(22, 0, 22, 16),
+            child: Row(
+              children: [
+                const Text(
+                  '태어난 시기를 선택하세요',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.primary),
+                ),
+              ],
+            ),
+          ),
+          // 연도 선택
+          Padding(
+            padding: const EdgeInsets.fromLTRB(22, 0, 22, 16),
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap: _year > 1990 ? () => setState(() { _year--; _yearCtrl.text = '$_year'; }) : null,
+                  child: Icon(Icons.chevron_left, size: 28,
+                      color: _year > 1990 ? AppColors.primary : AppColors.paleLine),
+                ),
+                Expanded(
+                  child: Center(
+                    child: SizedBox(
+                      width: 90,
+                      child: TextField(
+                        controller: _yearCtrl,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        textAlign: TextAlign.center,
+                        onSubmitted: (_) => _commitYear(),
+                        onEditingComplete: _commitYear,
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                          fontFamily: 'monospace',
+                        ),
+                        decoration: const InputDecoration(
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.zero,
+                          suffixText: '년',
+                          suffixStyle: TextStyle(fontSize: 15, color: AppColors.paleInk2, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: _year < now.year ? () => setState(() { _year++; _yearCtrl.text = '$_year'; }) : null,
+                  child: Icon(Icons.chevron_right, size: 28,
+                      color: _year < now.year ? AppColors.primary : AppColors.paleLine),
+                ),
+              ],
+            ),
+          ),
+          // 월 그리드
+          Padding(
+            padding: const EdgeInsets.fromLTRB(22, 0, 22, 8),
+            child: GridView.count(
+              crossAxisCount: 4,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              childAspectRatio: 2.0,
+              children: List.generate(12, (i) {
+                final m = i + 1;
+                final isFuture = _year == now.year && m > now.month;
+                final selected = _month == m;
+                return GestureDetector(
+                  onTap: isFuture ? null : () => setState(() => _month = m),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 120),
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? AppColors.primary
+                          : isFuture
+                              ? AppColors.paleBgAlt
+                              : AppColors.card,
+                      borderRadius: BorderRadius.circular(9),
+                      border: Border.all(
+                        color: selected ? AppColors.primary : AppColors.paleLine,
+                      ),
+                    ),
+                    child: Center(
+                      child: Text(
+                        _monthLabels[i],
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: selected
+                              ? AppColors.paleBg
+                              : isFuture
+                                  ? AppColors.paleInk3
+                                  : AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+          // 확인 버튼
+          Padding(
+            padding: const EdgeInsets.fromLTRB(22, 8, 22, 28),
+            child: GestureDetector(
+              onTap: () => Navigator.pop(context, (_year, _month)),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Center(
+                  child: Text(
+                    '$_year년 ${_month}월 선택',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.paleBg,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       ),

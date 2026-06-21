@@ -196,11 +196,12 @@ public class RoutineService {
     public List<RoutineWithSubscriptionResponse> listRoutinesForPet(Long userId, Long petId) {
         verifyPetOwnership(userId, petId);
         List<RoutineMst> routines = routineRepository.findAllByUserIdAndActiveOrderByCreatedAtDesc(userId, true);
-        return routines.stream().map(r -> {
-            boolean subscribed = routinePetRepository.existsByRoutineIdAndPetId(r.getId(), petId);
-            List<Long> petIds = routinePetRepository.findPetIdsByRoutineId(r.getId());
-            return new RoutineWithSubscriptionResponse(RoutineResponse.from(r, petIds), subscribed);
-        }).toList();
+        return routines.stream()
+                .filter(r -> routinePetRepository.existsByRoutineIdAndPetId(r.getId(), petId))
+                .map(r -> {
+                    List<Long> petIds = routinePetRepository.findPetIdsByRoutineId(r.getId());
+                    return new RoutineWithSubscriptionResponse(RoutineResponse.from(r, petIds), true);
+                }).toList();
     }
 
     public record RoutineWithSubscriptionResponse(RoutineResponse routine, boolean subscribed) {}

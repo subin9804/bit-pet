@@ -340,9 +340,10 @@ class RecordRepository {
     });
     final apiRes = ApiResponse.fromJson(
       res.data as Map<String, dynamic>,
-      (d) => (d as List)
-          .map((e) => TimelineItem.fromJson(e as Map<String, dynamic>))
-          .toList(),
+      (d) {
+        final raw = d is Map ? (d['items'] as List? ?? []) : d as List;
+        return raw.map((e) => TimelineItem.fromJson(e as Map<String, dynamic>)).toList();
+      },
     );
     return apiRes.data ?? [];
   }

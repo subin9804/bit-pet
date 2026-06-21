@@ -11,11 +11,14 @@ public record PetUpdateRequest(
         @Size(min = 1, max = 50) String name,
         Long speciesId,
         List<Long> morphIds,
+        Long morphId,
         PetGender gender,
         @Pattern(regexp = "^#[0-9A-Fa-f]{6}$", message = "색상 코드는 #RRGGBB 형식이어야 합니다") String colorCode,
         String description,
         LocalDate breedingDate,
         LocalDate hatchingDate,
+        String hatchingDatePrecision,
+        Boolean hatchingDateApproximate,
         LocalDate adoptionDate,
         @Pattern(regexp = "^[YN]$", message = "privateYn은 Y 또는 N이어야 합니다") String privateYn
 ) {}

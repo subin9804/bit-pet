@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
 abstract final class AppTextStyles {
@@ -27,9 +26,9 @@ abstract final class AppTextStyles {
   );
   static final title = _base.copyWith(fontSize: 18, fontWeight: FontWeight.w700);
 
-  // ── JetBrains Mono (숫자/날짜/통계) ────────────────────────
+  // ── 모노스페이스 (숫자/날짜/통계) ───────────────────────────
   static TextStyle mono(double size, FontWeight weight, {Color color = AppColors.textPrimary}) =>
-      GoogleFonts.jetBrainsMono(fontSize: size, fontWeight: weight, color: color);
+      TextStyle(fontFamily: 'monospace', fontSize: size, fontWeight: weight, color: color);
 
   static TextStyle get monoHero =>
       mono(44, FontWeight.w700); // 체중 히어로 숫자
@@ -51,7 +50,7 @@ abstract final class AppTextStyles {
       _base.copyWith(fontSize: 24, fontWeight: FontWeight.w700,
           color: color, letterSpacing: -0.5, height: 1.1);
   static TextStyle paleSpecies(Color color) =>
-      GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.w700,
+      TextStyle(fontFamily: 'monospace', fontSize: 10, fontWeight: FontWeight.w700,
           color: color, letterSpacing: 0.4);
   static TextStyle get paleCatLabel =>
       _base.copyWith(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.paleInk2);

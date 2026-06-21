@@ -25,6 +25,13 @@ class PetListNotifier extends StateNotifier<AsyncValue<List<Pet>>> {
     });
   }
 
+  Future<void> update(int id, Map<String, dynamic> data) async {
+    final pet = await _repo.updatePet(id, data);
+    state.whenData((list) {
+      state = AsyncValue.data(list.map((p) => p.id == id ? pet : p).toList());
+    });
+  }
+
   Future<void> remove(int id) async {
     await _repo.deletePet(id);
     state.whenData((list) {

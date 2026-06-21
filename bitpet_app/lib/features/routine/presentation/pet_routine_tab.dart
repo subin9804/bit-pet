@@ -61,7 +61,23 @@ class PetRoutineTab extends ConsumerStatefulWidget {
 }
 
 class _PetRoutineTabState extends ConsumerState<PetRoutineTab> {
-  bool _addOpen = false;
+
+  void _openAddSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black54,
+      builder: (_) => _AddPetToRoutinesSheet(
+        petId: widget.petId,
+        onClose: () => Navigator.pop(context),
+        onAdded: () {
+          Navigator.pop(context);
+          ref.invalidate(routinesForPetProvider(widget.petId));
+        },
+      ),
+    );
+  }
 
   void _removeRoutine(int routineId) async {
     try {
@@ -99,7 +115,7 @@ class _PetRoutineTabState extends ConsumerState<PetRoutineTab> {
       children: [
         // ── 루틴 추가 버튼 ────────────────────────────────────
         GestureDetector(
-          onTap: () => setState(() => _addOpen = true),
+          onTap: _openAddSheet,
           child: Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 13),
@@ -184,16 +200,6 @@ class _PetRoutineTabState extends ConsumerState<PetRoutineTab> {
           },
         ),
 
-        // ── AddPetToRoutinesSheet 오버레이 ────────────────────
-        if (_addOpen)
-          _AddPetToRoutinesSheet(
-            petId: widget.petId,
-            onClose: () => setState(() => _addOpen = false),
-            onAdded: () {
-              setState(() => _addOpen = false);
-              ref.invalidate(routinesForPetProvider(widget.petId));
-            },
-          ),
       ],
     );
   }
@@ -789,32 +795,30 @@ class _AddPetToRoutinesSheetState
           r.title.toLowerCase().contains(q);
       return matchType && matchQuery;
     }).toList();
+    final notJoined = visible.where((r) => !_isJoined(r, joinedRoutines)).toList();
+    final joinedList = visible.where((r) => _isJoined(r, joinedRoutines)).toList();
 
-    return GestureDetector(
-      onTap: widget.onClose,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        color: Colors.black54,
-        child: GestureDetector(
-          onTap: () {}, // 시트 내부 탭은 닫힘 방지
-          child: DraggableScrollableSheet(
-            initialChildSize: 0.88,
-            minChildSize: 0.5,
-            maxChildSize: 0.95,
-            builder: (_, ctrl) => Container(
+    return DraggableScrollableSheet(
+      initialChildSize: 0.88,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      builder: (_, ctrl) => Container(
               decoration: const BoxDecoration(
                 color: AppColors.paleBg,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
               ),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // 핸들
-                  Container(
-                    width: 40, height: 4,
-                    margin: const EdgeInsets.fromLTRB(0, 10, 0, 0),
-                    decoration: BoxDecoration(
-                      color: AppColors.paleLine,
-                      borderRadius: BorderRadius.circular(2),
+                  Center(
+                    child: Container(
+                      width: 40, height: 4,
+                      margin: const EdgeInsets.fromLTRB(0, 10, 0, 0),
+                      decoration: BoxDecoration(
+                        color: AppColors.paleLine,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
                   ),
                   // 헤더
@@ -831,16 +835,51 @@ class _AddPetToRoutinesSheetState
                               letterSpacing: 0.4,
                             )),
                         const SizedBox(height: 4),
-                        const Text('루틴에 추가',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.primary,
-                              letterSpacing: -0.4,
-                            )),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            const Text('루틴에 추가',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.primary,
+                                  letterSpacing: -0.4,
+                                )),
+                            const Spacer(),
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.pop(context);
+                                context.push('/routines/new');
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 7),
+                                decoration: BoxDecoration(
+                                  color: AppColors.card,
+                                  border: Border.all(color: AppColors.paleLine),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: const [
+                                    Icon(Icons.add, size: 14,
+                                        color: AppColors.primary),
+                                    SizedBox(width: 4),
+                                    Text('새 루틴',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: AppColors.primary,
+                                        )),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                         const SizedBox(height: 2),
                         const Text(
-                            '이미 만들어진 루틴에 이 개체를 추가합니다.\n새 루틴은 "루틴 관리"에서 만들어요.',
+                            '이미 만들어진 루틴에 이 개체를 추가합니다.',
                             style: TextStyle(
                                 fontSize: 12, color: AppColors.paleInk2)),
                       ],
@@ -916,9 +955,28 @@ class _AddPetToRoutinesSheetState
                     child: ListView.builder(
                       controller: ctrl,
                       padding: const EdgeInsets.fromLTRB(22, 10, 22, 10),
-                      itemCount: visible.length,
+                      itemCount: notJoined.length + (joinedList.isNotEmpty ? 1 + joinedList.length : 0),
                       itemBuilder: (_, i) {
-                        final r = visible[i];
+                        // 구분선 + 섹션 헤더
+                        if (joinedList.isNotEmpty && i == notJoined.length) {
+                          return Padding(
+                            padding: const EdgeInsets.fromLTRB(0, 4, 0, 8),
+                            child: Row(
+                              children: [
+                                const Expanded(child: Divider(color: AppColors.paleLineSoft, height: 1)),
+                                const SizedBox(width: 10),
+                                Text('추가된 루틴 · ${joinedList.length}개',
+                                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
+                                        color: AppColors.paleInk3)),
+                                const SizedBox(width: 10),
+                                const Expanded(child: Divider(color: AppColors.paleLineSoft, height: 1)),
+                              ],
+                            ),
+                          );
+                        }
+                        final r = i < notJoined.length
+                            ? notJoined[i]
+                            : joinedList[i - notJoined.length - 1];
                         final joined = _isJoined(r, joinedRoutines);
                         final on = _picked.contains(r.id);
                         return Padding(
@@ -1122,9 +1180,6 @@ class _AddPetToRoutinesSheetState
                   ),
                 ],
               ),
-            ),
-          ),
-        ),
       ),
     );
   }

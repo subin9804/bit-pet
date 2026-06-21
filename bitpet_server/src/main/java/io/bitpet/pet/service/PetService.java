@@ -19,10 +19,15 @@ import io.bitpet.pet.repository.MorphCdRepository;
 import io.bitpet.pet.repository.PetMstRepository;
 import io.bitpet.pet.repository.PetRelationRlsRepository;
 import io.bitpet.pet.repository.SpeciesCdRepository;
+import io.bitpet.record.domain.WeightDtl;
+import io.bitpet.record.domain.WeightSource;
+import io.bitpet.record.repository.WeightDtlRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -36,6 +41,7 @@ public class PetService {
     private final PetRelationRlsRepository relationRepository;
     private final SerialNumberGenerator serialNumberGenerator;
     private final BreedingGroupUserRlsRepository groupMembershipRepository;
+    private final WeightDtlRepository weightRepository;
 
     // -------------------------------------------------------------------------
     // D2: Pet CRUD
@@ -59,6 +65,8 @@ public class PetService {
                 .description(req.description())
                 .breedingDate(req.breedingDate())
                 .hatchingDate(req.hatchingDate())
+                .hatchingDatePrecision(req.hatchingDatePrecision())
+                .hatchingDateApproximate(req.hatchingDateApproximate())
                 .adoptionDate(req.adoptionDate())
                 .build();
         groupMembershipRepository.findByIdUserId(userId)
@@ -66,16 +74,37 @@ public class PetService {
         petRepository.save(pet);
 
         attachMorphs(pet, req.morphIds(), species);
+
+        if (req.currentWeightG() != null && req.currentWeightG() > 0) {
+            weightRepository.save(WeightDtl.builder()
+                    .petId(pet.getId())
+                    .weightG(BigDecimal.valueOf(req.currentWeightG()))
+                    .measuredAt(Instant.now())
+                    .source(WeightSource.MANUAL)
+                    .build());
+        }
+
         return PetResponse.from(pet);
     }
 
     public PetResponse get(Long userId, Long petId) {
-        return PetResponse.from(loadOwnedPet(userId, petId));
+        PetMst pet = loadOwnedPet(userId, petId);
+        Double latestWeight = weightRepository.findAllByPetIdOrderByMeasuredAtDesc(pet.getId())
+                .stream().findFirst()
+                .map(w -> w.getWeightG().doubleValue())
+                .orElse(null);
+        return PetResponse.from(pet, latestWeight);
     }
 
     public List<PetResponse> listByOwner(Long userId) {
         return petRepository.findAllByUserId(userId).stream()
-                .map(PetResponse::from)
+                .map(pet -> {
+                    Double latestWeight = weightRepository.findAllByPetIdOrderByMeasuredAtDesc(pet.getId())
+                            .stream().findFirst()
+                            .map(w -> w.getWeightG().doubleValue())
+                            .orElse(null);
+                    return PetResponse.from(pet, latestWeight);
+                })
                 .toList();
     }
 
@@ -94,12 +123,17 @@ public class PetService {
                 : null;
         SpeciesCd effectiveSpecies = species != null ? species : pet.getSpecies();
         pet.updateProfile(req.name(), species, req.gender(), req.colorCode(),
-                req.description(), req.breedingDate(), req.hatchingDate(), req.adoptionDate());
+                req.description(), req.breedingDate(), req.hatchingDate(),
+                req.hatchingDatePrecision(), req.hatchingDateApproximate(), req.adoptionDate());
         pet.updatePrivacy(req.privateYn());
 
-        if (req.morphIds() != null) {
+        List<Long> morphIds = req.morphIds();
+        if (morphIds == null && req.morphId() != null) {
+            morphIds = List.of(req.morphId());
+        }
+        if (morphIds != null) {
             pet.getMorphs().clear();
-            attachMorphs(pet, req.morphIds(), effectiveSpecies);
+            attachMorphs(pet, morphIds, effectiveSpecies);
         }
         return PetResponse.from(pet);
     }

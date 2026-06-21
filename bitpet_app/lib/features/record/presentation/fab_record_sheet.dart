@@ -2,6 +2,7 @@
 // 단일 모달 시트 안에서 단계를 전환해 슬라이드업 애니메이션을 1회만 발생.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/pale_palette.dart';
@@ -316,8 +317,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
           GestureDetector(
             onTap: () {
               Navigator.of(context).pop();
-              // 개체 등록으로 이동 — 라우터로 push 불가(context 소멸 후)하므로 pop 후 외부에서 처리
-              // Navigator.of(context).pop('/pets/new'); 대신 토스트 안내
+              context.push('/pets/new');
             },
             child: Container(
               decoration: BoxDecoration(

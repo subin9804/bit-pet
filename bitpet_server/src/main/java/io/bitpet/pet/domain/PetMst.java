@@ -73,6 +73,12 @@ public class PetMst extends BaseSyncEntity {
     @Column(name = "hatching_date")
     private LocalDate hatchingDate;
 
+    @Column(name = "hatching_date_precision", length = 5)
+    private String hatchingDatePrecision = "DAY";
+
+    @Column(name = "hatching_date_approximate", nullable = false)
+    private Boolean hatchingDateApproximate = false;
+
     @Column(name = "adoption_date")
     private LocalDate adoptionDate;
 
@@ -95,6 +101,7 @@ public class PetMst extends BaseSyncEntity {
     private PetMst(String serialNo, Long userId, SpeciesCd species,
                    String name, PetGender gender, String colorCode,
                    String description, LocalDate breedingDate, LocalDate hatchingDate,
+                   String hatchingDatePrecision, Boolean hatchingDateApproximate,
                    LocalDate adoptionDate) {
         this.serialNo = serialNo;
         this.userId = userId;
@@ -105,13 +112,17 @@ public class PetMst extends BaseSyncEntity {
         this.description = description;
         this.breedingDate = breedingDate;
         this.hatchingDate = hatchingDate;
+        this.hatchingDatePrecision = hatchingDatePrecision != null ? hatchingDatePrecision : "DAY";
+        this.hatchingDateApproximate = hatchingDateApproximate != null ? hatchingDateApproximate : false;
         this.adoptionDate = adoptionDate;
         this.privateYn = "Y";
     }
 
     public void updateProfile(String name, SpeciesCd species, PetGender gender,
                               String colorCode, String description,
-                              LocalDate breedingDate, LocalDate hatchingDate, LocalDate adoptionDate) {
+                              LocalDate breedingDate, LocalDate hatchingDate,
+                              String hatchingDatePrecision, Boolean hatchingDateApproximate,
+                              LocalDate adoptionDate) {
         if (name != null) this.name = name;
         if (species != null) this.species = species;
         if (gender != null) this.gender = gender;
@@ -119,6 +130,8 @@ public class PetMst extends BaseSyncEntity {
         if (description != null) this.description = description;
         if (breedingDate != null) this.breedingDate = breedingDate;
         if (hatchingDate != null) this.hatchingDate = hatchingDate;
+        if (hatchingDatePrecision != null) this.hatchingDatePrecision = hatchingDatePrecision;
+        if (hatchingDateApproximate != null) this.hatchingDateApproximate = hatchingDateApproximate;
         if (adoptionDate != null) this.adoptionDate = adoptionDate;
     }
 

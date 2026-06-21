@@ -201,6 +201,7 @@ class _RoutineFormScreenState extends ConsumerState<RoutineFormScreen> {
           alarmTime: _alarmOn ? _alarmTime : null,
           alarmEnabled: _alarmOn,
           petIds: _petIds.toList(),
+          startAt: DateTime.tryParse(_startDate),
         ),
       );
     }
@@ -452,7 +453,6 @@ class _RoutineFormScreenState extends ConsumerState<RoutineFormScreen> {
           steps: _steps,
           doneLabel: _isEditing ? '수정 완료' : '루틴 저장',
           initialStep: _isEditing ? _steps.length - 1 : 0,
-          alwaysCancel: _isEditing,
           onDone: _submit,
           onCancel: () => context.pop(),
         ),

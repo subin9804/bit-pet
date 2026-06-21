@@ -186,7 +186,7 @@ class RoutineWithSubscription {
   factory RoutineWithSubscription.fromJson(Map<String, dynamic> json) =>
       RoutineWithSubscription(
         routine: Routine.fromJson(json['routine'] as Map<String, dynamic>),
-        subscribed: json['subscribed'] as bool,
+        subscribed: json['subscribed'] as bool? ?? false,
       );
 }
 
@@ -240,6 +240,7 @@ class CreateRoutineRequest {
   final bool alarmEnabled;
   final List<int> petIds;
   final String? memo;
+  final DateTime? startAt;
 
   const CreateRoutineRequest({
     required this.routineType,
@@ -249,6 +250,7 @@ class CreateRoutineRequest {
     this.alarmEnabled = false,
     this.petIds = const [],
     this.memo,
+    this.startAt,
   });
 
   Map<String, dynamic> toJson() => {
@@ -259,6 +261,7 @@ class CreateRoutineRequest {
         'alarmEnabled': alarmEnabled,
         'petIds': petIds,
         if (memo != null) 'memo': memo,
+        if (startAt != null) 'startAt': startAt!.toUtc().toIso8601String(),
       };
 }
 

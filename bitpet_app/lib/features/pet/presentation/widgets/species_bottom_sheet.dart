@@ -170,7 +170,7 @@ class _SpeciesBottomSheetState extends ConsumerState<SpeciesBottomSheet> {
     return _buildTwoColumnLayout();
   }
 
-  // ── 검색 결과 (전체 종 flat 리스트)
+  // ── 검색 결과 (autocomplete 스타일: 선택 시 대분류 자동 전환 + 검색 닫힘)
   Widget _buildSearchResults() {
     final allAsync = ref.watch(speciesListProvider);
     return allAsync.when(
@@ -195,11 +195,25 @@ class _SpeciesBottomSheetState extends ConsumerState<SpeciesBottomSheet> {
         return ListView.builder(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
           itemCount: filtered.length,
-          itemBuilder: (_, i) => _SpeciesRow(
-            species: filtered[i],
-            isSelected: _selectedSpecies?.id == filtered[i].id,
-            onTap: () => setState(() => _selectedSpecies = filtered[i]),
-          ),
+          itemBuilder: (_, i) {
+            final sp = filtered[i];
+            return _SpeciesRow(
+              species: sp,
+              isSelected: _selectedSpecies?.id == sp.id,
+              subcategoryLabel: _kSubcategoryLabels[sp.subcategory?.toUpperCase()],
+              onTap: () => setState(() {
+                _selectedSpecies = sp;
+                // 해당 종의 대분류로 자동 전환
+                final sub = sp.subcategory?.toUpperCase();
+                if (sub != null && _kSubcategoryLabels.containsKey(sub)) {
+                  _selectedSubcategory = sub;
+                }
+                // 검색 닫기
+                _query = '';
+                _searchCtrl.clear();
+              }),
+            );
+          },
         );
       },
     );
@@ -262,6 +276,7 @@ class _SpeciesBottomSheetState extends ConsumerState<SpeciesBottomSheet> {
                   isSelected: _selectedSpecies?.id == currentSpecies[i].id,
                   onTap: () => setState(() => _selectedSpecies = currentSpecies[i]),
                 ),
+
               ),
             ),
           ],
@@ -420,11 +435,13 @@ class _SpeciesRow extends StatelessWidget {
   final Species species;
   final bool isSelected;
   final VoidCallback onTap;
+  final String? subcategoryLabel; // 검색 결과에서만 표시
 
   const _SpeciesRow({
     required this.species,
     required this.isSelected,
     required this.onTap,
+    this.subcategoryLabel,
   });
 
   @override
@@ -435,7 +452,7 @@ class _SpeciesRow extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
         margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
         decoration: BoxDecoration(
           color: isSelected ? AppColors.primary : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
@@ -446,13 +463,44 @@ class _SpeciesRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    species.nameKo,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: isSelected ? AppColors.paleBg : AppColors.primary,
-                    ),
+                  Row(
+                    children: [
+                      Text(
+                        species.nameKo,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: isSelected ? AppColors.paleBg : AppColors.primary,
+                        ),
+                      ),
+                      if (subcategoryLabel != null) ...[
+                        const SizedBox(width: 7),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? AppColors.paleBg.withValues(alpha: 0.18)
+                                : AppColors.paleBgAlt,
+                            borderRadius: BorderRadius.circular(5),
+                            border: Border.all(
+                              color: isSelected
+                                  ? AppColors.paleBg.withValues(alpha: 0.3)
+                                  : AppColors.paleLine,
+                            ),
+                          ),
+                          child: Text(
+                            subcategoryLabel!,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: isSelected
+                                  ? AppColors.paleBg.withValues(alpha: 0.85)
+                                  : AppColors.paleInk2,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                   if (species.nameEn != null) ...[
                     const SizedBox(height: 1),

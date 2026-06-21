@@ -60,11 +60,13 @@ public class TimelineService {
             String sql = buildSql(cat, fromInst, toInst, effectiveLimit);
             final Instant finalFromInst = fromInst;
             final Instant finalToInst   = toInst;
+            final boolean isMating      = cat == RecordCategory.MATING;
 
             jdbc.query(sql,
                     ps -> {
                         int idx = 1;
                         ps.setLong(idx++, petId);
+                        if (isMating) ps.setLong(idx++, petId); // female_pet_id
                         if (finalFromInst != null) ps.setTimestamp(idx++, Timestamp.from(finalFromInst));
                         if (finalToInst   != null) ps.setTimestamp(idx++, Timestamp.from(finalToInst));
                     },
@@ -102,7 +104,7 @@ public class TimelineService {
             }
             case FEEDING -> {
                 table = "feeding_dtl"; timeCol = "fed_at";
-                summaryExpr = "COALESCE(prey_type, '급여')";
+                summaryExpr = "COALESCE(food_type, '급여')";
             }
             case CLEANING -> {
                 table = "cleaning_dtl"; timeCol = "cleaned_at";
@@ -113,8 +115,17 @@ public class TimelineService {
                 summaryExpr = "SUBSTRING(content, 1, 20)";
             }
             case MATING -> {
-                table = "mating_dtl"; timeCol = "tried_at";
-                summaryExpr = "CONCAT('합사', CASE WHEN duration_minutes IS NOT NULL THEN CONCAT(' — ', duration_minutes, '분') ELSE '' END)";
+                // mating_dtl has male_pet_id / female_pet_id, not pet_id
+                String matingSummary = "CONCAT('합사', CASE WHEN duration_minutes IS NOT NULL THEN CONCAT(' — ', duration_minutes, '분') ELSE '' END)";
+                StringBuilder ms = new StringBuilder();
+                ms.append("SELECT id, tried_at AS logged_at, ")
+                  .append(matingSummary).append(" AS summary ")
+                  .append("FROM mating_dtl ")
+                  .append("WHERE (male_pet_id = ? OR female_pet_id = ?) AND deleted_at IS NULL");
+                if (from != null) ms.append(" AND tried_at >= ?");
+                if (to   != null) ms.append(" AND tried_at <= ?");
+                ms.append(" ORDER BY logged_at DESC LIMIT ").append(limit);
+                return ms.toString();
             }
             case LAYING -> {
                 table = "laying_dtl"; timeCol = "laid_at";
