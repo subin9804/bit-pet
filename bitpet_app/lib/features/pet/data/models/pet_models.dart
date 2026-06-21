@@ -47,9 +47,9 @@ class Morph {
   String get label => (nameEn != null && nameEn!.isNotEmpty) ? nameEn! : nameKo;
 
   factory Morph.fromJson(Map<String, dynamic> json) => Morph(
-        id: json['id'] as int,
-        speciesId: json['speciesId'] as int,
-        nameKo: json['nameKo'] as String,
+        id: (json['id'] as num).toInt(),
+        speciesId: (json['speciesId'] as num?)?.toInt() ?? 0,
+        nameKo: json['nameKo'] as String? ?? '',
         nameEn: json['nameEn'] as String?,
         aliasList: json['aliasList'] as String?,
         hasHealthConcern: json['hasHealthConcern'] as bool? ?? false,
@@ -62,7 +62,7 @@ class Pet {
   final int speciesId;
   final String speciesName;
   final String? morphName; // 모프명 (백엔드에서 제공 시, 단일 하위호환용)
-  final List<Morph> morphs; // N:N 모프 목록
+  final List<Morph> morphs;
   final String name;
   final String gender;
   final String? colorCode;
@@ -77,13 +77,13 @@ class Pet {
   // 'Y' = 비공개(기본), 'N' = 공개(전체 검색 허용)
   final String privateYn;
 
-  const Pet({
+  Pet({
     required this.id,
     required this.serialNo,
     required this.speciesId,
     required this.speciesName,
     this.morphName,
-    this.morphs = const [],
+    List<Morph>? morphs,
     required this.name,
     required this.gender,
     this.colorCode,
@@ -96,7 +96,7 @@ class Pet {
     this.adoptionDate,
     this.latestWeightG,
     this.privateYn = 'Y',
-  });
+  }) : morphs = morphs ?? const [];
 
   bool get isPrivate => privateYn == 'Y';
 
@@ -106,10 +106,17 @@ class Pet {
         speciesId: (json['speciesId'] as num?)?.toInt() ?? 0,
         speciesName: (json['speciesNameKo'] ?? json['speciesName']) as String? ?? '',
         morphName: json['morphName'] as String?,
-        morphs: (json['morphs'] as List<dynamic>?)
-                ?.map((e) => Morph.fromJson(e as Map<String, dynamic>))
-                .toList() ??
-            [],
+        morphs: (() {
+          try {
+            final raw = json['morphs'];
+            if (raw == null) return <Morph>[];
+            return (raw as List<dynamic>)
+                .map((e) => Morph.fromJson(e as Map<String, dynamic>))
+                .toList();
+          } catch (_) {
+            return <Morph>[];
+          }
+        })(),
         name: json['name'] as String? ?? '',
         gender: json['gender'] as String? ?? 'UNKNOWN',
         colorCode: json['colorCode'] as String?,
