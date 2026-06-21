@@ -39,6 +39,18 @@ class FoodType {
 
   static const all = [cricket,mealworm,fruitFly,superfood,pellet,vegetables,frozenVege,frozenMouse,frozenRat,custom];
 
+  /// API 코드(CRICKET 등) → 한국어 라벨. 매핑 없으면 code 그대로 반환.
+  static String labelForCode(String code) {
+    for (final f in all) { if (f.code == code) return f.label; }
+    return code;
+  }
+
+  /// 한국어 라벨(귀뚜라미 등) → API 코드. 매핑 없으면 label 그대로 반환.
+  static String codeForLabel(String label) {
+    for (final f in all) { if (f.label == label) return f.code; }
+    return label;
+  }
+
   @override bool operator==(Object o) => o is FoodType && o.code == code;
   @override int get hashCode => code.hashCode;
 }

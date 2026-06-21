@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_response.dart';
+import 'food_catalog.dart';
 import 'models/feed_models.dart';
 import 'models/record_models.dart';
 
@@ -105,7 +106,7 @@ class DioFeedRepository implements FeedRepository {
       id: r.id.toString(),
       date: '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}',
       time: '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}',
-      items: [FeedItem(food: r.foodType, amt: r.amount?.toInt() ?? 1)],
+      items: [FeedItem(food: FoodType.labelForCode(r.foodType), amt: r.amount?.toInt() ?? 1)],
       memo: r.memo ?? '',
     );
   }
@@ -132,7 +133,7 @@ class DioFeedRepository implements FeedRepository {
     final fedAt = DateTime.parse(
         '${session.date}T${session.time.length == 5 ? "${session.time}:00" : session.time}');
     final res = await _dio.post('/pets/$petId/feedings', data: {
-      'foodType': item.food,
+      'foodType': FoodType.codeForLabel(item.food),
       'amount': item.amt.toDouble(),
       'unit': '마리',
       'fedAt': fedAt.toIso8601String(),
@@ -155,7 +156,7 @@ class DioFeedRepository implements FeedRepository {
     final fedAt = DateTime.parse(
         '${session.date}T${session.time.length == 5 ? "${session.time}:00" : session.time}');
     final res = await _dio.patch('/feedings/${session.id}', data: {
-      'foodType': item.food,
+      'foodType': FoodType.codeForLabel(item.food),
       'amount': item.amt.toDouble(),
       'fedAt': fedAt.toIso8601String(),
       'memo': session.memo,
