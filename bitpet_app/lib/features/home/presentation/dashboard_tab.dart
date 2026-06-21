@@ -12,6 +12,7 @@ import '../../pet/providers/pet_provider.dart';
 import '../../record/providers/record_provider.dart';
 import '../../record/data/record_repository.dart';
 import '../../record/data/models/record_models.dart';
+import '../../record/data/food_catalog.dart';
 import '../../routine/data/models/routine_models.dart';
 import '../../routine/providers/routine_provider.dart';
 import '../../routine/presentation/bulk_confirm_sheet.dart';
@@ -1279,6 +1280,14 @@ class _CategoryDetailSheet extends StatelessWidget {
     required this.petColor,
   });
 
+  // "CRICKET 3마리" → "귀뚜라미 3마리" : 첫 토큰이 food code면 한글로 치환
+  static String _translateFeedingSummary(String raw) {
+    if (raw.isEmpty) return raw;
+    final parts = raw.split(' ');
+    parts[0] = FoodType.labelForCode(parts[0]);
+    return parts.join(' ');
+  }
+
   @override
   Widget build(BuildContext context) {
     // 개체별 그룹핑 (기록 순서 유지)
@@ -1373,8 +1382,11 @@ class _CategoryDetailSheet extends StatelessWidget {
                             // 해당 개체의 기록 목록
                             ...petRecs.map((r) {
                               final hasMemo = r.memo != null && r.memo!.isNotEmpty;
+                              final rawSummary = r.recordType == 'FEEDING'
+                                  ? _translateFeedingSummary(r.summary)
+                                  : r.summary;
                               final display = [
-                                if (r.summary.isNotEmpty) r.summary,
+                                if (rawSummary.isNotEmpty) rawSummary,
                                 if (hasMemo) r.memo!,
                               ].join('  ·  ');
                               return Padding(
