@@ -105,18 +105,33 @@ public class TimelineService {
             case FEEDING -> {
                 table = "feeding_dtl"; timeCol = "fed_at";
                 summaryExpr = """
-                        CASE food_type
-                            WHEN 'CRICKET'      THEN '귀뚜라미'
-                            WHEN 'MEALWORM'     THEN '밀웜'
-                            WHEN 'FRUIT_FLY'    THEN '초파리'
-                            WHEN 'SUPERFOOD'    THEN '슈퍼푸드'
-                            WHEN 'PELLET'       THEN '사료'
-                            WHEN 'VEGETABLES'   THEN '야채/과일'
-                            WHEN 'FROZEN_VEGE'  THEN '냉짱'
-                            WHEN 'FROZEN_MOUSE' THEN '마우스'
-                            WHEN 'FROZEN_RAT'   THEN '래트'
-                            ELSE COALESCE(food_type, '급여')
-                        END""";
+                        CONCAT(
+                            CASE food_type
+                                WHEN 'CRICKET'      THEN '귀뚜라미'
+                                WHEN 'MEALWORM'     THEN '밀웜'
+                                WHEN 'FRUIT_FLY'    THEN '초파리'
+                                WHEN 'SUPERFOOD'    THEN '슈퍼푸드'
+                                WHEN 'PELLET'       THEN '사료'
+                                WHEN 'VEGETABLES'   THEN '야채/과일'
+                                WHEN 'FROZEN_VEGE'  THEN '냉짱'
+                                WHEN 'FROZEN_MOUSE' THEN '마우스'
+                                WHEN 'FROZEN_RAT'   THEN '래트'
+                                ELSE COALESCE(food_type, '급여')
+                            END,
+                            CASE WHEN amount IS NOT NULL AND unit IS NOT NULL
+                                 THEN CONCAT(' ', TRIM(TRAILING '0' FROM TRIM(TRAILING '.' FROM TO_CHAR(amount, 'FM999999990.99'))), unit)
+                                 WHEN amount IS NOT NULL
+                                 THEN CONCAT(' ', TRIM(TRAILING '0' FROM TRIM(TRAILING '.' FROM TO_CHAR(amount, 'FM999999990.99'))))
+                                 ELSE ''
+                            END,
+                            CASE supplement
+                                WHEN 'CALCIUM'   THEN ' + 칼슘'
+                                WHEN 'PROBIOTIC' THEN ' + 유산균'
+                                WHEN 'VITAMIN'   THEN ' + 비타민'
+                                WHEN 'OTHER'     THEN ' + 영양제'
+                                ELSE ''
+                            END
+                        )""";
             }
             case CLEANING -> {
                 table = "cleaning_dtl"; timeCol = "cleaned_at";

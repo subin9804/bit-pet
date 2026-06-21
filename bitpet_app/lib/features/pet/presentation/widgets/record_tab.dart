@@ -208,9 +208,8 @@ class _RecordTabState extends ConsumerState<RecordTab> {
                       const SizedBox(width: 6),
                       Text('체중', style: AppTextStyles.paleCatLabel),
                       const Spacer(),
-                      if (weightItem != null)
-                        Text(_agoLabel(weightItem.recordedAt),
-                            style: AppTextStyles.paleMeta),
+                      Icon(Icons.chevron_right,
+                          size: 18, color: PalePalette.catInk('WEIGHT')),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -324,17 +323,11 @@ class _RecordTabState extends ConsumerState<RecordTab> {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    // 메타 (시간)
-                    if (!isEmpty)
-                      Text(
-                        _agoLabel(item.recordedAt),
-                        style: const TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.paleInk3,
-                        ),
-                      ),
+                    Icon(Icons.chevron_right,
+                        size: 18,
+                        color: isEmpty
+                            ? AppColors.paleInk3
+                            : PalePalette.catInk(cat)),
                   ],
                 ),
               ),
@@ -417,14 +410,6 @@ class _RecordTabState extends ConsumerState<RecordTab> {
     );
   }
 
-  String _agoLabel(DateTime dt) {
-    final diff = DateTime.now().difference(dt);
-    if (diff.inMinutes < 60) return '${diff.inMinutes}분 전';
-    if (diff.inHours < 24)  return '${diff.inHours}시간 전';
-    if (diff.inDays == 1)   return '어제';
-    if (diff.inDays < 30)   return '${diff.inDays}일 전';
-    return '${dt.month}.${dt.day}';
-  }
 }
 
 // ── 스파크라인 (CustomPainter) ─────────────────────────────
