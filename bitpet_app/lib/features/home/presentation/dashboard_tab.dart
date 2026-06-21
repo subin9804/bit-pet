@@ -314,7 +314,12 @@ class _TodayDeck extends StatelessWidget {
         height: 220,
         child: Center(child: Text('루틴을 불러올 수 없어요')),
       ),
-      data: (routines) {
+      data: (allRoutines) {
+        // 미완료 먼저, 완료된 루틴은 뒤로 정렬
+        final routines = [...allRoutines]..sort((a, b) {
+          if (a.isAllCompleted == b.isAllCompleted) return 0;
+          return a.isAllCompleted ? 1 : -1;
+        });
         if (routines.isEmpty) {
           return Container(
             margin: const EdgeInsets.symmetric(horizontal: 22),
@@ -883,6 +888,22 @@ class _HomeCalendarState extends ConsumerState<_HomeCalendar> {
     }
   }
 
+  Future<void> _pickYearMonth() async {
+    final now = DateTime.now();
+    final result = await showModalBottomSheet<DateTime>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => _YearMonthPicker(current: _month, maxDate: DateTime(now.year, now.month)),
+    );
+    if (result != null) {
+      setState(() {
+        _month = result;
+        _selDate = null;
+      });
+    }
+  }
+
   void _selectDate(String date) {
     if (_selDate == date) {
       setState(() => _selDate = null);
@@ -930,20 +951,24 @@ class _HomeCalendarState extends ConsumerState<_HomeCalendar> {
                 const Icon(Icons.calendar_today_outlined,
                     size: 16, color: AppColors.primary),
                 const SizedBox(width: 7),
-                Text(
-                  '${_month.year}년 ${_month.month}월',
-                  style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary),
+                GestureDetector(
+                  onTap: _pickYearMonth,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '${_month.year}년 ${_month.month}월',
+                        style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primary),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.expand_more, size: 16, color: AppColors.paleInk2),
+                    ],
+                  ),
                 ),
                 const Spacer(),
-                Text(
-                  '전체 개체',
-                  style: AppTextStyles.mono(11, FontWeight.w700,
-                      color: AppColors.paleInk3),
-                ),
-                const SizedBox(width: 6),
                 GestureDetector(
                   onTap: isCurrentMonth ? null : _next,
                   child: Icon(Icons.chevron_right,
@@ -1462,6 +1487,122 @@ class _DayCell extends StatelessWidget {
             )
           else
             const SizedBox(height: 6),
+        ],
+      ),
+    );
+  }
+}
+
+// ── 년/월 피커 바텀시트 ───────────────────────────────────────────
+class _YearMonthPicker extends StatefulWidget {
+  final DateTime current;
+  final DateTime maxDate;
+
+  const _YearMonthPicker({required this.current, required this.maxDate});
+
+  @override
+  State<_YearMonthPicker> createState() => _YearMonthPickerState();
+}
+
+class _YearMonthPickerState extends State<_YearMonthPicker> {
+  late int _year;
+  late int _month;
+
+  static const _monthNames = [
+    '1월','2월','3월','4월','5월','6월',
+    '7월','8월','9월','10월','11월','12월',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _year = widget.current.year;
+    _month = widget.current.month;
+  }
+
+  bool _isDisabled(int m) =>
+      _year > widget.maxDate.year ||
+      (_year == widget.maxDate.year && m > widget.maxDate.month);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.paleBg,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      padding: EdgeInsets.fromLTRB(22, 0, 22, MediaQuery.of(context).padding.bottom + 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Center(
+            child: Container(
+              width: 36, height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                  color: AppColors.paleLine, borderRadius: BorderRadius.circular(2)),
+            ),
+          ),
+          // 연도 선택
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              GestureDetector(
+                onTap: () => setState(() => _year--),
+                child: const Icon(Icons.chevron_left, size: 24, color: AppColors.paleInk2),
+              ),
+              const SizedBox(width: 28),
+              Text('$_year년',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.primary)),
+              const SizedBox(width: 28),
+              GestureDetector(
+                onTap: _year < widget.maxDate.year ? () => setState(() => _year++) : null,
+                child: Icon(Icons.chevron_right,
+                    size: 24,
+                    color: _year < widget.maxDate.year ? AppColors.paleInk2 : AppColors.paleLine),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // 월 그리드 (4x3)
+          GridView.count(
+            crossAxisCount: 4,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            childAspectRatio: 2.0,
+            children: List.generate(12, (i) {
+              final m = i + 1;
+              final disabled = _isDisabled(m);
+              final selected = m == _month && _year == widget.current.year;
+              return GestureDetector(
+                onTap: disabled ? null : () => Navigator.of(context).pop(DateTime(_year, m)),
+                child: Container(
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: selected ? AppColors.primary : AppColors.paleBgAlt,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: selected ? AppColors.primary : AppColors.paleLine,
+                    ),
+                  ),
+                  child: Text(
+                    _monthNames[i],
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: disabled
+                          ? AppColors.paleLine
+                          : selected
+                              ? AppColors.paleBg
+                              : AppColors.primary,
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
         ],
       ),
     );
