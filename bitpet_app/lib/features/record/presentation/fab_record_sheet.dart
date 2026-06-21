@@ -513,7 +513,9 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         // 본문 (스크롤)
         Flexible(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(22, 8, 22, 14),
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: EdgeInsets.fromLTRB(
+                22, 8, 22, MediaQuery.of(context).viewInsets.bottom + 14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -699,7 +701,9 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         // 본문 (스크롤)
         Flexible(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(22, 10, 22, 14),
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: EdgeInsets.fromLTRB(
+                22, 10, 22, MediaQuery.of(context).viewInsets.bottom + 14),
             child: Column(
               children: [
                 // 개체 히어로

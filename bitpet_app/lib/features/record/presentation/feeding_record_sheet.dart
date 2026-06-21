@@ -240,7 +240,10 @@ class _FeedingRecordSheetState extends ConsumerState<FeedingRecordSheet> {
             Expanded(
               child: SingleChildScrollView(
                 controller: controller,
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: EdgeInsets.fromLTRB(
+                    20, 0, 20, MediaQuery.of(context).viewInsets.bottom),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -321,7 +324,9 @@ class _FeedingRecordSheetState extends ConsumerState<FeedingRecordSheet> {
                           ),
                         ),
                       ),
-                    const SizedBox(height: 80),
+                    SizedBox(
+                        height:
+                            MediaQuery.of(context).viewInsets.bottom + 16),
                   ],
                 ),
               ),
