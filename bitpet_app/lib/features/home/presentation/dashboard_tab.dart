@@ -1281,6 +1281,14 @@ class _CategoryDetailSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 개체별 그룹핑 (기록 순서 유지)
+    final Map<String, List<RecentRecord>> petGroups = {};
+    for (final r in records) {
+      final key = r.petId?.toString() ?? r.petName;
+      petGroups.putIfAbsent(key, () => []).add(r);
+    }
+    final petKeys = petGroups.keys.toList();
+
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.paleBg,
@@ -1307,47 +1315,70 @@ class _CategoryDetailSheet extends StatelessWidget {
             constraints: BoxConstraints(
               maxHeight: MediaQuery.of(context).size.height * 0.55,
             ),
-            child: ListView.separated(
+            child: ListView.builder(
               shrinkWrap: true,
-              itemCount: records.length,
-              separatorBuilder: (_, __) =>
-                  const Divider(height: 1, color: AppColors.paleLineSoft),
+              itemCount: petKeys.length,
               itemBuilder: (_, i) {
-                final r = records[i];
-                final hasMemo = r.memo != null && r.memo!.isNotEmpty;
-                return Padding(
+                final key      = petKeys[i];
+                final petRecs  = petGroups[key]!;
+                final first    = petRecs.first;
+                final isLast   = i == petKeys.length - 1;
+
+                return Container(
                   padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    border: isLast
+                        ? null
+                        : const Border(
+                            bottom: BorderSide(color: AppColors.paleLineSoft)),
+                  ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // 개체 컬러 닷
                       Container(
                         width: 8, height: 8,
-                        margin: const EdgeInsets.only(top: 4),
+                        margin: const EdgeInsets.only(top: 5),
                         decoration: BoxDecoration(
-                            color: petColor(r.colorCode), shape: BoxShape.circle),
+                            color: petColor(first.colorCode), shape: BoxShape.circle),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(r.petName,
+                            // 개체명
+                            Text(first.petName,
                                 style: const TextStyle(
                                     fontSize: 13, fontWeight: FontWeight.w700,
                                     color: AppColors.primary)),
-                            if (r.summary.isNotEmpty) ...[
-                              const SizedBox(height: 2),
-                              Text(r.summary,
-                                  style: const TextStyle(
-                                      fontSize: 12, color: AppColors.paleInk2)),
-                            ],
-                            if (hasMemo) ...[
-                              const SizedBox(height: 4),
-                              Text(r.memo!,
-                                  style: const TextStyle(
-                                      fontSize: 12, color: AppColors.paleInk3,
-                                      fontStyle: FontStyle.italic)),
-                            ],
+                            const SizedBox(height: 4),
+                            // 해당 개체의 기록 목록
+                            ...petRecs.map((r) {
+                              final hasMemo = r.memo != null && r.memo!.isNotEmpty;
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 3),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (r.summary.isNotEmpty)
+                                      Text(r.summary,
+                                          style: const TextStyle(
+                                              fontSize: 12,
+                                              color: AppColors.paleInk2)),
+                                    if (hasMemo)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 2),
+                                        child: Text(r.memo!,
+                                            style: const TextStyle(
+                                                fontSize: 11.5,
+                                                color: AppColors.paleInk3,
+                                                fontStyle: FontStyle.italic)),
+                                      ),
+                                  ],
+                                ),
+                              );
+                            }),
                           ],
                         ),
                       ),
