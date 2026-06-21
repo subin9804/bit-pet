@@ -1,5 +1,7 @@
 // 01d · 루틴 개별 완료 — peek 캐러셀
-// 개체를 한 장씩 넘기며 원하는 개체만 그 자리에서 완료 저장.
+// 저장 트리거: 1) 이 개체 완료 버튼  2) 다음 버튼  3) 저장하고 종료 버튼
+// 이전 버튼: 저장 없이 이동, 입력 상태 유지
+// 완료됨 버튼: 클릭 시 로그 삭제 후 미완료 상태로 복귀
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
@@ -12,18 +14,23 @@ import '../data/routine_repository.dart';
 import '../providers/routine_provider.dart';
 import 'widgets/confirm_accordion.dart';
 
-// 개체별 입력 상태
+// ── 개체별 입력 상태 ──────────────────────────────────────────────
 class _PerPetRec {
   List<FeedFormData> feedItems;
   String memo;
   bool done;
   bool feedOpen;
   bool memoOpen;
-  _PerPetRec({required this.done})
+  int? savedLogId;
+  final TextEditingController memoCtrl;
+
+  _PerPetRec({required this.done, int? logId})
       : feedItems = const [],
         memo = '',
         feedOpen = false,
-        memoOpen = false;
+        memoOpen = false,
+        savedLogId = logId,
+        memoCtrl = TextEditingController();
 }
 
 class PerPetConfirmSheet extends ConsumerStatefulWidget {
@@ -65,24 +72,55 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
     super.initState();
     _page = PageController(viewportFraction: 0.84);
     _rec = {
-      for (final s in _pets) s.petId: _PerPetRec(done: s.isCompleted),
+      for (final s in _pets)
+        s.petId: _PerPetRec(done: s.isCompleted, logId: s.logId),
     };
+    // 이미 완료된 개체의 저장 메모 불러오기
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadSavedLogs());
   }
 
   @override
   void dispose() {
     _page.dispose();
+    for (final r in _rec.values) r.memoCtrl.dispose();
     super.dispose();
   }
 
-  // 이 개체 그 자리에서 완료 저장
+  // ── 이미 완료된 개체의 저장 메모 로드 ─────────────────────────────
+  Future<void> _loadSavedLogs() async {
+    if (!mounted || !_pets.any((p) => p.isCompleted)) return;
+    try {
+      final logs = await ref.read(routineRepositoryProvider).getLogs(widget.routine.id);
+      final today = DateTime.now();
+      for (final pet in _pets) {
+        if (!pet.isCompleted) continue;
+        final rec = _rec[pet.petId]!;
+        final log = logs.where((l) =>
+          l.petId == pet.petId &&
+          l.executedAt.year == today.year &&
+          l.executedAt.month == today.month &&
+          l.executedAt.day == today.day
+        ).lastOrNull;
+        if (log != null && mounted) {
+          setState(() {
+            rec.savedLogId = log.id;
+            if (log.memo != null) {
+              rec.memo = log.memo!;
+              rec.memoCtrl.text = log.memo!;
+            }
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
+  // ── 개체 완료 저장 (이 개체 완료 버튼) ───────────────────────────
   Future<void> _completePet(TodayPetStatus pet) async {
     final rec  = _rec[pet.petId]!;
     final memo = rec.memo.trim().isEmpty ? null : rec.memo.trim();
     setState(() => _saving = true);
     try {
-      final repo = ref.read(routineRepositoryProvider);
-      await repo.completeIndividual(
+      final log = await ref.read(routineRepositoryProvider).completeIndividual(
         widget.routine.id,
         RoutineCompleteIndividualRequest(
           petId:     pet.petId,
@@ -91,7 +129,9 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
           memo:      memo,
         ),
       );
-      ref.read(todayRoutinesProvider.notifier).updatePetStatus(widget.routine.id, pet.petId, true);
+      rec.savedLogId = log?.id;
+      ref.read(todayRoutinesProvider.notifier)
+          .updatePetStatus(widget.routine.id, pet.petId, true);
       if (mounted) {
         setState(() => rec.done = true);
         showToast(context, '${pet.petName} 완료', type: ToastType.success);
@@ -101,6 +141,70 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  // ── 완료 취소 (완료됨 버튼 → 로그 삭제) ───────────────────────────
+  Future<void> _undoPet(TodayPetStatus pet) async {
+    final rec   = _rec[pet.petId]!;
+    final logId = rec.savedLogId;
+    if (logId == null) {
+      // 로그 ID 없이 로컬에서만 done=true인 경우 (드문 케이스)
+      setState(() => rec.done = false);
+      ref.read(todayRoutinesProvider.notifier)
+          .updatePetStatus(widget.routine.id, pet.petId, false);
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      await ref.read(routineRepositoryProvider).deleteLog(logId);
+      rec.savedLogId = null;
+      ref.read(todayRoutinesProvider.notifier)
+          .updatePetStatus(widget.routine.id, pet.petId, false);
+      if (mounted) setState(() => rec.done = false);
+    } catch (e) {
+      if (mounted) showToast(context, '취소 실패: $e', type: ToastType.error);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  // ── 미완료 시 저장 (다음/저장하고 종료 버튼) ──────────────────────
+  Future<void> _saveIfNotDone(TodayPetStatus pet) async {
+    final rec = _rec[pet.petId]!;
+    if (rec.done) return;
+    final memo = rec.memo.trim().isEmpty ? null : rec.memo.trim();
+    try {
+      final log = await ref.read(routineRepositoryProvider).completeIndividual(
+        widget.routine.id,
+        RoutineCompleteIndividualRequest(
+          petId:     pet.petId,
+          status:    RoutineLogStatus.COMPLETED,
+          feedItems: _isFeed ? rec.feedItems : const [],
+          memo:      memo,
+        ),
+      );
+      rec.savedLogId = log?.id;
+      ref.read(todayRoutinesProvider.notifier)
+          .updatePetStatus(widget.routine.id, pet.petId, true);
+      if (mounted) setState(() => rec.done = true);
+    } catch (_) {}
+  }
+
+  void _handleNext() {
+    _saveIfNotDone(_pets[_idx]).then((_) {
+      if (mounted) _go(_idx + 1);
+    });
+  }
+
+  void _handleFinish() {
+    final routine = widget.routine;
+    _saveIfNotDone(_pets[_idx]).then((_) {
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ref.invalidate(routineTodayStatusProvider(routine.id));
+      showToast(context, '$_completedCount마리 완료 처리됐어요',
+          type: ToastType.success);
+    });
   }
 
   void _go(int target) {
@@ -145,7 +249,7 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
                     clipBehavior: Clip.antiAlias,
                     child: Column(
                       children: [
-                        // 헤더 밴드 + 진행 카운트
+                        // ── 헤더 밴드 ──────────────────────────────
                         Container(
                           color: _accent,
                           padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
@@ -157,8 +261,7 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
                                   color: Colors.white.withValues(alpha: 0.62),
                                   borderRadius: BorderRadius.circular(13),
                                 ),
-                                child: Icon(_icon, size: 21,
-                                    color: AppColors.primary),
+                                child: Icon(_icon, size: 21, color: AppColors.primary),
                               ),
                               const SizedBox(width: 11),
                               Expanded(
@@ -207,7 +310,7 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
                           ),
                         ),
 
-                        // peek 캐러셀
+                        // ── peek 캐러셀 ────────────────────────────
                         Expanded(
                           child: PageView.builder(
                             controller: _page,
@@ -222,25 +325,20 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
                               accent: _accent,
                               saving: _saving,
                               onComplete: () => _completePet(_pets[i]),
+                              onUndo: () => _undoPet(_pets[i]),
                               onChanged: () => setState(() {}),
                             ),
                           ),
                         ),
 
-                        // 푸터
+                        // ── 푸터 ───────────────────────────────────
                         _Footer(
                           isLast: _isLast,
                           canPrev: _idx > 0,
                           onCancel: () => Navigator.of(context).pop(),
                           onPrev: () => _go(_idx - 1),
-                          onNext: () => _go(_idx + 1),
-                          onFinish: () {
-                            Navigator.of(context).pop();
-                            ref.invalidate(
-                                routineTodayStatusProvider(routine.id));
-                            showToast(context, '$_completedCount마리 완료 처리됐어요',
-                                type: ToastType.success);
-                          },
+                          onNext: _handleNext,
+                          onFinish: _handleFinish,
                         ),
                       ],
                     ),
@@ -255,7 +353,7 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
   }
 }
 
-// ── 개체 1장 (peek 스케일 적용) ───────────────────────────────
+// ── 개체 1장 (peek 스케일 적용) ────────────────────────────────────
 class _PetPage extends StatelessWidget {
   final PageController page;
   final int index;
@@ -265,6 +363,7 @@ class _PetPage extends StatelessWidget {
   final Color accent;
   final bool saving;
   final VoidCallback onComplete;
+  final VoidCallback onUndo;
   final VoidCallback onChanged;
 
   const _PetPage({
@@ -276,6 +375,7 @@ class _PetPage extends StatelessWidget {
     required this.accent,
     required this.saving,
     required this.onComplete,
+    required this.onUndo,
     required this.onChanged,
   });
 
@@ -288,7 +388,7 @@ class _PetPage extends StatelessWidget {
         if (page.position.haveDimensions) {
           delta = (page.page ?? page.initialPage.toDouble()) - index;
         }
-        final t = (1 - delta.abs()).clamp(0.0, 1.0);
+        final t       = (1 - delta.abs()).clamp(0.0, 1.0);
         final scale   = 0.92 + 0.08 * t;
         final opacity = 0.4 + 0.6 * t;
         return Transform.scale(
@@ -307,8 +407,7 @@ class _PetPage extends StatelessWidget {
                 Container(
                   width: 50, height: 50,
                   decoration: BoxDecoration(
-                    color: PalePalette.pale(
-                        PalePalette.keyFromHex(pet.colorCode)),
+                    color: PalePalette.pale(PalePalette.keyFromHex(pet.colorCode)),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: pet.imageUrl != null
@@ -341,8 +440,7 @@ class _PetPage extends StatelessWidget {
                 ),
                 // 대기/완료 칩
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: rec.done ? AppColors.primary : AppColors.paleBgAlt,
                     borderRadius: BorderRadius.circular(999),
@@ -351,8 +449,7 @@ class _PetPage extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (rec.done) ...[
-                        const Icon(Icons.check,
-                            size: 12, color: AppColors.paleBg),
+                        const Icon(Icons.check, size: 12, color: AppColors.paleBg),
                         const SizedBox(width: 3),
                       ],
                       Text(rec.done ? '완료' : '대기',
@@ -368,52 +465,49 @@ class _PetPage extends StatelessWidget {
             ),
             const SizedBox(height: 12),
 
-            // 이 개체 완료 버튼
+            // 완료/미완료 버튼
             GestureDetector(
-              onTap: saving ? null : onComplete,
+              onTap: saving ? null : (rec.done ? onUndo : onComplete),
               child: Container(
                 width: double.infinity, height: 48,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: rec.done ? AppColors.paleBgAlt : AppColors.primary,
-                  border: rec.done
-                      ? Border.all(color: AppColors.paleLine)
-                      : null,
+                  border: rec.done ? Border.all(color: AppColors.paleLine) : null,
                   borderRadius: BorderRadius.circular(13),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.check, size: 17,
-                        color: rec.done
-                            ? AppColors.paleInk2
-                            : AppColors.paleBg),
+                    Icon(rec.done ? Icons.check_circle_outline : Icons.check,
+                        size: 17,
+                        color: rec.done ? AppColors.paleInk2 : AppColors.paleBg),
                     const SizedBox(width: 8),
                     Text(
-                      rec.done ? '완료됨 · 다시 저장' : '이 개체 완료',
+                      rec.done ? '완료됨' : '이 개체 완료',
                       style: TextStyle(
                           fontSize: 14.5, fontWeight: FontWeight.w700,
-                          color: rec.done
-                              ? AppColors.paleInk2
-                              : AppColors.paleBg),
+                          color: rec.done ? AppColors.paleInk2 : AppColors.paleBg),
                     ),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 5),
+            const SizedBox(height: 4),
             Center(
-              child: Text('눌러야 이 개체가 저장돼요',
-                  style: TextStyle(
-                      fontSize: 11, fontWeight: FontWeight.w600,
-                      color: AppColors.paleInk3)),
+              child: Text(
+                rec.done ? '다시 클릭하면 완료가 취소돼요' : '\'다음\' 버튼으로도 저장할 수 있어요',
+                style: TextStyle(
+                    fontSize: 11, fontWeight: FontWeight.w600,
+                    color: AppColors.paleInk3),
+              ),
             ),
             const SizedBox(height: 4),
 
-            // 급여 내용 아코디언 (feed 타입만)
+            // 피딩 내용 아코디언 (feed 타입만)
             if (isFeed)
               ConfirmAccordion(
-                label: '급여 내용',
+                label: '피딩 내용',
                 optional: true,
                 summary: null,
                 summaryActive: false,
@@ -444,6 +538,7 @@ class _PetPage extends StatelessWidget {
                 onChanged();
               },
               child: TextField(
+                controller: rec.memoCtrl,
                 onChanged: (v) => rec.memo = v,
                 maxLines: 2,
                 style: const TextStyle(fontSize: 13, color: AppColors.primary),
@@ -467,7 +562,7 @@ class _PetPage extends StatelessWidget {
   }
 }
 
-// ── 푸터 (취소·이전·다음 / 마지막: 이전·저장하고 종료) ─────────
+// ── 푸터 ─────────────────────────────────────────────────────────
 class _Footer extends StatelessWidget {
   final bool isLast;
   final bool canPrev;
@@ -496,16 +591,10 @@ class _Footer extends StatelessWidget {
       child: Row(
         children: [
           if (!isLast) ...[
-            _FooterBtn(
-              label: '취소',
-              onTap: onCancel,
-            ),
+            _FooterBtn(label: '취소', onTap: onCancel),
             const SizedBox(width: 8),
           ],
-          _FooterBtn(
-            label: '이전',
-            onTap: canPrev ? onPrev : null,
-          ),
+          _FooterBtn(label: '이전', onTap: canPrev ? onPrev : null),
           const SizedBox(width: 8),
           Expanded(
             child: isLast
@@ -518,12 +607,11 @@ class _Footer extends StatelessWidget {
                         color: AppColors.primary,
                         borderRadius: BorderRadius.circular(13),
                       ),
-                      child: Row(
+                      child: const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.check,
-                              size: 16, color: AppColors.paleBg),
-                          const SizedBox(width: 7),
+                          Icon(Icons.check, size: 16, color: AppColors.paleBg),
+                          SizedBox(width: 7),
                           Text('저장하고 종료',
                               style: TextStyle(
                                   fontSize: 14, fontWeight: FontWeight.w700,
@@ -542,15 +630,15 @@ class _Footer extends StatelessWidget {
                         border: Border.all(color: AppColors.paleLine),
                         borderRadius: BorderRadius.circular(13),
                       ),
-                      child: Row(
+                      child: const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text('다음',
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontSize: 14, fontWeight: FontWeight.w700,
                                   color: AppColors.primary)),
-                          const SizedBox(width: 4),
-                          const Icon(Icons.chevron_right,
+                          SizedBox(width: 4),
+                          Icon(Icons.chevron_right,
                               size: 16, color: AppColors.paleInk2),
                         ],
                       ),
@@ -585,7 +673,7 @@ class _FooterBtn extends StatelessWidget {
             borderRadius: BorderRadius.circular(13),
           ),
           child: Text(label,
-              style: TextStyle(
+              style: const TextStyle(
                   fontSize: 14, fontWeight: FontWeight.w700,
                   color: AppColors.paleInk2)),
         ),
