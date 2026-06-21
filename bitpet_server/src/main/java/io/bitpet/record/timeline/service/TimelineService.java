@@ -104,7 +104,19 @@ public class TimelineService {
             }
             case FEEDING -> {
                 table = "feeding_dtl"; timeCol = "fed_at";
-                summaryExpr = "COALESCE(food_type, '급여')";
+                summaryExpr = """
+                        CASE food_type
+                            WHEN 'CRICKET'      THEN '귀뚜라미'
+                            WHEN 'MEALWORM'     THEN '밀웜'
+                            WHEN 'FRUIT_FLY'    THEN '초파리'
+                            WHEN 'SUPERFOOD'    THEN '슈퍼푸드'
+                            WHEN 'PELLET'       THEN '사료'
+                            WHEN 'VEGETABLES'   THEN '야채/과일'
+                            WHEN 'FROZEN_VEGE'  THEN '냉짱'
+                            WHEN 'FROZEN_MOUSE' THEN '마우스'
+                            WHEN 'FROZEN_RAT'   THEN '래트'
+                            ELSE COALESCE(food_type, '급여')
+                        END""";
             }
             case CLEANING -> {
                 table = "cleaning_dtl"; timeCol = "cleaned_at";

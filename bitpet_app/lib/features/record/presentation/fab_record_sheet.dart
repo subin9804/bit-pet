@@ -10,6 +10,7 @@ import '../../../core/widgets/step_dots.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../../pet/data/models/pet_models.dart';
 import '../../pet/providers/pet_provider.dart';
+import '../data/models/record_models.dart';
 import '../data/record_repository.dart';
 import '../providers/record_provider.dart';
 import '../providers/feed_provider.dart';
@@ -23,6 +24,7 @@ enum _FabStep {
   feedChoice, // 06c BULK / PER-PET
   feedBulk,   // 06d 일괄 폼
   feedPerPet, // 06e 개별 탭 폼
+  simpleForm, // scale / clean / note / mate / lay 폼
   done,       // 완료
 }
 
@@ -81,6 +83,22 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
   final Map<int, TextEditingController> _perPetMemoCtrl = {};
   int _activePerPetIdx = 0;
 
+  // simpleForm 공통
+  final _simpleMemoCtrl = TextEditingController();
+  // scale
+  final _weightCtrl = TextEditingController();
+  // clean
+  String? _cleaningType; // 'FULL' | 'PARTIAL' | 'WATER_CHANGE'
+  // note
+  bool _isVetMemo = false;
+  // mate
+  bool _partnerExternal = false;
+  Pet? _partnerPet;
+  final _partnerExtCtrl = TextEditingController();
+  // lay
+  final _eggTotalCtrl   = TextEditingController();
+  final _eggFertileCtrl = TextEditingController();
+
   // 저장
   bool _saving = false;
   int  _savedCount = 0;
@@ -115,8 +133,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
           _step = _FabStep.feedChoice;
         }
       } else {
-        // 피딩 이외 종류 → 간단 폼(추후 확장)
-        _step = _FabStep.feedBulk;
+        _step = _FabStep.simpleForm;
       }
     });
   }
@@ -210,6 +227,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         _FabStep.feedBulk   =>
             _selectedPetIds.length > 1 ? _FabStep.feedChoice : _FabStep.pickPets,
         _FabStep.feedPerPet => _FabStep.feedChoice,
+        _FabStep.simpleForm => _FabStep.pickPets,
         _                   => _FabStep.chooseType,
       };
     });
@@ -219,6 +237,11 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
   void dispose() {
     _bulkMemoCtrl.dispose();
     for (final c in _perPetMemoCtrl.values) c.dispose();
+    _simpleMemoCtrl.dispose();
+    _weightCtrl.dispose();
+    _partnerExtCtrl.dispose();
+    _eggTotalCtrl.dispose();
+    _eggFertileCtrl.dispose();
     super.dispose();
   }
 
@@ -226,7 +249,8 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
   @override
   Widget build(BuildContext context) {
     final petsAsync = ref.watch(petListProvider);
-    final isFormStep = _step == _FabStep.feedBulk || _step == _FabStep.feedPerPet;
+    final isFormStep = _step == _FabStep.feedBulk || _step == _FabStep.feedPerPet
+        || _step == _FabStep.simpleForm;
     final screenH = MediaQuery.of(context).size.height;
 
     final sheet = Container(
@@ -267,6 +291,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
       _FabStep.feedChoice => _buildFeedChoice(petsAsync),
       _FabStep.feedBulk   => _buildFeedBulk(petsAsync),
       _FabStep.feedPerPet => _buildFeedPerPet(petsAsync),
+      _FabStep.simpleForm => _buildSimpleForm(petsAsync),
       _FabStep.done       => _buildDone(),
     };
   }
@@ -952,6 +977,514 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
     );
   }
 
+  // ── simpleForm 저장 ────────────────────────────────────────────
+  bool _simpleFormValid() {
+    return switch (_typeId) {
+      'scale' => _weightCtrl.text.trim().isNotEmpty &&
+                 (double.tryParse(_weightCtrl.text.trim()) ?? 0) > 0,
+      'clean' => _cleaningType != null,
+      'note'  => _simpleMemoCtrl.text.trim().isNotEmpty,
+      'mate'  => _partnerExternal
+                   ? _partnerExtCtrl.text.trim().isNotEmpty
+                   : _partnerPet != null,
+      'lay'   => (int.tryParse(_eggTotalCtrl.text.trim()) ?? 0) > 0,
+      _       => false,
+    };
+  }
+
+  Future<void> _saveSimple(List<Pet> pets) async {
+    setState(() => _saving = true);
+    try {
+      final repo = ref.read(recordRepositoryProvider);
+      final now  = DateTime.now();
+      final memo = _simpleMemoCtrl.text.trim();
+
+      for (final pet in pets) {
+        switch (_typeId) {
+          case 'scale':
+            final w = double.parse(_weightCtrl.text.trim());
+            await repo.addWeight(pet.id, w, now, memo.isEmpty ? null : memo);
+          case 'clean':
+            await repo.addCleaning(
+              pet.id,
+              CleaningType.values.firstWhere((c) => c.name == _cleaningType),
+              now, memo.isEmpty ? null : memo,
+            );
+          case 'note':
+            final data = <String, dynamic>{
+              'content': memo,
+              'loggedAt': now.toUtc().toIso8601String(),
+              if (_isVetMemo) 'tags': ['VET'],
+            };
+            await repo.addMemo(pet.id, data);
+          case 'mate':
+            int? malePetId, femalePetId;
+            String? extText;
+            if (_partnerExternal) {
+              extText = _partnerExtCtrl.text.trim();
+            } else {
+              final partner = _partnerPet;
+              if (partner != null) {
+                if (pet.gender == 'MALE') {
+                  malePetId = pet.id; femalePetId = partner.id;
+                } else {
+                  femalePetId = pet.id; malePetId = partner.id;
+                }
+              } else {
+                femalePetId = pet.id;
+              }
+            }
+            if (malePetId == null && femalePetId == null && extText == null) {
+              femalePetId = pet.id;
+            }
+            final matingData = <String, dynamic>{
+              if (malePetId   != null) 'petIdMale':           malePetId,
+              if (femalePetId != null) 'petIdFemale':         femalePetId,
+              if (extText     != null) 'externalPartnerText': extText,
+              'triedAt': now.toUtc().toIso8601String(),
+              'seasonLabel': now.year.toString(),
+              if (memo.isNotEmpty) 'memo': memo,
+            };
+            await repo.addMating(pet.id, matingData);
+          case 'lay':
+            final total   = int.parse(_eggTotalCtrl.text.trim());
+            final fertile = int.tryParse(_eggFertileCtrl.text.trim());
+            final layData = <String, dynamic>{
+              'eggCountTotal': total,
+              if (fertile != null && fertile > 0) 'eggCountFertile': fertile,
+              'laidAt': now.toUtc().toIso8601String(),
+              if (memo.isNotEmpty) 'memo': memo,
+            };
+            await repo.addLaying(pet.id, layData);
+        }
+        ref.invalidate(petDetailProvider(pet.id));
+      }
+      setState(() {
+        _savedCount = pets.length;
+        _step = _FabStep.done;
+      });
+    } catch (e) {
+      if (mounted) showToast(context, '저장 실패: $e', type: ToastType.error);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  // ── simpleForm 빌드 ────────────────────────────────────────────
+  Widget _buildSimpleForm(AsyncValue<List<Pet>> petsAsync) {
+    final pets  = _selectedPets(petsAsync);
+    final rt    = _recordTypes.firstWhere((r) => r.id == _typeId,
+        orElse: () => _recordTypes.first);
+    final valid = _simpleFormValid();
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // 헤더
+        Padding(
+          padding: const EdgeInsets.fromLTRB(22, 4, 22, 6),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Text(rt.en,
+                    style: AppTextStyles.mono(11, FontWeight.w700,
+                        color: AppColors.paleInk2)),
+                const SizedBox(width: 8),
+                const StepDots(step: 3),
+              ]),
+              const SizedBox(height: 6),
+              Text('${rt.ko} 기록',
+                  style: const TextStyle(
+                      fontSize: 20, fontWeight: FontWeight.w700,
+                      color: AppColors.primary, letterSpacing: -0.4)),
+            ],
+          ),
+        ),
+        if (pets.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(22, 0, 22, 2),
+            child: SelectedPetRow(pets: pets),
+          ),
+        // 본문
+        Flexible(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+                22, 10, 22, MediaQuery.of(context).viewInsets.bottom + 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildSimpleFields(pets),
+              ],
+            ),
+          ),
+        ),
+        // 푸터
+        _Footer(
+          onBack: _goBack,
+          nextLabel: '저장',
+          nextIcon: Icons.check,
+          nextEnabled: valid && !_saving,
+          loading: _saving,
+          onNext: () => _saveSimple(pets),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSimpleFields(List<Pet> pets) {
+    final inputDec = InputDecoration(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.paleLine)),
+      enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.paleLine)),
+      focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
+    );
+
+    switch (_typeId) {
+      // ── 몸무게 ────────────────────────────────────────────────
+      case 'scale':
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _FieldLabel('체중 (g)', required: true),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _weightCtrl,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700,
+                  color: AppColors.primary),
+              decoration: inputDec.copyWith(
+                hintText: '예: 85.5',
+                suffixText: 'g',
+                suffixStyle: const TextStyle(fontSize: 14, color: AppColors.paleInk2),
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 18),
+            _FieldLabel('메모', required: false),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _simpleMemoCtrl,
+              maxLines: 2,
+              style: const TextStyle(fontSize: 13, color: AppColors.primary),
+              decoration: inputDec.copyWith(hintText: '특이사항 (선택)'),
+            ),
+          ],
+        );
+
+      // ── 청소 ──────────────────────────────────────────────────
+      case 'clean':
+        const types = [
+          ('FULL',         '전체 청소',  Icons.cleaning_services_outlined),
+          ('PARTIAL',      '부분 청소',  Icons.brush_outlined),
+          ('WATER_CHANGE', '물갈이',     Icons.water_drop_outlined),
+        ];
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _FieldLabel('청소 종류', required: true),
+            const SizedBox(height: 10),
+            Row(
+              children: types.map((t) {
+                final sel = _cleaningType == t.$1;
+                return Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: GestureDetector(
+                      onTap: () => setState(() => _cleaningType = t.$1),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 120),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: sel ? AppColors.petSky : AppColors.card,
+                          border: Border.all(
+                              color: sel ? AppColors.petSkyInk : AppColors.paleLine,
+                              width: sel ? 1.5 : 1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          children: [
+                            Icon(t.$3, size: 20,
+                                color: sel ? AppColors.petSkyInk : AppColors.paleInk2),
+                            const SizedBox(height: 5),
+                            Text(t.$2,
+                                style: TextStyle(
+                                    fontSize: 12, fontWeight: FontWeight.w700,
+                                    color: sel ? AppColors.petSkyInk : AppColors.paleInk2)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 18),
+            _FieldLabel('메모', required: false),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _simpleMemoCtrl,
+              maxLines: 2,
+              style: const TextStyle(fontSize: 13, color: AppColors.primary),
+              decoration: inputDec.copyWith(hintText: '특이사항 (선택)'),
+            ),
+          ],
+        );
+
+      // ── 메모 ──────────────────────────────────────────────────
+      case 'note':
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _FieldLabel('내용', required: true),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _simpleMemoCtrl,
+              maxLines: 5,
+              style: const TextStyle(fontSize: 13, color: AppColors.primary),
+              decoration: inputDec.copyWith(
+                hintText: '관찰한 내용을 기록해요',
+                alignLabelWithHint: true,
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 14),
+            // 병원메모 체크박스
+            GestureDetector(
+              onTap: () => setState(() => _isVetMemo = !_isVetMemo),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: _isVetMemo ? AppColors.petLilac : AppColors.card,
+                  border: Border.all(
+                      color: _isVetMemo ? AppColors.petLilacInk : AppColors.paleLine,
+                      width: _isVetMemo ? 1.5 : 1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 120),
+                      width: 20, height: 20,
+                      decoration: BoxDecoration(
+                        color: _isVetMemo ? AppColors.petLilacInk : AppColors.card,
+                        border: Border.all(
+                            color: _isVetMemo ? AppColors.petLilacInk : AppColors.paleLine,
+                            width: 1.5),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: _isVetMemo
+                          ? const Icon(Icons.check, size: 13, color: Colors.white)
+                          : null,
+                    ),
+                    const SizedBox(width: 10),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('병원 메모',
+                            style: TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.w700,
+                                color: _isVetMemo
+                                    ? AppColors.petLilacInk
+                                    : AppColors.primary)),
+                        Text('동물병원 방문 기록으로 분류해요',
+                            style: TextStyle(
+                                fontSize: 11,
+                                color: _isVetMemo
+                                    ? AppColors.petLilacInk
+                                    : AppColors.paleInk2)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+
+      // ── 메이팅 ────────────────────────────────────────────────
+      case 'mate':
+        final allPets = (ref.watch(petListProvider).whenOrNull(data: (l) => l) ?? <Pet>[])
+            .where((p) => !_selectedPetIds.contains(p.id))
+            .toList();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _FieldLabel('파트너', required: true),
+            const SizedBox(height: 8),
+            // 내 개체 / 외부 개체 토글
+            Row(
+              children: [
+                _TypeToggle(
+                  label: '내 개체',
+                  active: !_partnerExternal,
+                  onTap: () => setState(() { _partnerExternal = false; }),
+                ),
+                const SizedBox(width: 8),
+                _TypeToggle(
+                  label: '외부 개체',
+                  active: _partnerExternal,
+                  onTap: () => setState(() { _partnerExternal = true; _partnerPet = null; }),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            if (_partnerExternal)
+              TextField(
+                controller: _partnerExtCtrl,
+                style: const TextStyle(fontSize: 14, color: AppColors.primary),
+                decoration: inputDec.copyWith(
+                  hintText: '파트너 이름 또는 정보 입력',
+                  prefixIcon: const Icon(Icons.edit_outlined, size: 18, color: AppColors.paleInk2),
+                ),
+                onChanged: (_) => setState(() {}),
+              )
+            else ...[
+              // 내 개체 검색 리스트
+              Container(
+                decoration: BoxDecoration(
+                  color: AppColors.card,
+                  border: Border.all(color: AppColors.paleLine),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                constraints: const BoxConstraints(maxHeight: 180),
+                child: allPets.isEmpty
+                    ? const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Center(
+                          child: Text('다른 개체가 없어요',
+                              style: TextStyle(fontSize: 12, color: AppColors.paleInk3)),
+                        ),
+                      )
+                    : ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: allPets.length,
+                        separatorBuilder: (_, __) =>
+                            const Divider(height: 1, color: AppColors.paleLineSoft),
+                        itemBuilder: (_, i) {
+                          final p   = allPets[i];
+                          final sel = _partnerPet?.id == p.id;
+                          final key = PalePalette.keyFromHex(p.colorCode);
+                          return GestureDetector(
+                            onTap: () => setState(() => _partnerPet = sel ? null : p),
+                            child: Container(
+                              color: sel ? PalePalette.pale(key) : Colors.transparent,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 10),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 32, height: 32,
+                                    decoration: BoxDecoration(
+                                      color: PalePalette.pale(key),
+                                      borderRadius: BorderRadius.circular(9),
+                                    ),
+                                    child: Icon(Icons.pets, size: 15,
+                                        color: AppColors.primary),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(p.name,
+                                            style: const TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w700,
+                                                color: AppColors.primary)),
+                                        Text(
+                                          '${p.speciesName} · ${p.gender == 'MALE' ? '♂ 수컷' : p.gender == 'FEMALE' ? '♀ 암컷' : '미확인'}',
+                                          style: const TextStyle(
+                                              fontSize: 11,
+                                              color: AppColors.paleInk2),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  if (sel)
+                                    Container(
+                                      width: 20, height: 20,
+                                      decoration: const BoxDecoration(
+                                          color: AppColors.primary,
+                                          shape: BoxShape.circle),
+                                      child: const Icon(Icons.check,
+                                          size: 12, color: Colors.white),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+            const SizedBox(height: 18),
+            _FieldLabel('메모', required: false),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _simpleMemoCtrl,
+              maxLines: 2,
+              style: const TextStyle(fontSize: 13, color: AppColors.primary),
+              decoration: inputDec.copyWith(hintText: '특이사항 (선택)'),
+            ),
+          ],
+        );
+
+      // ── 산란 ──────────────────────────────────────────────────
+      case 'lay':
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _FieldLabel('알 총 개수', required: true),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _eggTotalCtrl,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700,
+                  color: AppColors.primary),
+              decoration: inputDec.copyWith(
+                hintText: '0',
+                suffixText: '개',
+                suffixStyle: const TextStyle(fontSize: 14, color: AppColors.paleInk2),
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 14),
+            _FieldLabel('유정란 수', required: false),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _eggFertileCtrl,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(fontSize: 14, color: AppColors.primary),
+              decoration: inputDec.copyWith(
+                hintText: '미확인 시 비워두세요',
+                suffixText: '개',
+                suffixStyle: const TextStyle(fontSize: 14, color: AppColors.paleInk2),
+              ),
+            ),
+            const SizedBox(height: 18),
+            _FieldLabel('메모', required: false),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _simpleMemoCtrl,
+              maxLines: 2,
+              style: const TextStyle(fontSize: 13, color: AppColors.primary),
+              decoration: inputDec.copyWith(hintText: '특이사항 (선택)'),
+            ),
+          ],
+        );
+
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
   // ── 완료 화면 ──────────────────────────────────────────────────
   Widget _buildDone() {
     return Padding(
@@ -973,8 +1506,14 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                   fontSize: 22, fontWeight: FontWeight.w700,
                   color: AppColors.primary, letterSpacing: -0.4)),
           const SizedBox(height: 8),
-          Text('$_savedCount마리의 피딩 기록이 저장되었어요',
-              style: TextStyle(fontSize: 13, color: AppColors.paleInk2)),
+          Text(
+            () {
+              final rt = _recordTypes.firstWhere((r) => r.id == _typeId,
+                  orElse: () => _recordTypes.first);
+              return '$_savedCount마리의 ${rt.ko} 기록이 저장되었어요';
+            }(),
+            style: TextStyle(fontSize: 13, color: AppColors.paleInk2),
+          ),
           const SizedBox(height: 32),
           GestureDetector(
             onTap: () => Navigator.of(context).pop(),
@@ -1684,6 +2223,66 @@ class _MemoLabel extends StatelessWidget {
           color: AppColors.paleInk3)),
     ],
   );
+}
+
+// ── 필드 레이블 ────────────────────────────────────────────────
+class _FieldLabel extends StatelessWidget {
+  final String label;
+  final bool required;
+
+  const _FieldLabel(this.label, {this.required = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text(label,
+            style: const TextStyle(
+                fontSize: 13, fontWeight: FontWeight.w700,
+                color: AppColors.primary)),
+        if (required) ...[
+          const SizedBox(width: 4),
+          const Text('*', style: TextStyle(fontSize: 12,
+              fontWeight: FontWeight.w700, color: AppColors.error)),
+        ] else ...[
+          const SizedBox(width: 6),
+          Text('선택', style: AppTextStyles.mono(9, FontWeight.w700,
+              color: AppColors.paleInk3)),
+        ],
+      ],
+    );
+  }
+}
+
+// ── 토글 버튼 ─────────────────────────────────────────────────
+class _TypeToggle extends StatelessWidget {
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  const _TypeToggle({required this.label, required this.active, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+        decoration: BoxDecoration(
+          color: active ? AppColors.primary : AppColors.card,
+          border: Border.all(
+              color: active ? AppColors.primary : AppColors.paleLine,
+              width: active ? 1.5 : 1),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Text(label,
+            style: TextStyle(
+                fontSize: 13, fontWeight: FontWeight.w700,
+                color: active ? AppColors.paleBg : AppColors.paleInk2)),
+      ),
+    );
+  }
 }
 
 // ── 전체선택/해제 버튼 ─────────────────────────────────────────
