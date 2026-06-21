@@ -217,7 +217,7 @@ class _TopBar extends StatelessWidget {
           ),
           const Spacer(),
           Column(children: [
-            const Text('급여 기록',
+            const Text('피딩 기록',
                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700,
                     color: AppColors.primary, letterSpacing: -0.2)),
             if (petName.isNotEmpty)
@@ -509,7 +509,7 @@ class _CalendarViewState extends State<_CalendarView> {
                         '${_month.year}.${_month.month.toString().padLeft(2,'0')}',
                         style: AppTextStyles.mono(15, FontWeight.w700),
                       ),
-                      Text('$monthCount회 급여', style: AppTextStyles.monoXxs),
+                      Text('$monthCount회 피딩', style: AppTextStyles.monoXxs),
                     ]),
                     const Spacer(),
                     _NavBtn(
@@ -673,7 +673,7 @@ class _CalendarViewState extends State<_CalendarView> {
                 ),
                 child: Column(
                   children: [
-                    Text('이 날의 급여 기록이 없어요',
+                    Text('이 날의 피딩 기록이 없어요',
                         style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
                             color: AppColors.paleInk3)),
                     const SizedBox(height: 8),
@@ -800,7 +800,7 @@ class _ListViewState extends State<_ListView> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('전체 급여 기록',
+                Text('전체 피딩 기록',
                     style: AppTextStyles.paleSectionTitle),
                 Text('${widget.sessions.length}회',
                     style: AppTextStyles.monoSm),
@@ -952,7 +952,7 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              e.isEdit ? '급여 기록 수정' : '급여 기록 추가',
+                              e.isEdit ? '피딩 기록 수정' : '피딩 기록 추가',
                               style: const TextStyle(
                                   fontSize: 20, fontWeight: FontWeight.w700,
                                   color: AppColors.primary, letterSpacing: -0.4),
@@ -1027,7 +1027,7 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('급여 추가',
+                                const Text('피딩 추가',
                                     style: TextStyle(
                                         fontSize: 12, fontWeight: FontWeight.w700,
                                         color: AppColors.primary)),
@@ -1163,7 +1163,7 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('이 끼니의 급여',
+                              const Text('이 끼니의 피딩',
                                   style: TextStyle(
                                       fontSize: 13, fontWeight: FontWeight.w700,
                                       color: AppColors.primary)),
@@ -1186,7 +1186,7 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
-                                '위에서 급여를 골라 추가해 주세요',
+                                '위에서 피딩을 골라 추가해 주세요',
                                 style: TextStyle(fontSize: 13,
                                     fontWeight: FontWeight.w600,
                                     color: AppColors.paleInk3),

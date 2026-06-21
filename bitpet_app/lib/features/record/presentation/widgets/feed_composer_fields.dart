@@ -38,8 +38,8 @@ class FeedComposerFields extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── 먹이 종류 ─────────────────────────────────────────
-        _Label('먹이 종류'),
+        // ── 피딩 종류 ─────────────────────────────────────────
+        _Label('피딩 종류'),
         const SizedBox(height: 8),
         DropdownButtonFormField<FoodType>(
           value: form.foodType,
@@ -304,7 +304,7 @@ class _CustomTextInput extends StatelessWidget {
     autofocus: true,
     style: const TextStyle(fontSize: 14, color: AppColors.primary),
     decoration: InputDecoration(
-      hintText: '먹이 이름 직접 입력',
+      hintText: '이름 직접 입력',
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(11),
           borderSide: const BorderSide(color: AppColors.paleLine)),

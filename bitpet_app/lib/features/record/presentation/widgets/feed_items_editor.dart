@@ -56,7 +56,7 @@ class _FeedItemsEditorState extends State<FeedItemsEditor> {
           const SizedBox(height: 10),
           const Divider(color: AppColors.paleLine, height: 1),
           const SizedBox(height: 10),
-          _SectionLabel('추가된 급여'),
+          _SectionLabel('추가된 피딩'),
           const SizedBox(height: 8),
           ...widget.items.asMap().entries.map((e) => Padding(
             padding: const EdgeInsets.only(bottom: 6),

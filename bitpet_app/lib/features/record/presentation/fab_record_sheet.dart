@@ -31,7 +31,8 @@ enum _FeedMode { bulk, perPet }
 class _PerPetEntry {
   List<FeedFormData> items;
   bool filled;
-  _PerPetEntry() : items = [], filled = false;
+  String memo;
+  _PerPetEntry() : items = [], filled = false, memo = '';
 }
 
 // ── 6 기록 종류 정의 ──────────────────────────────────────────
@@ -72,9 +73,11 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
 
   // 06d 일괄 폼
   List<FeedFormData> _bulkItems = [];
+  final _bulkMemoCtrl = TextEditingController();
 
   // 06e 개별 폼
   final Map<int, _PerPetEntry> _perPetForms = {};
+  final Map<int, TextEditingController> _perPetMemoCtrl = {};
   int _activePerPetIdx = 0;
 
   // 저장
@@ -141,16 +144,18 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
   // ── 저장 ─────────────────────────────────────────────────────
   Future<void> _saveBulk(List<Pet> pets) async {
     if (_bulkItems.isEmpty) {
-      showToast(context, '먹이를 목록에 추가해 주세요', type: ToastType.warning);
+      showToast(context, '피딩을 목록에 추가해 주세요', type: ToastType.warning);
       return;
     }
     setState(() => _saving = true);
     try {
-      final repo = ref.read(recordRepositoryProvider);
-      final now  = DateTime.now();
+      final repo     = ref.read(recordRepositoryProvider);
+      final now      = DateTime.now();
+      final bulkMemo = _bulkMemoCtrl.text.trim();
       for (final pet in pets) {
         for (final item in _bulkItems) {
-          await repo.addFeeding(pet.id, item.toApiMap(fedAt: now));
+          final apiItem = bulkMemo.isNotEmpty ? item.copyWith(memo: bulkMemo) : item;
+          await repo.addFeeding(pet.id, apiItem.toApiMap(fedAt: now));
         }
         ref.invalidate(feedSessionsProvider(pet.id));
         ref.invalidate(petDetailProvider(pet.id));
@@ -175,8 +180,10 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
       for (final pet in pets) {
         final entry = _perPetForms[pet.id];
         if (entry == null || !entry.filled || entry.items.isEmpty) continue;
+        final petMemo = entry.memo.trim();
         for (final item in entry.items) {
-          await repo.addFeeding(pet.id, item.toApiMap(fedAt: now));
+          final apiItem = petMemo.isNotEmpty ? item.copyWith(memo: petMemo) : item;
+          await repo.addFeeding(pet.id, apiItem.toApiMap(fedAt: now));
         }
         ref.invalidate(feedSessionsProvider(pet.id));
         ref.invalidate(petDetailProvider(pet.id));
@@ -205,6 +212,13 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         _                   => _FabStep.chooseType,
       };
     });
+  }
+
+  @override
+  void dispose() {
+    _bulkMemoCtrl.dispose();
+    for (final c in _perPetMemoCtrl.values) c.dispose();
+    super.dispose();
   }
 
   // ── 빌드 ─────────────────────────────────────────────────────
@@ -490,7 +504,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
           Padding(
             padding: const EdgeInsets.fromLTRB(22, 4, 22, 0),
             child: Text(
-              '아래 급여 목록을 모든 개체에 동일하게 기록해요',
+              '아래 피딩 목록을 모든 개체에 동일하게 기록해요',
               textAlign: TextAlign.right,
               style: TextStyle(fontSize: 11, color: AppColors.paleInk2),
             ),
@@ -500,9 +514,35 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         Flexible(
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(22, 8, 22, 14),
-            child: FeedItemsEditor(
-              items: _bulkItems,
-              onChanged: (list) => setState(() => _bulkItems = list),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                FeedItemsEditor(
+                  items: _bulkItems,
+                  onChanged: (list) => setState(() => _bulkItems = list),
+                ),
+                const SizedBox(height: 16),
+                const _MemoLabel(),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _bulkMemoCtrl,
+                  maxLines: 2,
+                  style: const TextStyle(fontSize: 13, color: AppColors.primary),
+                  decoration: InputDecoration(
+                    hintText: '특이사항 (선택)',
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(11),
+                        borderSide:
+                            const BorderSide(color: AppColors.paleLine)),
+                    enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(11),
+                        borderSide:
+                            const BorderSide(color: AppColors.paleLine)),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -738,7 +778,31 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                   bandColor: pale,
                   onChanged: (list) => setState(() => entry.items = list),
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 14),
+                const _MemoLabel(),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _perPetMemoCtrl.putIfAbsent(
+                      activePet.id, () => TextEditingController()),
+                  onChanged: (v) => entry.memo = v,
+                  maxLines: 2,
+                  style: const TextStyle(
+                      fontSize: 13, color: AppColors.primary),
+                  decoration: InputDecoration(
+                    hintText: '특이사항 (선택)',
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(11),
+                        borderSide:
+                            const BorderSide(color: AppColors.paleLine)),
+                    enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(11),
+                        borderSide:
+                            const BorderSide(color: AppColors.paleLine)),
+                  ),
+                ),
+                const SizedBox(height: 14),
 
                 // 완료 / 저장됨 액션
                 if (entry.filled)
@@ -907,7 +971,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                   fontSize: 22, fontWeight: FontWeight.w700,
                   color: AppColors.primary, letterSpacing: -0.4)),
           const SizedBox(height: 8),
-          Text('$_savedCount마리의 급여 기록이 저장되었어요',
+          Text('$_savedCount마리의 피딩 기록이 저장되었어요',
               style: TextStyle(fontSize: 13, color: AppColors.paleInk2)),
           const SizedBox(height: 32),
           GestureDetector(
@@ -1600,6 +1664,24 @@ class _Footer extends StatelessWidget {
       ),
     );
   }
+}
+
+// ── 메모 레이블 (공유) ─────────────────────────────────────────
+class _MemoLabel extends StatelessWidget {
+  const _MemoLabel();
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      const Text('메모',
+          style: TextStyle(
+              fontSize: 13, fontWeight: FontWeight.w700,
+              color: AppColors.primary)),
+      const SizedBox(width: 6),
+      Text('OPTIONAL', style: AppTextStyles.mono(9, FontWeight.w700,
+          color: AppColors.paleInk3)),
+    ],
+  );
 }
 
 // ── 전체선택/해제 버튼 ─────────────────────────────────────────
