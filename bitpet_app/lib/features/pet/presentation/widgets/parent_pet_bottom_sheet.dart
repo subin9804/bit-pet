@@ -13,11 +13,15 @@ import '../../providers/pet_provider.dart';
 class ParentPetBottomSheet extends ConsumerStatefulWidget {
   final bool isFather;
   final Pet? initialSelection;
+  final int? excludePetId;    // 수정 중인 개체 제외
+  final int? filterSpeciesId; // 같은 종만 표시
 
   const ParentPetBottomSheet({
     super.key,
     required this.isFather,
     this.initialSelection,
+    this.excludePetId,
+    this.filterSpeciesId,
   });
 
   @override
@@ -130,6 +134,10 @@ class _ParentPetBottomSheetState
     final q = _query.toLowerCase();
     final filtered = allPets.where((p) {
       if (p.gender != _genderCode) return false;
+      // 수정 중인 개체 제외
+      if (widget.excludePetId != null && p.id == widget.excludePetId) return false;
+      // 같은 종만
+      if (widget.filterSpeciesId != null && p.speciesId != widget.filterSpeciesId) return false;
       if (q.isEmpty || q == 'bp-') return true;
       return p.name.toLowerCase().contains(q) ||
           p.serialNo.toLowerCase().contains(q) ||

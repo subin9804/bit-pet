@@ -26,6 +26,20 @@ class PetRepository {
     return apiRes.data ?? [];
   }
 
+  Future<Pet?> findBySerial(String serialNo) async {
+    try {
+      final res = await _dio.get('/pets/by-serial',
+          queryParameters: {'serialNo': serialNo.toUpperCase()});
+      final apiRes = ApiResponse.fromJson(
+        res.data as Map<String, dynamic>,
+        (d) => Pet.fromJson(d as Map<String, dynamic>),
+      );
+      return apiRes.success ? apiRes.data : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<Pet> getPet(int id) async {
     final res = await _dio.get('/pets/$id');
     final apiRes = ApiResponse.fromJson(

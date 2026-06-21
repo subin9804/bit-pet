@@ -1,20 +1,37 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../data/models/pet_models.dart';
 
-class PetInfoGrid extends StatelessWidget {
+class PetInfoGrid extends StatefulWidget {
   final Pet pet;
 
   const PetInfoGrid({super.key, required this.pet});
 
   @override
+  State<PetInfoGrid> createState() => _PetInfoGridState();
+}
+
+class _PetInfoGridState extends State<PetInfoGrid> {
+  bool _copied = false;
+
+  Future<void> _copySerial() async {
+    await Clipboard.setData(ClipboardData(text: widget.pet.serialNo));
+    setState(() => _copied = true);
+    await Future.delayed(const Duration(seconds: 2));
+    if (mounted) setState(() => _copied = false);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final pet = widget.pet;
     final hatch = pet.hatchingDate;
     final precision = pet.hatchingDatePrecision;
     final approx = pet.hatchingDateApproximate;
     final adopt = pet.adoptionDate;
     final age   = _ageString(hatch, precision, approx);
+    final isPublic = pet.privateYn == 'N';
 
     return Container(
       decoration: BoxDecoration(
@@ -49,6 +66,78 @@ class PetInfoGrid extends StatelessWidget {
               _Cell(label: '입양일', value: _fmtDate(adopt), mono: true),
               const SizedBox(width: 12),
               _Cell(label: '나이',   value: age),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // 일련번호 + 검색허용
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('일련번호', style: AppTextStyles.paleGridLabel),
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        Text(
+                          pet.serialNo.isEmpty ? '-' : pet.serialNo,
+                          style: AppTextStyles.mono(13, FontWeight.w700),
+                        ),
+                        if (pet.serialNo.isNotEmpty) ...[
+                          const SizedBox(width: 6),
+                          GestureDetector(
+                            onTap: _copySerial,
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 180),
+                              child: _copied
+                                  ? const Icon(Icons.check_circle_outline,
+                                      key: ValueKey('check'),
+                                      size: 15,
+                                      color: AppColors.petSageInk)
+                                  : const Icon(Icons.copy_outlined,
+                                      key: ValueKey('copy'),
+                                      size: 15,
+                                      color: AppColors.paleInk3),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('검색 허용', style: AppTextStyles.paleGridLabel),
+                    const SizedBox(height: 3),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: isPublic
+                            ? AppColors.petSage
+                            : AppColors.paleLine,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        isPublic ? '공개' : '비공개',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: isPublic
+                              ? AppColors.petSageInk
+                              : AppColors.paleInk2,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 12),

@@ -56,6 +56,7 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
   String _weightUnit = 'g';
   Pet? _fatherPet;
   Pet? _motherPet;
+  bool _isPublic = false; // 검색 허용 여부 (기본 비공개)
 
   // ── 팔레트 헬퍼 ──────────────────────────────────────────────────────────────
   Color get _selectedBg {
@@ -136,6 +137,8 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
         _adoptDate = pet.adoptionDate;
         // 메모/설명
         _memoCtrl.text = pet.description ?? '';
+        // 검색 허용
+        _isPublic = pet.privateYn == 'N';
 
         _initialized = true;
       });
@@ -172,6 +175,8 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
       builder: (_) => ParentPetBottomSheet(
         isFather: isFather,
         initialSelection: isFather ? _fatherPet : _motherPet,
+        excludePetId: widget.petId,
+        filterSpeciesId: _species?.id,
       ),
     );
     if (result != null) {
@@ -260,6 +265,7 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
         'gender': genderCode,
         'colorCode': _selectedHex,
         if (_selectedMorphIds.isNotEmpty) 'morphIds': _selectedMorphIds,
+        'privateYn': _isPublic ? 'N' : 'Y',
         if (hatchingDate != null) 'hatchingDate': hatchingDate,
         if (hatchingDatePrecision != null) 'hatchingDatePrecision': hatchingDatePrecision,
         'hatchingDateApproximate': _hatchApproximate,
@@ -288,6 +294,7 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
           fatherPetId: _fatherPet?.id,
           motherPetId: _motherPet?.id,
           description: _memoCtrl.text.trim().isEmpty ? null : _memoCtrl.text.trim(),
+          privateYn: _isPublic ? 'N' : 'Y',
         ),
       );
       if (mounted) {
@@ -650,27 +657,68 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
     StepConfig(
       title: '메모',
       desc: '사육환경·병원 기록 등 자유롭게 (선택).',
-      render: (_) => SField(
-        label: '메모',
-        child: Container(
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(11),
-            border: Border.all(color: AppColors.paleLine),
-          ),
-          child: TextField(
-            controller: _memoCtrl,
-            maxLines: 6,
-            style: const TextStyle(fontSize: 14, color: AppColors.primary, height: 1.55),
-            cursorColor: AppColors.primary,
-            decoration: const InputDecoration(
-              hintText: '예: 온도 26°C · 습도 70%\n2024.11.18 — 첫 동물병원 검진 (이상 없음)',
-              hintStyle: TextStyle(color: AppColors.paleInk3, fontSize: 13),
-              contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-              border: InputBorder.none,
+      render: (_) => Column(
+        children: [
+          SField(
+            label: '메모',
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(11),
+                border: Border.all(color: AppColors.paleLine),
+              ),
+              child: TextField(
+                controller: _memoCtrl,
+                maxLines: 6,
+                style: const TextStyle(fontSize: 14, color: AppColors.primary, height: 1.55),
+                cursorColor: AppColors.primary,
+                decoration: const InputDecoration(
+                  hintText: '예: 온도 26°C · 습도 70%\n2024.11.18 — 첫 동물병원 검진 (이상 없음)',
+                  hintStyle: TextStyle(color: AppColors.paleInk3, fontSize: 13),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                  border: InputBorder.none,
+                ),
+              ),
             ),
           ),
-        ),
+          const SizedBox(height: 16),
+          // 검색 허용 토글
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(11),
+              border: Border.all(color: AppColors.paleLine),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('메이팅 검색 허용',
+                          style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primary)),
+                      const SizedBox(height: 2),
+                      Text('공개 시 다른 사용자가 일련번호로 이 개체를 검색할 수 있어요.',
+                          style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.paleInk2)),
+                    ],
+                  ),
+                ),
+                Switch(
+                  value: _isPublic,
+                  activeColor: AppColors.petSageInk,
+                  activeTrackColor: AppColors.petSage,
+                  onChanged: (v) => setState(() => _isPublic = v),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     ),
 
@@ -727,6 +775,7 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
           ]),
           StepSummaryGroup(label: '메모', step: 4, rows: [
             StepSummaryRow(k: '메모', v: _memoCtrl.text, muted: _memoCtrl.text.isEmpty),
+            StepSummaryRow(k: '메이팅 검색', v: _isPublic ? '공개' : '비공개'),
           ]),
         ],
       ),

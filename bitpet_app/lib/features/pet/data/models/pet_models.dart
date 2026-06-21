@@ -151,6 +151,7 @@ class CreatePetRequest {
   final double? currentWeightG; // 초기 몸무게 (g 기준)
   final int? fatherPetId;       // 부개체 연결
   final int? motherPetId;       // 모개체 연결
+  final String privateYn;       // 'Y'=비공개(기본), 'N'=공개
 
   const CreatePetRequest({
     required this.speciesId,
@@ -167,6 +168,7 @@ class CreatePetRequest {
     this.currentWeightG,
     this.fatherPetId,
     this.motherPetId,
+    this.privateYn = 'Y',
   });
 
   Map<String, dynamic> toJson() => {
@@ -184,5 +186,6 @@ class CreatePetRequest {
         if (currentWeightG != null) 'currentWeightG': currentWeightG,
         if (fatherPetId != null) 'fatherPetId': fatherPetId,
         if (motherPetId != null) 'motherPetId': motherPetId,
+        'privateYn': privateYn,
       };
 }

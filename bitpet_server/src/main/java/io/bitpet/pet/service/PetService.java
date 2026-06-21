@@ -114,6 +114,16 @@ public class PetService {
                 .toList();
     }
 
+    /** 일련번호로 공개 개체 조회 — 검색 허용(private_yn='N')인 개체만 반환 */
+    public PetResponse findBySerial(String serialNo) {
+        PetMst pet = petRepository.findBySerialNo(serialNo.toUpperCase())
+                .orElseThrow(() -> new BusinessException(ErrorCode.PET_NOT_FOUND));
+        if (!"N".equals(pet.getPrivateYn())) {
+            throw new BusinessException(ErrorCode.PET_NOT_FOUND); // 비공개는 404로 동일 처리
+        }
+        return PetResponse.from(pet);
+    }
+
     @Transactional
     public PetResponse update(Long userId, Long petId, PetUpdateRequest req) {
         PetMst pet = loadOwnedPet(userId, petId);

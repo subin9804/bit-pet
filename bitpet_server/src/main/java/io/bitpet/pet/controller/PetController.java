@@ -74,6 +74,14 @@ public class PetController {
         return ApiResponse.ok(petService.search(principal.userId(), speciesId, gender, name));
     }
 
+    @Operation(summary = "일련번호로 공개 개체 조회 (메이팅 파트너 검색용, 검색허용 개체만 반환)")
+    @GetMapping("/by-serial")
+    public ApiResponse<PetResponse> findBySerial(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @RequestParam String serialNo) {
+        return ApiResponse.ok(petService.findBySerial(serialNo));
+    }
+
     @Operation(summary = "개체 단건 조회")
     @GetMapping("/{petId}")
     public ApiResponse<PetResponse> get(

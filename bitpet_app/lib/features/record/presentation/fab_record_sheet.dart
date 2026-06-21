@@ -9,6 +9,7 @@ import '../../../core/theme/pale_palette.dart';
 import '../../../core/widgets/step_dots.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../../pet/data/models/pet_models.dart';
+import '../../pet/data/pet_repository.dart';
 import '../../pet/providers/pet_provider.dart';
 import '../data/models/record_models.dart';
 import '../data/record_repository.dart';
@@ -93,8 +94,11 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
   bool _isVetMemo = false;
   // mate
   bool _partnerExternal = false;
-  Pet? _partnerPet;
-  final _partnerExtCtrl = TextEditingController();
+  Pet? _partnerPet;       // 내 개체 (인터널)
+  Pet? _searchedPartner;  // 검색으로 찾은 외부 개체
+  bool _searchLoading = false;
+  String? _searchError;
+  final _partnerExtCtrl = TextEditingController(); // 일련번호 입력
   // lay
   final _eggTotalCtrl   = TextEditingController();
   final _eggFertileCtrl = TextEditingController();
@@ -977,6 +981,27 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
     );
   }
 
+  // ── 일련번호로 외부 개체 검색 ─────────────────────────────────
+  Future<void> _searchPartnerBySerial(String speciesName) async {
+    final q = _partnerExtCtrl.text.trim().toUpperCase();
+    if (q.isEmpty) return;
+    setState(() { _searchLoading = true; _searchError = null; _searchedPartner = null; });
+    try {
+      final repo = ref.read(petRepositoryProvider);
+      final found = await repo.findBySerial(q);
+      if (!mounted) return;
+      if (found == null) {
+        setState(() { _searchError = '검색 결과 없음 (비공개이거나 존재하지 않는 일련번호)'; _searchLoading = false; });
+      } else if (found.speciesName != speciesName) {
+        setState(() { _searchError = '같은 종의 개체만 메이팅 파트너로 선택할 수 있어요 (${found.speciesName})'; _searchLoading = false; });
+      } else {
+        setState(() { _searchedPartner = found; _searchLoading = false; });
+      }
+    } catch (_) {
+      if (mounted) setState(() { _searchError = '검색 중 오류가 발생했어요'; _searchLoading = false; });
+    }
+  }
+
   // ── simpleForm 저장 ────────────────────────────────────────────
   bool _simpleFormValid() {
     return switch (_typeId) {
@@ -985,7 +1010,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
       'clean' => _cleaningType != null,
       'note'  => _simpleMemoCtrl.text.trim().isNotEmpty,
       'mate'  => _partnerExternal
-                   ? _partnerExtCtrl.text.trim().isNotEmpty
+                   ? _searchedPartner != null
                    : _partnerPet != null,
       'lay'   => (int.tryParse(_eggTotalCtrl.text.trim()) ?? 0) > 0,
       _       => false,
@@ -1021,7 +1046,16 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
             int? malePetId, femalePetId;
             String? extText;
             if (_partnerExternal) {
-              extText = _partnerExtCtrl.text.trim();
+              final ext = _searchedPartner;
+              if (ext != null) {
+                if (pet.gender == 'MALE') {
+                  malePetId = pet.id; femalePetId = ext.id;
+                } else {
+                  femalePetId = pet.id; malePetId = ext.id;
+                }
+              } else {
+                femalePetId = pet.id;
+              }
             } else {
               final partner = _partnerPet;
               if (partner != null) {
@@ -1310,8 +1344,16 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
 
       // ── 메이팅 ────────────────────────────────────────────────
       case 'mate':
-        final allPets = (ref.watch(petListProvider).whenOrNull(data: (l) => l) ?? <Pet>[])
-            .where((p) => !_selectedPetIds.contains(p.id))
+        final allPetsList = ref.watch(petListProvider).whenOrNull(data: (l) => l) ?? <Pet>[];
+        // 선택된 개체들의 종명 (첫 번째 기준)
+        final selectedSpeciesName = allPetsList
+            .where((p) => _selectedPetIds.contains(p.id))
+            .map((p) => p.speciesName)
+            .firstOrNull ?? '';
+        // 같은 종, 선택된 개체 제외
+        final sameSpesPets = allPetsList
+            .where((p) => !_selectedPetIds.contains(p.id) &&
+                (selectedSpeciesName.isEmpty || p.speciesName == selectedSpeciesName))
             .toList();
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1324,29 +1366,92 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                 _TypeToggle(
                   label: '내 개체',
                   active: !_partnerExternal,
-                  onTap: () => setState(() { _partnerExternal = false; }),
+                  onTap: () => setState(() {
+                    _partnerExternal = false;
+                    _searchedPartner = null;
+                    _searchError = null;
+                  }),
                 ),
                 const SizedBox(width: 8),
                 _TypeToggle(
                   label: '외부 개체',
                   active: _partnerExternal,
-                  onTap: () => setState(() { _partnerExternal = true; _partnerPet = null; }),
+                  onTap: () => setState(() {
+                    _partnerExternal = true;
+                    _partnerPet = null;
+                    _searchedPartner = null;
+                    _searchError = null;
+                  }),
                 ),
               ],
             ),
             const SizedBox(height: 10),
-            if (_partnerExternal)
-              TextField(
-                controller: _partnerExtCtrl,
-                style: const TextStyle(fontSize: 14, color: AppColors.primary),
-                decoration: inputDec.copyWith(
-                  hintText: '파트너 이름 또는 정보 입력',
-                  prefixIcon: const Icon(Icons.edit_outlined, size: 18, color: AppColors.paleInk2),
+            if (_partnerExternal) ...[
+              // 일련번호 검색
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _partnerExtCtrl,
+                      style: const TextStyle(fontSize: 14, color: AppColors.primary),
+                      textCapitalization: TextCapitalization.characters,
+                      decoration: inputDec.copyWith(
+                        hintText: '일련번호 입력 (예: AB12CD34)',
+                        prefixIcon: const Icon(Icons.search, size: 18, color: AppColors.paleInk2),
+                      ),
+                      onChanged: (_) => setState(() { _searchedPartner = null; _searchError = null; }),
+                      onSubmitted: (_) => _searchPartnerBySerial(selectedSpeciesName),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // QR 버튼 (준비 중)
+                  Tooltip(
+                    message: '준비 중',
+                    child: Container(
+                      width: 44, height: 44,
+                      decoration: BoxDecoration(
+                        color: AppColors.paleLine,
+                        borderRadius: BorderRadius.circular(11),
+                      ),
+                      child: const Icon(Icons.qr_code_scanner,
+                          size: 20, color: AppColors.paleInk3),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              ElevatedButton.icon(
+                onPressed: _searchLoading
+                    ? null
+                    : () => _searchPartnerBySerial(selectedSpeciesName),
+                icon: _searchLoading
+                    ? const SizedBox(
+                        width: 14, height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.search, size: 16),
+                label: const Text('검색'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(double.infinity, 42),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(11)),
+                  textStyle: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w600),
                 ),
-                onChanged: (_) => setState(() {}),
-              )
-            else ...[
-              // 내 개체 검색 리스트
+              ),
+              if (_searchError != null) ...[
+                const SizedBox(height: 8),
+                Text(_searchError!,
+                    style: const TextStyle(fontSize: 12, color: AppColors.warning)),
+              ],
+              if (_searchedPartner != null) ...[
+                const SizedBox(height: 10),
+                _PartnerResultCard(pet: _searchedPartner!,
+                    onClear: () => setState(() { _searchedPartner = null; _partnerExtCtrl.clear(); })),
+              ],
+            ] else ...[
+              // 내 개체 검색 리스트 (같은 종만)
               Container(
                 decoration: BoxDecoration(
                   color: AppColors.card,
@@ -1354,21 +1459,21 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 constraints: const BoxConstraints(maxHeight: 180),
-                child: allPets.isEmpty
+                child: sameSpesPets.isEmpty
                     ? const Padding(
                         padding: EdgeInsets.all(16),
                         child: Center(
-                          child: Text('다른 개체가 없어요',
+                          child: Text('같은 종의 다른 개체가 없어요',
                               style: TextStyle(fontSize: 12, color: AppColors.paleInk3)),
                         ),
                       )
                     : ListView.separated(
                         shrinkWrap: true,
-                        itemCount: allPets.length,
+                        itemCount: sameSpesPets.length,
                         separatorBuilder: (_, __) =>
                             const Divider(height: 1, color: AppColors.paleLineSoft),
                         itemBuilder: (_, i) {
-                          final p   = allPets[i];
+                          final p   = sameSpesPets[i];
                           final sel = _partnerPet?.id == p.id;
                           final key = PalePalette.keyFromHex(p.colorCode);
                           return GestureDetector(
@@ -2322,6 +2427,59 @@ class _SelectBarBtn extends StatelessWidget {
                     color: disabled ? AppColors.paleInk3 : AppColors.primary)),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _PartnerResultCard extends StatelessWidget {
+  final Pet pet;
+  final VoidCallback onClear;
+
+  const _PartnerResultCard({required this.pet, required this.onClear});
+
+  @override
+  Widget build(BuildContext context) {
+    final key = PalePalette.keyFromHex(pet.colorCode);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: PalePalette.pale(key),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: PalePalette.ink(key).withOpacity(0.2)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36, height: 36,
+            decoration: BoxDecoration(
+              color: PalePalette.ink(key).withOpacity(0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(Icons.pets, size: 18, color: PalePalette.ink(key)),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(pet.name,
+                    style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary)),
+                Text(
+                  '${pet.speciesName} · ${pet.serialNo}',
+                  style: const TextStyle(fontSize: 11, color: AppColors.paleInk2),
+                ),
+              ],
+            ),
+          ),
+          GestureDetector(
+            onTap: onClear,
+            child: const Icon(Icons.close, size: 18, color: AppColors.paleInk3),
+          ),
+        ],
       ),
     );
   }
