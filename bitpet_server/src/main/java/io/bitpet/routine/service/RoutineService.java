@@ -149,10 +149,12 @@ public class RoutineService {
     public List<TodayRoutineResponse> listTodayRoutines(Long userId) {
         Instant[] todayRange = todayRange();
         List<RoutineMst> routines = routineRepository.findAllByUserIdAndActiveOrderByCreatedAtDesc(userId, true);
-        return routines.stream().map(r -> {
-            List<Long> petIds = routinePetRepository.findPetIdsByRoutineId(r.getId());
-            return TodayRoutineResponse.from(r, buildPetTodayStatuses(r.getId(), petIds, todayRange[0], todayRange[1]));
-        }).toList();
+        return routines.stream()
+                .filter(r -> r.getNextDueAt() != null && r.getNextDueAt().isBefore(todayRange[1]))
+                .map(r -> {
+                    List<Long> petIds = routinePetRepository.findPetIdsByRoutineId(r.getId());
+                    return TodayRoutineResponse.from(r, buildPetTodayStatuses(r.getId(), petIds, todayRange[0], todayRange[1]));
+                }).toList();
     }
 
     public TodayRoutineResponse getTodayRoutineStatus(Long userId, Long routineId) {
