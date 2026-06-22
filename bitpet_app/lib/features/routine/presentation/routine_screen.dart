@@ -636,7 +636,7 @@ class _CalendarSheetState extends ConsumerState<_CalendarSheet> {
                         child: CircularProgressIndicator())),
                 error: (e, _) => Text('$e'),
                 data: (logs) {
-                  // 로컬 날짜 기준으로 완료 petIds 집계 (UTC→local 변환)
+                  // 로컬 날짜 기준 완료 petIds 집계
                   final completedByDay = <int, Set<int>>{};
                   for (final l in logs) {
                     final local = l.executedAt.toLocal();
@@ -647,7 +647,23 @@ class _CalendarSheetState extends ConsumerState<_CalendarSheet> {
                     }
                   }
 
-                  // 달력 그리드
+                  // 주기 일정 계산 — nextDueAt을 앵커로 역방향 계산
+                  final nextDue = widget.routine.nextDueAt;
+                  final anchorDate = nextDue != null
+                      ? DateTime(nextDue.toLocal().year,
+                                 nextDue.toLocal().month,
+                                 nextDue.toLocal().day)
+                      : null;
+                  final cycleDays = widget.routine.cycleDays;
+                  final totalPets = widget.routine.petIds.length;
+
+                  bool isScheduled(int d) {
+                    if (anchorDate == null) return false;
+                    final cell = DateTime(_month.year, _month.month, d);
+                    final diff = anchorDate.difference(cell).inDays;
+                    return diff % cycleDays == 0;
+                  }
+
                   final firstWd = DateTime(_month.year, _month.month, 1).weekday % 7;
                   final daysInMonth = DateTime(_month.year, _month.month + 1, 0).day;
 
@@ -695,34 +711,45 @@ class _CalendarSheetState extends ConsumerState<_CalendarSheet> {
                         children: [
                           ...List.filled(firstWd, const SizedBox.shrink()),
                           ...List.generate(daysInMonth, (i) {
-                            final d    = i + 1;
-                            final done = completedByDay.containsKey(d);
-                            final sel  = _selDay == d;
-                            final isToday = isCurMonth && d == now.day;
+                            final d         = i + 1;
+                            final sel       = _selDay == d;
+                            final isToday   = isCurMonth && d == now.day;
+                            final scheduled = isScheduled(d);
+                            final doneCount = completedByDay[d]?.length ?? 0;
+                            final allDone   = scheduled && totalPets > 0 && doneCount >= totalPets;
+                            final partial   = scheduled && !allDone;
+
+                            Color? bgColor;
+                            BoxBorder? border;
+                            Color textColor = AppColors.primary;
+
+                            if (sel) {
+                              bgColor   = ink;
+                              textColor = AppColors.paleBg;
+                            } else if (allDone) {
+                              bgColor   = ink;
+                              textColor = AppColors.paleBg;
+                            } else if (partial) {
+                              bgColor = Colors.transparent;
+                              border  = Border.all(color: ink, width: 1.5);
+                            } else if (isToday) {
+                              bgColor = AppColors.paleBgAlt;
+                            }
+
                             return GestureDetector(
                               onTap: () => setState(() => _selDay = sel ? null : d),
                               child: Container(
                                 decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(7),
-                                  color: sel
-                                      ? ink
-                                      : done
-                                          ? AppColors.primary
-                                          : isToday
-                                              ? AppColors.paleBgAlt
-                                              : Colors.transparent,
-                                  border: (!sel && !done && !isToday)
-                                      ? null
-                                      : null,
+                                  borderRadius: BorderRadius.circular(6),
+                                  color: bgColor,
+                                  border: border,
                                 ),
                                 child: Center(
                                   child: Text('$d',
                                       style: TextStyle(
                                         fontFamily: 'monospace',
                                         fontSize: 12, fontWeight: FontWeight.w700,
-                                        color: (sel || done)
-                                            ? AppColors.paleBg
-                                            : AppColors.primary,
+                                        color: textColor,
                                       )),
                                 ),
                               ),
@@ -733,9 +760,9 @@ class _CalendarSheetState extends ConsumerState<_CalendarSheet> {
                       const SizedBox(height: 10),
                       // 범례
                       Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                        _Leg(color: AppColors.primary, label: '완료'),
+                        _Leg(color: ink, label: '전체 완료'),
                         const SizedBox(width: 16),
-                        _Leg(color: ink, label: '선택'),
+                        _Leg(color: ink, label: '예정/부분완료', outlined: true),
                       ]),
 
                       // ── 선택일 개체 리스트 ──
@@ -911,7 +938,8 @@ class _PetChip extends StatelessWidget {
 class _Leg extends StatelessWidget {
   final Color color;
   final String label;
-  const _Leg({required this.color, required this.label});
+  final bool outlined;
+  const _Leg({required this.color, required this.label, this.outlined = false});
 
   @override
   Widget build(BuildContext context) {
@@ -920,7 +948,8 @@ class _Leg extends StatelessWidget {
         width: 12, height: 12,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(3),
-          color: color,
+          color: outlined ? Colors.transparent : color,
+          border: outlined ? Border.all(color: color, width: 1.5) : null,
         ),
       ),
       const SizedBox(width: 5),
