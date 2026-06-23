@@ -31,6 +31,20 @@ class PetListScreen extends ConsumerWidget {
         titleSpacing: 20,
         actions: [
           Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: TextButton.icon(
+              onPressed: () => context.push('/pets/bulk-new'),
+              icon: const Icon(Icons.library_add_outlined, size: 15),
+              label: const Text('일괄'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.paleInk2,
+                minimumSize: const Size(0, 36),
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+          Padding(
             padding: const EdgeInsets.only(right: 16),
             child: ElevatedButton.icon(
               onPressed: () => context.push('/pets/new'),

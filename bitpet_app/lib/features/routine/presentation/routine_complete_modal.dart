@@ -34,6 +34,8 @@ class _RoutineCompleteModalState extends ConsumerState<RoutineCompleteModal> {
   String _cleaningType = 'FULL';
   int _currentCardIndex = 0;
 
+  final _sheetController = DraggableScrollableController();
+
   bool get _isSinglePet => widget.routine.petCount <= 1;
 
   @override
@@ -47,14 +49,29 @@ class _RoutineCompleteModalState extends ConsumerState<RoutineCompleteModal> {
   void dispose() {
     _memoController.dispose();
     _foodTypeController.dispose();
+    _sheetController.dispose();
     super.dispose();
+  }
+
+  void _goToInputStep(int step) {
+    setState(() => _step = step);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_sheetController.isAttached) {
+        _sheetController.animateTo(
+          0.92,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final routine = widget.routine;
     return DraggableScrollableSheet(
-      initialChildSize: 0.75,
+      controller: _sheetController,
+      initialChildSize: _isSinglePet ? 0.88 : 0.75,
       maxChildSize: 0.95,
       minChildSize: 0.4,
       expand: false,
@@ -118,14 +135,14 @@ class _RoutineCompleteModalState extends ConsumerState<RoutineCompleteModal> {
           icon: Icons.inventory_2_outlined,
           label: '일괄 입력',
           description: '모두 같은 정보로',
-          onTap: () => setState(() => _step = 1),
+          onTap: () => _goToInputStep(1),
         ),
         const SizedBox(height: 12),
         _BranchButton(
           icon: Icons.view_carousel_outlined,
           label: '개별 입력',
           description: '개체별로 다르게 입력',
-          onTap: () => setState(() => _step = 2),
+          onTap: () => _goToInputStep(2),
         ),
       ],
     );

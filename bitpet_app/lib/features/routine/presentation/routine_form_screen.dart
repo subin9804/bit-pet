@@ -455,6 +455,7 @@ class _RoutineFormScreenState extends ConsumerState<RoutineFormScreen> {
           initialStep: _isEditing ? _steps.length - 1 : 0,
           onDone: _submit,
           onCancel: () => context.pop(),
+          confirmOnCancel: true,
         ),
       ),
     );
@@ -1489,6 +1490,10 @@ class _TimeSpinnerState extends State<_TimeSpinner> {
                       isDense: true,
                       contentPadding: EdgeInsets.zero,
                     ),
+                    onChanged: (t) {
+                      final v = int.tryParse(t);
+                      if (v != null) widget.onSubmit(t);
+                    },
                     onSubmitted: (_) => _commit(),
                   )
                 : Text(label, style: const TextStyle(

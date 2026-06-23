@@ -811,6 +811,7 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
           doneLabel: widget.petId == null ? '개체 저장' : '수정 완료',
           onDone: _submit,
           onCancel: () => context.pop(),
+          confirmOnCancel: true,
           initialStep: widget.petId != null ? 4 : 0,
         ),
       ),

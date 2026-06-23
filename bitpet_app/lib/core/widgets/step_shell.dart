@@ -37,6 +37,7 @@ class StepShell extends StatefulWidget {
   final Future<void> Function()? onDone;
   final VoidCallback? onCancel;
   final int initialStep;
+  final bool confirmOnCancel;
 
   const StepShell({
     super.key,
@@ -47,6 +48,7 @@ class StepShell extends StatefulWidget {
     this.onDone,
     this.onCancel,
     this.initialStep = 0,
+    this.confirmOnCancel = false,
   });
 
   @override
@@ -120,6 +122,7 @@ class _StepShellState extends State<StepShell> {
           total: widget.steps.length,
           title: widget.headerTitle,
           onCancel: widget.onCancel,
+          confirmOnCancel: widget.confirmOnCancel,
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(22, 12, 22, 0),
@@ -201,18 +204,52 @@ class _StepTopBar extends StatelessWidget {
   final int idx, total;
   final String title;
   final VoidCallback? onCancel;
+  final bool confirmOnCancel;
 
   const _StepTopBar({
     required this.idx,
     required this.total,
     required this.title,
     this.onCancel,
+    this.confirmOnCancel = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final VoidCallback backAction =
+    final VoidCallback rawCancel =
         onCancel ?? () => Navigator.of(context).maybePop();
+
+    Future<void> handleCancel() async {
+      if (!confirmOnCancel) { rawCancel(); return; }
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text(
+            '입력 내용을 삭제할까요?',
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+          ),
+          content: const Text(
+            '지금 나가면 입력한 정보가 모두 삭제돼요.',
+            style: TextStyle(fontSize: 14, height: 1.5),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('계속 작성', style: TextStyle(fontWeight: FontWeight.w600)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('나가기', style: TextStyle(fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      );
+      if (confirmed == true) rawCancel();
+    }
+
+    final VoidCallback backAction = () => handleCancel();
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(8, 10, 16, 4),

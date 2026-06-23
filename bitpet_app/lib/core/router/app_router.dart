@@ -9,6 +9,7 @@ import '../../features/home/presentation/dashboard_tab.dart';
 import '../../features/pet/presentation/pet_list_screen.dart';
 import '../../features/pet/presentation/pet_detail_screen.dart';
 import '../../features/pet/presentation/pet_form_screen.dart';
+import '../../features/pet/presentation/pet_bulk_form_screen.dart';
 import '../../features/record/presentation/record_screen.dart';
 import '../../features/record/presentation/record_detail_screen.dart';
 import '../../features/community/presentation/community_feed_screen.dart';
@@ -52,6 +53,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/home', builder: (_, __) => const DashboardTab()),
           GoRoute(path: '/pets', builder: (_, __) => const PetListScreen()),
           GoRoute(path: '/pets/new', builder: (_, __) => const PetFormScreen()),
+          GoRoute(path: '/pets/bulk-new', builder: (_, __) => const PetBulkFormScreen()),
           GoRoute(
             path: '/pets/:id',
             builder: (_, state) =>
