@@ -24,11 +24,27 @@ class _WeightScreenState extends ConsumerState<WeightScreen> {
   String _range = '3M'; // 1M / 3M / 6M / ALL
   final _entryCtrl = TextEditingController();
   bool _saving = false;
+  DateTime _entryDate = DateTime.now();
 
   @override
   void dispose() {
     _entryCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _entryDate,
+      firstDate: DateTime(2015),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null && mounted) {
+      setState(() => _entryDate = DateTime(
+            picked.year, picked.month, picked.day,
+            _entryDate.hour, _entryDate.minute,
+          ));
+    }
   }
 
   @override
@@ -60,9 +76,12 @@ class _WeightScreenState extends ConsumerState<WeightScreen> {
                   range:      _range,
                   onRange:    (r) => setState(() => _range = r),
                   entryCtrl:  _entryCtrl,
+                  entryDate:  _entryDate,
+                  onPickDate: _pickDate,
                   saving:     _saving,
                   paletteKey: paletteKey,
                   onSave:     _save,
+                  onDelete:   _delete,
                 );
               },
             ),
@@ -82,17 +101,29 @@ class _WeightScreenState extends ConsumerState<WeightScreen> {
     try {
       await ref
           .read(recordRepositoryProvider)
-          .addWeight(widget.petId, w, DateTime.now(), null);
+          .addWeight(widget.petId, w, _entryDate, null);
       ref.invalidate(weightListProvider(widget.petId));
       ref.invalidate(petDetailProvider(widget.petId));
       if (mounted) {
         showToast(context, '체중이 기록되었습니다.', type: ToastType.success);
         _entryCtrl.clear();
+        setState(() => _entryDate = DateTime.now());
       }
     } catch (e) {
       if (mounted) showToast(context, '오류: $e', type: ToastType.error);
     } finally {
       if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _delete(int id) async {
+    try {
+      await ref.read(recordRepositoryProvider).deleteWeight(id);
+      ref.invalidate(weightListProvider(widget.petId));
+      ref.invalidate(petDetailProvider(widget.petId));
+      if (mounted) showToast(context, '기록을 삭제했어요.', type: ToastType.success);
+    } catch (e) {
+      if (mounted) showToast(context, '오류: $e', type: ToastType.error);
     }
   }
 }
@@ -149,9 +180,12 @@ class _WeightBody extends StatelessWidget {
   final String range;
   final ValueChanged<String> onRange;
   final TextEditingController entryCtrl;
+  final DateTime entryDate;
+  final VoidCallback onPickDate;
   final bool saving;
   final PetPaletteKey paletteKey;
   final Future<void> Function(List<WeightRecord>) onSave;
+  final Future<void> Function(int id) onDelete;
 
   const _WeightBody({
     required this.petId,
@@ -159,9 +193,12 @@ class _WeightBody extends StatelessWidget {
     required this.range,
     required this.onRange,
     required this.entryCtrl,
+    required this.entryDate,
+    required this.onPickDate,
     required this.saving,
     required this.paletteKey,
     required this.onSave,
+    required this.onDelete,
   });
 
   List<WeightRecord> _filtered() {
@@ -256,9 +293,8 @@ class _WeightBody extends StatelessWidget {
           ),
           const SizedBox(height: 16),
 
-          // 큰 차트
-          if (data.isNotEmpty)
-            _BigWeightChart(data: data, pale: pale, paleInk: paleInk),
+          // 큰 차트 (데이터 없어도 틀 표시)
+          _BigWeightChart(data: data, pale: pale, paleInk: paleInk),
           const SizedBox(height: 16),
 
           // 통계 3분할
@@ -274,7 +310,7 @@ class _WeightBody extends StatelessWidget {
           // 새 기록 인라인 입력
           _SectionHeader(
             title: '새 기록',
-            action: _fmtDateTime(DateTime.now()),
+            action: null,
           ),
           Container(
             decoration: BoxDecoration(
@@ -283,96 +319,130 @@ class _WeightBody extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
             ),
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('WEIGHT',
-                          style: AppTextStyles.mono(11, FontWeight.w700,
-                              color: AppColors.paleInk2)),
-                      Container(
-                        decoration: const BoxDecoration(
-                          border: Border(
-                            bottom: BorderSide(color: AppColors.primary, width: 1.5),
-                          ),
+                // 날짜 선택
+                GestureDetector(
+                  onTap: onPickDate,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.paleBgAlt,
+                      border: Border.all(color: AppColors.paleLine),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.calendar_today_outlined,
+                            size: 13, color: AppColors.paleInk2),
+                        const SizedBox(width: 6),
+                        Text(
+                          _fmtDate(entryDate),
+                          style: AppTextStyles.mono(12, FontWeight.w600,
+                              color: AppColors.primary),
                         ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.baseline,
-                          textBaseline: TextBaseline.alphabetic,
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                controller: entryCtrl,
-                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                style: AppTextStyles.mono(28, FontWeight.w700),
-                                decoration: const InputDecoration.collapsed(hintText: '0'),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.keyboard_arrow_down,
+                            size: 14, color: AppColors.paleInk3),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('WEIGHT',
+                              style: AppTextStyles.mono(11, FontWeight.w700,
+                                  color: AppColors.paleInk2)),
+                          Container(
+                            decoration: const BoxDecoration(
+                              border: Border(
+                                bottom: BorderSide(color: AppColors.primary, width: 1.5),
                               ),
                             ),
-                            Text('g', style: TextStyle(
-                                fontSize: 14, fontWeight: FontWeight.w600,
-                                color: AppColors.paleInk2)),
-                          ],
-                        ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.baseline,
+                              textBaseline: TextBaseline.alphabetic,
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: entryCtrl,
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    style: AppTextStyles.mono(28, FontWeight.w700),
+                                    decoration: const InputDecoration.collapsed(hintText: '0'),
+                                  ),
+                                ),
+                                Text('g', style: TextStyle(
+                                    fontSize: 14, fontWeight: FontWeight.w600,
+                                    color: AppColors.paleInk2)),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            latest != null
+                                ? '직전 기록 ${latest.weightG.toStringAsFixed(0)}g'
+                                : '첫 기록을 입력하세요',
+                            style: TextStyle(fontSize: 11, color: AppColors.paleInk3),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 6),
-                      Text(
-                        latest != null
-                            ? '직전 기록 ${latest.weightG.toStringAsFixed(0)}g'
-                            : '첫 기록을 입력하세요',
-                        style: TextStyle(fontSize: 11, color: AppColors.paleInk3),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                // +/- 스텝 버튼
-                Column(
-                  children: [
-                    _StepBtn(
-                      label: '+',
-                      onTap: () {
-                        final v = double.tryParse(entryCtrl.text) ?? 0;
-                        entryCtrl.text = (v + 1).toStringAsFixed(0);
-                      },
                     ),
-                    const SizedBox(height: 4),
-                    _StepBtn(
-                      label: '−',
-                      onTap: () {
-                        final v = double.tryParse(entryCtrl.text) ?? 0;
-                        if (v > 0) entryCtrl.text = (v - 1).toStringAsFixed(0);
-                      },
+                    const SizedBox(width: 12),
+                    // +/- 스텝 버튼
+                    Column(
+                      children: [
+                        _StepBtn(
+                          label: '+',
+                          onTap: () {
+                            final v = double.tryParse(entryCtrl.text) ?? 0;
+                            entryCtrl.text = (v + 1).toStringAsFixed(0);
+                          },
+                        ),
+                        const SizedBox(height: 4),
+                        _StepBtn(
+                          label: '−',
+                          onTap: () {
+                            final v = double.tryParse(entryCtrl.text) ?? 0;
+                            if (v > 0) entryCtrl.text = (v - 1).toStringAsFixed(0);
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(width: 8),
+                    // 저장 버튼
+                    GestureDetector(
+                      onTap: saving ? null : () => onSave(records),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: saving
+                            ? const SizedBox(
+                                width: 18, height: 18,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white))
+                            : Row(children: [
+                                const Icon(Icons.check, color: Colors.white, size: 16),
+                                const SizedBox(width: 4),
+                                Text('저장',
+                                    style: TextStyle(
+                                        fontSize: 13, fontWeight: FontWeight.w700,
+                                        color: AppColors.paleBg)),
+                              ]),
+                      ),
                     ),
                   ],
-                ),
-                const SizedBox(width: 8),
-                // 저장 버튼
-                GestureDetector(
-                  onTap: saving ? null : () => onSave(records),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: saving
-                        ? const SizedBox(
-                            width: 18, height: 18,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white))
-                        : Row(children: [
-                            const Icon(Icons.check, color: Colors.white, size: 16),
-                            const SizedBox(width: 4),
-                            Text('저장',
-                                style: TextStyle(
-                                    fontSize: 13, fontWeight: FontWeight.w700,
-                                    color: AppColors.paleBg)),
-                          ]),
-                  ),
                 ),
               ],
             ),
@@ -382,75 +452,111 @@ class _WeightBody extends StatelessWidget {
           // 기록 히스토리
           _SectionHeader(
             title: '기록 히스토리',
-            action: '전체 ${records.length}개 →',
+            action: records.isEmpty ? null : '전체 ${records.length}개',
           ),
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.card,
-              border: Border.all(color: AppColors.paleLine),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: Column(
-              children: () {
-                final sorted = [...records]
-                  ..sort((a,b) => b.measuredAt.compareTo(a.measuredAt));
-                final shown = sorted.take(6).toList();
-                return shown.asMap().entries.map((e) {
-                  final i = e.key;
-                  final r = e.value;
-                  final prev = i < shown.length - 1 ? shown[i+1] : null;
-                  final dlt  = prev != null ? r.weightG - prev.weightG : 0.0;
-                  return Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      border: i < shown.length - 1
-                          ? const Border(bottom: BorderSide(
-                              color: AppColors.paleLineSoft))
-                          : null,
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 8, height: 8,
-                          decoration: BoxDecoration(
-                            color: pale, borderRadius: BorderRadius.circular(4),
+          if (records.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 28),
+              decoration: BoxDecoration(
+                color: AppColors.card,
+                border: Border.all(color: AppColors.paleLine),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Column(
+                children: [
+                  Icon(Icons.monitor_weight_outlined,
+                      size: 28, color: AppColors.paleInk3),
+                  SizedBox(height: 8),
+                  Text('저장된 기록이 없어요',
+                      style: TextStyle(fontSize: 13, color: AppColors.paleInk2,
+                          fontWeight: FontWeight.w600)),
+                ],
+              ),
+            )
+          else
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.card,
+                border: Border.all(color: AppColors.paleLine),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: Column(
+                children: () {
+                  final sorted = [...records]
+                    ..sort((a,b) => b.measuredAt.compareTo(a.measuredAt));
+                  final shown = sorted.take(20).toList();
+                  return shown.asMap().entries.map((e) {
+                    final i = e.key;
+                    final r = e.value;
+                    final prev = i < shown.length - 1 ? shown[i+1] : null;
+                    final dlt  = prev != null ? r.weightG - prev.weightG : 0.0;
+                    return Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        border: i < shown.length - 1
+                            ? const Border(bottom: BorderSide(
+                                color: AppColors.paleLineSoft))
+                            : null,
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 8, height: 8,
+                            decoration: BoxDecoration(
+                              color: pale, borderRadius: BorderRadius.circular(4),
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          _fmtDateShort(r.measuredAt),
-                          style: AppTextStyles.mono(12, FontWeight.w600,
-                              color: AppColors.paleInk2),
-                        ),
-                        const Spacer(),
-                        Text(
-                          '${r.weightG.toStringAsFixed(0)}g',
-                          style: AppTextStyles.mono(14, FontWeight.w700),
-                        ),
-                        if (prev != null) ...[
+                          const SizedBox(width: 12),
+                          Text(
+                            _fmtDateShort(r.measuredAt),
+                            style: AppTextStyles.mono(12, FontWeight.w600,
+                                color: AppColors.paleInk2),
+                          ),
+                          const Spacer(),
+                          Text(
+                            '${r.weightG.toStringAsFixed(0)}g',
+                            style: AppTextStyles.mono(14, FontWeight.w700),
+                          ),
+                          if (prev != null) ...[
+                            const SizedBox(width: 8),
+                            SizedBox(
+                              width: 48,
+                              child: Text(
+                                '${dlt > 0 ? '+' : ''}${dlt.toStringAsFixed(0)}g',
+                                textAlign: TextAlign.right,
+                                style: AppTextStyles.mono(11, FontWeight.w600,
+                                    color: dlt > 0
+                                        ? AppColors.petSageInk
+                                        : dlt < 0
+                                            ? AppColors.petCoralInk
+                                            : AppColors.paleInk3),
+                              ),
+                            ),
+                          ],
                           const SizedBox(width: 8),
-                          SizedBox(
-                            width: 48,
-                            child: Text(
-                              '${dlt > 0 ? '+' : ''}${dlt.toStringAsFixed(0)}g',
-                              textAlign: TextAlign.right,
-                              style: AppTextStyles.mono(11, FontWeight.w600,
-                                  color: dlt > 0
-                                      ? AppColors.petSageInk
-                                      : dlt < 0
-                                          ? AppColors.petCoralInk
-                                          : AppColors.paleInk3),
+                          // 삭제 버튼
+                          GestureDetector(
+                            onTap: () => onDelete(r.id),
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: AppColors.paleBgAlt,
+                                borderRadius: BorderRadius.circular(7),
+                                border: Border.all(color: AppColors.paleLine),
+                              ),
+                              child: const Icon(Icons.delete_outline,
+                                  size: 14, color: AppColors.paleInk3),
                             ),
                           ),
                         ],
-                      ],
-                    ),
-                  );
-                }).toList();
-              }(),
+                      ),
+                    );
+                  }).toList();
+                }(),
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -513,22 +619,10 @@ class _BigChartPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (data.length < 2) return;
-    final maxW  = data.map((d) => d.weightG).reduce(max);
-    final minW  = data.map((d) => d.weightG).reduce(min);
-    final range = max(maxW - minW, 1.0);
-
     final cw = size.width  - _padL - _padR;
     final ch = size.height - _padT - _padB;
 
-    List<Offset> pts = [];
-    for (int i = 0; i < data.length; i++) {
-      final x = _padL + (i / (data.length - 1)) * cw;
-      final y = _padT + ch - ((data[i].weightG - minW) / range) * ch;
-      pts.add(Offset(x, y));
-    }
-
-    // 가이드라인 3개 (점선)
+    // 가이드라인 3개 (데이터 없어도 항상 표시)
     final guidePaint = Paint()
       ..color = AppColors.paleLine
       ..strokeWidth = 1
@@ -542,12 +636,29 @@ class _BigChartPainter extends CustomPainter {
         dash.lineTo(min(x + 3, size.width - _padR), gy);
         x += 6;
       }
-      // 좌측 라벨
+    }
+    canvas.drawPath(dash, guidePaint);
+
+    if (data.length < 2) return;
+
+    final maxW  = data.map((d) => d.weightG).reduce(max);
+    final minW  = data.map((d) => d.weightG).reduce(min);
+    final range = max(maxW - minW, 1.0);
+
+    List<Offset> pts = [];
+    for (int i = 0; i < data.length; i++) {
+      final x = _padL + (i / (data.length - 1)) * cw;
+      final y = _padT + ch - ((data[i].weightG - minW) / range) * ch;
+      pts.add(Offset(x, y));
+    }
+
+    // 좌측 라벨 (데이터 있을 때만)
+    for (int g = 0; g < 3; g++) {
+      final gy = _padT + g * ch / 2;
       final wVal = (maxW - g * (maxW - minW) / 2).toStringAsFixed(0);
       _drawText(canvas, wVal, Offset(_padL - 6, gy - 5),
           TextAlign.right, 9, AppColors.paleInk3);
     }
-    canvas.drawPath(dash, guidePaint);
 
     // area fill
     final area = Path()..moveTo(pts.first.dx, pts.first.dy);
@@ -708,8 +819,8 @@ class _StatCard extends StatelessWidget {
 
 class _SectionHeader extends StatelessWidget {
   final String title;
-  final String action;
-  const _SectionHeader({required this.title, required this.action});
+  final String? action;
+  const _SectionHeader({required this.title, this.action});
 
   @override
   Widget build(BuildContext context) {
@@ -719,9 +830,10 @@ class _SectionHeader extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(title, style: AppTextStyles.paleSectionTitle),
-          Text(action, style: TextStyle(
-              fontSize: 12, fontWeight: FontWeight.w600,
-              color: AppColors.paleInk2)),
+          if (action != null)
+            Text(action!, style: const TextStyle(
+                fontSize: 12, fontWeight: FontWeight.w600,
+                color: AppColors.paleInk2)),
         ],
       ),
     );

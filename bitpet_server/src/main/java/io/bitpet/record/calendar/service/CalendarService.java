@@ -46,19 +46,36 @@ public class CalendarService {
         for (RecordCategory cat : List.of(
                 RecordCategory.FEEDING, RecordCategory.WEIGHT,
                 RecordCategory.CLEANING, RecordCategory.MEMO)) {
-            String sql = buildUserSql(cat);
-            jdbc.query(sql,
-                    ps -> {
-                        ps.setLong(1, userId);
-                        ps.setObject(2, start);
-                        ps.setObject(3, end);
-                    },
-                    rs -> {
-                        LocalDate date = rs.getDate("day").toLocalDate();
-                        int cnt = rs.getInt("cnt");
-                        dayMap.computeIfAbsent(date, k -> new HashMap<>())
-                                .put(cat.name(), cnt);
-                    });
+            if (cat == RecordCategory.MEMO) {
+                jdbc.query(buildUserMemoSql(),
+                        ps -> {
+                            ps.setLong(1, userId);
+                            ps.setObject(2, start);
+                            ps.setObject(3, end);
+                            ps.setLong(4, userId);
+                            ps.setObject(5, start);
+                            ps.setObject(6, end);
+                        },
+                        rs -> {
+                            LocalDate date = rs.getDate("day").toLocalDate();
+                            int cnt = rs.getInt("cnt");
+                            dayMap.computeIfAbsent(date, k -> new HashMap<>()).put("MEMO", cnt);
+                        });
+            } else {
+                String sql = buildUserSql(cat);
+                jdbc.query(sql,
+                        ps -> {
+                            ps.setLong(1, userId);
+                            ps.setObject(2, start);
+                            ps.setObject(3, end);
+                        },
+                        rs -> {
+                            LocalDate date = rs.getDate("day").toLocalDate();
+                            int cnt = rs.getInt("cnt");
+                            dayMap.computeIfAbsent(date, k -> new HashMap<>())
+                                    .put(cat.name(), cnt);
+                        });
+            }
         }
 
         List<CalendarDayDto> days = dayMap.entrySet().stream()
@@ -115,26 +132,43 @@ public class CalendarService {
         Map<LocalDate, Map<String, Integer>> dayMap = new LinkedHashMap<>();
 
         for (RecordCategory cat : targets) {
-            String sql = buildSql(cat);
-            final boolean isMating = cat == RecordCategory.MATING;
-            jdbc.query(sql,
-                    ps -> {
-                        ps.setLong(1, petId);
-                        if (isMating) {
-                            ps.setLong(2, petId);    // female_pet_id
-                            ps.setObject(3, start);
-                            ps.setObject(4, end);
-                        } else {
+            if (cat == RecordCategory.MEMO) {
+                jdbc.query(buildPetMemoSql(),
+                        ps -> {
+                            ps.setLong(1, petId);
                             ps.setObject(2, start);
                             ps.setObject(3, end);
-                        }
-                    },
-                    rs -> {
-                        LocalDate date = rs.getDate("day").toLocalDate();
-                        int cnt = rs.getInt("cnt");
-                        dayMap.computeIfAbsent(date, k -> new HashMap<>())
-                                .put(cat.name(), cnt);
-                    });
+                            ps.setLong(4, petId);
+                            ps.setObject(5, start);
+                            ps.setObject(6, end);
+                        },
+                        rs -> {
+                            LocalDate date = rs.getDate("day").toLocalDate();
+                            int cnt = rs.getInt("cnt");
+                            dayMap.computeIfAbsent(date, k -> new HashMap<>()).put("MEMO", cnt);
+                        });
+            } else {
+                String sql = buildSql(cat);
+                final boolean isMating = cat == RecordCategory.MATING;
+                jdbc.query(sql,
+                        ps -> {
+                            ps.setLong(1, petId);
+                            if (isMating) {
+                                ps.setLong(2, petId);
+                                ps.setObject(3, start);
+                                ps.setObject(4, end);
+                            } else {
+                                ps.setObject(2, start);
+                                ps.setObject(3, end);
+                            }
+                        },
+                        rs -> {
+                            LocalDate date = rs.getDate("day").toLocalDate();
+                            int cnt = rs.getInt("cnt");
+                            dayMap.computeIfAbsent(date, k -> new HashMap<>())
+                                    .put(cat.name(), cnt);
+                        });
+            }
         }
 
         List<CalendarDayDto> days = dayMap.entrySet().stream()
@@ -177,6 +211,54 @@ public class CalendarService {
                   AND deleted_at IS NULL
                 GROUP BY day
                 """, timeCol, table, timeCol);
+    }
+
+    private String buildUserMemoSql() {
+        return """
+                SELECT day, SUM(cnt) AS cnt FROM (
+                  SELECT DATE(t.logged_at AT TIME ZONE 'UTC') AS day, COUNT(*) AS cnt
+                  FROM memo_dtl t
+                  JOIN pet_mst p ON p.id = t.pet_id
+                  WHERE p.user_id = ?
+                    AND DATE(t.logged_at AT TIME ZONE 'UTC') BETWEEN ? AND ?
+                    AND t.deleted_at IS NULL AND p.deleted_at IS NULL
+                  GROUP BY day
+                  UNION ALL
+                  SELECT DATE(rl.executed_at AT TIME ZONE 'UTC') AS day, COUNT(*) AS cnt
+                  FROM routine_log_dtl rl
+                  JOIN routine_mst rm ON rm.id = rl.routine_id
+                  JOIN pet_mst p ON p.id = rl.pet_id
+                  WHERE p.user_id = ?
+                    AND rm.routine_type = 'CUSTOM'
+                    AND rl.memo IS NOT NULL AND rl.memo <> ''
+                    AND DATE(rl.executed_at AT TIME ZONE 'UTC') BETWEEN ? AND ?
+                    AND rl.deleted_at IS NULL AND p.deleted_at IS NULL
+                  GROUP BY day
+                ) sub GROUP BY day
+                """;
+    }
+
+    private String buildPetMemoSql() {
+        return """
+                SELECT day, SUM(cnt) AS cnt FROM (
+                  SELECT DATE(logged_at AT TIME ZONE 'UTC') AS day, COUNT(*) AS cnt
+                  FROM memo_dtl
+                  WHERE pet_id = ?
+                    AND DATE(logged_at AT TIME ZONE 'UTC') BETWEEN ? AND ?
+                    AND deleted_at IS NULL
+                  GROUP BY day
+                  UNION ALL
+                  SELECT DATE(rl.executed_at AT TIME ZONE 'UTC') AS day, COUNT(*) AS cnt
+                  FROM routine_log_dtl rl
+                  JOIN routine_mst rm ON rm.id = rl.routine_id
+                  WHERE rl.pet_id = ?
+                    AND rm.routine_type = 'CUSTOM'
+                    AND rl.memo IS NOT NULL AND rl.memo <> ''
+                    AND DATE(rl.executed_at AT TIME ZONE 'UTC') BETWEEN ? AND ?
+                    AND rl.deleted_at IS NULL
+                  GROUP BY day
+                ) sub GROUP BY day
+                """;
     }
 
     private PetMst loadOwnedPet(Long userId, Long petId) {

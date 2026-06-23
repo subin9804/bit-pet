@@ -125,6 +125,7 @@ class Routine {
   final String? memo;
   final List<int> petIds;
   final int petCount;
+  final DateTime? createdAt;
 
   const Routine({
     required this.id,
@@ -140,6 +141,7 @@ class Routine {
     this.memo,
     required this.petIds,
     required this.petCount,
+    this.createdAt,
   });
 
   factory Routine.fromJson(Map<String, dynamic> json) => Routine(
@@ -166,6 +168,9 @@ class Routine {
                 .toList() ??
             [],
         petCount: json['petCount'] as int? ?? 0,
+        createdAt: json['createdAt'] != null
+            ? DateTime.tryParse(json['createdAt'] as String)
+            : null,
       );
 
   int? get dDayFromNow {
@@ -180,13 +185,22 @@ class Routine {
 class RoutineWithSubscription {
   final Routine routine;
   final bool subscribed;
+  final bool todayCompleted;
+  final int? todayLogId;
 
-  const RoutineWithSubscription({required this.routine, required this.subscribed});
+  const RoutineWithSubscription({
+    required this.routine,
+    required this.subscribed,
+    this.todayCompleted = false,
+    this.todayLogId,
+  });
 
   factory RoutineWithSubscription.fromJson(Map<String, dynamic> json) =>
       RoutineWithSubscription(
         routine: Routine.fromJson(json['routine'] as Map<String, dynamic>),
         subscribed: json['subscribed'] as bool? ?? false,
+        todayCompleted: json['todayCompleted'] as bool? ?? false,
+        todayLogId: json['todayLogId'] as int?,
       );
 }
 

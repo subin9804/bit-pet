@@ -1,18 +1,34 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/theme/pale_palette.dart';
 import '../../data/models/pet_models.dart';
 
-class PetHeroCard extends StatelessWidget {
+class PetHeroCard extends StatefulWidget {
   final Pet pet;
   final PetPaletteKey paletteKey;
 
   const PetHeroCard({super.key, required this.pet, required this.paletteKey});
 
   @override
+  State<PetHeroCard> createState() => _PetHeroCardState();
+}
+
+class _PetHeroCardState extends State<PetHeroCard> {
+  bool _copied = false;
+
+  Future<void> _copySerial() async {
+    await Clipboard.setData(ClipboardData(text: widget.pet.serialNo));
+    setState(() => _copied = true);
+    await Future.delayed(const Duration(seconds: 2));
+    if (mounted) setState(() => _copied = false);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final bg = PalePalette.pale(paletteKey);
+    final pet = widget.pet;
+    final bg = PalePalette.pale(widget.paletteKey);
     final genderSymbol = switch (pet.gender) {
       'MALE'   => '♂',
       'FEMALE' => '♀',
@@ -23,6 +39,7 @@ class PetHeroCard extends StatelessWidget {
       'FEMALE' => '암컷',
       _        => '미확인',
     };
+    final isPublic = pet.privateYn == 'N';
 
     return Container(
       decoration: BoxDecoration(
@@ -53,16 +70,68 @@ class PetHeroCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 종명 (영문 대문자, JetBrains Mono)
                 Text(
                   pet.speciesName.toUpperCase(),
                   style: AppTextStyles.paleSpecies(AppColors.paleInk2),
                 ),
-                const SizedBox(height: 4),
-                // 개체명
-                Text(
-                  pet.name,
-                  style: AppTextStyles.paleHero(AppColors.primary),
+                const SizedBox(height: 3),
+                // 이름 + 일련번호 + 검색허용
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        pet.name,
+                        style: AppTextStyles.paleHero(AppColors.primary),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (pet.serialNo.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        pet.serialNo,
+                        style: AppTextStyles.mono(10, FontWeight.w700).copyWith(
+                          color: AppColors.paleInk2,
+                        ),
+                      ),
+                      const SizedBox(width: 3),
+                      GestureDetector(
+                        onTap: _copySerial,
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 180),
+                          child: _copied
+                              ? const Icon(Icons.check_circle_outline,
+                                  key: ValueKey('check'),
+                                  size: 12,
+                                  color: AppColors.petSageInk)
+                              : const Icon(Icons.copy_outlined,
+                                  key: ValueKey('copy'),
+                                  size: 12,
+                                  color: AppColors.paleInk3),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: isPublic
+                            ? AppColors.petSage
+                            : Colors.white.withValues(alpha: 0.45),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                      child: Text(
+                        isPublic ? '공개' : '비공개',
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          color: isPublic
+                              ? AppColors.petSageInk
+                              : AppColors.paleInk2,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 8),
                 // 성별·체중 pill

@@ -76,6 +76,13 @@ class Pet {
   final double? latestWeightG;
   // 'Y' = 비공개(기본), 'N' = 공개(전체 검색 허용)
   final String privateYn;
+  // 부모 개체 (단건 조회 시 포함)
+  final int? fatherRelationId;
+  final int? fatherId;
+  final String? fatherName;
+  final int? motherRelationId;
+  final int? motherId;
+  final String? motherName;
 
   Pet({
     required this.id,
@@ -96,6 +103,12 @@ class Pet {
     this.adoptionDate,
     this.latestWeightG,
     this.privateYn = 'Y',
+    this.fatherRelationId,
+    this.fatherId,
+    this.fatherName,
+    this.motherRelationId,
+    this.motherId,
+    this.motherName,
   }) : morphs = morphs ?? const [];
 
   bool get isPrivate => privateYn == 'Y';
@@ -133,6 +146,12 @@ class Pet {
             : null,
         latestWeightG: (json['latestWeightG'] as num?)?.toDouble(),
         privateYn: json['privateYn'] as String? ?? 'Y',
+        fatherRelationId: (json['fatherRelationId'] as num?)?.toInt(),
+        fatherId: (json['fatherId'] as num?)?.toInt(),
+        fatherName: json['fatherName'] as String?,
+        motherRelationId: (json['motherRelationId'] as num?)?.toInt(),
+        motherId: (json['motherId'] as num?)?.toInt(),
+        motherName: json['motherName'] as String?,
       );
 }
 

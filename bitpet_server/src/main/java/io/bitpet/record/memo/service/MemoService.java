@@ -21,11 +21,17 @@ import io.bitpet.record.memo.repository.MemoVetExtDtlRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.sql.ResultSet;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -43,6 +49,7 @@ public class MemoService {
     private final MemoTagRlsRepository tagRlsRepo;
     private final MemoVetExtDtlRepository vetExtRepo;
     private final PetMstRepository petRepo;
+    private final JdbcTemplate jdbc;
 
     // -------------------------------------------------------------------------
     // 태그 목록
@@ -109,11 +116,16 @@ public class MemoService {
             page = memoRepo.findAllByPetIdOrderByLoggedAtDesc(petId, pageable);
         }
 
-        List<MemoResponse> items = page.getContent().stream()
-                .map(m -> buildResponse(m))
-                .toList();
+        List<MemoResponse> items = new ArrayList<>(
+                page.getContent().stream().map(this::buildResponse).toList());
 
-        return new MemoListResponse(items, page.getTotalElements());
+        // 태그 필터 없을 때만 CUSTOM 루틴 메모 추가
+        if (tagCodes == null || tagCodes.isEmpty()) {
+            items.addAll(fetchCustomRoutineMemos(petId, from, to));
+        }
+
+        items.sort(Comparator.comparing(MemoResponse::loggedAt).reversed());
+        return new MemoListResponse(items, (long) items.size());
     }
 
     // -------------------------------------------------------------------------
@@ -179,6 +191,29 @@ public class MemoService {
     // -------------------------------------------------------------------------
     // private helpers
     // -------------------------------------------------------------------------
+
+    private List<MemoResponse> fetchCustomRoutineMemos(Long petId, LocalDate from, LocalDate to) {
+        String sql = """
+                SELECT rl.id, rl.pet_id, rl.memo, rl.executed_at, rl.created_at,
+                       COALESCE(rm.title, '') AS title
+                FROM routine_log_dtl rl
+                JOIN routine_mst rm ON rm.id = rl.routine_id
+                WHERE rl.pet_id = ?
+                  AND rm.routine_type = 'CUSTOM'
+                  AND rl.memo IS NOT NULL AND rl.memo <> ''
+                  AND rl.deleted_at IS NULL
+                ORDER BY rl.executed_at DESC
+                """;
+        return jdbc.query(sql, ps -> ps.setLong(1, petId), (rs, i) -> {
+            Instant loggedAt = rs.getTimestamp("executed_at").toInstant();
+            if (from != null && loggedAt.isBefore(from.atStartOfDay().toInstant(ZoneOffset.UTC))) return null;
+            if (to   != null && loggedAt.isAfter(to.atTime(23, 59, 59).toInstant(ZoneOffset.UTC))) return null;
+            Instant createdAt = rs.getTimestamp("created_at").toInstant();
+            String content = "[" + rs.getString("title") + "] " + rs.getString("memo");
+            return new MemoResponse(rs.getLong("id"), rs.getLong("pet_id"),
+                    content, loggedAt, List.of(), null, createdAt, createdAt);
+        }).stream().filter(m -> m != null).toList();
+    }
 
     private MemoResponse buildResponse(MemoDtl memo) {
         List<MemoTagRls> tagLinks = tagRlsRepo.findByMemoId(memo.getId());

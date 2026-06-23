@@ -2,6 +2,8 @@ package io.bitpet.pet.dto;
 
 import io.bitpet.pet.domain.PetGender;
 import io.bitpet.pet.domain.PetMst;
+import io.bitpet.pet.domain.PetRelationRls;
+import io.bitpet.pet.domain.RelationType;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -27,14 +29,38 @@ public record PetResponse(
         Long profilePhotoId,
         String privateYn,
         Double latestWeightG,
+        Long fatherRelationId,
+        Long fatherId,
+        String fatherName,
+        Long motherRelationId,
+        Long motherId,
+        String motherName,
         Instant createdAt,
         Instant updatedAt
 ) {
     public static PetResponse from(PetMst pet) {
-        return from(pet, null);
+        return from(pet, null, List.of());
     }
 
     public static PetResponse from(PetMst pet, Double latestWeightG) {
+        return from(pet, latestWeightG, List.of());
+    }
+
+    public static PetResponse from(PetMst pet, Double latestWeightG, List<PetRelationRls> parentRelations) {
+        Long fatherRelId = null; Long fatherId = null; String fatherName = null;
+        Long motherRelId = null; Long motherId = null; String motherName = null;
+        for (PetRelationRls r : parentRelations) {
+            if (r.getRelationType() == RelationType.FATHER) {
+                fatherRelId = r.getId();
+                fatherId    = r.getParentPet().getId();
+                fatherName  = r.getParentPet().getName();
+            } else if (r.getRelationType() == RelationType.MOTHER) {
+                motherRelId = r.getId();
+                motherId    = r.getParentPet().getId();
+                motherName  = r.getParentPet().getName();
+            }
+        }
+
         List<MorphCdResponse> morphList = pet.getMorphs().stream()
                 .map(rls -> MorphCdResponse.from(rls.getMorph()))
                 .toList();
@@ -58,6 +84,8 @@ public record PetResponse(
                 pet.getProfilePhotoId(),
                 pet.getPrivateYn(),
                 latestWeightG,
+                fatherRelId, fatherId, fatherName,
+                motherRelId, motherId, motherName,
                 pet.getCreatedAt(),
                 pet.getUpdatedAt()
         );

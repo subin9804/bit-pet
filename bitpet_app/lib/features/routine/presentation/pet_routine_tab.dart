@@ -89,16 +89,28 @@ class _PetRoutineTabState extends ConsumerState<PetRoutineTab> {
     }
   }
 
-  void _completeToday(int routineId) async {
+  Future<int?> _completeToday(int routineId) async {
     try {
-      await ref.read(routineRepositoryProvider).completeBatch(
+      final log = await ref.read(routineRepositoryProvider).completeIndividual(
         routineId,
-        RoutineCompleteBatchRequest(executedAt: DateTime.now()),
+        RoutineCompleteIndividualRequest(
+          petId: widget.petId,
+          status: RoutineLogStatus.COMPLETED,
+          executedAt: DateTime.now(),
+        ),
       );
-      if (mounted) {
-        showToast(context, '완료로 기록했습니다.', type: ToastType.success);
-        ref.invalidate(routinesForPetProvider(widget.petId));
-      }
+      if (mounted) showToast(context, '완료로 기록했습니다.', type: ToastType.success);
+      return log?.id;
+    } catch (e) {
+      if (mounted) showToast(context, '오류: $e', type: ToastType.error);
+      return null;
+    }
+  }
+
+  Future<void> _undoToday(int logId) async {
+    try {
+      await ref.read(routineRepositoryProvider).deleteLog(logId);
+      if (mounted) showToast(context, '완료 기록을 삭제했어요.', type: ToastType.success);
     } catch (e) {
       if (mounted) showToast(context, '오류: $e', type: ToastType.error);
     }
@@ -174,6 +186,7 @@ class _PetRoutineTabState extends ConsumerState<PetRoutineTab> {
                       paleInk: paleInk,
                       isToday: true,
                       onComplete: () => _completeToday(item.routine.id),
+                      onUndo: (logId) => _undoToday(logId),
                       onRemove: () => _removeRoutine(item.routine.id),
                     ),
                   )),
@@ -190,7 +203,8 @@ class _PetRoutineTabState extends ConsumerState<PetRoutineTab> {
                       pale: pale,
                       paleInk: paleInk,
                       isToday: false,
-                      onComplete: () {},
+                      onComplete: () async => null,
+                      onUndo: (_) async {},
                       onRemove: () => _removeRoutine(item.routine.id),
                     ),
                   )),
@@ -253,7 +267,8 @@ class _RoutineCard extends ConsumerStatefulWidget {
   final Color pale;
   final Color paleInk;
   final bool isToday;
-  final VoidCallback onComplete;
+  final Future<int?> Function() onComplete;
+  final Future<void> Function(int logId) onUndo;
   final VoidCallback onRemove;
 
   const _RoutineCard({
@@ -263,6 +278,7 @@ class _RoutineCard extends ConsumerStatefulWidget {
     required this.paleInk,
     required this.isToday,
     required this.onComplete,
+    required this.onUndo,
     required this.onRemove,
   });
 
@@ -272,7 +288,16 @@ class _RoutineCard extends ConsumerStatefulWidget {
 
 class _RoutineCardState extends ConsumerState<_RoutineCard> {
   bool _calOpen = false;
-  bool _done = false;
+  late bool _done;
+  int? _logId;
+  bool _toggling = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _done = widget.item.todayCompleted;
+    _logId = widget.item.todayLogId;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -418,6 +443,9 @@ class _RoutineCardState extends ConsumerState<_RoutineCard> {
               ),
               child: _MiniRoutineCalendar(
                 routineId: r.id,
+                petId: widget.petId,
+                cycleDays: r.cycleDays,
+                nextDueAt: r.nextDueAt,
                 accentColor: widget.paleInk,
               ),
             ),
@@ -431,9 +459,19 @@ class _RoutineCardState extends ConsumerState<_RoutineCard> {
                 Expanded(
                   child: widget.isToday
                       ? GestureDetector(
-                          onTap: _done ? null : () {
-                            setState(() => _done = true);
-                            widget.onComplete();
+                          onTap: _toggling ? null : () async {
+                            setState(() => _toggling = true);
+                            try {
+                              if (_done && _logId != null) {
+                                await widget.onUndo(_logId!);
+                                if (mounted) setState(() { _done = false; _logId = null; });
+                              } else if (!_done) {
+                                final logId = await widget.onComplete();
+                                if (mounted) setState(() { _done = true; _logId = logId; });
+                              }
+                            } finally {
+                              if (mounted) setState(() => _toggling = false);
+                            }
                           },
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 150),
@@ -446,14 +484,21 @@ class _RoutineCardState extends ConsumerState<_RoutineCard> {
                                   : null,
                               borderRadius: BorderRadius.circular(11),
                             ),
-                            child: Row(
+                            child: _toggling
+                                ? SizedBox(
+                                    width: 16, height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: _done ? AppColors.primary : AppColors.paleBg,
+                                    ))
+                                : Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.check,
-                                    size: 14,
-                                    color: _done
-                                        ? AppColors.primary
-                                        : AppColors.paleBg),
+                                Icon(
+                                  _done ? Icons.check_circle_outline : Icons.check,
+                                  size: 14,
+                                  color: _done ? AppColors.primary : AppColors.paleBg,
+                                ),
                                 const SizedBox(width: 6),
                                 Text(
                                   _done ? '오늘 완료됨' : '오늘 완료',
@@ -555,10 +600,16 @@ class _RoutineCardState extends ConsumerState<_RoutineCard> {
 
 class _MiniRoutineCalendar extends ConsumerStatefulWidget {
   final int routineId;
+  final int petId;
+  final int cycleDays;
+  final DateTime? nextDueAt;
   final Color accentColor;
 
   const _MiniRoutineCalendar({
     required this.routineId,
+    required this.petId,
+    required this.cycleDays,
+    this.nextDueAt,
     required this.accentColor,
   });
 
@@ -593,13 +644,31 @@ class _MiniRoutineCalendarState
               child: CircularProgressIndicator(strokeWidth: 2))),
       error: (_, __) => const SizedBox.shrink(),
       data: (logs) {
-        // 선택된 달 기준 day → status map
-        final map = <int, bool>{};
+        // 이 개체의 완료 기록만 day 집합
+        final completedDays = <int>{};
         for (final l in logs) {
-          if (l.executedAt.year == _month.year &&
-              l.executedAt.month == _month.month) {
-            map[l.executedAt.day] = l.status == RoutineLogStatus.COMPLETED;
+          if (l.petId == widget.petId &&
+              l.executedAt.year == _month.year &&
+              l.executedAt.month == _month.month &&
+              l.status == RoutineLogStatus.COMPLETED) {
+            completedDays.add(l.executedAt.day);
           }
+        }
+
+        final now    = DateTime.now();
+        final today  = DateTime(now.year, now.month, now.day);
+        final anchor = widget.nextDueAt != null
+            ? DateTime(widget.nextDueAt!.toLocal().year,
+                       widget.nextDueAt!.toLocal().month,
+                       widget.nextDueAt!.toLocal().day)
+            : null;
+        final cycle  = widget.cycleDays;
+
+        bool isScheduled(int d) {
+          if (anchor == null || cycle <= 0) return false;
+          final cell = DateTime(_month.year, _month.month, d);
+          if (cell.isAfter(today)) return false;
+          return anchor.difference(cell).inDays.abs() % cycle == 0;
         }
 
         final firstWd = DateTime(_month.year, _month.month, 1).weekday % 7;
@@ -662,12 +731,13 @@ class _MiniRoutineCalendarState
               childAspectRatio: 1.3,
               children: cells.map((d) {
                 if (d == null) return const SizedBox.shrink();
-                final has  = map.containsKey(d);
-                final done = map[d] == true;
+                final scheduled = isScheduled(d);
+                final done   = scheduled && completedDays.contains(d);
+                final missed = scheduled && !done;
                 return Container(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(4),
-                    border: has
+                    border: (done || missed)
                         ? Border.all(color: widget.accentColor, width: 1.5)
                         : null,
                     color: done ? widget.accentColor : Colors.transparent,

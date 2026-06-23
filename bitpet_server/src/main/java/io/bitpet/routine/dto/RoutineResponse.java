@@ -4,6 +4,7 @@ import io.bitpet.routine.domain.RoutineMst;
 import io.bitpet.routine.domain.RoutineType;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 
@@ -15,8 +16,8 @@ public record RoutineResponse(
         int cycleDays,
         LocalTime alarmTime,
         boolean alarmEnabled,
-        Instant lastExecutedAt,
-        Instant nextDueAt,
+        LocalDate lastExecutedAt,
+        LocalDate nextDueAt,
         boolean active,
         String memo,
         List<Long> petIds,

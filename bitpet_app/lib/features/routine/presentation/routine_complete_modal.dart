@@ -11,6 +11,7 @@ import '../../../core/widgets/toast_message.dart';
 import '../data/models/routine_models.dart';
 import '../data/routine_repository.dart';
 import '../providers/routine_provider.dart';
+import '../../record/providers/record_provider.dart';
 
 class RoutineCompleteModal extends ConsumerStatefulWidget {
   final Routine routine;
@@ -256,6 +257,7 @@ class _RoutineCompleteModalState extends ConsumerState<RoutineCompleteModal> {
       await ref.read(routineRepositoryProvider)
           .completeBatch(widget.routine.id, req);
       ref.invalidate(routineListProvider);
+      _invalidateCalendar();
       if (mounted) {
         Navigator.of(context).pop();
         showToast(context, '${widget.routine.petCount}마리 완료!');
@@ -307,8 +309,15 @@ class _RoutineCompleteModalState extends ConsumerState<RoutineCompleteModal> {
       setState(() => _currentCardIndex++);
     } else {
       ref.invalidate(routineListProvider);
+      _invalidateCalendar();
       Navigator.of(context).pop();
     }
+  }
+
+  void _invalidateCalendar() {
+    final ym = DateTime.now();
+    final ymStr = '${ym.year}-${ym.month.toString().padLeft(2, '0')}';
+    ref.invalidate(homeCalendarProvider(ymStr));
   }
 }
 

@@ -93,7 +93,8 @@ public class PetService {
                 .stream().findFirst()
                 .map(w -> w.getWeightG().doubleValue())
                 .orElse(null);
-        return PetResponse.from(pet, latestWeight);
+        List<PetRelationRls> parentRelations = relationRepository.findAllByChildPetId(petId);
+        return PetResponse.from(pet, latestWeight, parentRelations);
     }
 
     public List<PetResponse> listByOwner(Long userId) {

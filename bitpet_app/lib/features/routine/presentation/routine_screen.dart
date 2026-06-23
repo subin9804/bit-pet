@@ -647,7 +647,9 @@ class _CalendarSheetState extends ConsumerState<_CalendarSheet> {
                     }
                   }
 
-                  // 주기 일정 계산 — nextDueAt을 앵커로 역방향 계산
+                  final totalPets = widget.routine.petIds.length;
+
+                  // 주기 기반 예정일 계산 (nextDueAt을 앵커로 역/순방향)
                   final nextDue = widget.routine.nextDueAt;
                   final anchorDate = nextDue != null
                       ? DateTime(nextDue.toLocal().year,
@@ -655,12 +657,13 @@ class _CalendarSheetState extends ConsumerState<_CalendarSheet> {
                                  nextDue.toLocal().day)
                       : null;
                   final cycleDays = widget.routine.cycleDays;
-                  final totalPets = widget.routine.petIds.length;
+                  final today = DateTime(now.year, now.month, now.day);
 
                   bool isScheduled(int d) {
-                    if (anchorDate == null) return false;
+                    if (anchorDate == null || cycleDays <= 0) return false;
                     final cell = DateTime(_month.year, _month.month, d);
-                    final diff = anchorDate.difference(cell).inDays;
+                    if (cell.isAfter(today)) return false;
+                    final diff = anchorDate.difference(cell).inDays.abs();
                     return diff % cycleDays == 0;
                   }
 
@@ -717,19 +720,19 @@ class _CalendarSheetState extends ConsumerState<_CalendarSheet> {
                             final scheduled = isScheduled(d);
                             final doneCount = completedByDay[d]?.length ?? 0;
                             final allDone   = scheduled && totalPets > 0 && doneCount >= totalPets;
-                            final partial   = scheduled && !allDone;
+                            final missed    = scheduled && !allDone;
 
                             Color? bgColor;
                             BoxBorder? border;
                             Color textColor = AppColors.primary;
 
                             if (sel) {
-                              bgColor   = ink;
+                              bgColor   = AppColors.paleInk2;
                               textColor = AppColors.paleBg;
                             } else if (allDone) {
                               bgColor   = ink;
                               textColor = AppColors.paleBg;
-                            } else if (partial) {
+                            } else if (missed) {
                               bgColor = Colors.transparent;
                               border  = Border.all(color: ink, width: 1.5);
                             } else if (isToday) {

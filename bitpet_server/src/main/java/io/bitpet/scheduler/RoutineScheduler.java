@@ -13,6 +13,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.List;
 
 @Slf4j
@@ -20,52 +23,66 @@ import java.util.List;
 @RequiredArgsConstructor
 public class RoutineScheduler {
 
+    private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
+
     private final RoutineMstRepository routineRepository;
     private final RoutinePetRlsRepository routinePetRepository;
     private final PetMstRepository petRepository;
     private final NotificationService notificationService;
 
     /**
-     * 매 1분마다 만기된 루틴을 스캔하여 알림 이력을 생성하고 next_due_at을 전진.
-     * 알림은 REQUIRES_NEW 트랜잭션으로 독립 처리 (실패해도 다음 루틴 계속)
-     * FCM 미연동 구간: notification_log_dtl에 SENT 상태로만 기록
+     * 매 1분마다 오늘 알림을 보내야 할 루틴 스캔.
+     * nextDueAt == 오늘(Seoul) AND alarmTime이 지남 AND 오늘 미발송 → 알림 전송.
+     * nextDueAt은 절대 변경하지 않음.
      */
     @Scheduled(fixedDelay = 60_000)
     @Transactional
-    public void processOverdueRoutines() {
+    public void processRoutineNotifications() {
+        LocalDate today       = LocalDate.now(SEOUL);
+        LocalTime currentTime = LocalTime.now(SEOUL);
+        Instant   startOfToday = today.atStartOfDay(SEOUL).toInstant();
+
+        List<RoutineMst> readyList = routineRepository.findReadyToNotify(today, currentTime, startOfToday);
+        if (readyList.isEmpty()) return;
+
+        log.debug("Sending notifications for {} routine(s)", readyList.size());
+
         Instant now = Instant.now();
-        List<RoutineMst> overdue = routineRepository.findOverdueRoutines(now);
-
-        if (overdue.isEmpty()) return;
-
-        log.debug("Processing {} overdue routine(s)", overdue.size());
-
-        for (RoutineMst routine : overdue) {
+        for (RoutineMst routine : readyList) {
             try {
                 List<Long> petIds = routinePetRepository.findPetIdsByRoutineId(routine.getId());
-                if (petIds.isEmpty()) {
-                    routine.advanceNextDue(now);
-                    continue;
+                if (!petIds.isEmpty()) {
+                    notificationService.createRoutineNotification(
+                            routine.getUserId(),
+                            petIds.get(0),
+                            routine.getId(),
+                            petIds.size(),
+                            buildTitle(routine, petIds),
+                            routine.getTitle()
+                    );
                 }
-
-                Long representativePetId = petIds.get(0);
-                int petCount = petIds.size();
-
-                String notificationTitle = buildTitle(routine, petIds);
-                String notificationBody = routine.getTitle();
-
-                notificationService.createRoutineNotification(
-                        routine.getUserId(),
-                        representativePetId,
-                        routine.getId(),
-                        petCount,
-                        notificationTitle,
-                        notificationBody
-                );
             } catch (Exception e) {
                 log.warn("Notification failed for routine id={}: {}", routine.getId(), e.getMessage());
             }
-            routine.advanceNextDue(now);
+            routine.markNotified(now);
+        }
+    }
+
+    /**
+     * 매일 Seoul 자정(00:00:01) 실행.
+     * 예정일이 지난 미완료 루틴을 다음 주기 날짜로 전진.
+     * (알람 시간이 아닌 날짜 기준으로만 처리)
+     */
+    @Scheduled(cron = "1 0 0 * * *", zone = "Asia/Seoul")
+    @Transactional
+    public void rollOverPastDueRoutines() {
+        LocalDate today = LocalDate.now(SEOUL);
+        List<RoutineMst> overdueList = routineRepository.findOverduePastDate(today);
+        if (overdueList.isEmpty()) return;
+
+        log.debug("Rolling over {} past-due routine(s)", overdueList.size());
+        for (RoutineMst routine : overdueList) {
+            routine.advanceDueDate();
         }
     }
 

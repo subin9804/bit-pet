@@ -1,26 +1,49 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/widgets/toast_message.dart';
 import '../../data/models/pet_models.dart';
+import '../../data/pet_repository.dart';
+import '../../providers/pet_provider.dart';
+import 'parent_pet_bottom_sheet.dart';
 
-class PetInfoGrid extends StatefulWidget {
+class PetInfoGrid extends ConsumerStatefulWidget {
   final Pet pet;
+  final int petId;
 
-  const PetInfoGrid({super.key, required this.pet});
+  const PetInfoGrid({super.key, required this.pet, required this.petId});
 
   @override
-  State<PetInfoGrid> createState() => _PetInfoGridState();
+  ConsumerState<PetInfoGrid> createState() => _PetInfoGridState();
 }
 
-class _PetInfoGridState extends State<PetInfoGrid> {
-  bool _copied = false;
-
-  Future<void> _copySerial() async {
-    await Clipboard.setData(ClipboardData(text: widget.pet.serialNo));
-    setState(() => _copied = true);
-    await Future.delayed(const Duration(seconds: 2));
-    if (mounted) setState(() => _copied = false);
+class _PetInfoGridState extends ConsumerState<PetInfoGrid> {
+  void _openParentEdit() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ParentEditSheet(
+        petId: widget.petId,
+        speciesId: widget.pet.speciesId,
+        initialFather: widget.pet.fatherId != null
+            ? _ParentInfo(
+                relationId: widget.pet.fatherRelationId!,
+                petId: widget.pet.fatherId!,
+                name: widget.pet.fatherName!)
+            : null,
+        initialMother: widget.pet.motherId != null
+            ? _ParentInfo(
+                relationId: widget.pet.motherRelationId!,
+                petId: widget.pet.motherId!,
+                name: widget.pet.motherName!)
+            : null,
+      ),
+    ).then((_) {
+      // 시트가 닫히면 상세 데이터 새로 불러옴 (저장 여부 무관)
+      ref.invalidate(petDetailProvider(widget.petId));
+    });
   }
 
   @override
@@ -31,7 +54,10 @@ class _PetInfoGridState extends State<PetInfoGrid> {
     final approx = pet.hatchingDateApproximate;
     final adopt = pet.adoptionDate;
     final age   = _ageString(hatch, precision, approx);
-    final isPublic = pet.privateYn == 'N';
+
+    final fatherLabel = pet.fatherName ?? '미등록';
+    final motherLabel = pet.motherName ?? '미등록';
+    final hasParents = pet.fatherId != null || pet.motherId != null;
 
     return Container(
       decoration: BoxDecoration(
@@ -69,89 +95,46 @@ class _PetInfoGridState extends State<PetInfoGrid> {
             ],
           ),
           const SizedBox(height: 12),
-          // 일련번호 + 검색허용
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('일련번호', style: AppTextStyles.paleGridLabel),
-                    const SizedBox(height: 3),
-                    Row(
-                      children: [
-                        Text(
-                          pet.serialNo.isEmpty ? '-' : pet.serialNo,
-                          style: AppTextStyles.mono(13, FontWeight.w700),
-                        ),
-                        if (pet.serialNo.isNotEmpty) ...[
-                          const SizedBox(width: 6),
-                          GestureDetector(
-                            onTap: _copySerial,
-                            child: AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 180),
-                              child: _copied
-                                  ? const Icon(Icons.check_circle_outline,
-                                      key: ValueKey('check'),
-                                      size: 15,
-                                      color: AppColors.petSageInk)
-                                  : const Icon(Icons.copy_outlined,
-                                      key: ValueKey('copy'),
-                                      size: 15,
-                                      color: AppColors.paleInk3),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('검색 허용', style: AppTextStyles.paleGridLabel),
-                    const SizedBox(height: 3),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: isPublic
-                            ? AppColors.petSage
-                            : AppColors.paleLine,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        isPublic ? '공개' : '비공개',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: isPublic
-                              ? AppColors.petSageInk
-                              : AppColors.paleInk2,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // 부모 (전체폭)
+          // 부모 (전체폭 + 수정 버튼)
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('부모', style: AppTextStyles.paleGridLabel),
-              const SizedBox(height: 3),
-              Text(
-                '등록된 부모 개체 없음',
-                style: AppTextStyles.paleGridValue.copyWith(
-                    color: AppColors.paleInk2, fontStyle: FontStyle.italic),
+              Row(
+                children: [
+                  Text('부모', style: AppTextStyles.paleGridLabel),
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: _openParentEdit,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Icon(Icons.edit_outlined, size: 13, color: AppColors.paleInk3),
+                        SizedBox(width: 3),
+                        Text('수정',
+                            style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.paleInk3)),
+                      ],
+                    ),
+                  ),
+                ],
               ),
+              const SizedBox(height: 5),
+              if (!hasParents)
+                Text(
+                  '등록된 부모 개체 없음',
+                  style: AppTextStyles.paleGridValue.copyWith(
+                      color: AppColors.paleInk2, fontStyle: FontStyle.italic),
+                )
+              else
+                Row(
+                  children: [
+                    _ParentChip(label: '♂ $fatherLabel', active: pet.fatherId != null),
+                    const SizedBox(width: 8),
+                    _ParentChip(label: '♀ $motherLabel', active: pet.motherId != null),
+                  ],
+                ),
             ],
           ),
         ],
@@ -168,7 +151,6 @@ class _PetInfoGridState extends State<PetInfoGrid> {
 
   String _ageString(DateTime? hatch, [String precision = 'DAY', bool approx = false]) {
     if (hatch == null) return '-';
-    // MONTH 정밀도인 경우 해당 월 15일로 추정
     final effective = precision == 'MONTH'
         ? DateTime(hatch.year, hatch.month, 15)
         : hatch;
@@ -179,6 +161,35 @@ class _PetInfoGridState extends State<PetInfoGrid> {
     final m = months % 12;
     final base = y == 0 ? '$m개월' : m == 0 ? '$y년' : '$y년 $m개월';
     return approx ? '약 $base' : base;
+  }
+}
+
+class _ParentChip extends StatelessWidget {
+  final String label;
+  final bool active;
+  const _ParentChip({required this.label, required this.active});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      decoration: BoxDecoration(
+        color: active ? AppColors.paleBgAlt : Colors.transparent,
+        borderRadius: BorderRadius.circular(7),
+        border: Border.all(
+          color: active ? AppColors.paleLine : AppColors.paleLine.withValues(alpha: 0.5),
+        ),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: active ? AppColors.primary : AppColors.paleInk3,
+          fontStyle: active ? FontStyle.normal : FontStyle.italic,
+        ),
+      ),
+    );
   }
 }
 
@@ -231,6 +242,317 @@ class _Cell extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ── 부모 수정 바텀시트 ─────────────────────────────────────────────
+
+class _ParentInfo {
+  final int relationId;
+  final int petId;
+  final String name;
+  const _ParentInfo({required this.relationId, required this.petId, required this.name});
+}
+
+class _ParentEditSheet extends ConsumerStatefulWidget {
+  final int petId;
+  final int speciesId;
+  final _ParentInfo? initialFather;
+  final _ParentInfo? initialMother;
+
+  const _ParentEditSheet({
+    required this.petId,
+    required this.speciesId,
+    required this.initialFather,
+    required this.initialMother,
+  });
+
+  @override
+  ConsumerState<_ParentEditSheet> createState() => _ParentEditSheetState();
+}
+
+class _ParentEditSheetState extends ConsumerState<_ParentEditSheet> {
+  bool _saving = false;
+  Pet? _newFather;
+  bool _clearFather = false;
+  Pet? _newMother;
+  bool _clearMother = false;
+
+  Future<void> _pickParent({required bool isFather}) async {
+    final result = await showModalBottomSheet<Pet>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ParentPetBottomSheet(
+        isFather: isFather,
+        initialSelection: null,
+        excludePetId: widget.petId,
+        filterSpeciesId: widget.speciesId,
+      ),
+    );
+    if (result != null) {
+      setState(() {
+        if (isFather) { _newFather = result; _clearFather = false; }
+        else           { _newMother = result; _clearMother = false; }
+      });
+    }
+  }
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    final repo = ref.read(petRepositoryProvider);
+    try {
+      // 부 처리
+      if (_clearFather && widget.initialFather != null) {
+        await repo.deleteRelation(widget.initialFather!.relationId);
+      } else if (_newFather != null) {
+        if (widget.initialFather != null) {
+          await repo.deleteRelation(widget.initialFather!.relationId);
+        }
+        await repo.addRelation(widget.petId, _newFather!.id, 'FATHER');
+      }
+      // 모 처리
+      if (_clearMother && widget.initialMother != null) {
+        await repo.deleteRelation(widget.initialMother!.relationId);
+      } else if (_newMother != null) {
+        if (widget.initialMother != null) {
+          await repo.deleteRelation(widget.initialMother!.relationId);
+        }
+        await repo.addRelation(widget.petId, _newMother!.id, 'MOTHER');
+      }
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _saving = false);
+        ToastMessage.show(context, '저장 실패: $e', type: ToastType.warning);
+      }
+    }
+  }
+
+  String _fatherLabel() {
+    if (_clearFather) return '미등록';
+    if (_newFather != null) return _newFather!.name;
+    return widget.initialFather?.name ?? '미등록';
+  }
+
+  String _motherLabel() {
+    if (_clearMother) return '미등록';
+    if (_newMother != null) return _newMother!.name;
+    return widget.initialMother?.name ?? '미등록';
+  }
+
+  bool _hasFather() {
+    if (_clearFather) return false;
+    if (_newFather != null) return true;
+    return widget.initialFather != null;
+  }
+
+  bool _hasMother() {
+    if (_clearMother) return false;
+    if (_newMother != null) return true;
+    return widget.initialMother != null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.paleBg,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 핸들
+          Center(
+            child: Container(
+              width: 40, height: 4,
+              margin: const EdgeInsets.only(top: 10, bottom: 16),
+              decoration: BoxDecoration(
+                  color: AppColors.paleLine, borderRadius: BorderRadius.circular(2)),
+            ),
+          ),
+          // 헤더
+          Padding(
+            padding: const EdgeInsets.fromLTRB(22, 0, 22, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                Text('PARENT',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
+                        color: AppColors.paleInk2, letterSpacing: 0.4)),
+                SizedBox(height: 3),
+                Text('부모 개체 수정',
+                    style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700,
+                        color: AppColors.primary, letterSpacing: -0.4)),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: AppColors.paleLineSoft),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(22, 18, 22, 8),
+            child: Column(
+              children: [
+                _ParentRow(
+                  isFather: true,
+                  label: _fatherLabel(),
+                  hasValue: _hasFather(),
+                  onPick: () => _pickParent(isFather: true),
+                  onClear: _hasFather()
+                      ? () => setState(() { _clearFather = true; _newFather = null; })
+                      : null,
+                ),
+                const SizedBox(height: 12),
+                _ParentRow(
+                  isFather: false,
+                  label: _motherLabel(),
+                  hasValue: _hasMother(),
+                  onPick: () => _pickParent(isFather: false),
+                  onClear: _hasMother()
+                      ? () => setState(() { _clearMother = true; _newMother = null; })
+                      : null,
+                ),
+              ],
+            ),
+          ),
+          // 버튼 행
+          Padding(
+            padding: const EdgeInsets.fromLTRB(22, 8, 22, 30),
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: AppColors.card,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: AppColors.paleLine),
+                    ),
+                    child: const Text('취소',
+                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14,
+                            color: AppColors.primary)),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: _saving ? null : _save,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      decoration: BoxDecoration(
+                        color: _saving ? AppColors.paleLine : AppColors.primary,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: _saving
+                          ? const SizedBox(width: 20, height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.paleBg))
+                          : const Text('저장',
+                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14,
+                                  color: AppColors.paleBg)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ParentRow extends StatelessWidget {
+  final bool isFather;
+  final String label;
+  final bool hasValue;
+  final VoidCallback onPick;
+  final VoidCallback? onClear;
+
+  const _ParentRow({
+    required this.isFather,
+    required this.label,
+    required this.hasValue,
+    required this.onPick,
+    this.onClear,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 32, height: 32,
+          decoration: BoxDecoration(
+            color: isFather ? AppColors.petSky : AppColors.petPeach,
+            borderRadius: BorderRadius.circular(9),
+          ),
+          child: Center(
+            child: Text(
+              isFather ? '♂' : '♀',
+              style: TextStyle(
+                fontSize: 15,
+                color: isFather ? AppColors.petSkyInk : AppColors.petCoralInk,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                isFather ? '부 (수컷)' : '모 (암컷)',
+                style: const TextStyle(fontSize: 10, color: AppColors.paleInk3,
+                    fontWeight: FontWeight.w600),
+              ),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: hasValue ? AppColors.primary : AppColors.paleInk3,
+                  fontStyle: hasValue ? FontStyle.normal : FontStyle.italic,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+        if (onClear != null)
+          GestureDetector(
+            onTap: onClear,
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 6),
+              child: Icon(Icons.close, size: 16, color: AppColors.paleInk3),
+            ),
+          ),
+        GestureDetector(
+          onTap: onPick,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            decoration: BoxDecoration(
+              color: AppColors.paleBgAlt,
+              borderRadius: BorderRadius.circular(9),
+              border: Border.all(color: AppColors.paleLine),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.search, size: 13, color: AppColors.paleInk2),
+                SizedBox(width: 4),
+                Text('변경', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
+                    color: AppColors.paleInk2)),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

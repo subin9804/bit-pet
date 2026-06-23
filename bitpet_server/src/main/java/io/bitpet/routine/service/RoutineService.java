@@ -31,8 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
-import java.time.temporal.ChronoUnit;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -69,11 +68,13 @@ public class RoutineService {
         return RoutineResponse.from(routine, petIds);
     }
 
+    private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
+
     @Transactional
     public RoutineResponse createRoutine(Long userId, RoutineCreateRequest req) {
-        Instant nextDueAt = req.startAt() != null
-                ? req.startAt()
-                : Instant.now().plus(req.cycleDays(), ChronoUnit.DAYS);
+        LocalDate nextDueAt = req.startAt() != null
+                ? req.startAt().atZone(SEOUL).toLocalDate()
+                : LocalDate.now(SEOUL).plusDays(req.cycleDays());
 
         RoutineMst saved = routineRepository.save(RoutineMst.builder()
                 .userId(userId)
@@ -147,19 +148,28 @@ public class RoutineService {
     // -------------------------------------------------------------------------
 
     public List<TodayRoutineResponse> listTodayRoutines(Long userId) {
-        Instant[] todayRange = todayRange();
+        LocalDate today = LocalDate.now(SEOUL);
+        Instant[] todayRange = todayRange(today);
         List<RoutineMst> routines = routineRepository.findAllByUserIdAndActiveOrderByCreatedAtDesc(userId, true);
         return routines.stream()
-                .filter(r -> r.getNextDueAt() != null && r.getNextDueAt().isBefore(todayRange[1]))
+                .filter(r -> r.getNextDueAt() != null && isDueOrCompletedToday(r, today))
                 .map(r -> {
                     List<Long> petIds = routinePetRepository.findPetIdsByRoutineId(r.getId());
                     return TodayRoutineResponse.from(r, buildPetTodayStatuses(r.getId(), petIds, todayRange[0], todayRange[1]));
                 }).toList();
     }
 
+    /** 오늘 예정(nextDueAt ≤ today) 또는 오늘 완료(lastExecutedAt == today) */
+    private static boolean isDueOrCompletedToday(RoutineMst r, LocalDate today) {
+        boolean dueToday       = !r.getNextDueAt().isAfter(today);  // nextDueAt <= today
+        boolean completedToday = today.equals(r.getLastExecutedAt());
+        return dueToday || completedToday;
+    }
+
     public TodayRoutineResponse getTodayRoutineStatus(Long userId, Long routineId) {
         RoutineMst routine = findOwnedRoutine(userId, routineId);
-        Instant[] todayRange = todayRange();
+        LocalDate today = LocalDate.now(SEOUL);
+        Instant[] todayRange = todayRange(today);
         List<Long> petIds = routinePetRepository.findPetIdsByRoutineId(routineId);
         return TodayRoutineResponse.from(routine, buildPetTodayStatuses(routineId, petIds, todayRange[0], todayRange[1]));
     }
@@ -185,9 +195,9 @@ public class RoutineService {
         }).toList();
     }
 
-    private static Instant[] todayRange() {
-        Instant from = LocalDate.now(ZoneOffset.UTC).atStartOfDay(ZoneOffset.UTC).toInstant();
-        Instant to = from.plus(1, ChronoUnit.DAYS);
+    private static Instant[] todayRange(LocalDate today) {
+        Instant from = today.atStartOfDay(SEOUL).toInstant();
+        Instant to   = today.plusDays(1).atStartOfDay(SEOUL).toInstant();
         return new Instant[]{from, to};
     }
 
@@ -197,16 +207,31 @@ public class RoutineService {
 
     public List<RoutineWithSubscriptionResponse> listRoutinesForPet(Long userId, Long petId) {
         verifyPetOwnership(userId, petId);
+        LocalDate today = LocalDate.now(SEOUL);
+        Instant[] todayRange = todayRange(today);
         List<RoutineMst> routines = routineRepository.findAllByUserIdAndActiveOrderByCreatedAtDesc(userId, true);
         return routines.stream()
                 .filter(r -> routinePetRepository.existsByRoutineIdAndPetId(r.getId(), petId))
                 .map(r -> {
                     List<Long> petIds = routinePetRepository.findPetIdsByRoutineId(r.getId());
-                    return new RoutineWithSubscriptionResponse(RoutineResponse.from(r, petIds), true);
+                    List<RoutineLogDtl> todayLogs = routineLogRepository.findTodayLogs(
+                            r.getId(), petId, todayRange[0], todayRange[1]);
+                    RoutineLogDtl todayLog = todayLogs.stream().findFirst().orElse(null);
+                    return new RoutineWithSubscriptionResponse(
+                            RoutineResponse.from(r, petIds),
+                            true,
+                            todayLog != null,
+                            todayLog != null ? todayLog.getId() : null
+                    );
                 }).toList();
     }
 
-    public record RoutineWithSubscriptionResponse(RoutineResponse routine, boolean subscribed) {}
+    public record RoutineWithSubscriptionResponse(
+            RoutineResponse routine,
+            boolean subscribed,
+            boolean todayCompleted,
+            Long todayLogId
+    ) {}
 
     // -------------------------------------------------------------------------
     // Routine completion — batch (all pets, same data)
@@ -285,7 +310,7 @@ public class RoutineService {
         if (!routine.getUserId().equals(userId)) {
             throw new BusinessException(ErrorCode.ROUTINE_ACCESS_DENIED);
         }
-        log.softDelete();
+        routineLogRepository.delete(log);
     }
 
     // -------------------------------------------------------------------------

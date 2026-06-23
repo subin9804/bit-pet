@@ -13,6 +13,7 @@ import '../data/models/routine_models.dart';
 import '../data/routine_repository.dart';
 import '../providers/routine_provider.dart';
 import 'widgets/confirm_accordion.dart';
+import '../../record/providers/record_provider.dart';
 
 // ── 개체별 입력 상태 ──────────────────────────────────────────────
 class _PerPetRec {
@@ -202,6 +203,9 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
       if (!mounted) return;
       Navigator.of(context).pop();
       ref.invalidate(routineTodayStatusProvider(routine.id));
+      final ym = DateTime.now();
+      ref.invalidate(homeCalendarProvider(
+          '${ym.year}-${ym.month.toString().padLeft(2, '0')}'));
       showToast(context, '$_completedCount마리 완료 처리됐어요',
           type: ToastType.success);
     });

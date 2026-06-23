@@ -12,6 +12,7 @@ import '../data/models/routine_models.dart';
 import '../data/routine_repository.dart';
 import '../providers/routine_provider.dart';
 import 'widgets/confirm_accordion.dart';
+import '../../record/providers/record_provider.dart';
 
 class BulkConfirmSheet extends ConsumerStatefulWidget {
   final TodayRoutine routine;
@@ -66,6 +67,9 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
         ref.read(todayRoutinesProvider.notifier).updatePetStatus(widget.routine.id, pet.petId, true);
       }
       ref.invalidate(routineTodayStatusProvider(widget.routine.id));
+      final ym = DateTime.now();
+      ref.invalidate(homeCalendarProvider(
+          '${ym.year}-${ym.month.toString().padLeft(2, '0')}'));
       if (mounted) {
         Navigator.of(context).pop();
         showToast(context, '${pending.length}마리 완료 처리됐어요', type: ToastType.success);

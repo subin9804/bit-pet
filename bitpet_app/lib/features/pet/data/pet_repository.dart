@@ -108,6 +108,18 @@ class PetRepository {
     return apiRes.data ?? [];
   }
 
+  Future<void> addRelation(int childPetId, int parentPetId, String relationType) async {
+    await _dio.post('/pets/relations', data: {
+      'parentPetId': parentPetId,
+      'childPetId': childPetId,
+      'relationType': relationType,
+    });
+  }
+
+  Future<void> deleteRelation(int relationId) async {
+    await _dio.delete('/pets/relations/$relationId');
+  }
+
   // 종별 모프 목록 — GET /species/{speciesId}/morphs
   Future<List<Morph>> getMorphs(int speciesId) async {
     final res = await _dio.get('/species/$speciesId/morphs');

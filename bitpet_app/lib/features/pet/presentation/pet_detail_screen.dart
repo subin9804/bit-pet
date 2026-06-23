@@ -69,7 +69,7 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
                       // 기본 정보 카드
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 22),
-                        child: PetInfoGrid(pet: pet),
+                        child: PetInfoGrid(pet: pet, petId: widget.petId),
                       ),
                       const SizedBox(height: 22),
 

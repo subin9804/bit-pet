@@ -182,6 +182,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         ref.invalidate(feedSessionsProvider(pet.id));
         ref.invalidate(petDetailProvider(pet.id));
       }
+      ref.invalidate(homeCalendarProvider(_yearMonth(now)));
       setState(() {
         _savedCount = pets.length;
         _step = _FabStep.done;
@@ -211,6 +212,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         ref.invalidate(petDetailProvider(pet.id));
         count++;
       }
+      ref.invalidate(homeCalendarProvider(_yearMonth(now)));
       setState(() {
         _savedCount = count;
         _step = _FabStep.done;
@@ -1093,6 +1095,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         }
         ref.invalidate(petDetailProvider(pet.id));
       }
+      ref.invalidate(homeCalendarProvider(_yearMonth(now)));
       setState(() {
         _savedCount = pets.length;
         _step = _FabStep.done;
@@ -1103,6 +1106,9 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
       if (mounted) setState(() => _saving = false);
     }
   }
+
+  String _yearMonth(DateTime dt) =>
+      '${dt.year}-${dt.month.toString().padLeft(2, '0')}';
 
   // ── simpleForm 빌드 ────────────────────────────────────────────
   Widget _buildSimpleForm(AsyncValue<List<Pet>> petsAsync) {

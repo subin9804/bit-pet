@@ -274,6 +274,7 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
         'description': _memoCtrl.text.trim().isEmpty ? null : _memoCtrl.text.trim(),
       };
       await ref.read(petListProvider.notifier).update(widget.petId!, data);
+      ref.invalidate(petDetailProvider(widget.petId!));
       if (mounted) {
         ToastMessage.show(context, '수정되었습니다!', type: ToastType.success);
         context.pop();
@@ -309,7 +310,14 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
       '${dt.year}.${dt.month.toString().padLeft(2, '0')}.${dt.day.toString().padLeft(2, '0')}';
 
   // ── 스텝 빌드 ─────────────────────────────────────────────────────────────
-  List<StepConfig> get _steps => [
+  List<StepConfig> get _steps {
+    final isEdit = widget.petId != null;
+    final all = _buildAllSteps(isEdit);
+    // 수정 모드: Step 4(몸무게+부모) 제외
+    return isEdit ? [all[0], all[1], all[2], all[4], all[5]] : all;
+  }
+
+  List<StepConfig> _buildAllSteps(bool isEdit) => [
     // ── Step 1: 사진+이름 ────────────────────────────────────────────────────
     StepConfig(
       title: '사진과 이름',
@@ -724,7 +732,7 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
 
     // ── Step 6: 확인 ─────────────────────────────────────────────────────────
     StepConfig(
-      title: widget.petId != null ? '수정 내용을 확인하세요' : '등록 내용을 확인하세요',
+      title: isEdit ? '수정 내용을 확인하세요' : '등록 내용을 확인하세요',
       desc: '"수정"으로 각 단계를 다시 고칠 수 있어요.',
       render: (ctx) => StepSummary(
         goEdit: ctx.goEdit,
@@ -761,19 +769,20 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
               muted: _adoptUnknown || _adoptDate == null,
             ),
           ]),
-          StepSummaryGroup(label: '몸무게·부모', step: 3, rows: [
-            StepSummaryRow(
-              k: '몸무게',
-              v: _weightCtrl.text.isNotEmpty ? '${_weightCtrl.text} $_weightUnit' : '',
-              muted: _weightCtrl.text.isEmpty,
-            ),
-            StepSummaryRow(
-              k: '부 / 모',
-              v: '${_fatherPet?.name ?? '—'} / ${_motherPet?.name ?? '—'}',
-              muted: _fatherPet == null && _motherPet == null,
-            ),
-          ]),
-          StepSummaryGroup(label: '메모', step: 4, rows: [
+          if (!isEdit)
+            StepSummaryGroup(label: '몸무게·부모', step: 3, rows: [
+              StepSummaryRow(
+                k: '몸무게',
+                v: _weightCtrl.text.isNotEmpty ? '${_weightCtrl.text} $_weightUnit' : '',
+                muted: _weightCtrl.text.isEmpty,
+              ),
+              StepSummaryRow(
+                k: '부 / 모',
+                v: '${_fatherPet?.name ?? '—'} / ${_motherPet?.name ?? '—'}',
+                muted: _fatherPet == null && _motherPet == null,
+              ),
+            ]),
+          StepSummaryGroup(label: '메모', step: isEdit ? 3 : 4, rows: [
             StepSummaryRow(k: '메모', v: _memoCtrl.text, muted: _memoCtrl.text.isEmpty),
             StepSummaryRow(k: '메이팅 검색', v: _isPublic ? '공개' : '비공개'),
           ]),
@@ -802,7 +811,7 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
           doneLabel: widget.petId == null ? '개체 저장' : '수정 완료',
           onDone: _submit,
           onCancel: () => context.pop(),
-          initialStep: widget.petId != null ? 5 : 0,
+          initialStep: widget.petId != null ? 4 : 0,
         ),
       ),
     );
