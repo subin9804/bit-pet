@@ -29,7 +29,7 @@ class RecordRepository {
       int petId, double weightG, DateTime measuredAt, String? memo) async {
     final res = await _dio.post('/pets/$petId/weights', data: {
       'weightG': weightG,
-      'measuredAt': measuredAt.toIso8601String(),
+      'measuredAt': measuredAt.toUtc().toIso8601String(),
       if (memo != null) 'memo': memo,
     });
     final apiRes = ApiResponse.fromJson(
@@ -108,7 +108,7 @@ class RecordRepository {
       int petId, CleaningType type, DateTime cleanedAt, String? memo) async {
     final res = await _dio.post('/pets/$petId/cleanings', data: {
       'cleaningType': type.name,
-      'cleanedAt': cleanedAt.toIso8601String(),
+      'cleanedAt': cleanedAt.toUtc().toIso8601String(),
       if (memo != null) 'memo': memo,
     });
     final apiRes = ApiResponse.fromJson(

@@ -298,7 +298,7 @@ class RoutineCompleteBatchRequest {
   });
 
   Map<String, dynamic> toJson() => {
-    if (executedAt != null) 'executedAt': executedAt!.toIso8601String(),
+    if (executedAt != null) 'executedAt': executedAt!.toUtc().toIso8601String(),
     if (feedItems.isNotEmpty)
       'feedItems': feedItems
           .map((f) => f.toApiMap())
@@ -332,7 +332,7 @@ class RoutineCompleteIndividualRequest {
   Map<String, dynamic> toJson() => {
     'petId':  petId,
     'status': status.name,
-    if (executedAt != null) 'executedAt': executedAt!.toIso8601String(),
+    if (executedAt != null) 'executedAt': executedAt!.toUtc().toIso8601String(),
     if (feedItems.isNotEmpty)
       'feedItems': feedItems
           .map((f) => f.toApiMap())

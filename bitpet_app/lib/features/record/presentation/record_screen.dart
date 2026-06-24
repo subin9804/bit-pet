@@ -526,11 +526,11 @@ class _InputSheetState extends ConsumerState<_InputSheet> {
           if (_contentCtrl.text.trim().isEmpty) throw Exception('내용을 입력하세요');
           await repo.addMemo(widget.petId, {
             'content': _contentCtrl.text.trim(),
-            'loggedAt': DateTime.now().toIso8601String(),
+            'loggedAt': DateTime.now().toUtc().toIso8601String(),
           });
         case 'mating':
           await repo.addMating(widget.petId, {
-            'triedAt': DateTime.now().toIso8601String(),
+            'triedAt': DateTime.now().toUtc().toIso8601String(),
             if (_matingSuccess != null) 'isSuccessful': _matingSuccess,
             if (_memoCtrl.text.isNotEmpty) 'memo': _memoCtrl.text,
           });
@@ -538,7 +538,7 @@ class _InputSheetState extends ConsumerState<_InputSheet> {
           final cnt = int.tryParse(_countCtrl.text);
           if (cnt == null || cnt <= 0) throw Exception('산란 수를 입력하세요');
           await repo.addLaying(widget.petId, {
-            'laidAt': DateTime.now().toIso8601String(),
+            'laidAt': DateTime.now().toUtc().toIso8601String(),
             'totalCount': cnt,
             if (_memoCtrl.text.isNotEmpty) 'memo': _memoCtrl.text,
           });

@@ -136,7 +136,7 @@ class DioFeedRepository implements FeedRepository {
       'foodType': FoodType.codeForLabel(item.food),
       'amount': item.amt.toDouble(),
       'unit': '마리',
-      'fedAt': fedAt.toIso8601String(),
+      'fedAt': fedAt.toUtc().toIso8601String(),
       if (session.memo.isNotEmpty) 'memo': session.memo,
     });
     final apiRes = ApiResponse.fromJson(
@@ -158,7 +158,7 @@ class DioFeedRepository implements FeedRepository {
     final res = await _dio.patch('/feedings/${session.id}', data: {
       'foodType': FoodType.codeForLabel(item.food),
       'amount': item.amt.toDouble(),
-      'fedAt': fedAt.toIso8601String(),
+      'fedAt': fedAt.toUtc().toIso8601String(),
       'memo': session.memo,
     });
     final apiRes = ApiResponse.fromJson(
