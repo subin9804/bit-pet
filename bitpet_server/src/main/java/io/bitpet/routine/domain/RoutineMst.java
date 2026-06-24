@@ -25,8 +25,9 @@ import java.time.ZoneId;
 @Table(
         name = "routine_mst",
         indexes = {
-                @Index(name = "idx_routine_mst_user_active", columnList = "user_id, is_active"),
-                @Index(name = "idx_routine_mst_next_due",    columnList = "next_due_at")
+                @Index(name = "idx_routine_mst_user_active",  columnList = "user_id, is_active"),
+                @Index(name = "idx_routine_mst_group_active", columnList = "group_id, is_active"),
+                @Index(name = "idx_routine_mst_next_due",     columnList = "next_due_at")
         }
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -40,6 +41,10 @@ public class RoutineMst extends BaseTimeEntity {
 
     @Column(name = "user_id", nullable = false)
     private Long userId;
+
+    /** 소속 사육 그룹 (NULL = 개인 루틴). user_id는 생성자로 유지 */
+    @Column(name = "group_id")
+    private Long groupId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "routine_type", nullable = false, length = 20)
@@ -73,10 +78,11 @@ public class RoutineMst extends BaseTimeEntity {
     private Instant lastNotifiedAt;
 
     @Builder
-    private RoutineMst(Long userId, RoutineType routineType, String title,
+    private RoutineMst(Long userId, Long groupId, RoutineType routineType, String title,
                        int cycleDays, LocalTime alarmTime, boolean alarmEnabled,
                        LocalDate nextDueAt, String memo) {
         this.userId       = userId;
+        this.groupId      = groupId;
         this.routineType  = routineType;
         this.title        = title;
         this.cycleDays    = cycleDays;

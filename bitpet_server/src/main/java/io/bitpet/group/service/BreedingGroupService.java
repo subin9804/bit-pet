@@ -13,6 +13,7 @@ import io.bitpet.group.redis.GroupInviteCodeStore;
 import io.bitpet.group.repository.BreedingGroupMstRepository;
 import io.bitpet.group.repository.BreedingGroupUserRlsRepository;
 import io.bitpet.pet.repository.PetMstRepository;
+import io.bitpet.routine.repository.RoutineMstRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +29,7 @@ public class BreedingGroupService {
     private final BreedingGroupMstRepository     groupRepo;
     private final BreedingGroupUserRlsRepository memberRepo;
     private final PetMstRepository               petRepo;
+    private final RoutineMstRepository           routineRepo;
     private final UserMstRepository              userRepo;
     private final GroupInviteCodeStore            inviteCodeStore;
 
@@ -61,8 +63,9 @@ public class BreedingGroupService {
         groupRepo.save(group);
         memberRepo.save(BreedingGroupUserRls.of(group.getId(), userId, GroupRole.OWNER));
 
-        // 생성자의 개체를 새 그룹으로 이동
+        // 생성자의 개체·루틴을 새 그룹으로 이동
         petRepo.assignGroupToUserPets(userId, group.getId());
+        routineRepo.assignGroupToUserRoutines(userId, group.getId());
 
         return buildGroupResponse(group, GroupRole.OWNER);
     }
@@ -102,12 +105,14 @@ public class BreedingGroupService {
                 disbandGroupInternal(existing.getGroupId());
             } else {
                 petRepo.removeGroupFromUserPets(userId, existing.getGroupId());
+                routineRepo.removeGroupFromUserRoutines(userId, existing.getGroupId());
                 memberRepo.delete(existing);
             }
         });
 
         memberRepo.save(BreedingGroupUserRls.of(target.getId(), userId, GroupRole.MEMBER));
         petRepo.assignGroupToUserPets(userId, target.getId());
+        routineRepo.assignGroupToUserRoutines(userId, target.getId());
 
         return buildGroupResponse(target, GroupRole.MEMBER);
     }
@@ -139,6 +144,7 @@ public class BreedingGroupService {
             disbandGroupInternal(membership.getGroupId());
         } else {
             petRepo.removeGroupFromUserPets(userId, membership.getGroupId());
+            routineRepo.removeGroupFromUserRoutines(userId, membership.getGroupId());
             memberRepo.delete(membership);
         }
     }
@@ -159,6 +165,7 @@ public class BreedingGroupService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.GROUP_MEMBER_NOT_FOUND));
 
         petRepo.removeGroupFromUserPets(targetUserId, groupId);
+        routineRepo.removeGroupFromUserRoutines(targetUserId, groupId);
         memberRepo.delete(target);
     }
 
@@ -166,6 +173,7 @@ public class BreedingGroupService {
 
     private void disbandGroupInternal(Long groupId) {
         petRepo.removeGroupFromAllPets(groupId);
+        routineRepo.removeGroupFromAllRoutines(groupId);
         memberRepo.deleteByIdGroupId(groupId);
         groupRepo.findById(groupId).ifPresent(BreedingGroupMst::softDelete);
     }

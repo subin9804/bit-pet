@@ -145,15 +145,25 @@ features/
 | V27 | pet_mst.private_yn CHAR(1) 추가 — 'Y'=비공개(기본), 'N'=공개(전체 검색 허용) |
 | V28 | pet_mst.private_yn CHAR(1) → VARCHAR(1) 타입 변경 (Hibernate 호환) |
 | V29 | weight_dtl.routine_id 추가 (루틴 완료로 생성된 체중 기록 구분용) |
+| V30 | pet_mst.hatching_date_precision 추가 (DAY/MONTH) |
+| V31 | pet_mst.hatching_date_approximate 추가 |
+| V32 | routine_mst.last_notified_at 추가 (알림 중복 발송 방지) |
+| V33 | routine_mst.next_due_at/last_executed_at 타입 timestamptz → date |
+| V34 | routine_mst.group_id 추가 — 루틴 소속 user → breeding_group 전환, 소유자 현재 그룹으로 백필 |
 
-> **다음 마이그레이션은 V30부터 작성.**
+> **다음 마이그레이션은 V35부터 작성.**
 
 ---
 
 ## 핵심 설계 결정사항
 
-### 루틴 도메인 (v3.1)
-- 루틴은 **user 소유** (기존 pet 소유에서 변경)
+### 루틴 도메인 (v3.1 → v6 그룹 소속)
+- **v6: 루틴은 사육 그룹 소속** (`routine_mst.group_id`). user_id는 생성자로 유지
+  - 조회·접근제어 모두 그룹 기준: 그룹 멤버면 그룹 전체 루틴 조회/완료 가능
+  - `group_id NULL` = 그룹 미소속 유저의 개인 루틴 (본인만 접근)
+  - 그룹 가입/탈퇴/해산 시 `routineRepo.assignGroupToUserRoutines`/`removeGroupFromUserRoutines`/`removeGroupFromAllRoutines`로 pet과 함께 동기화
+  - 개체 검증도 그룹 기준: `verifyPetAccessible` (본인 개체 OR 같은 그룹 개체)
+  - 스케줄러(알림)는 전역 스캔 유지 — 그룹과 무관
 - `routine_pet_rls`: 루틴-개체 다대다 연결
 - `routine_log_dtl`: 개체별 수행 기록, status = COMPLETED / REFUSED
 - REFUSED + 메모 없음 → INSERT 안 함

@@ -2,6 +2,9 @@ package io.bitpet.routine.service;
 
 import io.bitpet.common.exception.BusinessException;
 import io.bitpet.common.exception.ErrorCode;
+import io.bitpet.group.domain.BreedingGroupUserRls;
+import io.bitpet.group.domain.BreedingGroupUserRlsId;
+import io.bitpet.group.repository.BreedingGroupUserRlsRepository;
 import io.bitpet.pet.domain.PetMst;
 import io.bitpet.pet.repository.PetMstRepository;
 import io.bitpet.record.domain.FeedingDtl;
@@ -49,13 +52,14 @@ public class RoutineService {
     private final PetMstRepository petRepository;
     private final FeedingDtlRepository feedingRepository;
     private final WeightDtlRepository weightRepository;
+    private final BreedingGroupUserRlsRepository groupMemberRepository;
 
     // -------------------------------------------------------------------------
-    // Routine CRUD (user-owned)
+    // Routine CRUD (group-scoped — 그룹 소속이면 그룹 전체, 미소속이면 개인 루틴)
     // -------------------------------------------------------------------------
 
     public List<RoutineResponse> listRoutines(Long userId) {
-        List<RoutineMst> routines = routineRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
+        List<RoutineMst> routines = loadRoutines(userId);
         return routines.stream().map(r -> {
             List<Long> petIds = routinePetRepository.findPetIdsByRoutineId(r.getId());
             return RoutineResponse.from(r, petIds);
@@ -63,7 +67,7 @@ public class RoutineService {
     }
 
     public RoutineResponse getRoutine(Long userId, Long routineId) {
-        RoutineMst routine = findOwnedRoutine(userId, routineId);
+        RoutineMst routine = findAccessibleRoutine(userId, routineId);
         List<Long> petIds = routinePetRepository.findPetIdsByRoutineId(routineId);
         return RoutineResponse.from(routine, petIds);
     }
@@ -76,8 +80,12 @@ public class RoutineService {
                 ? req.startAt().atZone(SEOUL).toLocalDate()
                 : LocalDate.now(SEOUL).plusDays(req.cycleDays());
 
+        // 루틴은 유저의 현재 그룹에 소속 (그룹 미소속이면 NULL → 개인 루틴)
+        Long groupId = currentGroupId(userId);
+
         RoutineMst saved = routineRepository.save(RoutineMst.builder()
                 .userId(userId)
+                .groupId(groupId)
                 .routineType(req.routineType())
                 .title(req.title())
                 .cycleDays(req.cycleDays())
@@ -90,7 +98,7 @@ public class RoutineService {
         List<Long> petIds = new ArrayList<>();
         if (req.petIds() != null) {
             for (Long petId : req.petIds()) {
-                verifyPetOwnership(userId, petId);
+                verifyPetAccessible(userId, petId);
                 routinePetRepository.save(RoutinePetRls.builder()
                         .routineId(saved.getId())
                         .petId(petId)
@@ -103,7 +111,7 @@ public class RoutineService {
 
     @Transactional
     public RoutineResponse updateRoutine(Long userId, Long routineId, RoutineUpdateRequest req) {
-        RoutineMst routine = findOwnedRoutine(userId, routineId);
+        RoutineMst routine = findAccessibleRoutine(userId, routineId);
         routine.update(req.routineType(), req.title(), req.cycleDays(),
                 req.alarmTime(), req.alarmEnabled(), req.active(), req.memo());
         List<Long> petIds = routinePetRepository.findPetIdsByRoutineId(routineId);
@@ -112,7 +120,7 @@ public class RoutineService {
 
     @Transactional
     public void deleteRoutine(Long userId, Long routineId) {
-        RoutineMst routine = findOwnedRoutine(userId, routineId);
+        RoutineMst routine = findAccessibleRoutine(userId, routineId);
         routineRepository.delete(routine);
     }
 
@@ -122,8 +130,8 @@ public class RoutineService {
 
     @Transactional
     public void subscribePet(Long userId, Long routineId, Long petId) {
-        findOwnedRoutine(userId, routineId);
-        verifyPetOwnership(userId, petId);
+        findAccessibleRoutine(userId, routineId);
+        verifyPetAccessible(userId, petId);
         if (!routinePetRepository.existsByRoutineIdAndPetId(routineId, petId)) {
             routinePetRepository.save(RoutinePetRls.builder()
                     .routineId(routineId)
@@ -134,12 +142,12 @@ public class RoutineService {
 
     @Transactional
     public void unsubscribePet(Long userId, Long routineId, Long petId) {
-        findOwnedRoutine(userId, routineId);
+        findAccessibleRoutine(userId, routineId);
         routinePetRepository.deleteByRoutineIdAndPetId(routineId, petId);
     }
 
     public List<Long> listSubscribedPets(Long userId, Long routineId) {
-        findOwnedRoutine(userId, routineId);
+        findAccessibleRoutine(userId, routineId);
         return routinePetRepository.findPetIdsByRoutineId(routineId);
     }
 
@@ -150,7 +158,7 @@ public class RoutineService {
     public List<TodayRoutineResponse> listTodayRoutines(Long userId) {
         LocalDate today = LocalDate.now(SEOUL);
         Instant[] todayRange = todayRange(today);
-        List<RoutineMst> routines = routineRepository.findAllByUserIdAndActiveOrderByCreatedAtDesc(userId, true);
+        List<RoutineMst> routines = loadActiveRoutines(userId);
         return routines.stream()
                 .filter(r -> r.getNextDueAt() != null && isDueOrCompletedToday(r, today))
                 .map(r -> {
@@ -167,7 +175,7 @@ public class RoutineService {
     }
 
     public TodayRoutineResponse getTodayRoutineStatus(Long userId, Long routineId) {
-        RoutineMst routine = findOwnedRoutine(userId, routineId);
+        RoutineMst routine = findAccessibleRoutine(userId, routineId);
         LocalDate today = LocalDate.now(SEOUL);
         Instant[] todayRange = todayRange(today);
         List<Long> petIds = routinePetRepository.findPetIdsByRoutineId(routineId);
@@ -206,10 +214,10 @@ public class RoutineService {
     // -------------------------------------------------------------------------
 
     public List<RoutineWithSubscriptionResponse> listRoutinesForPet(Long userId, Long petId) {
-        verifyPetOwnership(userId, petId);
+        verifyPetAccessible(userId, petId);
         LocalDate today = LocalDate.now(SEOUL);
         Instant[] todayRange = todayRange(today);
-        List<RoutineMst> routines = routineRepository.findAllByUserIdAndActiveOrderByCreatedAtDesc(userId, true);
+        List<RoutineMst> routines = loadActiveRoutines(userId);
         return routines.stream()
                 .filter(r -> routinePetRepository.existsByRoutineIdAndPetId(r.getId(), petId))
                 .map(r -> {
@@ -240,7 +248,7 @@ public class RoutineService {
     @Transactional
     public List<RoutineLogResponse> completeBatch(Long userId, Long routineId,
                                                    RoutineCompleteBatchRequest req) {
-        RoutineMst routine = findOwnedRoutine(userId, routineId);
+        RoutineMst routine = findAccessibleRoutine(userId, routineId);
         List<Long> petIds = routinePetRepository.findPetIdsByRoutineId(routineId);
         if (petIds.isEmpty()) {
             throw new BusinessException(ErrorCode.ROUTINE_NO_PETS);
@@ -265,8 +273,8 @@ public class RoutineService {
     @Transactional
     public RoutineLogResponse completeIndividual(Long userId, Long routineId,
                                                   RoutineCompleteIndividualRequest req) {
-        RoutineMst routine = findOwnedRoutine(userId, routineId);
-        verifyPetOwnership(userId, req.petId());
+        RoutineMst routine = findAccessibleRoutine(userId, routineId);
+        verifyPetAccessible(userId, req.petId());
 
         Instant executedAt = req.executedAt() != null ? req.executedAt() : Instant.now();
 
@@ -296,7 +304,7 @@ public class RoutineService {
     // -------------------------------------------------------------------------
 
     public List<RoutineLogResponse> listLogs(Long userId, Long routineId) {
-        findOwnedRoutine(userId, routineId);
+        findAccessibleRoutine(userId, routineId);
         return routineLogRepository.findAllByRoutineId(routineId)
                 .stream().map(RoutineLogResponse::from).toList();
     }
@@ -305,33 +313,74 @@ public class RoutineService {
     public void deleteLog(Long userId, Long logId) {
         RoutineLogDtl log = routineLogRepository.findById(logId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ROUTINE_LOG_NOT_FOUND));
-        RoutineMst routine = routineRepository.findById(log.getRoutineId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.ROUTINE_NOT_FOUND));
-        if (!routine.getUserId().equals(userId)) {
-            throw new BusinessException(ErrorCode.ROUTINE_ACCESS_DENIED);
-        }
+        findAccessibleRoutine(userId, log.getRoutineId());
         routineLogRepository.delete(log);
     }
 
     // -------------------------------------------------------------------------
-    // Internal helpers
+    // Internal helpers — 그룹 컨텍스트 기반 조회·접근제어
     // -------------------------------------------------------------------------
 
-    private RoutineMst findOwnedRoutine(Long userId, Long routineId) {
+    /** 유저의 현재 사육 그룹 id (그룹 미소속이면 null) */
+    private Long currentGroupId(Long userId) {
+        return groupMemberRepository.findByIdUserId(userId)
+                .map(BreedingGroupUserRls::getGroupId)
+                .orElse(null);
+    }
+
+    /** 유저가 해당 그룹의 멤버인지 */
+    private boolean isGroupMember(Long userId, Long groupId) {
+        return groupMemberRepository
+                .findById(new BreedingGroupUserRlsId(groupId, userId))
+                .isPresent();
+    }
+
+    /** 그룹 소속이면 그룹 전체 루틴, 미소속이면 본인 개인 루틴 */
+    private List<RoutineMst> loadRoutines(Long userId) {
+        Long groupId = currentGroupId(userId);
+        return groupId != null
+                ? routineRepository.findAllByGroupIdOrderByCreatedAtDesc(groupId)
+                : routineRepository.findAllByUserIdAndGroupIdIsNullOrderByCreatedAtDesc(userId);
+    }
+
+    /** loadRoutines 의 active=true 버전 */
+    private List<RoutineMst> loadActiveRoutines(Long userId) {
+        Long groupId = currentGroupId(userId);
+        return groupId != null
+                ? routineRepository.findAllByGroupIdAndActiveOrderByCreatedAtDesc(groupId, true)
+                : routineRepository.findAllByUserIdAndGroupIdIsNullAndActiveOrderByCreatedAtDesc(userId, true);
+    }
+
+    /**
+     * 접근 가능한 루틴 조회.
+     * - 그룹 루틴(group_id != null): 유저가 그 그룹의 멤버여야 함
+     * - 개인 루틴(group_id == null): 유저가 소유자여야 함
+     */
+    private RoutineMst findAccessibleRoutine(Long userId, Long routineId) {
         RoutineMst routine = routineRepository.findById(routineId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ROUTINE_NOT_FOUND));
-        if (!routine.getUserId().equals(userId)) {
+        if (routine.getGroupId() != null) {
+            if (!isGroupMember(userId, routine.getGroupId())) {
+                throw new BusinessException(ErrorCode.ROUTINE_ACCESS_DENIED);
+            }
+        } else if (!routine.getUserId().equals(userId)) {
             throw new BusinessException(ErrorCode.ROUTINE_ACCESS_DENIED);
         }
         return routine;
     }
 
-    private void verifyPetOwnership(Long userId, Long petId) {
+    /**
+     * 접근 가능한 개체인지 검증.
+     * - 본인 소유 개체이거나
+     * - 같은 그룹에 속한 개체이면 허용 (그룹 멤버는 그룹 개체에 루틴 적용 가능)
+     */
+    private void verifyPetAccessible(Long userId, Long petId) {
         PetMst pet = petRepository.findById(petId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PET_NOT_FOUND));
-        if (!pet.getUserId().equals(userId)) {
-            throw new BusinessException(ErrorCode.PET_ACCESS_DENIED);
-        }
+        if (pet.getUserId().equals(userId)) return;
+        Long myGroupId = currentGroupId(userId);
+        if (myGroupId != null && myGroupId.equals(pet.getGroupId())) return;
+        throw new BusinessException(ErrorCode.PET_ACCESS_DENIED);
     }
 
     private RoutineLogResponse saveSingleLog(RoutineMst routine, Long petId,
