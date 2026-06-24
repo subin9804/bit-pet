@@ -305,7 +305,8 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
   // ── 06 · 기록 종류 선택 (BFinalFabSheetV2 — 컴팩트 3×2) ────────
   Widget _buildChooseType(AsyncValue<List<Pet>> petsAsync) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 22),
+      padding: EdgeInsets.fromLTRB(
+          20, 4, 20, 32 + MediaQuery.of(context).viewPadding.bottom),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
