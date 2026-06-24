@@ -268,12 +268,13 @@ public class RecordService {
                         r.getExecutedAt(), "루틴 청소", r.getMemo())));
 
         // MEMO: memo_dtl(단독) + routine_log_dtl(루틴 CUSTOM 완료 — memo 유무 무관)
+        // MEMO는 summary 개념이 없음 — memo(내용)만 채워 중복 표시 방지
         memoRepository.findAllByPetIdInAndLoggedAtBetweenOrderByLoggedAtDesc(petIds, from, to)
                 .forEach(m -> all.add(RecentRecordResponse.of(
                         "MEMO", m.getId(), m.getPetId(),
                         petNameMap.getOrDefault(m.getPetId(), ""),
                         petColorMap.get(m.getPetId()),
-                        m.getLoggedAt(), truncate(m.getContent(), 50), m.getContent())));
+                        m.getLoggedAt(), "", m.getContent())));
         List<RoutineLogDtl> customLogs =
                 routineLogRepository.findCompletedByPetIdsAndRoutineTypeAndDateRange(
                         petIds, RoutineType.CUSTOM, from, to);
@@ -292,7 +293,7 @@ public class RecordService {
                         "MEMO", r.getId(), r.getPetId(),
                         petNameMap.getOrDefault(r.getPetId(), ""),
                         petColorMap.get(r.getPetId()),
-                        r.getExecutedAt(), truncate(content, 50), content));
+                        r.getExecutedAt(), "", content));
             });
         }
 
