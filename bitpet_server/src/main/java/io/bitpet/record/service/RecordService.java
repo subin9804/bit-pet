@@ -267,13 +267,34 @@ public class RecordService {
                         petColorMap.get(r.getPetId()),
                         r.getExecutedAt(), "루틴 청소", r.getMemo())));
 
-        // MEMO
+        // MEMO: memo_dtl(단독) + routine_log_dtl(루틴 CUSTOM 완료 — memo 유무 무관)
         memoRepository.findAllByPetIdInAndLoggedAtBetweenOrderByLoggedAtDesc(petIds, from, to)
                 .forEach(m -> all.add(RecentRecordResponse.of(
                         "MEMO", m.getId(), m.getPetId(),
                         petNameMap.getOrDefault(m.getPetId(), ""),
                         petColorMap.get(m.getPetId()),
                         m.getLoggedAt(), truncate(m.getContent(), 50), m.getContent())));
+        List<RoutineLogDtl> customLogs =
+                routineLogRepository.findCompletedByPetIdsAndRoutineTypeAndDateRange(
+                        petIds, RoutineType.CUSTOM, from, to);
+        if (!customLogs.isEmpty()) {
+            Set<Long> routineIds = customLogs.stream()
+                    .map(RoutineLogDtl::getRoutineId).collect(Collectors.toSet());
+            Map<Long, String> titleMap = new java.util.HashMap<>();
+            routineRepository.findAllById(routineIds)
+                    .forEach(rm -> titleMap.put(rm.getId(), rm.getTitle()));
+            customLogs.forEach(r -> {
+                String title = titleMap.getOrDefault(r.getRoutineId(), "루틴");
+                // memo 있으면 메모, 없으면 "[루틴제목] 완료"
+                String content = (r.getMemo() != null && !r.getMemo().isBlank())
+                        ? r.getMemo() : "[" + title + "] 완료";
+                all.add(RecentRecordResponse.of(
+                        "MEMO", r.getId(), r.getPetId(),
+                        petNameMap.getOrDefault(r.getPetId(), ""),
+                        petColorMap.get(r.getPetId()),
+                        r.getExecutedAt(), truncate(content, 50), content));
+            });
+        }
 
         // MATING: 교배 양쪽 개체 모두 표시 (한 교배당 최대 2개 칩)
         matingRepository.findByPetIdsAndDateRange(petIds, from, to).forEach(m -> {

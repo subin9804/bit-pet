@@ -230,7 +230,7 @@ public class CalendarService {
                   JOIN pet_mst p ON p.id = rl.pet_id
                   WHERE p.user_id = ?
                     AND rm.routine_type = 'CUSTOM'
-                    AND rl.memo IS NOT NULL AND rl.memo <> ''
+                    AND rl.status = 'COMPLETED'
                     AND DATE(rl.executed_at AT TIME ZONE 'UTC') BETWEEN ? AND ?
                     AND rl.deleted_at IS NULL AND p.deleted_at IS NULL
                   GROUP BY day
@@ -253,7 +253,7 @@ public class CalendarService {
                   JOIN routine_mst rm ON rm.id = rl.routine_id
                   WHERE rl.pet_id = ?
                     AND rm.routine_type = 'CUSTOM'
-                    AND rl.memo IS NOT NULL AND rl.memo <> ''
+                    AND rl.status = 'COMPLETED'
                     AND DATE(rl.executed_at AT TIME ZONE 'UTC') BETWEEN ? AND ?
                     AND rl.deleted_at IS NULL
                   GROUP BY day

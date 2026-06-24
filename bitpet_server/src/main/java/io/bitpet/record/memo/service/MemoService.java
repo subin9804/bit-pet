@@ -193,14 +193,15 @@ public class MemoService {
     // -------------------------------------------------------------------------
 
     private List<MemoResponse> fetchCustomRoutineMemos(Long petId, LocalDate from, LocalDate to) {
+        // 모든 CUSTOM 루틴 '완료' 로그를 메모로 집계 (memo 유무 무관)
         String sql = """
                 SELECT rl.id, rl.pet_id, rl.memo, rl.executed_at, rl.created_at,
-                       COALESCE(rm.title, '') AS title
+                       COALESCE(rm.title, '루틴') AS title
                 FROM routine_log_dtl rl
                 JOIN routine_mst rm ON rm.id = rl.routine_id
                 WHERE rl.pet_id = ?
                   AND rm.routine_type = 'CUSTOM'
-                  AND rl.memo IS NOT NULL AND rl.memo <> ''
+                  AND rl.status = 'COMPLETED'
                   AND rl.deleted_at IS NULL
                 ORDER BY rl.executed_at DESC
                 """;
@@ -209,7 +210,11 @@ public class MemoService {
             if (from != null && loggedAt.isBefore(from.atStartOfDay().toInstant(ZoneOffset.UTC))) return null;
             if (to   != null && loggedAt.isAfter(to.atTime(23, 59, 59).toInstant(ZoneOffset.UTC))) return null;
             Instant createdAt = rs.getTimestamp("created_at").toInstant();
-            String content = "[" + rs.getString("title") + "] " + rs.getString("memo");
+            String memo = rs.getString("memo");
+            // memo 있으면 메모, 없으면 "[루틴제목] 완료"
+            String content = (memo != null && !memo.isBlank())
+                    ? memo
+                    : "[" + rs.getString("title") + "] 완료";
             return new MemoResponse(rs.getLong("id"), rs.getLong("pet_id"),
                     content, loggedAt, List.of(), null, createdAt, createdAt);
         }).stream().filter(m -> m != null).toList();
