@@ -393,20 +393,6 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
               ),
             ),
           ),
-
-          // 취소
-          GestureDetector(
-            onTap: () => Navigator.of(context).pop(),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              alignment: Alignment.center,
-              child: Text('취소',
-                  style: TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w600,
-                      color: AppColors.paleInk2)),
-            ),
-          ),
         ],
       ),
     );

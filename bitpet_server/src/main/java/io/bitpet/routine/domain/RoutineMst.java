@@ -62,6 +62,10 @@ public class RoutineMst extends BaseTimeEntity {
     @Column(name = "is_alarm_enabled", nullable = false)
     private boolean alarmEnabled;
 
+    /** 루틴 시작일 (고정). 완료해도 불변 — 캘린더 표시 하한 */
+    @Column(name = "start_date")
+    private LocalDate startDate;
+
     @Column(name = "last_executed_at")
     private LocalDate lastExecutedAt;
 
@@ -80,7 +84,7 @@ public class RoutineMst extends BaseTimeEntity {
     @Builder
     private RoutineMst(Long userId, Long groupId, RoutineType routineType, String title,
                        int cycleDays, LocalTime alarmTime, boolean alarmEnabled,
-                       LocalDate nextDueAt, String memo) {
+                       LocalDate startDate, LocalDate nextDueAt, String memo) {
         this.userId       = userId;
         this.groupId      = groupId;
         this.routineType  = routineType;
@@ -88,6 +92,7 @@ public class RoutineMst extends BaseTimeEntity {
         this.cycleDays    = cycleDays;
         this.alarmTime    = alarmTime;
         this.alarmEnabled = alarmEnabled;
+        this.startDate    = startDate;
         this.nextDueAt    = nextDueAt;
         this.active       = true;
         this.memo         = memo;

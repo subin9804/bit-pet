@@ -17,6 +17,7 @@ public record RoutineResponse(
         int cycleDays,
         LocalTime alarmTime,
         boolean alarmEnabled,
+        LocalDate startDate,
         LocalDate lastExecutedAt,
         LocalDate nextDueAt,
         boolean active,
@@ -30,7 +31,7 @@ public record RoutineResponse(
         return new RoutineResponse(
                 r.getId(), r.getUserId(), r.getGroupId(), r.getRoutineType(), r.getTitle(),
                 r.getCycleDays(), r.getAlarmTime(), r.isAlarmEnabled(),
-                r.getLastExecutedAt(), r.getNextDueAt(),
+                r.getStartDate(), r.getLastExecutedAt(), r.getNextDueAt(),
                 r.isActive(), r.getMemo(),
                 petIds, petIds.size(),
                 r.getCreatedAt(), r.getUpdatedAt()

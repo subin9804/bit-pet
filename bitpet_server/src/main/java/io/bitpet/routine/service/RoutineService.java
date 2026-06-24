@@ -91,6 +91,7 @@ public class RoutineService {
                 .cycleDays(req.cycleDays())
                 .alarmTime(req.alarmTime())
                 .alarmEnabled(req.alarmEnabled())
+                .startDate(nextDueAt)   // 시작일 = 첫 예정일 (이후 nextDueAt만 전진)
                 .nextDueAt(nextDueAt)
                 .memo(req.memo())
                 .build());

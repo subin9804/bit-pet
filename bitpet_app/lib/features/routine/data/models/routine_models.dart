@@ -120,6 +120,7 @@ class Routine {
   final int cycleDays;
   final String? alarmTime; // "HH:mm"
   final bool isAlarmEnabled;
+  final DateTime? startDate; // 루틴 시작일 (고정) — 캘린더 표시 하한
   final DateTime? lastExecutedAt;
   final DateTime? nextDueAt;
   final bool isActive;
@@ -137,6 +138,7 @@ class Routine {
     required this.cycleDays,
     this.alarmTime,
     required this.isAlarmEnabled,
+    this.startDate,
     this.lastExecutedAt,
     this.nextDueAt,
     required this.isActive,
@@ -158,6 +160,9 @@ class Routine {
         cycleDays: json['cycleDays'] as int,
         alarmTime: json['alarmTime'] as String?,
         isAlarmEnabled: json['alarmEnabled'] as bool? ?? false,
+        startDate: json['startDate'] != null
+            ? DateTime.tryParse(json['startDate'] as String)
+            : null,
         lastExecutedAt: json['lastExecutedAt'] != null
             ? DateTime.tryParse(json['lastExecutedAt'] as String)
             : null,

@@ -659,10 +659,17 @@ class _CalendarSheetState extends ConsumerState<_CalendarSheet> {
                   final cycleDays = widget.routine.cycleDays;
                   final today = DateTime(now.year, now.month, now.day);
 
+                  // 시작일 하한 — 시작일 이전은 예정 표시하지 않음
+                  final start = widget.routine.startDate?.toLocal();
+                  final startDay = start != null
+                      ? DateTime(start.year, start.month, start.day)
+                      : null;
+
                   bool isScheduled(int d) {
                     if (anchorDate == null || cycleDays <= 0) return false;
                     final cell = DateTime(_month.year, _month.month, d);
                     if (cell.isAfter(today)) return false;
+                    if (startDay != null && cell.isBefore(startDay)) return false;
                     final diff = anchorDate.difference(cell).inDays.abs();
                     return diff % cycleDays == 0;
                   }

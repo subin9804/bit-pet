@@ -150,8 +150,9 @@ features/
 | V32 | routine_mst.last_notified_at 추가 (알림 중복 발송 방지) |
 | V33 | routine_mst.next_due_at/last_executed_at 타입 timestamptz → date |
 | V34 | routine_mst.group_id 추가 — 루틴 소속 user → breeding_group 전환, 소유자 현재 그룹으로 백필 |
+| V35 | routine_mst.start_date 추가 — 루틴 시작일 고정 보존(캘린더 표시 하한), created_at 기준 백필 |
 
-> **다음 마이그레이션은 V35부터 작성.**
+> **다음 마이그레이션은 V36부터 작성.**
 
 ---
 

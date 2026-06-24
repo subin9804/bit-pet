@@ -446,6 +446,7 @@ class _RoutineCardState extends ConsumerState<_RoutineCard> {
                 petId: widget.petId,
                 cycleDays: r.cycleDays,
                 nextDueAt: r.nextDueAt,
+                startDate: r.startDate,
                 accentColor: widget.paleInk,
               ),
             ),
@@ -603,6 +604,7 @@ class _MiniRoutineCalendar extends ConsumerStatefulWidget {
   final int petId;
   final int cycleDays;
   final DateTime? nextDueAt;
+  final DateTime? startDate;
   final Color accentColor;
 
   const _MiniRoutineCalendar({
@@ -610,6 +612,7 @@ class _MiniRoutineCalendar extends ConsumerStatefulWidget {
     required this.petId,
     required this.cycleDays,
     this.nextDueAt,
+    this.startDate,
     required this.accentColor,
   });
 
@@ -663,11 +666,16 @@ class _MiniRoutineCalendarState
                        widget.nextDueAt!.toLocal().day)
             : null;
         final cycle  = widget.cycleDays;
+        final start  = widget.startDate?.toLocal();
+        final startDay = start != null
+            ? DateTime(start.year, start.month, start.day)
+            : null;
 
         bool isScheduled(int d) {
           if (anchor == null || cycle <= 0) return false;
           final cell = DateTime(_month.year, _month.month, d);
           if (cell.isAfter(today)) return false;
+          if (startDay != null && cell.isBefore(startDay)) return false;
           return anchor.difference(cell).inDays.abs() % cycle == 0;
         }
 
