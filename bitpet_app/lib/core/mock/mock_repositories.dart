@@ -312,7 +312,7 @@ class MockAuthRepository extends AuthRepository {
   Future<bool> get isLoggedIn async => true;
 
   @override
-  Future<UserProfile> login(LoginRequest request) async => _mockUser;
+  Future<UserProfile> login(LoginRequest request, {bool keepLoggedIn = true}) async => _mockUser;
 
   @override
   Future<UserProfile> signup(SignupRequest request) async => _mockUser;
