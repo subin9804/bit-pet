@@ -25,10 +25,6 @@ import io.bitpet.record.memo.repository.MemoDtlRepository;
 import io.bitpet.record.repository.CleaningDtlRepository;
 import io.bitpet.record.repository.FeedingDtlRepository;
 import io.bitpet.record.repository.WeightDtlRepository;
-import io.bitpet.routine.domain.RoutineLogDtl;
-import io.bitpet.routine.domain.RoutineType;
-import io.bitpet.routine.repository.RoutineLogDtlRepository;
-import io.bitpet.routine.repository.RoutineMstRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -56,8 +52,7 @@ public class RecordService {
     private final MemoDtlRepository memoRepository;
     private final MatingDtlRepository matingRepository;
     private final LayingDtlRepository layingRepository;
-    private final RoutineLogDtlRepository routineLogRepository;
-    private final RoutineMstRepository routineRepository;
+
 
     // -------------------------------------------------------------------------
     // Weight
@@ -251,7 +246,7 @@ public class RecordService {
                         petColorMap.get(w.getPetId()),
                         w.getMeasuredAt(), w.getWeightG() + "g", w.getMemo())));
 
-        // CLEANING: cleaning_dtl(단독) + routine_log_dtl(루틴 CLEANING 완료)
+        // CLEANING: cleaning_dtl (루틴 완료 + 단독 모두 포함 — routine_id 유무로 구분 가능)
         cleaningRepository.findAllByPetIdInAndCleanedAtBetweenOrderByCleanedAtDesc(petIds, from, to)
                 .forEach(c -> all.add(RecentRecordResponse.of(
                         "CLEANING", c.getId(), c.getPetId(),
@@ -260,42 +255,14 @@ public class RecordService {
                         c.getCleanedAt(),
                         c.getCleaningType() != null ? c.getCleaningType().name() : "",
                         c.getMemo())));
-        routineLogRepository.findCompletedByPetIdsAndRoutineTypeAndDateRange(petIds, RoutineType.CLEANING, from, to)
-                .forEach(r -> all.add(RecentRecordResponse.of(
-                        "CLEANING", r.getId(), r.getPetId(),
-                        petNameMap.getOrDefault(r.getPetId(), ""),
-                        petColorMap.get(r.getPetId()),
-                        r.getExecutedAt(), "루틴 청소", r.getMemo())));
 
-        // MEMO: memo_dtl(단독) + routine_log_dtl(루틴 CUSTOM 완료 — memo 유무 무관)
-        // MEMO는 summary 개념이 없음 — memo(내용)만 채워 중복 표시 방지
+        // MEMO: memo_dtl (루틴 CUSTOM 완료 메모 + 단독 메모 모두 포함 — routine_id 유무로 구분 가능)
         memoRepository.findAllByPetIdInAndLoggedAtBetweenOrderByLoggedAtDesc(petIds, from, to)
                 .forEach(m -> all.add(RecentRecordResponse.of(
                         "MEMO", m.getId(), m.getPetId(),
                         petNameMap.getOrDefault(m.getPetId(), ""),
                         petColorMap.get(m.getPetId()),
                         m.getLoggedAt(), "", m.getContent())));
-        List<RoutineLogDtl> customLogs =
-                routineLogRepository.findCompletedByPetIdsAndRoutineTypeAndDateRange(
-                        petIds, RoutineType.CUSTOM, from, to);
-        if (!customLogs.isEmpty()) {
-            Set<Long> routineIds = customLogs.stream()
-                    .map(RoutineLogDtl::getRoutineId).collect(Collectors.toSet());
-            Map<Long, String> titleMap = new java.util.HashMap<>();
-            routineRepository.findAllById(routineIds)
-                    .forEach(rm -> titleMap.put(rm.getId(), rm.getTitle()));
-            customLogs.forEach(r -> {
-                String title = titleMap.getOrDefault(r.getRoutineId(), "루틴");
-                // memo 있으면 메모, 없으면 "[루틴제목] 완료"
-                String content = (r.getMemo() != null && !r.getMemo().isBlank())
-                        ? r.getMemo() : "[" + title + "] 완료";
-                all.add(RecentRecordResponse.of(
-                        "MEMO", r.getId(), r.getPetId(),
-                        petNameMap.getOrDefault(r.getPetId(), ""),
-                        petColorMap.get(r.getPetId()),
-                        r.getExecutedAt(), "", content));
-            });
-        }
 
         // MATING: 교배 양쪽 개체 모두 표시 (한 교배당 최대 2개 칩)
         matingRepository.findByPetIdsAndDateRange(petIds, from, to).forEach(m -> {

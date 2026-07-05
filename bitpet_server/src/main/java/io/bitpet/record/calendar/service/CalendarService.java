@@ -52,9 +52,6 @@ public class CalendarService {
                             ps.setLong(1, userId);
                             ps.setObject(2, start);
                             ps.setObject(3, end);
-                            ps.setLong(4, userId);
-                            ps.setObject(5, start);
-                            ps.setObject(6, end);
                         },
                         rs -> {
                             LocalDate date = rs.getDate("day").toLocalDate();
@@ -138,9 +135,6 @@ public class CalendarService {
                             ps.setLong(1, petId);
                             ps.setObject(2, start);
                             ps.setObject(3, end);
-                            ps.setLong(4, petId);
-                            ps.setObject(5, start);
-                            ps.setObject(6, end);
                         },
                         rs -> {
                             LocalDate date = rs.getDate("day").toLocalDate();
@@ -215,49 +209,24 @@ public class CalendarService {
 
     private String buildUserMemoSql() {
         return """
-                SELECT day, SUM(cnt) AS cnt FROM (
-                  SELECT DATE(t.logged_at AT TIME ZONE 'UTC') AS day, COUNT(*) AS cnt
-                  FROM memo_dtl t
-                  JOIN pet_mst p ON p.id = t.pet_id
-                  WHERE p.user_id = ?
-                    AND DATE(t.logged_at AT TIME ZONE 'UTC') BETWEEN ? AND ?
-                    AND t.deleted_at IS NULL AND p.deleted_at IS NULL
-                  GROUP BY day
-                  UNION ALL
-                  SELECT DATE(rl.executed_at AT TIME ZONE 'UTC') AS day, COUNT(*) AS cnt
-                  FROM routine_log_dtl rl
-                  JOIN routine_mst rm ON rm.id = rl.routine_id
-                  JOIN pet_mst p ON p.id = rl.pet_id
-                  WHERE p.user_id = ?
-                    AND rm.routine_type = 'CUSTOM'
-                    AND rl.status = 'COMPLETED'
-                    AND DATE(rl.executed_at AT TIME ZONE 'UTC') BETWEEN ? AND ?
-                    AND rl.deleted_at IS NULL AND p.deleted_at IS NULL
-                  GROUP BY day
-                ) sub GROUP BY day
+                SELECT DATE(t.logged_at AT TIME ZONE 'UTC') AS day, COUNT(*) AS cnt
+                FROM memo_dtl t
+                JOIN pet_mst p ON p.id = t.pet_id
+                WHERE p.user_id = ?
+                  AND DATE(t.logged_at AT TIME ZONE 'UTC') BETWEEN ? AND ?
+                  AND t.deleted_at IS NULL AND p.deleted_at IS NULL
+                GROUP BY day
                 """;
     }
 
     private String buildPetMemoSql() {
         return """
-                SELECT day, SUM(cnt) AS cnt FROM (
-                  SELECT DATE(logged_at AT TIME ZONE 'UTC') AS day, COUNT(*) AS cnt
-                  FROM memo_dtl
-                  WHERE pet_id = ?
-                    AND DATE(logged_at AT TIME ZONE 'UTC') BETWEEN ? AND ?
-                    AND deleted_at IS NULL
-                  GROUP BY day
-                  UNION ALL
-                  SELECT DATE(rl.executed_at AT TIME ZONE 'UTC') AS day, COUNT(*) AS cnt
-                  FROM routine_log_dtl rl
-                  JOIN routine_mst rm ON rm.id = rl.routine_id
-                  WHERE rl.pet_id = ?
-                    AND rm.routine_type = 'CUSTOM'
-                    AND rl.status = 'COMPLETED'
-                    AND DATE(rl.executed_at AT TIME ZONE 'UTC') BETWEEN ? AND ?
-                    AND rl.deleted_at IS NULL
-                  GROUP BY day
-                ) sub GROUP BY day
+                SELECT DATE(logged_at AT TIME ZONE 'UTC') AS day, COUNT(*) AS cnt
+                FROM memo_dtl
+                WHERE pet_id = ?
+                  AND DATE(logged_at AT TIME ZONE 'UTC') BETWEEN ? AND ?
+                  AND deleted_at IS NULL
+                GROUP BY day
                 """;
     }
 

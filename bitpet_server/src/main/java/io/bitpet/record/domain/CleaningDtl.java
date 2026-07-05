@@ -45,12 +45,16 @@ public class CleaningDtl extends BaseSyncEntity {
     @Column(columnDefinition = "TEXT")
     private String memo;
 
+    @Column(name = "routine_id")
+    private Long routineId;
+
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
     @Builder
-    private CleaningDtl(Long petId, CleaningType cleaningType, Instant cleanedAt, String memo) {
+    private CleaningDtl(Long petId, Long routineId, CleaningType cleaningType, Instant cleanedAt, String memo) {
         this.petId = petId;
+        this.routineId = routineId;
         this.cleaningType = cleaningType;
         this.cleanedAt = cleanedAt;
         this.memo = memo;

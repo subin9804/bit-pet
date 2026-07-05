@@ -39,12 +39,16 @@ public class MemoDtl extends BaseSyncEntity {
     @Column(name = "logged_at", nullable = false)
     private Instant loggedAt;
 
+    @Column(name = "routine_id")
+    private Long routineId;
+
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
     @Builder
-    private MemoDtl(Long petId, String content, Instant loggedAt) {
+    private MemoDtl(Long petId, Long routineId, String content, Instant loggedAt) {
         this.petId = petId;
+        this.routineId = routineId;
         this.content = content;
         this.loggedAt = loggedAt;
     }

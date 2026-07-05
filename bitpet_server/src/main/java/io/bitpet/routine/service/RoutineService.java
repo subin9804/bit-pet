@@ -7,9 +7,14 @@ import io.bitpet.group.domain.BreedingGroupUserRlsId;
 import io.bitpet.group.repository.BreedingGroupUserRlsRepository;
 import io.bitpet.pet.domain.PetMst;
 import io.bitpet.pet.repository.PetMstRepository;
+import io.bitpet.record.domain.CleaningDtl;
+import io.bitpet.record.domain.CleaningType;
 import io.bitpet.record.domain.FeedingDtl;
 import io.bitpet.record.domain.WeightDtl;
 import io.bitpet.record.domain.WeightSource;
+import io.bitpet.record.memo.domain.MemoDtl;
+import io.bitpet.record.memo.repository.MemoDtlRepository;
+import io.bitpet.record.repository.CleaningDtlRepository;
 import io.bitpet.record.repository.FeedingDtlRepository;
 import io.bitpet.record.repository.WeightDtlRepository;
 import io.bitpet.routine.domain.RoutineLogDtl;
@@ -52,6 +57,8 @@ public class RoutineService {
     private final PetMstRepository petRepository;
     private final FeedingDtlRepository feedingRepository;
     private final WeightDtlRepository weightRepository;
+    private final CleaningDtlRepository cleaningRepository;
+    private final MemoDtlRepository memoRepository;
     private final BreedingGroupUserRlsRepository groupMemberRepository;
 
     // -------------------------------------------------------------------------
@@ -412,12 +419,20 @@ public class RoutineService {
             return RoutineLogResponse.from(log);
         }
 
-        Map<String, Object> extraData = new HashMap<>();
-        if (routine.getRoutineType() == RoutineType.CLEANING && req.cleaningType() != null) {
-            extraData.put("cleaning_type", req.cleaningType());
+        if (routine.getRoutineType() == RoutineType.CLEANING) {
+            CleaningType cleaningType = req.cleaningType() != null
+                    ? CleaningType.valueOf(req.cleaningType())
+                    : CleaningType.FULL;
+            cleaningRepository.save(CleaningDtl.builder()
+                    .petId(petId)
+                    .routineId(routine.getId())
+                    .cleaningType(cleaningType)
+                    .cleanedAt(executedAt)
+                    .memo(req.memo())
+                    .build());
         }
+
         if (routine.getRoutineType() == RoutineType.WEIGHT && req.weightG() != null) {
-            extraData.put("weight_g", req.weightG());
             weightRepository.save(WeightDtl.builder()
                     .petId(petId)
                     .routineId(routine.getId())
@@ -428,13 +443,21 @@ public class RoutineService {
                     .build());
         }
 
+        if (routine.getRoutineType() == RoutineType.CUSTOM
+                && req.memo() != null && !req.memo().isBlank()) {
+            memoRepository.save(MemoDtl.builder()
+                    .petId(petId)
+                    .routineId(routine.getId())
+                    .content(req.memo())
+                    .loggedAt(executedAt)
+                    .build());
+        }
+
         RoutineLogDtl log = routineLogRepository.save(RoutineLogDtl.builder()
                 .routineId(routine.getId())
                 .petId(petId)
                 .status(status)
                 .executedAt(executedAt)
-                .extraData(extraData.isEmpty() ? null : extraData)
-                .memo(req.memo())
                 .build());
         return RoutineLogResponse.from(log);
     }
