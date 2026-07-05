@@ -209,18 +209,15 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
 
   void _handleFinish() {
     final routine = widget.routine;
-    _saveIfHasData(_pets[_idx]).then((_) {
-      if (!mounted) return;
-      Navigator.of(context).pop();
-      ref.invalidate(routineTodayStatusProvider(routine.id));
-      final ym = DateTime.now();
-      ref.invalidate(homeCalendarProvider(
-          '${ym.year}-${ym.month.toString().padLeft(2, '0')}'));
-      if (_completedCount > 0) {
-        showToast(context, '$_completedCount마리 완료 처리됐어요',
-            type: ToastType.success);
-      }
-    });
+    Navigator.of(context).pop();
+    ref.invalidate(routineTodayStatusProvider(routine.id));
+    final ym = DateTime.now();
+    ref.invalidate(homeCalendarProvider(
+        '${ym.year}-${ym.month.toString().padLeft(2, '0')}'));
+    if (_completedCount > 0) {
+      showToast(context, '$_completedCount마리 완료 처리됐어요',
+          type: ToastType.success);
+    }
   }
 
   void _go(int target) {
