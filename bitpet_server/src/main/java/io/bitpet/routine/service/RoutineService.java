@@ -175,9 +175,9 @@ public class RoutineService {
                 }).toList();
     }
 
-    /** 오늘 예정(nextDueAt ≤ today) 또는 오늘 완료(lastExecutedAt == today) */
+    /** 오늘 예정(nextDueAt == today) 또는 오늘 완료(lastExecutedAt == today) */
     private static boolean isDueOrCompletedToday(RoutineMst r, LocalDate today) {
-        boolean dueToday       = !r.getNextDueAt().isAfter(today);  // nextDueAt <= today
+        boolean dueToday       = today.equals(r.getNextDueAt());
         boolean completedToday = today.equals(r.getLastExecutedAt());
         return dueToday || completedToday;
     }
