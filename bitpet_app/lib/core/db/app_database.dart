@@ -49,7 +49,7 @@ class AppDatabase extends _$AppDatabase {
           }
           // v3 → v4: memo_dtl.routine_id 추가 (서버 V36 마이그레이션 대응)
           if (from < 4) {
-            await m.addColumn(memoTable, memoTable.routineId);
+            await customStatement('ALTER TABLE memo_dtl ADD COLUMN routine_id INTEGER');
           }
         },
         beforeOpen: (details) async {
