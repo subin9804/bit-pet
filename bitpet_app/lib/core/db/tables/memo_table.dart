@@ -8,6 +8,7 @@ class MemoTable extends Table {
 
   IntColumn get id => integer().autoIncrement()();
   IntColumn get petId => integer().references(PetTable, #id)();
+  IntColumn get routineId => integer().nullable()();
   TextColumn get content => text()();
   DateTimeColumn get loggedAt => dateTime()();
   DateTimeColumn get deletedAt => dateTime().nullable()();

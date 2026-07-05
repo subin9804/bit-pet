@@ -29,7 +29,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -46,6 +46,10 @@ class AppDatabase extends _$AppDatabase {
           if (from < 3) {
             await customStatement('DROP TABLE IF EXISTS health_memo_dtl');
             await m.createTable(memoTable);
+          }
+          // v3 → v4: memo_dtl.routine_id 추가 (서버 V36 마이그레이션 대응)
+          if (from < 4) {
+            await m.addColumn(memoTable, memoTable.routineId);
           }
         },
         beforeOpen: (details) async {
