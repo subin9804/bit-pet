@@ -1,5 +1,7 @@
 // 01d · 루틴 개별 완료 — peek 캐러셀
-// 저장 트리거: 1) 이 개체 완료 버튼  2) 다음 버튼  3) 저장하고 종료 버튼
+// 저장 트리거: 1) 이 개체 완료 버튼  2) 다음 버튼/슬라이드  3) 종료 버튼
+//   단, 2·3번은 추가 데이터(피딩 항목 또는 메모)가 있을 때만 저장
+//   마지막 개체에서 종료 버튼은 루틴 완료를 의미하지 않음 (메모 있으면 저장만)
 // 이전 버튼: 저장 없이 이동, 입력 상태 유지
 // 완료됨 버튼: 클릭 시 로그 삭제 후 미완료 상태로 복귀
 import 'package:flutter/material.dart';
@@ -169,10 +171,18 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
     }
   }
 
-  // ── 미완료 시 저장 (다음/저장하고 종료 버튼) ──────────────────────
-  Future<void> _saveIfNotDone(TodayPetStatus pet) async {
+  // ── 추가 데이터 존재 여부 (피딩 항목 또는 메모) ─────────────────────
+  bool _hasAdditionalData(TodayPetStatus pet) {
+    final rec = _rec[pet.petId]!;
+    return rec.memo.trim().isNotEmpty ||
+        (_isFeed && rec.feedItems.isNotEmpty);
+  }
+
+  // ── 추가 데이터가 있을 때만 저장 (다음/종료/슬라이드 트리거) ──────
+  Future<void> _saveIfHasData(TodayPetStatus pet) async {
     final rec = _rec[pet.petId]!;
     if (rec.done) return;
+    if (!_hasAdditionalData(pet)) return;
     final memo = rec.memo.trim().isEmpty ? null : rec.memo.trim();
     try {
       final log = await ref.read(routineRepositoryProvider).completeIndividual(
@@ -192,22 +202,24 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
   }
 
   void _handleNext() {
-    _saveIfNotDone(_pets[_idx]).then((_) {
+    _saveIfHasData(_pets[_idx]).then((_) {
       if (mounted) _go(_idx + 1);
     });
   }
 
   void _handleFinish() {
     final routine = widget.routine;
-    _saveIfNotDone(_pets[_idx]).then((_) {
+    _saveIfHasData(_pets[_idx]).then((_) {
       if (!mounted) return;
       Navigator.of(context).pop();
       ref.invalidate(routineTodayStatusProvider(routine.id));
       final ym = DateTime.now();
       ref.invalidate(homeCalendarProvider(
           '${ym.year}-${ym.month.toString().padLeft(2, '0')}'));
-      showToast(context, '$_completedCount마리 완료 처리됐어요',
-          type: ToastType.success);
+      if (_completedCount > 0) {
+        showToast(context, '$_completedCount마리 완료 처리됐어요',
+            type: ToastType.success);
+      }
     });
   }
 
@@ -318,7 +330,12 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
                         Expanded(
                           child: PageView.builder(
                             controller: _page,
-                            onPageChanged: (i) => setState(() => _idx = i),
+                            onPageChanged: (i) {
+                              final prev = _idx;
+                              setState(() => _idx = i);
+                              // 앞으로 슬라이드할 때 이전 개체 조건부 저장
+                              if (i > prev) _saveIfHasData(_pets[prev]);
+                            },
                             itemCount: _pets.length,
                             itemBuilder: (_, i) => _PetPage(
                               page: _page,
@@ -500,7 +517,7 @@ class _PetPage extends StatelessWidget {
             const SizedBox(height: 4),
             Center(
               child: Text(
-                rec.done ? '다시 클릭하면 완료가 취소돼요' : '\'다음\' 버튼으로도 저장할 수 있어요',
+                rec.done ? '다시 클릭하면 완료가 취소돼요' : '피딩·메모 입력 후 다음으로 넘기면 자동 저장돼요',
                 style: TextStyle(
                     fontSize: 11, fontWeight: FontWeight.w600,
                     color: AppColors.paleInk3),
@@ -616,7 +633,7 @@ class _Footer extends StatelessWidget {
                         children: [
                           Icon(Icons.check, size: 16, color: AppColors.paleBg),
                           SizedBox(width: 7),
-                          Text('저장하고 종료',
+                          Text('종료',
                               style: TextStyle(
                                   fontSize: 14, fontWeight: FontWeight.w700,
                                   color: AppColors.paleBg)),
