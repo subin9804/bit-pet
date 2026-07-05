@@ -16,15 +16,25 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
   }
 
   Future<void> _init() async {
-    final loggedIn = await _repo.isLoggedIn;
-    state = AsyncValue.data(loggedIn ? null : null);
-    // 추후 /auth/me API 연동으로 실제 유저 정보 로드
+    final hasToken = await _repo.isLoggedIn;
+    if (!hasToken) {
+      state = const AsyncValue.data(null);
+      return;
+    }
+    state = await AsyncValue.guard(() => _repo.getMe());
+    if (state.hasError) {
+      await _repo.logout();
+      state = const AsyncValue.data(null);
+    }
   }
 
-  Future<void> login(String email, String password) async {
+  Future<void> login(String email, String password, {bool keepLoggedIn = true}) async {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(
-      () => _repo.login(LoginRequest(email: email, password: password)),
+      () => _repo.login(
+        LoginRequest(email: email, password: password),
+        keepLoggedIn: keepLoggedIn,
+      ),
     );
   }
 

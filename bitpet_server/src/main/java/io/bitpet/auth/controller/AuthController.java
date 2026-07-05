@@ -64,6 +64,12 @@ public class AuthController {
         return ApiResponse.ok();
     }
 
+    @Operation(summary = "내 정보 조회 (앱 재시작 시 프로필 복원용)")
+    @GetMapping("/me")
+    public ApiResponse<UserResponse> me(@AuthenticationPrincipal AuthPrincipal principal) {
+        return ApiResponse.ok(authService.getMe(principal.userId()));
+    }
+
     @Operation(summary = "회원탈퇴 (Soft Delete + 30일 유예)")
     @DeleteMapping("/withdraw")
     public ApiResponse<Void> withdraw(@AuthenticationPrincipal AuthPrincipal principal) {

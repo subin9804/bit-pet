@@ -47,6 +47,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     await ref.read(authStateProvider.notifier).login(
       _emailCtrl.text.trim(),
       _pwCtrl.text,
+      keepLoggedIn: _keepLoggedIn,
     );
     if (!mounted) return;
     ref.read(authStateProvider).whenOrNull(

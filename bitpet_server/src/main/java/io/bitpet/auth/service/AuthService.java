@@ -76,6 +76,13 @@ public class AuthService {
         return issueTokens(user);
     }
 
+    @Transactional(readOnly = true)
+    public UserResponse getMe(Long userId) {
+        UserMst user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.AUTH_USER_NOT_FOUND));
+        return UserResponse.from(user);
+    }
+
     public void logout(Long userId) {
         refreshTokenStore.delete(userId);
     }

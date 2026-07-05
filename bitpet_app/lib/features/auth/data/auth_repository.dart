@@ -22,7 +22,7 @@ class AuthRepository {
 
   // ── 로그인 ────────────────────────────────────────────────
   // 서버 응답: { success, data: { accessToken, refreshToken, tokenType } }
-  Future<UserProfile> login(LoginRequest request) async {
+  Future<UserProfile> login(LoginRequest request, {bool keepLoggedIn = true}) async {
     final res = await _dio.post('/auth/login', data: request.toJson());
     final apiRes = ApiResponse.fromJson(
       res.data as Map<String, dynamic>,
@@ -37,14 +37,24 @@ class AuthRepository {
     await _tokenStorage.saveTokens(
       accessToken: data['accessToken'] as String,
       refreshToken: data['refreshToken'] as String,
+      persist: keepLoggedIn,
     );
-    // TokenResponse에 유저 정보 없음 → 최소 프로필 반환 (추후 /auth/me 연동)
-    return UserProfile(
-      id: 0,
-      email: request.email,
-      name: '',
-      userType: 'GENERAL',
+    return getMe();
+  }
+
+  // ── 내 정보 조회 (앱 재시작 시 프로필 복원) ──────────────
+  Future<UserProfile> getMe() async {
+    final res = await _dio.get('/auth/me');
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => d as Map<String, dynamic>,
     );
+    if (!apiRes.success || apiRes.data == null) {
+      throw ApiException(
+          statusCode: res.statusCode ?? 0,
+          message: apiRes.message ?? '사용자 정보를 불러올 수 없습니다.');
+    }
+    return UserProfile.fromJson(apiRes.data!);
   }
 
   // ── 이메일 중복확인 ───────────────────────────────────────
