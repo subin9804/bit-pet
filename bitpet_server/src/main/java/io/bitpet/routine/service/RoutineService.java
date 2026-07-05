@@ -163,10 +163,17 @@ public class RoutineService {
     // Today's routines — completion status per pet
     // -------------------------------------------------------------------------
 
+    @Transactional
     public List<TodayRoutineResponse> listTodayRoutines(Long userId) {
         LocalDate today = LocalDate.now(SEOUL);
         Instant[] todayRange = todayRange(today);
         List<RoutineMst> routines = loadActiveRoutines(userId);
+        // 자정 스케줄러가 미실행된 경우 즉석 catchup
+        routines.forEach(r -> {
+            if (r.getNextDueAt() != null && r.getNextDueAt().isBefore(today)) {
+                r.advanceDueDate();
+            }
+        });
         return routines.stream()
                 .filter(r -> r.getNextDueAt() != null && isDueOrCompletedToday(r, today))
                 .map(r -> {

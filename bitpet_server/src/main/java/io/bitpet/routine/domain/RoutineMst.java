@@ -122,9 +122,12 @@ public class RoutineMst extends BaseTimeEntity {
         this.lastNotifiedAt = at;
     }
 
-    /** 예정일이 지난 미완료 루틴 — 다음 주기 날짜로 전진 (자정 배치용) */
+    /** 예정일이 지난 미완료 루틴 — 오늘 이상이 될 때까지 주기만큼 전진 */
     public void advanceDueDate() {
         if (nextDueAt == null) return;
-        this.nextDueAt = nextDueAt.plusDays(cycleDays);
+        LocalDate today = LocalDate.now(SEOUL);
+        while (nextDueAt.isBefore(today)) {
+            nextDueAt = nextDueAt.plusDays(cycleDays);
+        }
     }
 }
