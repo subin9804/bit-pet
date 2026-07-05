@@ -70,24 +70,10 @@ class _PetHeroCardState extends State<PetHeroCard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  pet.speciesName.toUpperCase(),
-                  style: AppTextStyles.paleSpecies(AppColors.paleInk2),
-                ),
-                const SizedBox(height: 3),
-                // 이름 + 일련번호 + 검색허용
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        pet.name,
-                        style: AppTextStyles.paleHero(AppColors.primary),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (pet.serialNo.isNotEmpty) ...[
-                      const SizedBox(width: 8),
+                // 일련번호 + 공개여부
+                if (pet.serialNo.isNotEmpty)
+                  Row(
+                    children: [
                       Text(
                         pet.serialNo,
                         style: AppTextStyles.mono(10, FontWeight.w700).copyWith(
@@ -110,26 +96,44 @@ class _PetHeroCardState extends State<PetHeroCard> {
                                   color: AppColors.paleInk3),
                         ),
                       ),
-                    ],
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: isPublic
-                            ? AppColors.petSage
-                            : Colors.white.withValues(alpha: 0.45),
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                      child: Text(
-                        isPublic ? '공개' : '비공개',
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
                           color: isPublic
-                              ? AppColors.petSageInk
-                              : AppColors.paleInk2,
+                              ? AppColors.petSage
+                              : Colors.white.withValues(alpha: 0.45),
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: Text(
+                          isPublic ? '공개' : '비공개',
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            color: isPublic
+                                ? AppColors.petSageInk
+                                : AppColors.paleInk2,
+                          ),
                         ),
                       ),
+                    ],
+                  ),
+                const SizedBox(height: 3),
+                // 이름 + 종이름
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        pet.name,
+                        style: AppTextStyles.paleHero(AppColors.primary),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      pet.speciesName.toUpperCase(),
+                      style: AppTextStyles.paleSpecies(AppColors.paleInk2),
                     ),
                   ],
                 ),
