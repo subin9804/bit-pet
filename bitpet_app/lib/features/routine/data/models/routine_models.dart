@@ -183,7 +183,10 @@ class Routine {
 
   int? get dDayFromNow {
     if (nextDueAt == null) return null;
-    return nextDueAt!.difference(DateTime.now()).inDays;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final due   = DateTime(nextDueAt!.year, nextDueAt!.month, nextDueAt!.day);
+    return due.difference(today).inDays;
   }
 }
 

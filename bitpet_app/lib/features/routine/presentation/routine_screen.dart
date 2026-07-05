@@ -438,7 +438,10 @@ class _RoutineCard extends ConsumerWidget {
 
   String _nextLabel(Routine r) {
     if (r.nextDueAt == null) return '미정';
-    final diff = r.nextDueAt!.difference(DateTime.now()).inDays;
+    final now   = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final due   = DateTime(r.nextDueAt!.year, r.nextDueAt!.month, r.nextDueAt!.day);
+    final diff  = due.difference(today).inDays;
     if (diff < 0) return 'D+${-diff}';
     if (diff == 0) return '오늘';
     if (diff == 1) return '내일';
