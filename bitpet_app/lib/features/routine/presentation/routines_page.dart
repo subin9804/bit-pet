@@ -11,9 +11,9 @@ class RoutinesPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.paleBg,
+      backgroundColor: AppColors.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.paleBg,
+        backgroundColor: AppColors.bg,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         titleSpacing: 20,
@@ -24,7 +24,7 @@ class RoutinesPage extends StatelessWidget {
               'routine',
               style: AppTextStyles.label.copyWith(
                 fontSize: 11,
-                color: AppColors.paleInk3,
+                color: AppColors.textDisabled,
                 letterSpacing: 1.5,
               ),
             ),
@@ -32,7 +32,7 @@ class RoutinesPage extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.primary,
+                  color: AppColors.textPrimary,
                 )),
           ],
         ),
@@ -48,6 +48,8 @@ class RoutinesPage extends StatelessWidget {
                 foregroundColor: Colors.white,
                 minimumSize: const Size(0, 36),
                 padding: const EdgeInsets.symmetric(horizontal: 14),
+                shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.zero),
                 textStyle: const TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 13,
@@ -56,6 +58,10 @@ class RoutinesPage extends StatelessWidget {
             ),
           ),
         ],
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(1),
+          child: Divider(height: 1, thickness: 1, color: AppColors.divider),
+        ),
       ),
       body: const RoutineScreen(),
     );

@@ -43,9 +43,9 @@ class ConfirmModal extends StatelessWidget {
   Widget build(BuildContext context) {
     return AlertDialog(
       backgroundColor: AppColors.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: AppColors.border),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.zero,
+        side: BorderSide(color: AppColors.divider),
       ),
       title: Text(title, style: AppTextStyles.h3),
       content: Text(message, style: AppTextStyles.body),

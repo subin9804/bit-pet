@@ -40,11 +40,11 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       body: child,
-      // FAB는 BottomAppBar 안에 인라인으로 임베드 (디자인 기준: marginTop -20)
-      bottomNavigationBar: BottomAppBar(
-        color: AppColors.surface,
-        elevation: 8,
-        padding: EdgeInsets.zero,
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          border: Border(top: BorderSide(color: AppColors.divider, width: 1)),
+        ),
         child: SafeArea(
           top: false,
           child: SizedBox(
@@ -76,16 +76,9 @@ class HomeScreen extends ConsumerWidget {
                         child: Container(
                           width: 50,
                           height: 50,
-                          decoration: BoxDecoration(
+                          decoration: const BoxDecoration(
                             color: AppColors.primary,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Color(0x2E3A332B),
-                                blurRadius: 16,
-                                offset: Offset(0, 6),
-                              ),
-                            ],
+                            // 직각 — border-radius: 0
                           ),
                           child: const Icon(
                             Icons.add,
@@ -142,7 +135,6 @@ class _NavBtn extends StatelessWidget {
     return Expanded(
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 6),
           child: Column(

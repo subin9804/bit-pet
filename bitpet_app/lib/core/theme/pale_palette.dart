@@ -29,8 +29,9 @@ abstract final class PalePalette {
   static PetPaletteKey keyFromHex(String? hex) {
     if (hex == null) return PetPaletteKey.sage;
     final norm = hex.toUpperCase().replaceAll('#', '');
-    // 등록된 팔레트 hex → 키 매핑
+    // 등록된 팔레트 hex → 키 매핑 (구버전 + 신버전 모두 인식)
     const knownMap = {
+      // 구 팔레트
       'E2F5ED': PetPaletteKey.sage,
       'E8F2DC': PetPaletteKey.sage,
       'FBE4D8': PetPaletteKey.peach,
@@ -43,6 +44,13 @@ abstract final class PalePalette {
       'FCF2CD': PetPaletteKey.butter,
       'FFD8D8': PetPaletteKey.coral,
       'FFD8D4': PetPaletteKey.coral,
+      // 신 팔레트 (muted)
+      'EAEEEA': PetPaletteKey.sage,
+      'EEECE6': PetPaletteKey.peach,
+      'E6EEF5': PetPaletteKey.sky,
+      'EDE9F5': PetPaletteKey.lilac,
+      'F0EFEA': PetPaletteKey.butter,
+      'F0EAE7': PetPaletteKey.coral,
     };
     if (knownMap.containsKey(norm)) return knownMap[norm]!;
     // 알 수 없는 hex → 채도 기반으로 가장 가까운 색상 추정

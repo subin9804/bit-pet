@@ -139,24 +139,24 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
     return Column(
       children: [
         // ── 검색창 ──────────────────────────────────────────────
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+        Container(
+          decoration: const BoxDecoration(
+            color: AppColors.bg2,
+            border: Border(bottom: BorderSide(color: AppColors.divider)),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: Container(
-            decoration: BoxDecoration(
-              color: AppColors.card,
-              border: Border.all(color: AppColors.paleLine),
-              borderRadius: BorderRadius.circular(12),
-            ),
+            color: AppColors.card,
             child: TextField(
               controller: _searchCtrl,
               onChanged: (v) => setState(() => _query = v),
-              style: const TextStyle(fontSize: 14, color: AppColors.primary),
+              style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
               decoration: InputDecoration(
                 hintText: '루틴 이름 검색…',
                 hintStyle: const TextStyle(
-                    color: AppColors.paleInk3, fontSize: 13),
+                    color: AppColors.textDisabled, fontSize: 13),
                 prefixIcon: const Icon(Icons.search,
-                    size: 18, color: AppColors.paleInk2),
+                    size: 18, color: AppColors.textSecondary),
                 suffixIcon: _query.isNotEmpty
                     ? GestureDetector(
                         onTap: () {
@@ -164,71 +164,86 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
                           setState(() => _query = '');
                         },
                         child: const Icon(Icons.close,
-                            size: 16, color: AppColors.paleInk3),
+                            size: 16, color: AppColors.textDisabled),
                       )
                     : null,
                 contentPadding: const EdgeInsets.symmetric(
                     horizontal: 12, vertical: 11),
-                border: InputBorder.none,
+                border: const OutlineInputBorder(
+                  borderRadius: BorderRadius.zero,
+                  borderSide: BorderSide(color: AppColors.border),
+                ),
+                enabledBorder: const OutlineInputBorder(
+                  borderRadius: BorderRadius.zero,
+                  borderSide: BorderSide(color: AppColors.border),
+                ),
+                focusedBorder: const OutlineInputBorder(
+                  borderRadius: BorderRadius.zero,
+                  borderSide: BorderSide(color: AppColors.textPrimary),
+                ),
               ),
             ),
           ),
         ),
 
         // ── 종류 필터칩 ─────────────────────────────────────────
-        SizedBox(
-          height: 46,
-          child: routinesAsync.whenOrNull(data: (all) {
-            return ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              children: _kFilters.map((f) {
-                final (type, label) = f;
-                final active = _filterType == type;
-                final count = type == null
-                    ? all.length
-                    : all.where((r) => r.routineType == type).length;
-                return GestureDetector(
-                  onTap: () => setState(() => _filterType = type),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 150),
-                    margin: const EdgeInsets.only(right: 6),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: active ? AppColors.primary : AppColors.card,
-                      borderRadius: BorderRadius.circular(999),
-                      border: active
-                          ? null
-                          : Border.all(color: AppColors.paleLine),
+        Container(
+          decoration: const BoxDecoration(
+            border: Border(bottom: BorderSide(color: AppColors.divider)),
+          ),
+          child: SizedBox(
+            height: 44,
+            child: routinesAsync.whenOrNull(data: (all) {
+              return ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                children: _kFilters.map((f) {
+                  final (type, label) = f;
+                  final active = _filterType == type;
+                  final count = type == null
+                      ? all.length
+                      : all.where((r) => r.routineType == type).length;
+                  return GestureDetector(
+                    onTap: () => setState(() => _filterType = type),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      margin: const EdgeInsets.only(right: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: active ? AppColors.primary : AppColors.bg2,
+                        border: Border.all(
+                          color: active ? AppColors.primary : AppColors.border,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Text(label,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: active
+                                    ? Colors.white
+                                    : AppColors.textPrimary,
+                              )),
+                          const SizedBox(width: 5),
+                          Text('$count',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                fontFamily: 'monospace',
+                                color: active
+                                    ? Colors.white.withValues(alpha: 0.65)
+                                    : AppColors.textDisabled,
+                              )),
+                        ],
+                      ),
                     ),
-                    child: Row(
-                      children: [
-                        Text(label,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: active
-                                  ? AppColors.paleBg
-                                  : AppColors.primary,
-                            )),
-                        const SizedBox(width: 5),
-                        Text('$count',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              fontFamily: 'monospace',
-                              color: active
-                                  ? AppColors.paleBg.withValues(alpha: 0.6)
-                                  : AppColors.paleInk3,
-                            )),
-                      ],
-                    ),
-                  ),
-                );
-              }).toList(),
-            );
-          }),
+                  );
+                }).toList(),
+              );
+            }),
+          ),
         ),
 
         // ── 루틴 목록 ───────────────────────────────────────────
@@ -257,10 +272,9 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
                 );
               }
 
-              return ListView.separated(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 110),
+              return ListView.builder(
+                padding: const EdgeInsets.only(bottom: 110),
                 itemCount: visible.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 10),
                 itemBuilder: (_, i) => _RoutineCard(
                   routine: visible[i],
                   alarmOn: _alarmOn(visible[i]),
@@ -299,32 +313,28 @@ class _RoutineCard extends ConsumerWidget {
     final bg  = _rtypeBg(r.routineType);
     final ink = _rtypeInk(r.routineType);
 
+    // 리스트 아이템 + 구분선 구조
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColors.card,
-        border: Border.all(color: AppColors.paleLine),
-        borderRadius: BorderRadius.circular(16),
+        border: Border(bottom: BorderSide(color: AppColors.divider)),
       ),
       child: Column(
         children: [
-          // ── 카드 헤더 ──────────────────────────────────────────
+          // ── 루틴 정보 행 ────────────────────────────────────────
           Padding(
-            padding: const EdgeInsets.fromLTRB(14, 13, 14, 12),
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
             child: Row(
               children: [
-                // 타입 아이콘
+                // 타입 아이콘 — 직각 컨테이너
                 Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: bg,
-                    borderRadius: BorderRadius.circular(11),
-                  ),
+                  width: 36,
+                  height: 36,
+                  color: bg,
                   child: Icon(_rtypeIcon(r.routineType),
-                      size: 18, color: AppColors.primary),
+                      size: 18, color: ink),
                 ),
-                const SizedBox(width: 11),
-                // 이름 + 주기칩 + 알람행
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -337,7 +347,7 @@ class _RoutineCard extends ConsumerWidget {
                               style: const TextStyle(
                                 fontWeight: FontWeight.w700,
                                 fontSize: 15,
-                                color: AppColors.primary,
+                                color: AppColors.textPrimary,
                                 letterSpacing: -0.3,
                               ),
                               overflow: TextOverflow.ellipsis,
@@ -346,18 +356,15 @@ class _RoutineCard extends ConsumerWidget {
                           const SizedBox(width: 7),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 7, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppColors.paleBgAlt,
-                              borderRadius: BorderRadius.circular(999),
-                            ),
+                                horizontal: 6, vertical: 2),
+                            color: AppColors.bg2,
                             child: Text(
                               _cycleLabel(r),
                               style: const TextStyle(
                                 fontFamily: 'monospace',
                                 fontSize: 10,
                                 fontWeight: FontWeight.w700,
-                                color: AppColors.paleInk2,
+                                color: AppColors.textSecondary,
                               ),
                             ),
                           ),
@@ -368,10 +375,10 @@ class _RoutineCard extends ConsumerWidget {
                         children: [
                           Icon(
                             Icons.notifications_outlined,
-                            size: 13,
+                            size: 12,
                             color: alarmOn
-                                ? AppColors.paleInk2
-                                : AppColors.paleInk3,
+                                ? AppColors.textSecondary
+                                : AppColors.textDisabled,
                           ),
                           const SizedBox(width: 4),
                           Text(
@@ -381,8 +388,8 @@ class _RoutineCard extends ConsumerWidget {
                               fontSize: 11.5,
                               fontWeight: FontWeight.w700,
                               color: alarmOn
-                                  ? AppColors.paleInk2
-                                  : AppColors.paleInk3,
+                                  ? AppColors.textSecondary
+                                  : AppColors.textDisabled,
                             ),
                           ),
                         ],
@@ -390,7 +397,6 @@ class _RoutineCard extends ConsumerWidget {
                     ],
                   ),
                 ),
-                // 알람 토글
                 const SizedBox(width: 8),
                 _PaleToggle(on: alarmOn, onToggle: onToggleAlarm),
               ],
@@ -400,7 +406,8 @@ class _RoutineCard extends ConsumerWidget {
           // ── 액션 행 ────────────────────────────────────────────
           Container(
             decoration: const BoxDecoration(
-              border: Border(top: BorderSide(color: AppColors.paleLineSoft)),
+              color: AppColors.bg2,
+              border: Border(top: BorderSide(color: AppColors.divider)),
             ),
             child: Row(
               children: [
@@ -409,19 +416,19 @@ class _RoutineCard extends ConsumerWidget {
                   label: '개체',
                   onTap: () => _openPetPickerSheet(context),
                 ),
-                Container(width: 1, height: 40, color: AppColors.paleLineSoft),
+                Container(width: 1, height: 38, color: AppColors.divider),
                 _CardAction(
                   icon: Icons.calendar_today_outlined,
                   label: '캘린더',
                   onTap: () => _openCalendarSheet(context),
                 ),
-                Container(width: 1, height: 40, color: AppColors.paleLineSoft),
+                Container(width: 1, height: 38, color: AppColors.divider),
                 _CardAction(
                   icon: Icons.edit_outlined,
                   label: '수정',
                   onTap: () => _openEditScreen(context),
                 ),
-                Container(width: 1, height: 40, color: AppColors.paleLineSoft),
+                Container(width: 1, height: 38, color: AppColors.divider),
                 _CardAction(
                   icon: Icons.delete_outline,
                   label: '삭제',
@@ -494,8 +501,9 @@ class _PaleToggle extends StatelessWidget {
         width: 44,
         height: 26,
         decoration: BoxDecoration(
-          color: on ? AppColors.primary : AppColors.paleLine,
-          borderRadius: BorderRadius.circular(13),
+          // off: #DEDEDE, on: #191919
+          color: on ? AppColors.toggleOn : AppColors.toggleOff,
+          borderRadius: BorderRadius.circular(13), // 토글은 pill 유지 (UX 표준)
         ),
         child: AnimatedAlign(
           duration: const Duration(milliseconds: 150),
@@ -505,7 +513,7 @@ class _PaleToggle extends StatelessWidget {
             width: 20,
             height: 20,
             decoration: const BoxDecoration(
-              color: AppColors.paleBg,
+              color: Colors.white,
               shape: BoxShape.circle,
             ),
           ),
@@ -1158,10 +1166,9 @@ class _RoutinePetPickerSheetState
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 130),
                         decoration: BoxDecoration(
-                          color: on ? bg : AppColors.card,
-                          borderRadius: BorderRadius.circular(14),
+                          color: on ? bg : AppColors.bg2,
                           border: Border.all(
-                            color: on ? ink : AppColors.paleLine,
+                            color: on ? ink : AppColors.border,
                             width: on ? 1.5 : 1,
                           ),
                         ),
@@ -1174,14 +1181,9 @@ class _RoutinePetPickerSheetState
                               children: [
                                 Container(
                                   width: 46, height: 46,
-                                  decoration: BoxDecoration(
-                                    color: on
-                                        ? AppColors.paleBg
-                                            .withValues(alpha: 0.55)
-                                        : petColor,
-                                    borderRadius:
-                                        BorderRadius.circular(13),
-                                  ),
+                                  color: on
+                                      ? Colors.white.withValues(alpha: 0.55)
+                                      : petColor,
                                   child: const Center(
                                     child: Text('🦎',
                                         style:
@@ -1199,7 +1201,7 @@ class _RoutinePetPickerSheetState
                                       ),
                                       child: const Icon(Icons.check,
                                           size: 11,
-                                          color: AppColors.paleBg),
+                                          color: Colors.white),
                                     ),
                                   ),
                               ],
@@ -1210,7 +1212,7 @@ class _RoutinePetPickerSheetState
                               style: const TextStyle(
                                 fontWeight: FontWeight.w700,
                                 fontSize: 12.5,
-                                color: AppColors.primary,
+                                color: AppColors.textPrimary,
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -1219,7 +1221,7 @@ class _RoutinePetPickerSheetState
                               p.speciesName,
                               style: const TextStyle(
                                 fontSize: 9.5,
-                                color: AppColors.paleInk3,
+                                color: AppColors.textDisabled,
                                 fontWeight: FontWeight.w600,
                               ),
                               overflow: TextOverflow.ellipsis,
@@ -1236,8 +1238,7 @@ class _RoutinePetPickerSheetState
           // ── 푸터 ──
           Container(
             decoration: const BoxDecoration(
-              border: Border(
-                  top: BorderSide(color: AppColors.paleLineSoft)),
+              border: Border(top: BorderSide(color: AppColors.divider)),
             ),
             padding: const EdgeInsets.fromLTRB(22, 12, 22, 30),
             child: Row(
@@ -1248,16 +1249,14 @@ class _RoutinePetPickerSheetState
                     padding: const EdgeInsets.symmetric(
                         horizontal: 20, vertical: 14),
                     decoration: BoxDecoration(
-                      color: AppColors.card,
-                      borderRadius: BorderRadius.circular(14),
-                      border:
-                          Border.all(color: AppColors.paleLine),
+                      color: AppColors.bg2,
+                      border: Border.all(color: AppColors.border),
                     ),
                     child: const Text('취소',
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 14,
-                          color: AppColors.primary,
+                          color: AppColors.textPrimary,
                         )),
                   ),
                 ),
@@ -1270,18 +1269,15 @@ class _RoutinePetPickerSheetState
                       alignment: Alignment.center,
                       padding:
                           const EdgeInsets.symmetric(vertical: 14),
-                      decoration: BoxDecoration(
-                        color: _saving
-                            ? AppColors.paleLine
-                            : AppColors.primary,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
+                      color: _saving
+                          ? AppColors.textDisabled
+                          : AppColors.primary,
                       child: _saving
                           ? const SizedBox(
                               width: 20, height: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: AppColors.paleBg,
+                                color: Colors.white,
                               ),
                             )
                           : Row(
@@ -1292,25 +1288,19 @@ class _RoutinePetPickerSheetState
                                     style: TextStyle(
                                       fontWeight: FontWeight.w700,
                                       fontSize: 14,
-                                      color: AppColors.paleBg,
+                                      color: Colors.white,
                                     )),
                                 const SizedBox(width: 6),
                                 Container(
-                                  padding:
-                                      const EdgeInsets.symmetric(
-                                          horizontal: 7, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.paleBg
-                                        .withValues(alpha: 0.18),
-                                    borderRadius:
-                                        BorderRadius.circular(999),
-                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 7, vertical: 2),
+                                  color: Colors.white.withValues(alpha: 0.18),
                                   child: Text(
                                     '${_selectedIds.length}마리',
                                     style: const TextStyle(
                                       fontSize: 10,
                                       fontWeight: FontWeight.w700,
-                                      color: AppColors.paleBg,
+                                      color: Colors.white,
                                     ),
                                   ),
                                 ),

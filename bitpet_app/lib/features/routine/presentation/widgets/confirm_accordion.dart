@@ -28,12 +28,10 @@ class ConfirmAccordion extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(top: 10),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColors.card,
-        border: Border.all(color: AppColors.paleLine),
-        borderRadius: BorderRadius.circular(14),
+        border: Border.fromBorderSide(BorderSide(color: AppColors.border)),
       ),
-      clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
           GestureDetector(
@@ -47,12 +45,12 @@ class ConfirmAccordion extends StatelessWidget {
                     Text(label,
                         style: const TextStyle(
                             fontSize: 13, fontWeight: FontWeight.w700,
-                            color: AppColors.primary, letterSpacing: -0.2)),
+                            color: AppColors.textPrimary, letterSpacing: -0.2)),
                     if (optional) ...[
                       const SizedBox(width: 7),
                       Text('OPTIONAL',
                           style: AppTextStyles.mono(9, FontWeight.w700,
-                              color: AppColors.paleInk3)),
+                              color: AppColors.textDisabled)),
                     ],
                   ],
                   const Spacer(),
@@ -64,15 +62,15 @@ class ConfirmAccordion extends StatelessWidget {
                         style: TextStyle(
                             fontSize: 11.5, fontWeight: FontWeight.w700,
                             color: summaryActive
-                                ? AppColors.primary
-                                : AppColors.paleInk3),
+                                ? AppColors.textPrimary
+                                : AppColors.textDisabled),
                       ),
                     ),
                   AnimatedRotation(
                     turns: open ? 0.25 : 0,
                     duration: const Duration(milliseconds: 180),
                     child: const Icon(Icons.chevron_right,
-                        size: 18, color: AppColors.paleInk3),
+                        size: 18, color: AppColors.textDisabled),
                   ),
                 ],
               ),

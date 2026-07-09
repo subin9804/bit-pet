@@ -108,16 +108,7 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
                 child: SizedBox(
                   height: cardH,
                   child: Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.paleBg,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x521C1610),
-                        blurRadius: 60, offset: Offset(0, 24)),
-                    ],
-                  ),
-                  clipBehavior: Clip.antiAlias,
+                  color: AppColors.bg,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -129,12 +120,9 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
                           children: [
                             Container(
                               width: 48, height: 48,
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.62),
-                                borderRadius: BorderRadius.circular(15),
-                              ),
+                              color: Colors.white.withValues(alpha: 0.62),
                               child: Icon(_icon, size: 24,
-                                  color: AppColors.primary),
+                                  color: AppColors.textPrimary),
                             ),
                             const SizedBox(width: 13),
                             Expanded(
@@ -144,14 +132,14 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
                                   Text(
                                     'BULK COMPLETE · ${routine.alarmTime ?? '--:--'}',
                                     style: AppTextStyles.mono(10, FontWeight.w700,
-                                        color: AppColors.paleInk2),
+                                        color: AppColors.textSecondary),
                                   ),
                                   const SizedBox(height: 3),
                                   Text(
                                     routine.title,
                                     style: const TextStyle(
                                         fontSize: 19, fontWeight: FontWeight.w800,
-                                        color: AppColors.primary,
+                                        color: AppColors.textPrimary,
                                         letterSpacing: -0.5),
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -256,18 +244,18 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
                                   maxLines: 2,
                                   style: const TextStyle(
                                       fontSize: 13, color: AppColors.primary),
-                                  decoration: InputDecoration(
+                                  decoration: const InputDecoration(
                                     hintText: '예: 1마리 남김 · 식욕 좋음',
-                                    contentPadding: const EdgeInsets.symmetric(
+                                    contentPadding: EdgeInsets.symmetric(
                                         horizontal: 12, vertical: 10),
                                     border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(11),
-                                        borderSide: const BorderSide(
-                                            color: AppColors.paleLine)),
+                                        borderRadius: BorderRadius.zero,
+                                        borderSide: BorderSide(
+                                            color: AppColors.border)),
                                     enabledBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(11),
-                                        borderSide: const BorderSide(
-                                            color: AppColors.paleLine)),
+                                        borderRadius: BorderRadius.zero,
+                                        borderSide: BorderSide(
+                                            color: AppColors.border)),
                                   ),
                                 ),
                               ),
@@ -279,9 +267,8 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
                       // 푸터
                       Container(
                         decoration: const BoxDecoration(
-                          color: AppColors.paleBg,
-                          border: Border(
-                              top: BorderSide(color: AppColors.paleLineSoft)),
+                          color: AppColors.bg,
+                          border: Border(top: BorderSide(color: AppColors.divider)),
                         ),
                         padding: const EdgeInsets.fromLTRB(22, 14, 22, 22),
                         child: Row(
@@ -292,14 +279,13 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 22, vertical: 14),
                                 decoration: BoxDecoration(
-                                  color: AppColors.card,
-                                  border: Border.all(color: AppColors.paleLine),
-                                  borderRadius: BorderRadius.circular(14),
+                                  color: AppColors.bg2,
+                                  border: Border.all(color: AppColors.border),
                                 ),
-                                child: Text('취소',
+                                child: const Text('취소',
                                     style: TextStyle(
                                         fontSize: 15, fontWeight: FontWeight.w700,
-                                        color: AppColors.paleInk2)),
+                                        color: AppColors.textSecondary)),
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -310,29 +296,26 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
                                   padding:
                                       const EdgeInsets.symmetric(vertical: 14),
                                   alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primary,
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
+                                  color: AppColors.primary,
                                   child: _saving
                                       ? const SizedBox(
                                           width: 20, height: 20,
                                           child: CircularProgressIndicator(
                                               strokeWidth: 2,
                                               color: Colors.white))
-                                      : Row(
+                                      : const Row(
                                           mainAxisAlignment:
                                               MainAxisAlignment.center,
                                           children: [
-                                            const Icon(Icons.check,
+                                            Icon(Icons.check,
                                                 size: 16,
-                                                color: AppColors.paleBg),
-                                            const SizedBox(width: 8),
+                                                color: Colors.white),
+                                            SizedBox(width: 8),
                                             Text('확인',
                                                 style: TextStyle(
                                                     fontSize: 15,
                                                     fontWeight: FontWeight.w700,
-                                                    color: AppColors.paleBg)),
+                                                    color: Colors.white)),
                                           ],
                                         ),
                                   ),
@@ -373,14 +356,11 @@ class _QuestionText extends StatelessWidget {
             alignment: PlaceholderAlignment.middle,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-              decoration: BoxDecoration(
-                color: accent,
-                borderRadius: BorderRadius.circular(5),
-              ),
+              color: accent,
               child: Text("'$title'",
                   style: const TextStyle(
                       fontSize: 17, fontWeight: FontWeight.w700,
-                      color: AppColors.primary)),
+                      color: AppColors.textPrimary)),
             ),
           ),
           const TextSpan(text: '를 완료 처리할까요?'),
@@ -400,41 +380,37 @@ class _NameChip extends StatelessWidget {
     final done = status.isCompleted;
     final pale = PalePalette.pale(PalePalette.keyFromHex(status.colorCode));
     return Opacity(
-      opacity: done ? 0.6 : 1,
+      opacity: done ? 0.55 : 1,
       child: Container(
         padding: const EdgeInsets.fromLTRB(5, 4, 10, 4),
         decoration: BoxDecoration(
-          color: done ? AppColors.paleBgAlt : pale,
+          color: done ? AppColors.bg2 : pale,
           border: Border.all(
-              color: done ? AppColors.paleLine : Colors.transparent),
-          borderRadius: BorderRadius.circular(999),
+              color: done ? AppColors.border : Colors.transparent),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
               width: 22, height: 22,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.6),
-                borderRadius: BorderRadius.circular(7),
-              ),
-              child: Icon(Icons.pets, size: 12, color: AppColors.primary),
+              color: Colors.white.withValues(alpha: 0.6),
+              child: Icon(Icons.pets, size: 12, color: AppColors.textPrimary),
             ),
             const SizedBox(width: 6),
             Text(
               status.petName,
               style: TextStyle(
                 fontSize: 12, fontWeight: FontWeight.w700,
-                color: AppColors.primary,
+                color: AppColors.textPrimary,
                 decoration: done
                     ? TextDecoration.lineThrough
                     : TextDecoration.none,
-                decorationColor: AppColors.paleInk3,
+                decorationColor: AppColors.textDisabled,
               ),
             ),
             if (done) ...[
               const SizedBox(width: 4),
-              const Icon(Icons.check, size: 13, color: AppColors.paleInk3),
+              const Icon(Icons.check, size: 13, color: AppColors.textDisabled),
             ],
           ],
         ),

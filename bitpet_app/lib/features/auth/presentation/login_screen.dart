@@ -13,11 +13,7 @@ import '../providers/auth_provider.dart';
 Widget get _loginIcon => Container(
       width: 72,
       height: 72,
-      decoration: BoxDecoration(
-        color: AppColors.bg2,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border, width: 1.5),
-      ),
+      color: AppColors.bg2,
       child: const Icon(Icons.cruelty_free_outlined, size: 36, color: AppColors.textSecondary),
     );
 
