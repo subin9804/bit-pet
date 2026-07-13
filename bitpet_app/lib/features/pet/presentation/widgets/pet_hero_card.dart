@@ -44,26 +44,44 @@ class _PetHeroCardState extends State<PetHeroCard> {
     return Container(
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppColors.border),
       ),
       padding: const EdgeInsets.fromLTRB(22, 20, 22, 20),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // 아바타 박스 92×92
-          Container(
-            width: 92,
-            height: 92,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.55),
-              borderRadius: BorderRadius.circular(22),
-            ),
-            child: pet.profileImageUrl != null
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(21),
-                    child: Image.network(pet.profileImageUrl!, fit: BoxFit.cover),
-                  )
-                : const Icon(Icons.pets, color: AppColors.primary, size: 44),
+          // 아바타 박스 92×92 (+ 이별 시 우측 하단 무지개 배지)
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                width: 92,
+                height: 92,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.55),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: pet.profileImageUrl != null
+                    ? Image.network(pet.profileImageUrl!, fit: BoxFit.cover)
+                    : const Icon(Icons.pets,
+                        color: AppColors.primary, size: 44),
+              ),
+              if (pet.isDeceased)
+                Positioned(
+                  right: -6,
+                  bottom: -6,
+                  child: Container(
+                    width: 26,
+                    height: 26,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: const Text('🌈', style: TextStyle(fontSize: 13)),
+                  ),
+                ),
+            ],
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -98,12 +116,16 @@ class _PetHeroCardState extends State<PetHeroCard> {
                       ),
                       const SizedBox(width: 6),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                         decoration: BoxDecoration(
                           color: isPublic
                               ? AppColors.petSage
                               : Colors.white.withValues(alpha: 0.45),
-                          borderRadius: BorderRadius.circular(5),
+                          border: Border.all(
+                            color: isPublic
+                                ? AppColors.petSageInk.withValues(alpha: 0.3)
+                                : AppColors.border,
+                          ),
                         ),
                         child: Text(
                           isPublic ? '공개' : '비공개',
@@ -140,10 +162,10 @@ class _PetHeroCardState extends State<PetHeroCard> {
                 const SizedBox(height: 8),
                 // 성별·체중 pill
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.55),
-                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: AppColors.border),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,

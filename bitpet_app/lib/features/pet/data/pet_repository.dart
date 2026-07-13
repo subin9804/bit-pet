@@ -82,6 +82,36 @@ class PetRepository {
     return apiRes.data!;
   }
 
+  /// 이별하기 — 폐사 처리 (기록은 그대로 보존)
+  Future<Pet> markDeceased(int id) async {
+    final res = await _dio.post('/pets/$id/deceased');
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => Pet.fromJson(d as Map<String, dynamic>),
+    );
+    if (!apiRes.success || apiRes.data == null) {
+      throw ApiException(
+          statusCode: res.statusCode ?? 0,
+          message: apiRes.message ?? '이별 처리에 실패했습니다.');
+    }
+    return apiRes.data!;
+  }
+
+  /// 이별 취소 — 폐사 표시 해제
+  Future<Pet> revertDeceased(int id) async {
+    final res = await _dio.delete('/pets/$id/deceased');
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => Pet.fromJson(d as Map<String, dynamic>),
+    );
+    if (!apiRes.success || apiRes.data == null) {
+      throw ApiException(
+          statusCode: res.statusCode ?? 0,
+          message: apiRes.message ?? '이별 취소에 실패했습니다.');
+    }
+    return apiRes.data!;
+  }
+
   Future<void> deletePet(int id) async {
     final res = await _dio.delete('/pets/$id');
     final apiRes = ApiResponse<void>.fromJson(

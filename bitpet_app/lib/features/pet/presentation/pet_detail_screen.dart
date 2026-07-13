@@ -7,6 +7,7 @@ import '../../../core/theme/pale_palette.dart';
 import '../../../core/widgets/confirm_modal.dart';
 import '../../../core/widgets/skeleton_loader.dart';
 import '../../../core/widgets/toast_message.dart';
+import '../data/models/pet_models.dart';
 import '../providers/pet_provider.dart';
 import 'widgets/pet_hero_card.dart';
 import 'widgets/pet_info_grid.dart';
@@ -46,9 +47,9 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
               SafeArea(
                 bottom: false,
                 child: _TopBar(
-                  onBack:   () => context.pop(),
-                  onEdit:   () => context.push('/pets/${widget.petId}/edit'),
-                  onDelete: () => _handleDelete(pet.name),
+                  onBack: () => context.pop(),
+                  onEdit: () => context.push('/pets/${widget.petId}/edit'),
+                  onMore: (anchorContext) => _showMoreMenu(anchorContext, pet),
                 ),
               ),
 
@@ -93,7 +94,6 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
                                     border: active
                                         ? null
                                         : Border.all(color: AppColors.paleLine),
-                                    borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
@@ -160,6 +160,99 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
     );
   }
 
+  /// 점 세개 버튼 아래 드롭다운 메뉴 — 이별하기 / 이 개체 삭제하기
+  Future<void> _showMoreMenu(BuildContext anchorContext, Pet pet) async {
+    final box     = anchorContext.findRenderObject() as RenderBox;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final offset  = box.localToGlobal(Offset.zero, ancestor: overlay);
+    final position = RelativeRect.fromLTRB(
+      offset.dx,
+      offset.dy + box.size.height + 6,
+      overlay.size.width - offset.dx - box.size.width,
+      0,
+    );
+
+    final action = await showMenu<String>(
+      context: context,
+      position: position,
+      color: AppColors.card,
+      elevation: 0,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.zero,
+        side: BorderSide(color: AppColors.paleLine),
+      ),
+      items: [
+        PopupMenuItem(
+          value: pet.isDeceased ? 'revert' : 'farewell',
+          height: 44,
+          child: Row(
+            children: [
+              const Text('🌈', style: TextStyle(fontSize: 14)),
+              const SizedBox(width: 8),
+              Text(
+                pet.isDeceased ? '이별 취소' : '이별하기',
+                style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary),
+              ),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'delete',
+          height: 44,
+          child: Row(
+            children: const [
+              Icon(Icons.delete_outline, size: 16, color: AppColors.error),
+              SizedBox(width: 8),
+              Text('이 개체 삭제하기',
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.error)),
+            ],
+          ),
+        ),
+      ],
+    );
+    if (!mounted) return;
+
+    switch (action) {
+      case 'farewell': await _handleFarewell(pet.name);
+      case 'revert':   await _handleRevertFarewell();
+      case 'delete':   await _handleDelete(pet.name);
+    }
+  }
+
+  /// 이별하기 — 폐사 처리 (기록 보존)
+  Future<void> _handleFarewell(String name) async {
+    final ok = await ConfirmModal.show(
+      context,
+      title: '이별하기',
+      message:
+          '$name와(과) 이별할까요?\n함께한 기록은 그대로 남고, 내 개체 목록 맨 아래로 이동해요.',
+      confirmLabel: '이별하기',
+    );
+    if (ok && mounted) {
+      await ref.read(petListProvider.notifier).markDeceased(widget.petId);
+      ref.invalidate(petDetailProvider(widget.petId));
+      if (mounted) {
+        ToastMessage.show(context, '$name와(과)의 기억은 그대로 남아있어요. 🌈',
+            type: ToastType.success);
+      }
+    }
+  }
+
+  /// 이별 취소 — 폐사 표시 해제
+  Future<void> _handleRevertFarewell() async {
+    await ref.read(petListProvider.notifier).revertDeceased(widget.petId);
+    ref.invalidate(petDetailProvider(widget.petId));
+    if (mounted) {
+      ToastMessage.show(context, '이별이 취소되었습니다.', type: ToastType.success);
+    }
+  }
+
   Future<void> _handleDelete(String name) async {
     final ok = await ConfirmModal.show(
       context,
@@ -167,6 +260,7 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
       message: '$name을(를) 삭제할까요? 모든 기록도 함께 삭제됩니다.',
       confirmLabel: '삭제',
       isDangerous: true,
+      requireTextConfirmation: name,
     );
     if (ok && mounted) {
       await ref.read(petListProvider.notifier).remove(widget.petId);
@@ -182,12 +276,12 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
 class _TopBar extends StatelessWidget {
   final VoidCallback onBack;
   final VoidCallback onEdit;
-  final VoidCallback onDelete;
+  final void Function(BuildContext anchorContext) onMore;
 
   const _TopBar({
     required this.onBack,
     required this.onEdit,
-    required this.onDelete,
+    required this.onMore,
   });
 
   @override
@@ -226,18 +320,20 @@ class _TopBar extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 6),
-          // 더보기(삭제 등)
-          GestureDetector(
-            onTap: onDelete,
-            child: Container(
-              width: 36, height: 36,
-              decoration: BoxDecoration(
-                color: AppColors.card,
-                border: Border.all(color: AppColors.paleLine),
-                shape: BoxShape.circle,
+          // 더보기 (이별하기 · 삭제)
+          Builder(
+            builder: (anchorContext) => GestureDetector(
+              onTap: () => onMore(anchorContext),
+              child: Container(
+                width: 36, height: 36,
+                decoration: BoxDecoration(
+                  color: AppColors.card,
+                  border: Border.all(color: AppColors.paleLine),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.more_vert,
+                    size: 16, color: AppColors.primary),
               ),
-              child: const Icon(Icons.more_vert,
-                  size: 16, color: AppColors.primary),
             ),
           ),
         ],
@@ -258,13 +354,13 @@ class _LoadingSkeleton extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SkeletonBox(width: double.infinity, height: 130, borderRadius: 22),
+            SkeletonBox(width: double.infinity, height: 130),
             const SizedBox(height: 14),
-            SkeletonBox(width: double.infinity, height: 130, borderRadius: 16),
+            SkeletonBox(width: double.infinity, height: 130),
             const SizedBox(height: 22),
-            SkeletonBox(width: double.infinity, height: 44, borderRadius: 12),
+            SkeletonBox(width: double.infinity, height: 44),
             const SizedBox(height: 18),
-            SkeletonBox(width: double.infinity, height: 200, borderRadius: 16),
+            SkeletonBox(width: double.infinity, height: 200),
           ],
         ),
       ),

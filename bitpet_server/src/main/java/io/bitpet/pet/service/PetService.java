@@ -99,6 +99,8 @@ public class PetService {
 
     public List<PetResponse> listByOwner(Long userId) {
         return petRepository.findAllByUserId(userId).stream()
+                // 폐사(이별) 개체는 목록 마지막으로 (stable sort — 기존 순서 유지)
+                .sorted(java.util.Comparator.comparing(p -> p.getDeceasedAt() != null))
                 .map(pet -> {
                     Double latestWeight = weightRepository.findAllByPetIdOrderByMeasuredAtDesc(pet.getId())
                             .stream().findFirst()
@@ -153,6 +155,22 @@ public class PetService {
     public void delete(Long userId, Long petId) {
         PetMst pet = loadOwnedPet(userId, petId);
         pet.softDelete();
+    }
+
+    /** 이별하기 — 폐사 처리 (기록은 그대로 보존) */
+    @Transactional
+    public PetResponse markDeceased(Long userId, Long petId, java.time.LocalDate deceasedAt) {
+        PetMst pet = loadOwnedPet(userId, petId);
+        pet.markDeceased(deceasedAt);
+        return PetResponse.from(pet);
+    }
+
+    /** 이별 취소 — 폐사 표시 해제 */
+    @Transactional
+    public PetResponse revertDeceased(Long userId, Long petId) {
+        PetMst pet = loadOwnedPet(userId, petId);
+        pet.revertDeceased();
+        return PetResponse.from(pet);
     }
 
     // -------------------------------------------------------------------------

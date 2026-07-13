@@ -94,6 +94,10 @@ public class PetMst extends BaseSyncEntity {
     @Column(name = "private_yn", nullable = false, length = 1)
     private String privateYn = "Y";
 
+    // NULL = 생존, 값 있으면 폐사일 (이별하기)
+    @Column(name = "deceased_at")
+    private LocalDate deceasedAt;
+
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
@@ -146,6 +150,14 @@ public class PetMst extends BaseSyncEntity {
     public void assignGroup(Long groupId) { this.groupId = groupId; }
 
     public void removeGroup() { this.groupId = null; }
+
+    public void markDeceased(LocalDate date) {
+        this.deceasedAt = date != null ? date : LocalDate.now();
+    }
+
+    public void revertDeceased() {
+        this.deceasedAt = null;
+    }
 
     public void softDelete() {
         this.deletedAt = Instant.now();

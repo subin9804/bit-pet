@@ -76,6 +76,8 @@ class Pet {
   final double? latestWeightG;
   // 'Y' = 비공개(기본), 'N' = 공개(전체 검색 허용)
   final String privateYn;
+  // 폐사일 (이별하기) — null이면 생존
+  final DateTime? deceasedAt;
   // 부모 개체 (단건 조회 시 포함)
   final int? fatherRelationId;
   final int? fatherId;
@@ -103,6 +105,7 @@ class Pet {
     this.adoptionDate,
     this.latestWeightG,
     this.privateYn = 'Y',
+    this.deceasedAt,
     this.fatherRelationId,
     this.fatherId,
     this.fatherName,
@@ -112,6 +115,8 @@ class Pet {
   }) : morphs = morphs ?? const [];
 
   bool get isPrivate => privateYn == 'Y';
+
+  bool get isDeceased => deceasedAt != null;
 
   factory Pet.fromJson(Map<String, dynamic> json) => Pet(
         id: (json['id'] as num).toInt(),
@@ -146,6 +151,9 @@ class Pet {
             : null,
         latestWeightG: (json['latestWeightG'] as num?)?.toDouble(),
         privateYn: json['privateYn'] as String? ?? 'Y',
+        deceasedAt: json['deceasedAt'] != null
+            ? DateTime.tryParse(json['deceasedAt'] as String)
+            : null,
         fatherRelationId: (json['fatherRelationId'] as num?)?.toInt(),
         fatherId: (json['fatherId'] as num?)?.toInt(),
         fatherName: json['fatherName'] as String?,

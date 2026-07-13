@@ -108,6 +108,26 @@ public class PetController {
         return ApiResponse.ok();
     }
 
+    @Operation(summary = "이별하기 — 개체 폐사 처리 (기록 보존, deceasedAt 미지정 시 오늘)")
+    @PostMapping("/{petId}/deceased")
+    public ApiResponse<PetResponse> markDeceased(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @PathVariable Long petId,
+            @RequestBody(required = false) java.util.Map<String, String> body) {
+        java.time.LocalDate date = body != null && body.get("deceasedAt") != null
+                ? java.time.LocalDate.parse(body.get("deceasedAt"))
+                : null;
+        return ApiResponse.ok(petService.markDeceased(principal.userId(), petId, date));
+    }
+
+    @Operation(summary = "이별 취소 — 폐사 표시 해제")
+    @DeleteMapping("/{petId}/deceased")
+    public ApiResponse<PetResponse> revertDeceased(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @PathVariable Long petId) {
+        return ApiResponse.ok(petService.revertDeceased(principal.userId(), petId));
+    }
+
     // -------------------------------------------------------------------------
     // D3: 가계도 / 부모-자식 관계
     // -------------------------------------------------------------------------

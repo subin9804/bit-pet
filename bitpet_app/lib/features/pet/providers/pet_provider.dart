@@ -13,15 +13,22 @@ class PetListNotifier extends StateNotifier<AsyncValue<List<Pet>>> {
     load();
   }
 
+  /// 폐사(이별) 개체는 항상 목록 마지막으로 (stable sort)
+  static List<Pet> _sorted(List<Pet> list) {
+    final alive    = list.where((p) => !p.isDeceased);
+    final deceased = list.where((p) => p.isDeceased);
+    return [...alive, ...deceased];
+  }
+
   Future<void> load() async {
     state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() => _repo.getMyPets());
+    state = await AsyncValue.guard(() async => _sorted(await _repo.getMyPets()));
   }
 
   Future<void> add(CreatePetRequest request) async {
     final pet = await _repo.createPet(request);
     state.whenData((list) {
-      state = AsyncValue.data([...list, pet]);
+      state = AsyncValue.data(_sorted([...list, pet]));
     });
   }
 
@@ -29,6 +36,24 @@ class PetListNotifier extends StateNotifier<AsyncValue<List<Pet>>> {
     final pet = await _repo.updatePet(id, data);
     state.whenData((list) {
       state = AsyncValue.data(list.map((p) => p.id == id ? pet : p).toList());
+    });
+  }
+
+  /// 이별하기 — 폐사 처리 후 목록 재정렬
+  Future<void> markDeceased(int id) async {
+    final pet = await _repo.markDeceased(id);
+    state.whenData((list) {
+      state = AsyncValue.data(
+          _sorted(list.map((p) => p.id == id ? pet : p).toList()));
+    });
+  }
+
+  /// 이별 취소
+  Future<void> revertDeceased(int id) async {
+    final pet = await _repo.revertDeceased(id);
+    state.whenData((list) {
+      state = AsyncValue.data(
+          _sorted(list.map((p) => p.id == id ? pet : p).toList()));
     });
   }
 
