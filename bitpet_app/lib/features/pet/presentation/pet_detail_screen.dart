@@ -12,8 +12,8 @@ import '../providers/pet_provider.dart';
 import 'widgets/pet_hero_card.dart';
 import 'widgets/pet_info_grid.dart';
 import 'widgets/record_tab.dart';
+import 'widgets/pet_calendar_tab.dart';
 import 'widgets/gallery_tab.dart';
-import '../../routine/presentation/pet_routine_tab.dart';
 
 class PetDetailScreen extends ConsumerStatefulWidget {
   final int petId;
@@ -24,9 +24,9 @@ class PetDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
-  int _tabIndex = 0; // 0:기록 1:루틴 2:갤러리
+  int _tabIndex = 0; // 0:기록 1:캘린더 2:갤러리
 
-  static const _tabs = ['기록', '루틴', '갤러리'];
+  static const _tabs = ['기록', '캘린더', '갤러리'];
   // mock 탭 카운트 (추후 API 대체)
   static const _tabCounts = [24, 4, 9];
 
@@ -138,10 +138,7 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
                               petId: widget.petId,
                               paletteKey: paletteKey,
                             ),
-                            PetRoutineTab(
-                              petId: widget.petId,
-                              paletteKey: paletteKey,
-                            ),
+                            PetCalendarTab(petId: widget.petId),
                             GalleryTab(
                               petId: widget.petId,
                               paletteKey: paletteKey,
