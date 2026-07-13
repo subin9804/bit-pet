@@ -19,7 +19,7 @@ class SelectedPetRow extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: bandColor,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.zero,
       ),
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       child: Row(
@@ -39,7 +39,7 @@ class SelectedPetRow extends StatelessWidget {
                     width: 30, height: 30,
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.55),
-                      borderRadius: BorderRadius.circular(9),
+                      borderRadius: BorderRadius.zero,
                       border: Border.all(
                           color: bandColor, width: 1.5),
                     ),

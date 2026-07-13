@@ -63,7 +63,6 @@ class _PetInfoGridState extends ConsumerState<PetInfoGrid> {
       decoration: BoxDecoration(
         color: AppColors.card,
         border: Border.all(color: AppColors.paleLine),
-        borderRadius: BorderRadius.circular(16),
       ),
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       child: Column(
@@ -172,10 +171,9 @@ class _ParentChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
         color: active ? AppColors.paleBgAlt : Colors.transparent,
-        borderRadius: BorderRadius.circular(7),
         border: Border.all(
           color: active ? AppColors.paleLine : AppColors.paleLine.withValues(alpha: 0.5),
         ),
@@ -223,10 +221,10 @@ class _Cell extends StatelessWidget {
               if (chip != null) ...[
                 const SizedBox(width: 5),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                   decoration: BoxDecoration(
                     color: AppColors.petPeach,
-                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: AppColors.petPeachInk.withValues(alpha: 0.3)),
                   ),
                   child: Text(
                     chip!,
@@ -390,7 +388,7 @@ class _ParentEditSheetState extends ConsumerState<_ParentEditSheet> {
               ],
             ),
           ),
-          const Divider(height: 1, color: AppColors.paleLineSoft),
+          const SizedBox(height: 12),
           Padding(
             padding: const EdgeInsets.fromLTRB(22, 18, 22, 8),
             child: Column(
@@ -428,7 +426,6 @@ class _ParentEditSheetState extends ConsumerState<_ParentEditSheet> {
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                     decoration: BoxDecoration(
                       color: AppColors.card,
-                      borderRadius: BorderRadius.circular(14),
                       border: Border.all(color: AppColors.paleLine),
                     ),
                     child: const Text('취소',
@@ -446,7 +443,6 @@ class _ParentEditSheetState extends ConsumerState<_ParentEditSheet> {
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       decoration: BoxDecoration(
                         color: _saving ? AppColors.paleLine : AppColors.primary,
-                        borderRadius: BorderRadius.circular(14),
                       ),
                       child: _saving
                           ? const SizedBox(width: 20, height: 20,
@@ -489,7 +485,10 @@ class _ParentRow extends StatelessWidget {
           width: 32, height: 32,
           decoration: BoxDecoration(
             color: isFather ? AppColors.petSky : AppColors.petPeach,
-            borderRadius: BorderRadius.circular(9),
+            border: Border.all(
+              color: (isFather ? AppColors.petSkyInk : AppColors.petCoralInk)
+                  .withValues(alpha: 0.25),
+            ),
           ),
           child: Center(
             child: Text(
@@ -535,10 +534,9 @@ class _ParentRow extends StatelessWidget {
         GestureDetector(
           onTap: onPick,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
               color: AppColors.paleBgAlt,
-              borderRadius: BorderRadius.circular(9),
               border: Border.all(color: AppColors.paleLine),
             ),
             child: const Row(

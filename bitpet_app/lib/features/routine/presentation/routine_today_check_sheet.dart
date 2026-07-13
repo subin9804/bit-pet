@@ -175,7 +175,7 @@ class _RoutineTodayCheckSheetState
                 height: 4,
                 decoration: BoxDecoration(
                   color: AppColors.border,
-                  borderRadius: BorderRadius.circular(2),
+                  borderRadius: BorderRadius.zero,
                 ),
               ),
             ),
@@ -203,7 +203,7 @@ class _RoutineTodayCheckSheetState
                             horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
                           color: AppColors.petColorPeach,
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.zero,
                         ),
                         child: Text(
                           '$_completedCount / ${_statuses.length}',
@@ -222,7 +222,7 @@ class _RoutineTodayCheckSheetState
                   const SizedBox(height: 8),
                   // 진행 바
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: BorderRadius.zero,
                     child: LinearProgressIndicator(
                       value: _statuses.isEmpty
                           ? 0
@@ -367,7 +367,7 @@ class _PetCheckCard extends StatelessWidget {
           color: status.isCompleted
               ? _bg.withValues(alpha: 0.5)
               : AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.zero,
           border: Border.all(
             color: status.isCompleted
                 ? AppColors.secondary.withValues(alpha: 0.5)
@@ -387,11 +387,11 @@ class _PetCheckCard extends StatelessWidget {
                     height: 48,
                     decoration: BoxDecoration(
                       color: _bg,
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.zero,
                     ),
                     child: status.imageUrl != null
                         ? ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.zero,
                             child: Image.network(status.imageUrl!,
                                 fit: BoxFit.cover,
                                 errorBuilder: (_, __, ___) =>
@@ -478,7 +478,7 @@ class _SmallBtn extends StatelessWidget {
             const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
           border: Border.all(color: AppColors.border),
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.zero,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,

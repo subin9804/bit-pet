@@ -5,6 +5,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/skeleton_loader.dart';
 import '../../../core/widgets/toast_message.dart';
+import '../../../core/theme/app_input_styles.dart';
 import '../providers/record_provider.dart';
 import '../data/models/record_models.dart';
 import '../data/record_repository.dart';
@@ -115,7 +116,7 @@ class _WeightList extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: AppColors.card,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.zero,
                 border: Border.all(color: AppColors.border),
               ),
               child: Row(
@@ -185,7 +186,7 @@ class _FeedingList extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: AppColors.card,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.zero,
                 border: Border.all(color: AppColors.border),
               ),
               child: Row(
@@ -246,7 +247,7 @@ class _CleaningList extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: AppColors.card,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.zero,
                 border: Border.all(color: AppColors.border),
               ),
               child: Row(
@@ -307,7 +308,7 @@ class _MemoList extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: AppColors.card,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.zero,
                 border: Border.all(color: AppColors.border),
               ),
               child: Column(
@@ -373,7 +374,7 @@ class _MatingList extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: AppColors.card,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.zero,
                 border: Border.all(color: AppColors.border),
               ),
               child: Row(
@@ -433,7 +434,7 @@ class _LayingList extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: AppColors.card,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.zero,
                 border: Border.all(color: AppColors.border),
               ),
               child: Row(
@@ -600,7 +601,7 @@ class _InputSheetState extends ConsumerState<_InputSheet> {
             const SizedBox(height: 16),
             TextFormField(
               controller: _contentCtrl,
-              decoration: const InputDecoration(labelText: '내용 *'),
+              decoration: AppInputStyles.textarea(hintText: '내용 *'),
               maxLines: 3,
               autofocus: true,
             ),

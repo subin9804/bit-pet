@@ -53,9 +53,7 @@ class _FeedItemsEditorState extends State<FeedItemsEditor> {
         ),
         // ── 추가된 아이템 목록 ─────────────────────────────
         if (widget.items.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          const Divider(color: AppColors.paleLine, height: 1),
-          const SizedBox(height: 10),
+          const SizedBox(height: 20),
           _SectionLabel('추가된 피딩'),
           const SizedBox(height: 8),
           ...widget.items.asMap().entries.map((e) => Padding(
@@ -105,7 +103,7 @@ class _ItemRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.card,
         border: Border.all(color: AppColors.paleLine),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.zero,
       ),
       child: Row(
         children: [

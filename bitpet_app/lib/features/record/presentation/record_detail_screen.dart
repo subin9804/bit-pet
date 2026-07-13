@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_input_styles.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/app_buttons.dart';
+import '../../../core/widgets/app_chip.dart';
 import '../../../core/widgets/skeleton_loader.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../data/models/record_models.dart';
@@ -413,7 +416,7 @@ class _TopBar extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
               color: AppColors.primary,
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.zero,
             ),
             child: Row(children: [
               const Icon(Icons.add, color: Colors.white, size: 16),
@@ -439,7 +442,7 @@ class _Segment extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
           color: AppColors.paleBgAlt,
-          borderRadius: BorderRadius.circular(12)),
+          borderRadius: BorderRadius.zero),
       padding: const EdgeInsets.all(4),
       child: Row(children: [
         _SegTab(label: '캘린더', icon: Icons.calendar_today_outlined,
@@ -470,11 +473,7 @@ class _SegTab extends StatelessWidget {
           decoration: BoxDecoration(
             color: active ? AppColors.card : Colors.transparent,
             border: active ? Border.all(color: AppColors.paleLine) : null,
-            borderRadius: BorderRadius.circular(9),
-            boxShadow: active
-                ? [const BoxShadow(color: Color(0x08000000),
-                    blurRadius: 2, offset: Offset(0, 1))]
-                : null,
+            borderRadius: BorderRadius.zero,
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -509,7 +508,7 @@ class _RecordCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.card,
         border: Border.all(color: AppColors.paleLine),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.zero,
       ),
       padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
       child: Row(
@@ -578,7 +577,7 @@ class _RecordCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: AppColors.paleBg,
                 border: Border.all(color: AppColors.paleLine),
-                borderRadius: BorderRadius.circular(9),
+                borderRadius: BorderRadius.zero,
               ),
               child: const Icon(Icons.edit_outlined,
                   size: 14, color: AppColors.paleInk2),
@@ -670,13 +669,13 @@ class _CalendarViewState extends ConsumerState<_CalendarView> {
             decoration: BoxDecoration(
               color: AppColors.card,
               border: Border.all(color: AppColors.paleLine),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.zero,
             ),
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
             child: Column(children: [
               // 월 이동
               Row(children: [
-                _NavBtn(onTap: () => setState(() =>
+                AppNavButton(onTap: () => setState(() =>
                     _month = DateTime(_month.year, _month.month - 1))),
                 const Spacer(),
                 Column(children: [
@@ -685,7 +684,7 @@ class _CalendarViewState extends ConsumerState<_CalendarView> {
                   Text('$monthCount건', style: AppTextStyles.monoXxs),
                 ]),
                 const Spacer(),
-                _NavBtn(forward: true, onTap: () => setState(() =>
+                AppNavButton(forward: true, onTap: () => setState(() =>
                     _month = DateTime(_month.year, _month.month + 1))),
               ]),
               const SizedBox(height: 10),
@@ -785,7 +784,7 @@ class _CalendarViewState extends ConsumerState<_CalendarView> {
                 padding: const EdgeInsets.symmetric(vertical: 22),
                 decoration: BoxDecoration(
                   border: Border.all(color: AppColors.paleLine, width: 1.5),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.zero,
                 ),
                 child: Column(children: [
                   Text('이 날의 기록이 없어요',
@@ -796,7 +795,7 @@ class _CalendarViewState extends ConsumerState<_CalendarView> {
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                     decoration: BoxDecoration(
                         color: AppColors.paleBgAlt,
-                        borderRadius: BorderRadius.circular(999)),
+                        borderRadius: BorderRadius.zero),
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
                       const Icon(Icons.add, size: 14, color: AppColors.primary),
                       const SizedBox(width: 5),
@@ -822,7 +821,7 @@ class _CalendarViewState extends ConsumerState<_CalendarView> {
                 decoration: BoxDecoration(
                   color: AppColors.card,
                   border: Border.all(color: AppColors.paleLine),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.zero,
                 ),
                 child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                   const Icon(Icons.add, size: 16, color: AppColors.paleInk2),
@@ -1019,9 +1018,7 @@ class _EditorSheetState extends State<_EditorSheet> {
           child: Container(
             decoration: const BoxDecoration(
               color: AppColors.paleBg,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-              boxShadow: [BoxShadow(
-                  color: Color(0x2D1C1610), blurRadius: 40, offset: Offset(0, -10))],
+              border: Border(top: BorderSide(color: AppColors.paleLine)),
             ),
             child: Column(children: [
               // drag handle
@@ -1030,7 +1027,7 @@ class _EditorSheetState extends State<_EditorSheet> {
                 margin: const EdgeInsets.only(top: 8, bottom: 8),
                 decoration: BoxDecoration(
                     color: AppColors.paleLine,
-                    borderRadius: BorderRadius.circular(2)),
+                    borderRadius: BorderRadius.zero),
               ),
               // 헤더 + 날짜 스테퍼
               Padding(
@@ -1061,14 +1058,14 @@ class _EditorSheetState extends State<_EditorSheet> {
                   const SizedBox(height: 10),
                   // 날짜 스테퍼
                   Row(children: [
-                    _NavBtn(onTap: () => _shiftDate(-1)),
+                    AppNavButton(onTap: () => _shiftDate(-1)),
                     Expanded(
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 9),
                         decoration: BoxDecoration(
                           color: AppColors.card,
                           border: Border.all(color: AppColors.paleLine),
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.zero,
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -1084,7 +1081,7 @@ class _EditorSheetState extends State<_EditorSheet> {
                         ),
                       ),
                     ),
-                    _NavBtn(forward: true, onTap: () => _shiftDate(1)),
+                    AppNavButton(forward: true, onTap: () => _shiftDate(1)),
                   ]),
                 ]),
               ),
@@ -1108,16 +1105,8 @@ class _EditorSheetState extends State<_EditorSheet> {
                           controller: _contentCtrl,
                           maxLines: 4,
                           onChanged: (v) => _updateForm('content', v),
-                          decoration: InputDecoration(
+                          decoration: AppInputStyles.textarea(
                             hintText: '메모 내용을 입력하세요',
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 10),
-                            border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: const BorderSide(color: AppColors.paleLine)),
-                            enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: const BorderSide(color: AppColors.paleLine)),
                           ),
                         ),
                       ],
@@ -1131,31 +1120,41 @@ class _EditorSheetState extends State<_EditorSheet> {
                         const SizedBox(height: 10),
                         Row(
                           children: [
-                            _MatingChip(
-                              label: '미정',
-                              selected: e.form['isSuccessful'] == null,
-                              color: AppColors.paleBgAlt,
-                              borderColor: AppColors.paleLine,
-                              textColor: AppColors.paleInk2,
-                              onTap: () => _updateForm('isSuccessful', null),
+                            Expanded(
+                              child: AppChip(
+                                label: '미정',
+                                selected: e.form['isSuccessful'] == null,
+                                selectedColor: AppColors.paleBgAlt,
+                                selectedBorderColor: AppColors.paleLine,
+                                selectedTextColor: AppColors.paleInk2,
+                                centered: true,
+                                padding: const EdgeInsets.symmetric(vertical: 11),
+                                onTap: () => _updateForm('isSuccessful', null),
+                              ),
                             ),
                             const SizedBox(width: 8),
-                            _MatingChip(
-                              label: '성공',
-                              selected: e.form['isSuccessful'] == true,
-                              color: AppColors.petSage,
-                              borderColor: Colors.transparent,
-                              textColor: AppColors.primary,
-                              onTap: () => _updateForm('isSuccessful', true),
+                            Expanded(
+                              child: AppChip(
+                                label: '성공',
+                                selected: e.form['isSuccessful'] == true,
+                                selectedColor: AppColors.petSage,
+                                selectedTextColor: AppColors.primary,
+                                centered: true,
+                                padding: const EdgeInsets.symmetric(vertical: 11),
+                                onTap: () => _updateForm('isSuccessful', true),
+                              ),
                             ),
                             const SizedBox(width: 8),
-                            _MatingChip(
-                              label: '실패',
-                              selected: e.form['isSuccessful'] == false,
-                              color: AppColors.petCoral,
-                              borderColor: Colors.transparent,
-                              textColor: AppColors.primary,
-                              onTap: () => _updateForm('isSuccessful', false),
+                            Expanded(
+                              child: AppChip(
+                                label: '실패',
+                                selected: e.form['isSuccessful'] == false,
+                                selectedColor: AppColors.petCoral,
+                                selectedTextColor: AppColors.primary,
+                                centered: true,
+                                padding: const EdgeInsets.symmetric(vertical: 11),
+                                onTap: () => _updateForm('isSuccessful', false),
+                              ),
                             ),
                           ],
                         ),
@@ -1171,10 +1170,10 @@ class _EditorSheetState extends State<_EditorSheet> {
                         Container(
                           decoration: BoxDecoration(
                             border: Border.all(color: AppColors.paleLine),
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.zero,
                           ),
                           child: Row(children: [
-                            _StepperBtn(label: '−',
+                            AppStepperButton('−',
                                 onTap: () => setState(() {
                                   _count = (_count - 1).clamp(1, 999);
                                   _updateForm('totalCount', _count);
@@ -1189,7 +1188,7 @@ class _EditorSheetState extends State<_EditorSheet> {
                                 ],
                               ),
                             ),
-                            _StepperBtn(label: '+',
+                            AppStepperButton('+',
                                 onTap: () => setState(() {
                                   _count = (_count + 1).clamp(1, 999);
                                   _updateForm('totalCount', _count);
@@ -1209,7 +1208,7 @@ class _EditorSheetState extends State<_EditorSheet> {
                               decoration: BoxDecoration(
                                 color: active ? widget.accentColor : AppColors.paleBg,
                                 border: Border.all(color: active ? Colors.transparent : AppColors.paleLine),
-                                borderRadius: BorderRadius.circular(999),
+                                borderRadius: BorderRadius.zero,
                               ),
                               child: Text('$n개', style: AppTextStyles.mono(11, FontWeight.w700)),
                             ),
@@ -1233,16 +1232,8 @@ class _EditorSheetState extends State<_EditorSheet> {
                           controller: _memoCtrl,
                           onChanged: (v) => _updateForm('memo', v),
                           maxLines: 2,
-                          decoration: InputDecoration(
+                          decoration: AppInputStyles.textarea(
                             hintText: '메모 (선택)',
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 10),
-                            border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: const BorderSide(color: AppColors.paleLine)),
-                            enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: const BorderSide(color: AppColors.paleLine)),
                           ),
                         ),
                       ],
@@ -1257,7 +1248,7 @@ class _EditorSheetState extends State<_EditorSheet> {
                             padding: const EdgeInsets.symmetric(vertical: 11),
                             decoration: BoxDecoration(
                               border: Border.all(color: const Color(0x66E53935)),
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.zero,
                             ),
                             child: const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
@@ -1294,7 +1285,7 @@ class _EditorSheetState extends State<_EditorSheet> {
                       decoration: BoxDecoration(
                         color: AppColors.card,
                         border: Border.all(color: AppColors.paleLine),
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.zero,
                       ),
                       child: const Text('취소',
                           style: TextStyle(fontSize: 14,
@@ -1311,7 +1302,7 @@ class _EditorSheetState extends State<_EditorSheet> {
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           color: _canSave ? AppColors.primary : AppColors.paleLine,
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.zero,
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -1338,106 +1329,3 @@ class _EditorSheetState extends State<_EditorSheet> {
   }
 }
 
-// ── 공유 서브 위젯 ────────────────────────────────────────────────
-class _NavBtn extends StatelessWidget {
-  final VoidCallback onTap;
-  final bool forward;
-  const _NavBtn({required this.onTap, this.forward = false});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 32, height: 32,
-        margin: EdgeInsets.only(
-            right: forward ? 0 : 8, left: forward ? 8 : 0),
-        decoration: BoxDecoration(
-          border: Border.all(color: AppColors.paleLine),
-          borderRadius: BorderRadius.circular(9),
-        ),
-        child: Icon(forward ? Icons.chevron_right : Icons.chevron_left,
-            size: 18, color: AppColors.primary),
-      ),
-    );
-  }
-}
-
-class _StepperBtn extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-  const _StepperBtn({required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 44, height: 46,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          border: Border(
-            right: label == '−'
-                ? const BorderSide(color: AppColors.paleLine)
-                : BorderSide.none,
-            left: label == '+'
-                ? const BorderSide(color: AppColors.paleLine)
-                : BorderSide.none,
-          ),
-        ),
-        child: Text(label,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700,
-                color: AppColors.primary)),
-      ),
-    );
-  }
-}
-
-// ── 교배 결과 칩 ─────────────────────────────────────────────────
-class _MatingChip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final Color color;
-  final Color borderColor;
-  final Color textColor;
-  final VoidCallback onTap;
-
-  const _MatingChip({
-    required this.label,
-    required this.selected,
-    required this.color,
-    required this.borderColor,
-    required this.textColor,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 140),
-          padding: const EdgeInsets.symmetric(vertical: 11),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: selected ? color : AppColors.card,
-            border: Border.all(
-              color: selected ? borderColor : AppColors.paleLine,
-              width: selected ? 0 : 1,
-            ),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: selected ? textColor : AppColors.paleInk2,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}

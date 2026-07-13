@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_input_styles.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/app_toggle.dart';
 import '../data/models/post_models.dart';
 import '../providers/post_provider.dart';
 
@@ -149,7 +151,7 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
                                     ? Colors.transparent
                                     : AppColors.paleLine,
                               ),
-                              borderRadius: BorderRadius.circular(999),
+                              borderRadius: BorderRadius.zero,
                             ),
                             child: Text(
                               c.$2,
@@ -182,28 +184,21 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
                   _Field(
                     label: '내용',
                     required: true,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.card,
-                        border: Border.all(color: AppColors.paleLine),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: TextField(
-                        controller: _bodyCtrl,
-                        onChanged: (v) =>
-                            ref.read(composeProvider.notifier).setBody(v),
-                        maxLines: null,
-                        minLines: 7,
-                        style: AppTextStyles.body
-                            .copyWith(color: AppColors.primary, height: 1.6),
-                        decoration: InputDecoration(
-                          hintText:
-                              '자유롭게 작성해보세요.\n마크다운을 지원합니다.',
-                          hintStyle: AppTextStyles.body
-                              .copyWith(color: AppColors.paleInk3),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.all(14),
-                        ),
+                    child: TextField(
+                      controller: _bodyCtrl,
+                      onChanged: (v) =>
+                          ref.read(composeProvider.notifier).setBody(v),
+                      maxLines: null,
+                      minLines: 7,
+                      style: AppTextStyles.body
+                          .copyWith(color: AppColors.primary, height: 1.6),
+                      decoration: AppInputStyles.textarea(
+                        hintText:
+                            '자유롭게 작성해보세요.\n마크다운을 지원합니다.',
+                        hintStyle: AppTextStyles.body
+                            .copyWith(color: AppColors.paleInk3),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 14),
                       ),
                     ),
                   ),
@@ -233,7 +228,7 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
                                 border: Border.all(
                                     color: AppColors.paleLine,
                                     style: BorderStyle.solid),
-                                borderRadius: BorderRadius.circular(999),
+                                borderRadius: BorderRadius.zero,
                               ),
                               child: Text(
                                 '+ 태그 추가',
@@ -267,7 +262,7 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
                               style: BorderStyle.solid,
                               width: 1.5,
                             ),
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.zero,
                           ),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -294,7 +289,7 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
                     decoration: BoxDecoration(
                       color: AppColors.card,
                       border: Border.all(color: AppColors.paleLine),
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.zero,
                     ),
                     child: Column(
                       children: [
@@ -352,9 +347,8 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
             hintStyle:
                 AppTextStyles.body.copyWith(color: AppColors.paleInk3),
             prefixText: '# ',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AppColors.paleLine),
+            border: const UnderlineInputBorder(
+              borderSide: BorderSide(color: AppColors.paleLine),
             ),
           ),
           onSubmitted: (_) {
@@ -441,7 +435,7 @@ class _TopBar extends StatelessWidget {
                   const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
                 color: canSubmit ? AppColors.primary : AppColors.paleLine,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.zero,
               ),
               child: isSubmitting
                   ? const SizedBox(
@@ -537,24 +531,23 @@ class _PaleTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        border: Border.all(color: AppColors.paleLine),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: TextField(
-        controller: controller,
-        onChanged: onChanged,
-        style: AppTextStyles.body.copyWith(color: AppColors.primary),
-        decoration: InputDecoration(
-          hintText: placeholder,
-          hintStyle:
-              AppTextStyles.body.copyWith(color: AppColors.paleInk3),
-          border: InputBorder.none,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    return TextField(
+      controller: controller,
+      onChanged: onChanged,
+      style: AppTextStyles.body.copyWith(color: AppColors.primary),
+      decoration: InputDecoration(
+        hintText: placeholder,
+        hintStyle:
+            AppTextStyles.body.copyWith(color: AppColors.paleInk3),
+        enabledBorder: const UnderlineInputBorder(
+          borderSide: BorderSide(color: AppColors.paleLine),
         ),
+        focusedBorder: const UnderlineInputBorder(
+          borderSide: BorderSide(color: AppColors.primary, width: 1.5),
+        ),
+        isDense: true,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
       ),
     );
   }
@@ -568,10 +561,10 @@ class _TagChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(10, 5, 4, 5),
+      padding: const EdgeInsets.fromLTRB(10, 6, 4, 6),
       decoration: BoxDecoration(
         color: AppColors.paleBgAlt,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.zero,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -645,7 +638,7 @@ class _OptionRow extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              _PaleToggle(value: value, onToggle: onToggle),
+              AppToggle(value: value, onToggle: onToggle),
             ],
           ),
         ),
@@ -657,37 +650,3 @@ class _OptionRow extends StatelessWidget {
   }
 }
 
-class _PaleToggle extends StatelessWidget {
-  final bool value;
-  final VoidCallback onToggle;
-  const _PaleToggle({required this.value, required this.onToggle});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onToggle,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        width: 38,
-        height: 22,
-        decoration: BoxDecoration(
-          color: value ? AppColors.primary : AppColors.paleLine,
-          borderRadius: BorderRadius.circular(11),
-        ),
-        child: AnimatedAlign(
-          duration: const Duration(milliseconds: 150),
-          alignment: value ? Alignment.centerRight : Alignment.centerLeft,
-          child: Container(
-            margin: const EdgeInsets.all(2),
-            width: 18,
-            height: 18,
-            decoration: const BoxDecoration(
-              color: AppColors.card,
-              shape: BoxShape.circle,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/app_chip.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/skeleton_loader.dart';
 import '../data/models/pet_models.dart';
@@ -115,7 +116,7 @@ class _PetTabState extends ConsumerState<_PetTab> {
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   children: [
-                    _FilterChip(
+                    AppChip(
                       label: '전체',
                       selected: _selectedCategory == null,
                       onTap: () => setState(() => _selectedCategory = null),
@@ -124,7 +125,7 @@ class _PetTabState extends ConsumerState<_PetTab> {
                     ...categories.map(
                       (c) => Padding(
                         padding: const EdgeInsets.only(right: 8),
-                        child: _FilterChip(
+                        child: AppChip(
                           label: c,
                           selected: _selectedCategory == c,
                           onTap: () => setState(() => _selectedCategory = c),
@@ -260,7 +261,6 @@ class _PetCard extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(14),
           border: Border.all(color: AppColors.border),
         ),
         child: Column(
@@ -274,17 +274,11 @@ class _PetCard extends StatelessWidget {
                     width: double.infinity,
                     decoration: BoxDecoration(
                       color: _bgColor,
-                      borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(14)),
                     ),
                     child: pet.profileImageUrl != null
-                        ? ClipRRect(
-                            borderRadius: const BorderRadius.vertical(
-                                top: Radius.circular(14)),
-                            child: Image.network(pet.profileImageUrl!,
+                        ? Image.network(pet.profileImageUrl!,
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => _spriteIcon()),
-                          )
+                                errorBuilder: (_, __, ___) => _spriteIcon())
                         : _spriteIcon(),
                   ),
                   Positioned(
@@ -359,8 +353,8 @@ class _PetListView extends StatelessWidget {
           onTap: () => context.push('/pets/${pet.id}'),
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10)),
+          shape: const RoundedRectangleBorder(
+              side: BorderSide(color: AppColors.border)),
           tileColor: AppColors.surface,
           leading: _PetAvatarSmall(pet: pet),
           title: Text(pet.name, style: AppTextStyles.bodyBold),
@@ -406,34 +400,3 @@ class _PetAvatarSmall extends StatelessWidget {
   }
 }
 
-class _FilterChip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  const _FilterChip(
-      {required this.label, required this.selected, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.primary : AppColors.surface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-              color: selected ? AppColors.primary : AppColors.border),
-        ),
-        child: Text(
-          label,
-          style: AppTextStyles.caption.copyWith(
-            color: selected ? Colors.white : AppColors.textPrimary,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-          ),
-        ),
-      ),
-    );
-  }
-}

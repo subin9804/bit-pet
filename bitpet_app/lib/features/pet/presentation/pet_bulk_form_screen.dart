@@ -168,8 +168,7 @@ class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
                         final confirmed = await showDialog<bool>(
                           context: context,
                           builder: (ctx) => AlertDialog(
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16)),
+                            shape: const RoundedRectangleBorder(),
                             title: const Text('입력 내용을 삭제할까요?',
                                 style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
                             content: const Text('지금 나가면 입력한 정보가 모두 삭제돼요.',
@@ -256,7 +255,6 @@ class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
                     Container(
                       decoration: BoxDecoration(
                         color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(11),
                         border: Border.all(color: AppColors.paleLine),
                       ),
                       child: TextField(
@@ -399,7 +397,6 @@ class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   decoration: BoxDecoration(
                     color: _canSubmit ? AppColors.primary : AppColors.paleLine,
-                    borderRadius: BorderRadius.circular(14),
                   ),
                   child: _submitting
                       ? const Center(
@@ -449,7 +446,6 @@ class _SectionHeader extends StatelessWidget {
           height: 14,
           decoration: BoxDecoration(
             color: muted ? AppColors.paleInk3 : AppColors.primary,
-            borderRadius: BorderRadius.circular(2),
           ),
         ),
         const SizedBox(width: 8),
@@ -492,10 +488,9 @@ class _FieldLabel extends StatelessWidget {
         if (required) ...[
           const SizedBox(width: 4),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
             decoration: BoxDecoration(
               color: AppColors.petCoralInk.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(999),
             ),
             child: const Text(
               '필수',
@@ -536,7 +531,6 @@ class _TapField extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(11),
           border: Border.all(
             color: hasValue ? AppColors.primary.withValues(alpha: 0.25) : AppColors.paleLine,
           ),
@@ -578,7 +572,6 @@ class _CountStepper extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(11),
         border: Border.all(color: AppColors.paleLine),
       ),
       child: Row(
@@ -681,7 +674,6 @@ class _GenderPicker extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
                   color: on ? ink.withValues(alpha: 0.12) : AppColors.surface,
-                  borderRadius: BorderRadius.circular(11),
                   border: Border.all(
                     color: on ? ink : AppColors.paleLine,
                     width: on ? 1.5 : 1,

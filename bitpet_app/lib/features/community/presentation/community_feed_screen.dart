@@ -156,7 +156,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                       decoration: BoxDecoration(
                         color: AppColors.card,
                         border: Border.all(color: AppColors.paleLine),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.zero,
                       ),
                       child: TextField(
                         controller: _searchCtrl,
@@ -198,11 +198,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                   ),
                 ),
 
-                // ── 구분선 ───────────────────────────────────────
-                Divider(
-                    height: 1,
-                    thickness: 1,
-                    color: AppColors.paleLine.withAlpha(128)),
+                const SizedBox(height: 8),
 
                 // ── 게시글 목록 ──────────────────────────────────
                 Expanded(
@@ -290,9 +286,6 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                                   ],
                                 ),
                               ),
-                              Divider(
-                                  height: 1,
-                                  color: AppColors.paleLineSoft),
                             ],
                             ...normal.map((p) => _PostRow(
                                   post: p,
@@ -317,16 +310,9 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                 child: Container(
                   width: 56,
                   height: 56,
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(18),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x403A332B),
-                        blurRadius: 24,
-                        offset: Offset(0, 8),
-                      ),
-                    ],
+                    borderRadius: BorderRadius.zero,
                   ),
                   child: const Icon(Icons.edit_outlined,
                       color: AppColors.paleBg, size: 22),
@@ -360,7 +346,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
               border: Border.all(
                 color: active ? Colors.transparent : AppColors.paleLine,
               ),
-              borderRadius: BorderRadius.circular(999),
+              borderRadius: BorderRadius.zero,
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -514,7 +500,7 @@ class _PostRow extends StatelessWidget {
               height: 64,
               decoration: BoxDecoration(
                 color: _catBg(cat).withAlpha(216),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.zero,
               ),
               child: const Center(
                 child: Icon(Icons.image_outlined,
@@ -535,10 +521,10 @@ class _CategoryPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: _catBg(cat),
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.zero,
       ),
       child: Text(
         _catLabel(cat),

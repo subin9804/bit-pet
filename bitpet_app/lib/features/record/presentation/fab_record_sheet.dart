@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_input_styles.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/pale_palette.dart';
 import '../../../core/widgets/step_dots.dart';
@@ -273,7 +274,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
             margin: const EdgeInsets.fromLTRB(0, 8, 0, 10),
             decoration: BoxDecoration(
               color: AppColors.paleLine,
-              borderRadius: BorderRadius.circular(2),
+              borderRadius: BorderRadius.zero,
             ),
           ),
           // 단계별 본문
@@ -339,11 +340,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
             )).toList(),
           ),
 
-          // 구분선
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16),
-            child: Divider(color: AppColors.paleLineSoft, height: 1),
-          ),
+          const SizedBox(height: 24),
 
           // 개체 추가 버튼
           GestureDetector(
@@ -355,7 +352,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
               decoration: BoxDecoration(
                 color: AppColors.paleBgAlt,
                 border: Border.all(color: AppColors.paleLine),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.zero,
               ),
               padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
               child: Row(
@@ -365,7 +362,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                     decoration: BoxDecoration(
                       color: AppColors.card,
                       border: Border.all(color: AppColors.paleLine),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.zero,
                     ),
                     child: const Icon(Icons.add,
                         size: 20, color: AppColors.primary),
@@ -547,19 +544,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                   controller: _bulkMemoCtrl,
                   maxLines: 2,
                   style: const TextStyle(fontSize: 13, color: AppColors.primary),
-                  decoration: InputDecoration(
-                    hintText: '특이사항 (선택)',
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 10),
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(11),
-                        borderSide:
-                            const BorderSide(color: AppColors.paleLine)),
-                    enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(11),
-                        borderSide:
-                            const BorderSide(color: AppColors.paleLine)),
-                  ),
+                  decoration: AppInputStyles.textarea(hintText: '특이사항 (선택)'),
                 ),
               ],
             ),
@@ -629,7 +614,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                   border: allFilled
                       ? null
                       : Border.all(color: AppColors.paleLine),
-                  borderRadius: BorderRadius.circular(999),
+                  borderRadius: BorderRadius.zero,
                 ),
                 child: Text(
                   '$_filledCount / ${pets.length}',
@@ -670,7 +655,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                     border: Border.all(
                         color: active ? pInk : AppColors.paleLine,
                         width: active ? 1.5 : 1),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.zero,
                   ),
                   child: Row(
                     children: [
@@ -680,7 +665,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                           color: active
                               ? Colors.white.withValues(alpha: 0.55)
                               : pPale,
-                          borderRadius: BorderRadius.circular(6),
+                          borderRadius: BorderRadius.zero,
                         ),
                         child: Icon(Icons.pets, size: 12,
                             color: AppColors.primary),
@@ -726,7 +711,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                 Container(
                   decoration: BoxDecoration(
                     color: pale,
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.zero,
                   ),
                   padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
                   child: Row(
@@ -735,7 +720,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                         width: 44, height: 44,
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.55),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.zero,
                         ),
                         child: Icon(Icons.pets, size: 22,
                             color: AppColors.primary),
@@ -766,7 +751,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                             width: 30, height: 30,
                             decoration: BoxDecoration(
                               color: Colors.white.withValues(alpha: 0.55),
-                              borderRadius: BorderRadius.circular(9),
+                              borderRadius: BorderRadius.zero,
                             ),
                             child: const Icon(Icons.chevron_left,
                                 size: 18, color: AppColors.primary),
@@ -780,7 +765,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                             width: 30, height: 30,
                             decoration: BoxDecoration(
                               color: Colors.white.withValues(alpha: 0.55),
-                              borderRadius: BorderRadius.circular(9),
+                              borderRadius: BorderRadius.zero,
                             ),
                             child: const Icon(Icons.chevron_right,
                                 size: 18, color: AppColors.primary),
@@ -808,19 +793,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                   maxLines: 2,
                   style: const TextStyle(
                       fontSize: 13, color: AppColors.primary),
-                  decoration: InputDecoration(
-                    hintText: '특이사항 (선택)',
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 10),
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(11),
-                        borderSide:
-                            const BorderSide(color: AppColors.paleLine)),
-                    enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(11),
-                        borderSide:
-                            const BorderSide(color: AppColors.paleLine)),
-                  ),
+                  decoration: AppInputStyles.textarea(hintText: '특이사항 (선택)'),
                 ),
                 const SizedBox(height: 14),
 
@@ -847,7 +820,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                         color: entry.items.isNotEmpty
                             ? AppColors.primary
                             : AppColors.paleLine,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.zero,
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -889,7 +862,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                               decoration: BoxDecoration(
                                 color: AppColors.card,
                                 border: Border.all(color: AppColors.paleLine),
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.zero,
                               ),
                               child: Row(
                                 children: [
@@ -919,7 +892,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                                 color: AppColors.card,
                                 border: Border.all(
                                     color: AppColors.paleLine, width: 1.5),
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.zero,
                               ),
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -929,7 +902,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                                     decoration: BoxDecoration(
                                       color: PalePalette.pale(PalePalette
                                           .keyFromHex(pets[_activePerPetIdx + 1].colorCode)),
-                                      borderRadius: BorderRadius.circular(6),
+                                      borderRadius: BorderRadius.zero,
                                     ),
                                     child: Icon(Icons.pets, size: 12,
                                         color: AppColors.primary),
@@ -1162,14 +1135,14 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
   Widget _buildSimpleFields(List<Pet> pets) {
     final inputDec = InputDecoration(
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+      border: UnderlineInputBorder(
+          borderRadius: BorderRadius.zero,
           borderSide: const BorderSide(color: AppColors.paleLine)),
-      enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+      enabledBorder: UnderlineInputBorder(
+          borderRadius: BorderRadius.zero,
           borderSide: const BorderSide(color: AppColors.paleLine)),
-      focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+      focusedBorder: UnderlineInputBorder(
+          borderRadius: BorderRadius.zero,
           borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
     );
 
@@ -1200,7 +1173,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
               controller: _simpleMemoCtrl,
               maxLines: 2,
               style: const TextStyle(fontSize: 13, color: AppColors.primary),
-              decoration: inputDec.copyWith(hintText: '특이사항 (선택)'),
+              decoration: AppInputStyles.textarea(hintText: '특이사항 (선택)'),
             ),
           ],
         );
@@ -1233,7 +1206,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                           border: Border.all(
                               color: sel ? AppColors.petSkyInk : AppColors.paleLine,
                               width: sel ? 1.5 : 1),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.zero,
                         ),
                         child: Column(
                           children: [
@@ -1259,7 +1232,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
               controller: _simpleMemoCtrl,
               maxLines: 2,
               style: const TextStyle(fontSize: 13, color: AppColors.primary),
-              decoration: inputDec.copyWith(hintText: '특이사항 (선택)'),
+              decoration: AppInputStyles.textarea(hintText: '특이사항 (선택)'),
             ),
           ],
         );
@@ -1275,10 +1248,9 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
               controller: _simpleMemoCtrl,
               maxLines: 5,
               style: const TextStyle(fontSize: 13, color: AppColors.primary),
-              decoration: inputDec.copyWith(
+              decoration: AppInputStyles.textarea(
                 hintText: '관찰한 내용을 기록해요',
-                alignLabelWithHint: true,
-              ),
+              ).copyWith(alignLabelWithHint: true),
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 14),
@@ -1292,7 +1264,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                   border: Border.all(
                       color: _isVetMemo ? AppColors.petLilacInk : AppColors.paleLine,
                       width: _isVetMemo ? 1.5 : 1),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.zero,
                 ),
                 child: Row(
                   children: [
@@ -1304,7 +1276,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                         border: Border.all(
                             color: _isVetMemo ? AppColors.petLilacInk : AppColors.paleLine,
                             width: 1.5),
-                        borderRadius: BorderRadius.circular(6),
+                        borderRadius: BorderRadius.zero,
                       ),
                       child: _isVetMemo
                           ? const Icon(Icons.check, size: 13, color: Colors.white)
@@ -1404,7 +1376,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                       width: 44, height: 44,
                       decoration: BoxDecoration(
                         color: AppColors.paleLine,
-                        borderRadius: BorderRadius.circular(11),
+                        borderRadius: BorderRadius.zero,
                       ),
                       child: const Icon(Icons.qr_code_scanner,
                           size: 20, color: AppColors.paleInk3),
@@ -1428,7 +1400,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                   foregroundColor: Colors.white,
                   minimumSize: const Size(double.infinity, 42),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(11)),
+                      borderRadius: BorderRadius.zero),
                   textStyle: const TextStyle(
                       fontSize: 13, fontWeight: FontWeight.w600),
                 ),
@@ -1449,7 +1421,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                 decoration: BoxDecoration(
                   color: AppColors.card,
                   border: Border.all(color: AppColors.paleLine),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.zero,
                 ),
                 constraints: const BoxConstraints(maxHeight: 180),
                 child: sameSpesPets.isEmpty
@@ -1481,7 +1453,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                                     width: 32, height: 32,
                                     decoration: BoxDecoration(
                                       color: PalePalette.pale(key),
-                                      borderRadius: BorderRadius.circular(9),
+                                      borderRadius: BorderRadius.zero,
                                     ),
                                     child: Icon(Icons.pets, size: 15,
                                         color: AppColors.primary),
@@ -1529,7 +1501,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
               controller: _simpleMemoCtrl,
               maxLines: 2,
               style: const TextStyle(fontSize: 13, color: AppColors.primary),
-              decoration: inputDec.copyWith(hintText: '특이사항 (선택)'),
+              decoration: AppInputStyles.textarea(hintText: '특이사항 (선택)'),
             ),
           ],
         );
@@ -1573,7 +1545,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
               controller: _simpleMemoCtrl,
               maxLines: 2,
               style: const TextStyle(fontSize: 13, color: AppColors.primary),
-              decoration: inputDec.copyWith(hintText: '특이사항 (선택)'),
+              decoration: AppInputStyles.textarea(hintText: '특이사항 (선택)'),
             ),
           ],
         );
@@ -1621,7 +1593,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: AppColors.primary,
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.zero,
               ),
               child: Text('닫기',
                   style: TextStyle(
@@ -1728,7 +1700,7 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
                   border: _selected.isNotEmpty
                       ? null
                       : Border.all(color: AppColors.paleLine),
-                  borderRadius: BorderRadius.circular(999),
+                  borderRadius: BorderRadius.zero,
                 ),
                 child: Text(
                   '${_selected.length} / ${allPets.length}',
@@ -1749,7 +1721,7 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
             decoration: BoxDecoration(
               color: AppColors.card,
               border: Border.all(color: AppColors.paleLine),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.zero,
             ),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             child: Row(
@@ -1807,7 +1779,7 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
                     border: active
                         ? null
                         : Border.all(color: AppColors.paleLine),
-                    borderRadius: BorderRadius.circular(999),
+                    borderRadius: BorderRadius.zero,
                   ),
                   child: Row(
                     children: [
@@ -1905,7 +1877,7 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
                           border: Border.all(
                               color: isOn ? pInk : AppColors.paleLine,
                               width: isOn ? 1.5 : 1),
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.zero,
                         ),
                         padding: const EdgeInsets.fromLTRB(10, 12, 10, 10),
                         child: Column(
@@ -1916,7 +1888,7 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
                                 color: isOn
                                     ? Colors.white.withValues(alpha: 0.55)
                                     : pale,
-                                borderRadius: BorderRadius.circular(14),
+                                borderRadius: BorderRadius.zero,
                               ),
                               child: Icon(Icons.pets, size: 24,
                                   color: AppColors.primary),
@@ -1979,7 +1951,7 @@ class _CompactTypeCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.card,
           border: Border.all(color: AppColors.paleLine),
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.zero,
         ),
         padding: const EdgeInsets.fromLTRB(6, 12, 6, 10),
         child: Column(
@@ -1990,7 +1962,7 @@ class _CompactTypeCard extends StatelessWidget {
               height: 42,
               decoration: BoxDecoration(
                 color: type.color,
-                borderRadius: BorderRadius.circular(13),
+                borderRadius: BorderRadius.zero,
               ),
               child: Icon(type.icon, size: 20, color: AppColors.primary),
             ),
@@ -2042,7 +2014,7 @@ class _ChoiceCard extends StatelessWidget {
           border: Border.all(
               color: selected ? AppColors.primary : AppColors.paleLine,
               width: selected ? 1.5 : 1),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.zero,
         ),
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
         child: Row(
@@ -2052,7 +2024,7 @@ class _ChoiceCard extends StatelessWidget {
               width: 44, height: 44,
               decoration: BoxDecoration(
                 color: AppColors.feedBand,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.zero,
               ),
               child: Icon(icon, size: 22, color: AppColors.primary),
             ),
@@ -2073,7 +2045,7 @@ class _ChoiceCard extends StatelessWidget {
                               horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: AppColors.feedBand,
-                            borderRadius: BorderRadius.circular(999),
+                            borderRadius: BorderRadius.zero,
                           ),
                           child: Text('RECOMMENDED',
                               style: AppTextStyles.mono(9, FontWeight.w700)),
@@ -2101,7 +2073,7 @@ class _ChoiceCard extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: AppColors.paleBgAlt,
                         border: Border.all(color: AppColors.paleLineSoft),
-                        borderRadius: BorderRadius.circular(999),
+                        borderRadius: BorderRadius.zero,
                       ),
                       child: Text(e,
                           style: AppTextStyles.mono(10, FontWeight.w700,
@@ -2140,7 +2112,7 @@ class _SavedBanner extends StatelessWidget {
       decoration: BoxDecoration(
         color: pale,
         border: Border.all(color: paleInk, width: 1.5),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.zero,
       ),
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       child: Row(
@@ -2173,7 +2145,7 @@ class _SavedBanner extends StatelessWidget {
               decoration: BoxDecoration(
                 color: AppColors.card,
                 border: Border.all(color: AppColors.paleLine),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.zero,
               ),
               child: const Text('미완료',
                   style: TextStyle(
@@ -2227,7 +2199,7 @@ class _Footer extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: AppColors.card,
                   border: Border.all(color: AppColors.paleLine),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.zero,
                 ),
                 child: Row(
                   children: [
@@ -2252,7 +2224,7 @@ class _Footer extends StatelessWidget {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: nextEnabled ? AppColors.primary : AppColors.paleLine,
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.zero,
                 ),
                 child: loading
                     ? const SizedBox(
@@ -2285,7 +2257,7 @@ class _Footer extends StatelessWidget {
                                 color: nextEnabled
                                     ? Colors.white.withValues(alpha: 0.18)
                                     : Colors.transparent,
-                                borderRadius: BorderRadius.circular(999),
+                                borderRadius: BorderRadius.zero,
                               ),
                               child: Text(nextBadge!,
                                   style: AppTextStyles.mono(11, FontWeight.w700,
@@ -2372,7 +2344,7 @@ class _TypeToggle extends StatelessWidget {
           border: Border.all(
               color: active ? AppColors.primary : AppColors.paleLine,
               width: active ? 1.5 : 1),
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.zero,
         ),
         child: Text(label,
             style: TextStyle(
@@ -2406,7 +2378,7 @@ class _SelectBarBtn extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.paleBg,
           border: Border.all(color: AppColors.paleLine),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.zero,
         ),
         child: Row(
           children: [
@@ -2438,7 +2410,7 @@ class _PartnerResultCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: PalePalette.pale(key),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.zero,
         border: Border.all(color: PalePalette.ink(key).withOpacity(0.2)),
       ),
       child: Row(
@@ -2447,7 +2419,7 @@ class _PartnerResultCard extends StatelessWidget {
             width: 36, height: 36,
             decoration: BoxDecoration(
               color: PalePalette.ink(key).withOpacity(0.15),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.zero,
             ),
             child: Icon(Icons.pets, size: 18, color: PalePalette.ink(key)),
           ),

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_toggle.dart';
 import '../../../core/widgets/step_shell.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../data/models/pet_models.dart';
@@ -339,7 +340,6 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
                       height: 92,
                       decoration: BoxDecoration(
                         color: _selectedBg,
-                        borderRadius: BorderRadius.circular(24),
                       ),
                       child: const Center(
                         child: Text('🦎', style: TextStyle(fontSize: 40)),
@@ -359,7 +359,6 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
                             color: AppColors.surface,
                             shape: BoxShape.circle,
                             border: Border.all(color: AppColors.paleLine),
-                            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
                           ),
                           child: const Icon(Icons.camera_alt_outlined, size: 14, color: AppColors.paleInk2),
                         ),
@@ -416,7 +415,6 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
                 decoration: BoxDecoration(
                   color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(11),
                   border: Border.all(color: AppColors.paleLine),
                 ),
                 child: Row(
@@ -474,7 +472,6 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                             decoration: BoxDecoration(
                               color: selected ? AppColors.primary : AppColors.surface,
-                              borderRadius: BorderRadius.circular(10),
                               border: Border.all(
                                 color: selected ? AppColors.primary : AppColors.paleLine,
                               ),
@@ -608,7 +605,6 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
                   child: Container(
                     decoration: BoxDecoration(
                       color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(11),
                       border: Border.all(color: AppColors.paleLine),
                     ),
                     child: TextField(
@@ -672,7 +668,6 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
             child: Container(
               decoration: BoxDecoration(
                 color: AppColors.surface,
-                borderRadius: BorderRadius.circular(11),
                 border: Border.all(color: AppColors.paleLine),
               ),
               child: TextField(
@@ -695,7 +690,6 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
               color: AppColors.surface,
-              borderRadius: BorderRadius.circular(11),
               border: Border.all(color: AppColors.paleLine),
             ),
             child: Row(
@@ -717,11 +711,9 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
                     ],
                   ),
                 ),
-                Switch(
+                AppToggle(
                   value: _isPublic,
-                  activeColor: AppColors.petSageInk,
-                  activeTrackColor: AppColors.petSage,
-                  onChanged: (v) => setState(() => _isPublic = v),
+                  onToggle: () => setState(() => _isPublic = !_isPublic),
                 ),
               ],
             ),
@@ -889,7 +881,6 @@ class _DateField extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
             decoration: BoxDecoration(
               color: unknown ? AppColors.paleBgAlt : AppColors.surface,
-              borderRadius: BorderRadius.circular(11),
               border: Border.all(color: AppColors.paleLine),
             ),
             child: Row(
@@ -924,7 +915,6 @@ class _DateField extends StatelessWidget {
                 height: 18,
                 decoration: BoxDecoration(
                   color: unknown ? AppColors.primary : AppColors.surface,
-                  borderRadius: BorderRadius.circular(5),
                   border: Border.all(
                     color: unknown ? AppColors.primary : AppColors.paleLine,
                     width: 1.5,
@@ -960,7 +950,6 @@ class _WeightUnitToggle extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.paleBgAlt,
-        borderRadius: BorderRadius.circular(11),
         border: Border.all(color: AppColors.paleLine),
       ),
       padding: const EdgeInsets.all(3),
@@ -975,7 +964,6 @@ class _WeightUnitToggle extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
               decoration: BoxDecoration(
                 color: sel ? AppColors.surface : Colors.transparent,
-                borderRadius: BorderRadius.circular(9),
               ),
               child: Text(
                 u,
@@ -1023,7 +1011,6 @@ class _ParentTile extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(13),
             border: Border.all(color: AppColors.paleLine),
           ),
           child: Row(
@@ -1033,7 +1020,6 @@ class _ParentTile extends StatelessWidget {
                 height: 36,
                 decoration: BoxDecoration(
                   color: AppColors.paleBgAlt,
-                  borderRadius: BorderRadius.circular(9),
                 ),
                 child: Center(
                   child: Text(
@@ -1072,7 +1058,6 @@ class _ParentTile extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(13),
         border: Border.all(color: AppColors.primary.withValues(alpha: 0.35), width: 1.2),
       ),
       child: Row(
@@ -1082,7 +1067,6 @@ class _ParentTile extends StatelessWidget {
             height: 42,
             decoration: BoxDecoration(
               color: _bgOf(pet!),
-              borderRadius: BorderRadius.circular(10),
             ),
             child: const Center(child: Text('🦎', style: TextStyle(fontSize: 20))),
           ),
@@ -1163,7 +1147,6 @@ class _HatchDateField extends StatelessWidget {
         Container(
           decoration: BoxDecoration(
             color: AppColors.paleBgAlt,
-            borderRadius: BorderRadius.circular(10),
             border: Border.all(color: AppColors.paleLine),
           ),
           padding: const EdgeInsets.all(3),
@@ -1191,7 +1174,6 @@ class _HatchDateField extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
             decoration: BoxDecoration(
               color: AppColors.surface,
-              borderRadius: BorderRadius.circular(11),
               border: Border.all(color: AppColors.paleLine),
             ),
             child: Row(
@@ -1222,7 +1204,6 @@ class _HatchDateField extends StatelessWidget {
                 height: 18,
                 decoration: BoxDecoration(
                   color: approximate ? AppColors.primary : AppColors.surface,
-                  borderRadius: BorderRadius.circular(5),
                   border: Border.all(
                     color: approximate ? AppColors.primary : AppColors.paleLine,
                     width: 1.5,
@@ -1261,7 +1242,6 @@ class _PrecisionTab extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
           color: active ? AppColors.surface : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
         ),
         child: Text(
           label,
@@ -1423,7 +1403,6 @@ class _YearMonthPickerSheetState extends State<_YearMonthPickerSheet> {
                           : isFuture
                               ? AppColors.paleBgAlt
                               : AppColors.card,
-                      borderRadius: BorderRadius.circular(9),
                       border: Border.all(
                         color: selected ? AppColors.primary : AppColors.paleLine,
                       ),
@@ -1457,7 +1436,6 @@ class _YearMonthPickerSheetState extends State<_YearMonthPickerSheet> {
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 decoration: BoxDecoration(
                   color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: Center(
                   child: Text(

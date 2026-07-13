@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_input_styles.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/app_buttons.dart';
 import '../../../core/widgets/skeleton_loader.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../data/models/feed_models.dart';
@@ -230,7 +232,7 @@ class _TopBar extends StatelessWidget {
               height: 36, padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
                 color: AppColors.primary,
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.zero,
               ),
               child: Row(
                 children: [
@@ -261,7 +263,7 @@ class _FeedSegment extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.paleBgAlt,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.zero,
       ),
       padding: const EdgeInsets.all(4),
       child: Row(
@@ -296,9 +298,7 @@ class _Tab extends StatelessWidget {
           decoration: BoxDecoration(
             color: active ? AppColors.card : Colors.transparent,
             border: active ? Border.all(color: AppColors.paleLine) : null,
-            borderRadius: BorderRadius.circular(9),
-            boxShadow: active ? [const BoxShadow(
-                color: Color(0x08000000), blurRadius: 2, offset: Offset(0,1))] : null,
+            borderRadius: BorderRadius.zero,
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -337,7 +337,7 @@ class SessionCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.card,
         border: Border.all(color: AppColors.paleLine),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.zero,
       ),
       padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
       child: Row(
@@ -412,7 +412,7 @@ class SessionCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: AppColors.paleBg,
                 border: Border.all(color: AppColors.paleLine),
-                borderRadius: BorderRadius.circular(9),
+                borderRadius: BorderRadius.zero,
               ),
               child: const Icon(Icons.edit_outlined,
                   size: 14, color: AppColors.paleInk2),
@@ -491,7 +491,7 @@ class _CalendarViewState extends State<_CalendarView> {
             decoration: BoxDecoration(
               color: AppColors.card,
               border: Border.all(color: AppColors.paleLine),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.zero,
             ),
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
             child: Column(
@@ -499,7 +499,7 @@ class _CalendarViewState extends State<_CalendarView> {
                 // 월 이동
                 Row(
                   children: [
-                    _NavBtn(
+                    AppNavButton(
                       onTap: () => setState(() =>
                           _month = DateTime(_month.year, _month.month - 1)),
                     ),
@@ -512,7 +512,7 @@ class _CalendarViewState extends State<_CalendarView> {
                       Text('$monthCount회 피딩', style: AppTextStyles.monoXxs),
                     ]),
                     const Spacer(),
-                    _NavBtn(
+                    AppNavButton(
                       forward: true,
                       onTap: () => setState(() =>
                           _month = DateTime(_month.year, _month.month + 1)),
@@ -594,7 +594,7 @@ class _CalendarViewState extends State<_CalendarView> {
                                         margin: const EdgeInsets.symmetric(horizontal: 1),
                                         decoration: BoxDecoration(
                                           color: _dotColor(f),
-                                          borderRadius: BorderRadius.circular(2),
+                                          borderRadius: BorderRadius.zero,
                                         ),
                                       )).toList(),
                                     ),
@@ -611,7 +611,7 @@ class _CalendarViewState extends State<_CalendarView> {
                 }(),
 
                 // 범례
-                const Divider(color: AppColors.paleLineSoft, height: 24),
+                const SizedBox(height: 20),
                 Wrap(
                   spacing: 12, runSpacing: 6,
                   children: _foods.map((f) => Row(
@@ -669,7 +669,7 @@ class _CalendarViewState extends State<_CalendarView> {
                 decoration: BoxDecoration(
                   border: Border.all(color: AppColors.paleLine, width: 1.5,
                       style: BorderStyle.solid),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.zero,
                 ),
                 child: Column(
                   children: [
@@ -682,7 +682,7 @@ class _CalendarViewState extends State<_CalendarView> {
                           horizontal: 12, vertical: 7),
                       decoration: BoxDecoration(
                         color: AppColors.paleBgAlt,
-                        borderRadius: BorderRadius.circular(999),
+                        borderRadius: BorderRadius.zero,
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -715,7 +715,7 @@ class _CalendarViewState extends State<_CalendarView> {
                   color: AppColors.card,
                   border: Border.all(color: AppColors.paleLine,
                       style: BorderStyle.solid),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.zero,
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -929,9 +929,7 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
             child: Container(
               decoration: const BoxDecoration(
                 color: AppColors.paleBg,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-                boxShadow: [BoxShadow(
-                    color: Color(0x2D1C1610), blurRadius: 40, offset: Offset(0,-10))],
+                border: Border(top: BorderSide(color: AppColors.paleLine)),
               ),
               child: Column(
                 children: [
@@ -940,7 +938,7 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
                     width: 44, height: 4, margin: const EdgeInsets.only(top: 8, bottom: 8),
                     decoration: BoxDecoration(
                       color: AppColors.paleLine,
-                      borderRadius: BorderRadius.circular(2),
+                      borderRadius: BorderRadius.zero,
                     ),
                   ),
                   // 헤더 + 날짜 스테퍼
@@ -976,14 +974,14 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
                         // 날짜 스테퍼
                         Row(
                           children: [
-                            _NavBtn(onTap: () => _shiftDate(-1)),
+                            AppNavButton(onTap: () => _shiftDate(-1)),
                             Expanded(
                               child: Container(
                                 padding: const EdgeInsets.symmetric(vertical: 9),
                                 decoration: BoxDecoration(
                                   color: AppColors.card,
                                   border: Border.all(color: AppColors.paleLine),
-                                  borderRadius: BorderRadius.circular(10),
+                                  borderRadius: BorderRadius.zero,
                                 ),
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
@@ -1003,7 +1001,7 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
                                 ),
                               ),
                             ),
-                            _NavBtn(forward: true, onTap: () => _shiftDate(1)),
+                            AppNavButton(forward: true, onTap: () => _shiftDate(1)),
                           ],
                         ),
                       ],
@@ -1023,7 +1021,7 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
                             decoration: BoxDecoration(
                               color: AppColors.card,
                               border: Border.all(color: AppColors.paleLine),
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.zero,
                             ),
                             padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
                             child: Column(
@@ -1055,13 +1053,13 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
                                   decoration: InputDecoration(
                                     contentPadding: const EdgeInsets.symmetric(
                                         horizontal: 12, vertical: 11),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
+                                    border: UnderlineInputBorder(
+                                      borderRadius: BorderRadius.zero,
                                       borderSide: const BorderSide(
                                           color: AppColors.paleLine),
                                     ),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
+                                    enabledBorder: UnderlineInputBorder(
+                                      borderRadius: BorderRadius.zero,
                                       borderSide: const BorderSide(
                                           color: AppColors.paleLine),
                                     ),
@@ -1072,12 +1070,11 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
                                 Container(
                                   decoration: BoxDecoration(
                                     border: Border.all(color: AppColors.paleLine),
-                                    borderRadius: BorderRadius.circular(10),
+                                    borderRadius: BorderRadius.zero,
                                   ),
                                   child: Row(
                                     children: [
-                                      _StepperBtn(
-                                          label: '−',
+                                      AppStepperButton('−',
                                           onTap: () => setState(() =>
                                               _draftAmt = (_draftAmt - 1).clamp(1, 99))),
                                       Expanded(
@@ -1097,8 +1094,7 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
                                           ],
                                         ),
                                       ),
-                                      _StepperBtn(
-                                          label: '+',
+                                      AppStepperButton('+',
                                           onTap: () => setState(
                                               () => _draftAmt = (_draftAmt + 1).clamp(1, 99))),
                                     ],
@@ -1121,7 +1117,7 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
                                               color: active
                                                   ? Colors.transparent
                                                   : AppColors.paleLine),
-                                          borderRadius: BorderRadius.circular(999),
+                                          borderRadius: BorderRadius.zero,
                                         ),
                                         child: Text('$n마리',
                                             style: AppTextStyles.mono(
@@ -1140,7 +1136,7 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
                                     decoration: BoxDecoration(
                                       color: bg,
                                       border: Border.all(color: AppColors.primary, width: 1.5),
-                                      borderRadius: BorderRadius.circular(12),
+                                      borderRadius: BorderRadius.zero,
                                     ),
                                     child: Row(
                                       mainAxisAlignment: MainAxisAlignment.center,
@@ -1185,7 +1181,7 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
                               decoration: BoxDecoration(
                                 border: Border.all(color: AppColors.paleLine,
                                     width: 1.5, style: BorderStyle.solid),
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.zero,
                               ),
                               child: Text(
                                 '위에서 피딩을 골라 추가해 주세요',
@@ -1199,7 +1195,7 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
                               decoration: BoxDecoration(
                                 color: AppColors.card,
                                 border: Border.all(color: AppColors.paleLine),
-                                borderRadius: BorderRadius.circular(16),
+                                borderRadius: BorderRadius.zero,
                               ),
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 14, vertical: 2),
@@ -1275,18 +1271,8 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
                             onChanged: (v) => widget.onChanged(
                                 e.copyWith(memo: v)),
                             maxLines: 2,
-                            decoration: InputDecoration(
+                            decoration: AppInputStyles.textarea(
                               hintText: '예: 1마리 남김 · 식욕 좋음 · 더스팅',
-                              contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 10),
-                              border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                  borderSide: const BorderSide(
-                                      color: AppColors.paleLine)),
-                              enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                  borderSide: const BorderSide(
-                                      color: AppColors.paleLine)),
                             ),
                           ),
 
@@ -1301,7 +1287,7 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
                                 decoration: BoxDecoration(
                                   border: Border.all(
                                       color: const Color(0x66E53935)),
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.zero,
                                 ),
                                 child: const Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
@@ -1342,7 +1328,7 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
                             decoration: BoxDecoration(
                               color: AppColors.card,
                               border: Border.all(color: AppColors.paleLine),
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.zero,
                             ),
                             child: const Text('취소',
                                 style: TextStyle(
@@ -1361,7 +1347,7 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
                                 color: e.items.isEmpty
                                     ? AppColors.paleLine
                                     : AppColors.primary,
-                                borderRadius: BorderRadius.circular(14),
+                                borderRadius: BorderRadius.zero,
                               ),
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -1398,59 +1384,3 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
   }
 }
 
-class _NavBtn extends StatelessWidget {
-  final VoidCallback onTap;
-  final bool forward;
-  const _NavBtn({required this.onTap, this.forward = false});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 32, height: 32,
-        margin: EdgeInsets.only(
-            right: forward ? 0 : 8, left: forward ? 8 : 0),
-        decoration: BoxDecoration(
-          border: Border.all(color: AppColors.paleLine),
-          borderRadius: BorderRadius.circular(9),
-        ),
-        child: Icon(
-          forward ? Icons.chevron_right : Icons.chevron_left,
-          size: 18, color: AppColors.primary,
-        ),
-      ),
-    );
-  }
-}
-
-class _StepperBtn extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-  const _StepperBtn({required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 44, height: 46,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          border: Border(
-            right: label == '−'
-                ? const BorderSide(color: AppColors.paleLine)
-                : BorderSide.none,
-            left: label == '+'
-                ? const BorderSide(color: AppColors.paleLine)
-                : BorderSide.none,
-          ),
-        ),
-        child: Text(label,
-            style: const TextStyle(
-                fontSize: 18, fontWeight: FontWeight.w700,
-                color: AppColors.primary)),
-      ),
-    );
-  }
-}

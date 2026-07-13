@@ -7,6 +7,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_input_styles.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../../routine/data/models/routine_models.dart';
@@ -136,7 +137,7 @@ class _FeedingRecordSheetState extends ConsumerState<FeedingRecordSheet> {
                 height: 4,
                 decoration: BoxDecoration(
                   color: AppColors.border,
-                  borderRadius: BorderRadius.circular(2),
+                  borderRadius: BorderRadius.zero,
                 ),
               ),
             ),
@@ -162,7 +163,7 @@ class _FeedingRecordSheetState extends ConsumerState<FeedingRecordSheet> {
                         horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: AppColors.petColorPeach,
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.zero,
                     ),
                     child: Text(
                       '${_currentIndex + 1} / ${_pets.length}',
@@ -198,7 +199,7 @@ class _FeedingRecordSheetState extends ConsumerState<FeedingRecordSheet> {
                             ? _petBg(s)
                             : AppColors.bg2,
                         borderRadius:
-                            BorderRadius.circular(20),
+                            BorderRadius.zero,
                         border: Border.all(
                           color: isActive
                               ? _petBg(s).withValues(alpha: 0.6)
@@ -259,16 +260,7 @@ class _FeedingRecordSheetState extends ConsumerState<FeedingRecordSheet> {
                     TextField(
                       onChanged: (v) => _memos[_current.petId] = v,
                       maxLines: 2,
-                      decoration: InputDecoration(
-                        hintText: '특이사항 (선택)',
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(11),
-                            borderSide: const BorderSide(color: AppColors.border)),
-                        enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(11),
-                            borderSide: const BorderSide(color: AppColors.border)),
-                      ),
+                      decoration: AppInputStyles.textarea(hintText: '특이사항 (선택)'),
                     ),
                     const SizedBox(height: 16),
                     // 완료/저장됨 상태 버튼
@@ -398,7 +390,7 @@ class _CurrentPetCard extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: bgColor.withValues(alpha: 0.35),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.zero,
       ),
       child: Row(
         children: [
@@ -407,11 +399,11 @@ class _CurrentPetCard extends StatelessWidget {
             height: 44,
             decoration: BoxDecoration(
               color: bgColor,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.zero,
             ),
             child: status.imageUrl != null
                 ? ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.zero,
                     child: Image.network(status.imageUrl!,
                         fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) => Icon(
@@ -459,7 +451,7 @@ class _SavedStatusRow extends StatelessWidget {
           horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: AppColors.petColorMint,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.zero,
       ),
       child: Row(
         children: [
@@ -499,7 +491,7 @@ class _SavedStatusRow extends StatelessWidget {
               foregroundColor: AppColors.textPrimary,
               side: const BorderSide(color: AppColors.border),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
+                  borderRadius: BorderRadius.zero),
             ),
             child: const Text('미완료',
                 style: TextStyle(fontSize: 12)),

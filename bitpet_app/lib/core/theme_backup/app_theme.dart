@@ -16,13 +16,12 @@ abstract final class AppTheme {
           onSecondary: Colors.white,
           onSurface: AppColors.textPrimary,
         ),
-        // 카드: 테두리 없이 구분선(divider)으로만 영역 분리
         cardTheme: const CardThemeData(
           color: AppColors.card,
           elevation: 0,
-          shadowColor: Colors.transparent,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.zero,
+            borderRadius: BorderRadius.all(Radius.circular(10)),
+            side: BorderSide(color: AppColors.border),
           ),
         ),
         appBarTheme: AppBarTheme(
@@ -30,29 +29,30 @@ abstract final class AppTheme {
           foregroundColor: AppColors.textPrimary,
           surfaceTintColor: Colors.transparent,
           elevation: 0,
-          scrolledUnderElevation: 0,
           centerTitle: false,
           titleTextStyle: AppTextStyles.h3,
-          shadowColor: Colors.transparent,
         ),
         inputDecorationTheme: InputDecorationTheme(
-          filled: false,
+          filled: true,
+          fillColor: AppColors.surface,
           contentPadding:
-              const EdgeInsets.symmetric(horizontal: 4, vertical: 14),
-          border: const UnderlineInputBorder(
-            borderSide: BorderSide(color: AppColors.border),
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: AppColors.border),
           ),
-          enabledBorder: const UnderlineInputBorder(
-            borderSide: BorderSide(color: AppColors.border),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: AppColors.border),
           ),
-          focusedBorder: const UnderlineInputBorder(
-            borderSide: BorderSide(color: AppColors.textPrimary, width: 1.5),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide:
+                const BorderSide(color: AppColors.textPrimary, width: 1.5),
           ),
-          errorBorder: const UnderlineInputBorder(
-            borderSide: BorderSide(color: AppColors.error),
-          ),
-          focusedErrorBorder: const UnderlineInputBorder(
-            borderSide: BorderSide(color: AppColors.error, width: 1.5),
+          errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: AppColors.error),
           ),
           labelStyle:
               AppTextStyles.body.copyWith(color: AppColors.textSecondary),
@@ -67,17 +67,14 @@ abstract final class AppTheme {
             foregroundColor: Colors.white,
             minimumSize: const Size.fromHeight(52),
             elevation: 0,
-            shadowColor: Colors.transparent,
-            shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.zero),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14)),
             textStyle: AppTextStyles.button,
           ),
         ),
         textButtonTheme: TextButtonThemeData(
           style: TextButton.styleFrom(
             foregroundColor: AppColors.textPrimary,
-            shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.zero),
             textStyle: AppTextStyles.body,
           ),
         ),
@@ -87,14 +84,13 @@ abstract final class AppTheme {
             side: const BorderSide(color: AppColors.border),
             minimumSize: const Size.fromHeight(52),
             elevation: 0,
-            shadowColor: Colors.transparent,
-            shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.zero),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14)),
             textStyle: AppTextStyles.button,
           ),
         ),
         dividerTheme: const DividerThemeData(
-          color: AppColors.divider,
+          color: AppColors.border,
           thickness: 1,
           space: 1,
         ),
@@ -109,40 +105,16 @@ abstract final class AppTheme {
           backgroundColor: AppColors.bg2,
           side: const BorderSide(color: AppColors.border),
           labelStyle: AppTextStyles.caption,
-          shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.zero),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
         ),
         floatingActionButtonTheme: const FloatingActionButtonThemeData(
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-        ),
-        // 스위치: off=#DEDEDE, on=#191919
-        switchTheme: SwitchThemeData(
-          thumbColor: WidgetStateProperty.resolveWith((states) {
-            return Colors.white;
-          }),
-          trackColor: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.selected)) {
-              return AppColors.toggleOn;
-            }
-            return AppColors.toggleOff;
-          }),
-          trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
-        ),
-        // 체크박스: off=#DEDEDE, on=#191919
-        checkboxTheme: CheckboxThemeData(
-          fillColor: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.selected)) {
-              return AppColors.toggleOn;
-            }
-            return AppColors.toggleOff;
-          }),
-          checkColor: WidgetStateProperty.all(Colors.white),
-          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+          elevation: 2,
         ),
       );
 
+  // 다크 테마 — 추후 디자인 확정 후 별도 정의
   static ThemeData get dark => light;
 }

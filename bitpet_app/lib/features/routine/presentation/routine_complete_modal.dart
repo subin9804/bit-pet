@@ -6,7 +6,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_input_styles.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/app_chip.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../data/models/routine_models.dart';
 import '../data/routine_repository.dart';
@@ -85,7 +87,7 @@ class _RoutineCompleteModalState extends ConsumerState<RoutineCompleteModal> {
               height: 4,
               decoration: BoxDecoration(
                 color: AppColors.border,
-                borderRadius: BorderRadius.circular(2),
+                borderRadius: BorderRadius.zero,
               ),
             ),
           ),
@@ -103,7 +105,7 @@ class _RoutineCompleteModalState extends ConsumerState<RoutineCompleteModal> {
               ],
             ),
           ),
-          const Divider(height: 24),
+          const SizedBox(height: 20),
           Expanded(
             child: SingleChildScrollView(
               controller: controller,
@@ -359,12 +361,12 @@ class _BranchButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.zero,
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           border: Border.all(color: AppColors.border),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.zero,
         ),
         child: Row(
           children: [
@@ -394,7 +396,7 @@ class _MemoField extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextField(
       controller: controller,
-      decoration: const InputDecoration(hintText: '메모 (선택)'),
+      decoration: AppInputStyles.textarea(hintText: '메모 (선택)'),
       maxLines: 2,
     );
   }
@@ -418,11 +420,12 @@ class _CleaningTypePicker extends StatelessWidget {
         final selected = value == o.$1;
         return Padding(
           padding: const EdgeInsets.only(right: 8),
-          child: ChoiceChip(
-            label: Text(o.$2),
+          child: AppChip(
+            label: o.$2,
             selected: selected,
             selectedColor: o.$3.withValues(alpha: 0.2),
-            onSelected: (_) => onChanged(o.$1),
+            selectedTextColor: AppColors.primary,
+            onTap: () => onChanged(o.$1),
           ),
         );
       }).toList(),

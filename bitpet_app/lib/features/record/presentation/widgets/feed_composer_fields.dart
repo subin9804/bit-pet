@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_input_styles.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/widgets/app_buttons.dart';
+import '../../../../core/widgets/app_chip.dart';
 import '../../data/food_catalog.dart';
 
 export '../../data/food_catalog.dart' show FeedFormData, FoodType, FeedingSupplement, FoodInputMode;
@@ -46,19 +49,17 @@ class FeedComposerFields extends StatelessWidget {
           decoration: InputDecoration(
             hintText: '종류 선택',
             hintStyle: TextStyle(fontSize: 14, color: AppColors.paleInk3, fontWeight: FontWeight.w500),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            filled: true,
-            fillColor: AppColors.card,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+            border: UnderlineInputBorder(
+              borderRadius: BorderRadius.zero,
               borderSide: const BorderSide(color: AppColors.paleLine),
             ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+            enabledBorder: UnderlineInputBorder(
+              borderRadius: BorderRadius.zero,
               borderSide: const BorderSide(color: AppColors.paleLine),
             ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+            focusedBorder: UnderlineInputBorder(
+              borderRadius: BorderRadius.zero,
               borderSide: BorderSide(color: bandColor, width: 1.5),
             ),
           ),
@@ -93,11 +94,11 @@ class FeedComposerFields extends StatelessWidget {
               )),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 140),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   color: sel ? AppColors.petLilac : AppColors.card,
                   border: Border.all(color: sel ? Colors.transparent : AppColors.paleLine),
-                  borderRadius: BorderRadius.circular(999),
+                  borderRadius: BorderRadius.zero,
                 ),
                 child: Text(s.label,
                     style: TextStyle(
@@ -118,14 +119,7 @@ class FeedComposerFields extends StatelessWidget {
             onChanged: (v) => onChanged(form.copyWith(memo: v)),
             maxLines: 2,
             style: const TextStyle(fontSize: 13, color: AppColors.primary),
-            decoration: InputDecoration(
-              hintText: '특이사항 (선택)',
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(11),
-                  borderSide: const BorderSide(color: AppColors.paleLine)),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(11),
-                  borderSide: const BorderSide(color: AppColors.paleLine)),
-            ),
+            decoration: AppInputStyles.textarea(hintText: '특이사항 (선택)'),
           ),
         ],
 
@@ -141,7 +135,7 @@ class FeedComposerFields extends StatelessWidget {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: form.foodType != null ? bandColor : AppColors.paleBgAlt,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.zero,
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -219,7 +213,11 @@ class _SizeCountInput extends StatelessWidget {
           final sel = form.sizeLabel == s;
           return GestureDetector(
             onTap: () => onChanged(form.copyWith(sizeLabel: sel ? null : s)),
-            child: _Chip(label: s, selected: sel, color: bandColor),
+            child: AppChip(
+                label: s,
+                selected: sel,
+                selectedColor: bandColor,
+                selectedTextColor: AppColors.primary),
           );
         }).toList()),
         const SizedBox(height: 12),
@@ -306,9 +304,9 @@ class _CustomTextInput extends StatelessWidget {
     decoration: InputDecoration(
       hintText: '이름 직접 입력',
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(11),
+      border: UnderlineInputBorder(borderRadius: BorderRadius.zero,
           borderSide: const BorderSide(color: AppColors.paleLine)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(11),
+      enabledBorder: UnderlineInputBorder(borderRadius: BorderRadius.zero,
           borderSide: const BorderSide(color: AppColors.paleLine)),
     ),
   );
@@ -328,12 +326,16 @@ class _CountStepper extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.paleBg,
           border: Border.all(color: AppColors.paleLine),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.zero,
         ),
         child: Row(children: [
-          _StepBtn('−', onTap: () { if (count > 0) onChanged(count - 1); }),
+          AppStepperButton('−',
+              style: AppStepperStyle.plain,
+              onTap: () { if (count > 0) onChanged(count - 1); }),
           Expanded(child: Center(child: Text('$count', style: AppTextStyles.mono(22, FontWeight.w700)))),
-          _StepBtn('＋', onTap: () => onChanged(count + 1)),
+          AppStepperButton('＋',
+              style: AppStepperStyle.plain,
+              onTap: () => onChanged(count + 1)),
         ]),
       ),
       const SizedBox(height: 8),
@@ -341,7 +343,11 @@ class _CountStepper extends StatelessWidget {
         final sel = count == n;
         return GestureDetector(
           onTap: () => onChanged(n),
-          child: _Chip(label: '$n마리', selected: sel, color: bandColor),
+          child: AppChip(
+              label: '$n마리',
+              selected: sel,
+              selectedColor: bandColor,
+              selectedTextColor: AppColors.primary),
         );
       }).toList()),
     ],
@@ -363,9 +369,9 @@ class _MlInput extends StatelessWidget {
       hintText: '용량 (ml)',
       suffixText: 'ml',
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(11),
+      border: UnderlineInputBorder(borderRadius: BorderRadius.zero,
           borderSide: const BorderSide(color: AppColors.paleLine)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(11),
+      enabledBorder: UnderlineInputBorder(borderRadius: BorderRadius.zero,
           borderSide: const BorderSide(color: AppColors.paleLine)),
     ),
     onChanged: (v) => onChanged(double.tryParse(v)),
@@ -385,7 +391,11 @@ class _VolumeChips extends StatelessWidget {
     spacing: 7,
     children: options.map((o) => GestureDetector(
       onTap: () => onSelect(o),
-      child: _Chip(label: o, selected: selected == o, color: color),
+      child: AppChip(
+          label: o,
+          selected: selected == o,
+          selectedColor: color,
+          selectedTextColor: AppColors.primary),
     )).toList(),
   );
 }
@@ -407,7 +417,7 @@ class _ModeToggle extends StatelessWidget {
       decoration: BoxDecoration(
         color: active ? color : AppColors.card,
         border: Border.all(color: active ? Colors.transparent : AppColors.paleLine),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.zero,
       ),
       child: Text(label, style: TextStyle(
         fontSize: 12, fontWeight: FontWeight.w700,
@@ -417,42 +427,3 @@ class _ModeToggle extends StatelessWidget {
   );
 }
 
-// ── 공통 칩 ───────────────────────────────────────────────────────────────────
-class _Chip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final Color color;
-  const _Chip({required this.label, required this.selected, required this.color});
-
-  @override
-  Widget build(BuildContext context) => AnimatedContainer(
-    duration: const Duration(milliseconds: 140),
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-    decoration: BoxDecoration(
-      color: selected ? color : AppColors.card,
-      border: Border.all(color: selected ? Colors.transparent : AppColors.paleLine),
-      borderRadius: BorderRadius.circular(999),
-    ),
-    child: Text(label, style: TextStyle(
-      fontSize: 12, fontWeight: FontWeight.w700,
-      color: selected ? AppColors.primary : AppColors.paleInk2,
-    )),
-  );
-}
-
-// ── 스테퍼 버튼 ────────────────────────────────────────────────────────────────
-class _StepBtn extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-  const _StepBtn(this.label, {required this.onTap});
-
-  @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: Container(
-      width: 48, height: 48,
-      alignment: Alignment.center,
-      child: Text(label, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.primary)),
-    ),
-  );
-}

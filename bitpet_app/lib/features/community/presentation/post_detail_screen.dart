@@ -254,7 +254,8 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                             side: BorderSide(color: AppColors.paleLine),
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 12, vertical: 6),
-                            shape: const StadiumBorder(),
+                            shape: const RoundedRectangleBorder(
+                                borderRadius: BorderRadius.zero),
                             minimumSize: Size.zero,
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
@@ -267,10 +268,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                       ],
                     ),
 
-                    Divider(
-                        height: 33,
-                        thickness: 1,
-                        color: AppColors.paleLineSoft),
+                    const SizedBox(height: 20),
 
                     // 본문 텍스트
                     Text(
@@ -287,7 +285,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                       height: 180,
                       decoration: BoxDecoration(
                         color: AppColors.petSage,
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.zero,
                       ),
                       child: const Center(
                         child: Icon(Icons.image_outlined,
@@ -324,7 +322,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                                 color: post.isLiked
                                     ? AppColors.commLikeBg
                                     : AppColors.commLikeBg.withAlpha(100),
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.zero,
                               ),
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -362,7 +360,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                               color: AppColors.card,
                               border:
                                   Border.all(color: AppColors.paleLine),
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.zero,
                             ),
                             child: Icon(
                               post.isBookmarked
@@ -382,7 +380,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                           decoration: BoxDecoration(
                             color: AppColors.card,
                             border: Border.all(color: AppColors.paleLine),
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.zero,
                           ),
                           child: const Center(
                             child: Text('↗',
@@ -453,25 +451,25 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                 child: Row(
                   children: [
                     Expanded(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: AppColors.card,
-                          border: Border.all(color: AppColors.paleLine),
-                          borderRadius: BorderRadius.circular(22),
-                        ),
-                        child: TextField(
-                          controller: _commentCtrl,
-                          style: AppTextStyles.body
-                              .copyWith(color: AppColors.primary),
-                          decoration: InputDecoration(
-                            hintText: '댓글을 남겨보세요…',
-                            hintStyle: AppTextStyles.body
-                                .copyWith(color: AppColors.paleInk3),
-                            border: InputBorder.none,
-                            contentPadding:
-                                const EdgeInsets.symmetric(
-                                    horizontal: 14, vertical: 10),
+                      child: TextField(
+                        controller: _commentCtrl,
+                        style: AppTextStyles.body
+                            .copyWith(color: AppColors.primary),
+                        decoration: InputDecoration(
+                          hintText: '댓글을 남겨보세요…',
+                          hintStyle: AppTextStyles.body
+                              .copyWith(color: AppColors.paleInk3),
+                          isDense: true,
+                          enabledBorder: const UnderlineInputBorder(
+                            borderSide: BorderSide(color: AppColors.paleLine),
                           ),
+                          focusedBorder: const UnderlineInputBorder(
+                            borderSide:
+                                BorderSide(color: AppColors.primary, width: 1.5),
+                          ),
+                          contentPadding:
+                              const EdgeInsets.symmetric(
+                                  horizontal: 4, vertical: 10),
                         ),
                       ),
                     ),
@@ -579,10 +577,10 @@ class _CategoryPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: _catBg(cat),
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.zero,
       ),
       child: Text(
         _catLabel(cat),
@@ -603,10 +601,10 @@ class _TagChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: AppColors.paleBgAlt,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.zero,
       ),
       child: Text(
         label.startsWith('#') ? label : '#$label',
@@ -671,7 +669,7 @@ class _CommentItem extends StatelessWidget {
                             horizontal: 5, vertical: 1),
                         decoration: BoxDecoration(
                           color: AppColors.commSellBg,
-                          borderRadius: BorderRadius.circular(999),
+                          borderRadius: BorderRadius.zero,
                         ),
                         child: Text(
                           '작성자',
@@ -742,7 +740,7 @@ class _CommentItem extends StatelessWidget {
                         horizontal: 10, vertical: 8),
                     decoration: BoxDecoration(
                       color: AppColors.paleBgAlt,
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.zero,
                     ),
                     child: Text(
                       '↳ 답글 ${comment.replies.length}개 보기',

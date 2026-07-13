@@ -84,7 +84,6 @@ class _RecordTabState extends ConsumerState<RecordTab> {
           decoration: BoxDecoration(
             color: AppColors.card,
             border: Border.all(color: AppColors.paleLine),
-            borderRadius: BorderRadius.circular(16),
           ),
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
           child: Column(
@@ -193,7 +192,6 @@ class _RecordTabState extends ConsumerState<RecordTab> {
         padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
         decoration: BoxDecoration(
           color: PalePalette.catPale('WEIGHT'),
-          borderRadius: BorderRadius.circular(18),
         ),
         child: isLoading
             ? const SizedBox(height: 72,
@@ -251,7 +249,6 @@ class _RecordTabState extends ConsumerState<RecordTab> {
       decoration: BoxDecoration(
         color: AppColors.card,
         border: Border.all(color: AppColors.paleLine),
-        borderRadius: BorderRadius.circular(16),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
       child: Column(
@@ -293,7 +290,6 @@ class _RecordTabState extends ConsumerState<RecordTab> {
                       width: 34, height: 34,
                       decoration: BoxDecoration(
                         color: PalePalette.catPale(cat),
-                        borderRadius: BorderRadius.circular(10),
                       ),
                       child: Icon(meta.icon, size: 16,
                           color: PalePalette.catInk(cat)),

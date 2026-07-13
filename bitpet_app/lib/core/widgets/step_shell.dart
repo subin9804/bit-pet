@@ -224,7 +224,7 @@ class _StepTopBar extends StatelessWidget {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
           title: const Text(
             '입력 내용을 삭제할까요?',
             style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
@@ -333,15 +333,12 @@ class StepProgressDots extends StatelessWidget {
             duration: const Duration(milliseconds: 250),
             margin: EdgeInsets.only(right: i < count - 1 ? 6 : 0),
             width: isCur ? 24 : 6,
-            height: 6,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(3),
-              color: isCur
-                  ? accentInk
-                  : isDone
-                      ? AppColors.paleInk3
-                      : AppColors.paleLine,
-            ),
+            height: 4,
+            color: isCur
+                ? accentInk
+                : isDone
+                    ? AppColors.paleInk3
+                    : AppColors.paleLine,
           ),
         );
       }),
@@ -383,10 +380,9 @@ class _StepFooter extends StatelessWidget {
               onTap: onPrev,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.paleLine),
+                  border: Border.fromBorderSide(BorderSide(color: AppColors.paleLine)),
                 ),
                 child: const Text(
                   '이전',
@@ -408,7 +404,6 @@ class _StepFooter extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 decoration: BoxDecoration(
                   color: canNext ? AppColors.primary : AppColors.paleLine,
-                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: submitting
                     ? const Center(
@@ -482,21 +477,19 @@ class StepSummary extends StatelessWidget {
       children: groups.map((g) => Padding(
         padding: const EdgeInsets.only(bottom: 10),
         child: Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.paleLine),
+            border: Border.fromBorderSide(BorderSide(color: AppColors.paleLine)),
           ),
           child: Column(
             children: [
               InkWell(
                 onTap: () => goEdit(g.step),
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
                   decoration: const BoxDecoration(
                     color: AppColors.paleBgAlt,
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
+                    border: Border(bottom: BorderSide(color: AppColors.paleLineSoft)),
                   ),
                   child: Row(
                     children: [
@@ -627,41 +620,40 @@ class PaleTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(11),
-        border: Border.all(color: AppColors.paleLine),
+    return TextField(
+      controller: controller,
+      obscureText: obscureText,
+      keyboardType: maxLines != null && maxLines! > 1
+          ? TextInputType.multiline
+          : keyboardType,
+      maxLines: maxLines,
+      onChanged: onChanged,
+      style: const TextStyle(
+        fontSize: 15,
+        fontWeight: FontWeight.w600,
+        color: AppColors.primary,
       ),
-      child: TextField(
-        controller: controller,
-        obscureText: obscureText,
-        keyboardType: maxLines != null && maxLines! > 1
-            ? TextInputType.multiline
-            : keyboardType,
-        maxLines: maxLines,
-        onChanged: onChanged,
-        style: const TextStyle(
-          fontSize: 15,
-          fontWeight: FontWeight.w600,
-          color: AppColors.primary,
+      cursorColor: AppColors.primary,
+      decoration: InputDecoration(
+        hintText: placeholder,
+        hintStyle: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          color: AppColors.paleInk3,
         ),
-        cursorColor: AppColors.primary,
-        decoration: InputDecoration(
-          hintText: placeholder,
-          hintStyle: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: AppColors.paleInk3,
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 14,
-            vertical: 13,
-          ),
-          suffixIcon: suffixIcon,
-          border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 2,
+          vertical: 13,
+        ),
+        suffixIcon: suffixIcon,
+        border: const UnderlineInputBorder(
+          borderSide: BorderSide(color: AppColors.paleLine),
+        ),
+        enabledBorder: const UnderlineInputBorder(
+          borderSide: BorderSide(color: AppColors.paleLine),
+        ),
+        focusedBorder: const UnderlineInputBorder(
+          borderSide: BorderSide(color: AppColors.primary, width: 1.5),
         ),
       ),
     );
@@ -686,10 +678,9 @@ class PaleSegment extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColors.paleBgAlt,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.paleLine),
+        border: Border.fromBorderSide(BorderSide(color: AppColors.paleLine)),
       ),
       child: Row(
         children: options.map((o) {
@@ -702,9 +693,9 @@ class PaleSegment extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 9),
                 decoration: BoxDecoration(
                   color: sel ? AppColors.surface : Colors.transparent,
-                  borderRadius: BorderRadius.circular(10),
-                  boxShadow: sel
-                      ? [const BoxShadow(color: Color(0x143A332B), blurRadius: 3)]
+                  border: sel
+                      ? Border.fromBorderSide(
+                          const BorderSide(color: AppColors.primary))
                       : null,
                 ),
                 child: Text(

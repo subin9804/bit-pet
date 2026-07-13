@@ -10,7 +10,7 @@ class SkeletonBox extends StatefulWidget {
     super.key,
     required this.width,
     required this.height,
-    this.borderRadius = 6,
+    this.borderRadius = 0,
   });
 
   @override
@@ -69,7 +69,6 @@ class SkeletonCardList extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: AppColors.card,
-          borderRadius: BorderRadius.circular(8),
           border: Border.all(color: AppColors.border),
         ),
         child: Column(

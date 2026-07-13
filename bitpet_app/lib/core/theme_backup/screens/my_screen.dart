@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
@@ -15,28 +15,28 @@ class MyScreen extends ConsumerWidget {
     final userAsync = ref.watch(authStateProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
-      appBar: AppBar(
-        title: const Text('MY'),
-      ),
+      appBar: AppBar(title: const Text('MY')),
       body: userAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, __) =>
             const Center(child: Text('프로필 로드 실패')),
         data: (user) => ListView(
+          padding: const EdgeInsets.all(16),
           children: [
-            // 프로필 영역 — 카드 없이 플랫 레이아웃
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+            // 프로필 카드
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppColors.card,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border),
+              ),
               child: Row(
                 children: [
-                  Container(
-                    width: 56,
-                    height: 56,
-                    color: AppColors.bg2,
-                    child: const Icon(Icons.person,
-                        color: AppColors.textSecondary, size: 28),
+                  CircleAvatar(
+                    radius: 32,
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.2),
+                    child: const Icon(Icons.person, color: AppColors.primary, size: 32),
                   ),
                   const SizedBox(width: 16),
                   Column(
@@ -44,19 +44,20 @@ class MyScreen extends ConsumerWidget {
                     children: [
                       Text(user?.name ?? '사용자',
                           style: AppTextStyles.h3),
-                      const SizedBox(height: 2),
                       Text(user?.email ?? '',
                           style: AppTextStyles.caption),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 4),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 7, vertical: 2),
-                        color: AppColors.bg2,
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
                         child: Text(
                           user?.userType == 'BREEDER' ? 'BREEDER' : 'GENERAL',
                           style: AppTextStyles.label
-                              .copyWith(color: AppColors.textSecondary,
-                                  letterSpacing: 1.0),
+                              .copyWith(color: AppColors.primary),
                         ),
                       ),
                     ],
@@ -65,13 +66,13 @@ class MyScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 24),
-
-            // 메뉴 그룹 1
+            // 메뉴 목록
             _MenuItem(
               icon: Icons.group_outlined,
               label: '그룹 관리',
               onTap: () => context.push('/groups/management'),
             ),
+            const Divider(height: 1, color: AppColors.paleLine),
             _MenuItem(
               icon: Icons.notifications_outlined,
               label: '알림 설정',
@@ -87,10 +88,7 @@ class MyScreen extends ConsumerWidget {
               label: '앱 정보',
               onTap: () {},
             ),
-
-            const SizedBox(height: 24),
-
-            // 메뉴 그룹 2 — 계정
+            const Divider(height: 32),
             _MenuItem(
               icon: Icons.logout,
               label: '로그아웃',
@@ -123,7 +121,6 @@ class MyScreen extends ConsumerWidget {
                 }
               },
             ),
-            const SizedBox(height: 12),
           ],
         ),
       ),
@@ -146,25 +143,14 @@ class _MenuItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(icon, color: labelColor ?? AppColors.textSecondary),
+      title: Text(label,
+          style: AppTextStyles.body.copyWith(color: labelColor)),
+      trailing:
+          const Icon(Icons.chevron_right, color: AppColors.textDisabled),
       onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        child: Row(
-          children: [
-            Icon(icon,
-                size: 20,
-                color: labelColor ?? AppColors.textSecondary),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(label,
-                  style: AppTextStyles.body.copyWith(color: labelColor)),
-            ),
-            const Icon(Icons.chevron_right,
-                size: 18, color: AppColors.textDisabled),
-          ],
-        ),
-      ),
     );
   }
 }

@@ -255,7 +255,6 @@ class _PetListCard extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected
                 ? AppColors.primary
@@ -271,7 +270,7 @@ class _PetListCard extends StatelessWidget {
               height: 48,
               decoration: BoxDecoration(
                 color: _identityColor,
-                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.border),
               ),
               child: const Center(
                 child: Text('🦎', style: TextStyle(fontSize: 24)),

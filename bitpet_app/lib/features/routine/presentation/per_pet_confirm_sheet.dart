@@ -7,6 +7,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_input_styles.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/pale_palette.dart';
 import '../../../core/widgets/toast_message.dart';
@@ -252,12 +253,8 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
                   child: Container(
                     decoration: BoxDecoration(
                       color: AppColors.paleBg,
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x521C1610),
-                          blurRadius: 60, offset: Offset(0, 24)),
-                      ],
+                      borderRadius: BorderRadius.zero,
+                      border: Border.all(color: AppColors.paleLine),
                     ),
                     clipBehavior: Clip.antiAlias,
                     child: Column(
@@ -272,7 +269,7 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
                                 width: 42, height: 42,
                                 decoration: BoxDecoration(
                                   color: Colors.white.withValues(alpha: 0.62),
-                                  borderRadius: BorderRadius.circular(13),
+                                  borderRadius: BorderRadius.zero,
                                 ),
                                 child: Icon(_icon, size: 21, color: AppColors.primary),
                               ),
@@ -303,7 +300,7 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
                                     horizontal: 10, vertical: 4),
                                 decoration: BoxDecoration(
                                   color: Colors.white.withValues(alpha: 0.6),
-                                  borderRadius: BorderRadius.circular(999),
+                                  borderRadius: BorderRadius.zero,
                                 ),
                                 child: Text.rich(
                                   TextSpan(
@@ -426,11 +423,11 @@ class _PetPage extends StatelessWidget {
                   width: 50, height: 50,
                   decoration: BoxDecoration(
                     color: PalePalette.pale(PalePalette.keyFromHex(pet.colorCode)),
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.zero,
                   ),
                   child: pet.imageUrl != null
                       ? ClipRRect(
-                          borderRadius: BorderRadius.circular(13),
+                          borderRadius: BorderRadius.zero,
                           child: Image.network(pet.imageUrl!,
                               fit: BoxFit.cover,
                               errorBuilder: (_, __, ___) => Icon(Icons.pets,
@@ -461,7 +458,7 @@ class _PetPage extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: rec.done ? AppColors.primary : AppColors.paleBgAlt,
-                    borderRadius: BorderRadius.circular(999),
+                    borderRadius: BorderRadius.zero,
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -492,7 +489,7 @@ class _PetPage extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: rec.done ? AppColors.paleBgAlt : AppColors.primary,
                   border: rec.done ? Border.all(color: AppColors.paleLine) : null,
-                  borderRadius: BorderRadius.circular(13),
+                  borderRadius: BorderRadius.zero,
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -560,16 +557,8 @@ class _PetPage extends StatelessWidget {
                 onChanged: (v) => rec.memo = v,
                 maxLines: 2,
                 style: const TextStyle(fontSize: 13, color: AppColors.primary),
-                decoration: InputDecoration(
+                decoration: AppInputStyles.textarea(
                   hintText: '예: 1마리 남김 · 식욕 좋음',
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(11),
-                      borderSide: const BorderSide(color: AppColors.paleLine)),
-                  enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(11),
-                      borderSide: const BorderSide(color: AppColors.paleLine)),
                 ),
               ),
             ),
@@ -623,7 +612,7 @@ class _Footer extends StatelessWidget {
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
                         color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(13),
+                        borderRadius: BorderRadius.zero,
                       ),
                       child: const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -646,7 +635,7 @@ class _Footer extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: AppColors.card,
                         border: Border.all(color: AppColors.paleLine),
-                        borderRadius: BorderRadius.circular(13),
+                        borderRadius: BorderRadius.zero,
                       ),
                       child: const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -688,7 +677,7 @@ class _FooterBtn extends StatelessWidget {
           decoration: BoxDecoration(
             color: AppColors.card,
             border: Border.all(color: AppColors.paleLine),
-            borderRadius: BorderRadius.circular(13),
+            borderRadius: BorderRadius.zero,
           ),
           child: Text(label,
               style: const TextStyle(

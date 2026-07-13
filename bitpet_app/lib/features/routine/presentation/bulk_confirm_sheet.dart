@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_input_styles.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/pale_palette.dart';
 import '../../../core/widgets/toast_message.dart';
@@ -87,8 +88,9 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
     final pets    = routine.petStatuses;
     final done    = pets.where((s) => s.isCompleted).length;
     final pending = pets.length - done;
-    final screenH = MediaQuery.of(context).size.height;
-    final cardH   = (screenH - 112).clamp(0.0, 524.0);
+    final screenH   = MediaQuery.of(context).size.height;
+    final keyboardH = MediaQuery.of(context).viewInsets.bottom;
+    final cardH   = (screenH - 112 - keyboardH).clamp(0.0, 524.0);
 
     return Material(
       type: MaterialType.transparency,
@@ -99,8 +101,11 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
             onTap: () => Navigator.of(context).pop(),
             child: Container(color: const Color(0x801C1610)),
           ),
-          // 센터 다이얼로그
-          Center(
+          // 센터 다이얼로그 (키보드가 올라오면 그만큼 위로 밀어줌)
+          AnimatedPadding(
+            duration: const Duration(milliseconds: 150),
+            padding: EdgeInsets.only(bottom: keyboardH),
+            child: Center(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 26),
               child: ConstrainedBox(
@@ -244,18 +249,8 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
                                   maxLines: 2,
                                   style: const TextStyle(
                                       fontSize: 13, color: AppColors.primary),
-                                  decoration: const InputDecoration(
+                                  decoration: AppInputStyles.textarea(
                                     hintText: '예: 1마리 남김 · 식욕 좋음',
-                                    contentPadding: EdgeInsets.symmetric(
-                                        horizontal: 12, vertical: 10),
-                                    border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.zero,
-                                        borderSide: BorderSide(
-                                            color: AppColors.border)),
-                                    enabledBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.zero,
-                                        borderSide: BorderSide(
-                                            color: AppColors.border)),
                                   ),
                                 ),
                               ),
@@ -329,6 +324,7 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
                   ),
                 ),
               ),
+            ),
             ),
           ),
         ]

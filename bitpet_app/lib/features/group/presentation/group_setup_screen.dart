@@ -167,7 +167,6 @@ class _GroupSetupScreenState extends ConsumerState<GroupSetupScreen> {
                           color: _nameCtrl.text.trim().isNotEmpty
                               ? AppColors.primary
                               : AppColors.paleLine,
-                          borderRadius: BorderRadius.circular(13),
                         ),
                         alignment: Alignment.center,
                         child: _loading
@@ -235,7 +234,6 @@ class _GroupSetupScreenState extends ConsumerState<GroupSetupScreen> {
                           color: _codeCtrl.text.trim().length == 6
                               ? AppColors.primary
                               : AppColors.paleLine,
-                          borderRadius: BorderRadius.circular(13),
                         ),
                         alignment: Alignment.center,
                         child: _loading
@@ -285,7 +283,6 @@ class _OptionCard extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.paleLine),
       ),
       child: Column(
@@ -297,7 +294,6 @@ class _OptionCard extends StatelessWidget {
                 width: 36, height: 36,
                 decoration: BoxDecoration(
                   color: AppColors.paleBgAlt,
-                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(icon, size: 18, color: AppColors.primary),
               ),

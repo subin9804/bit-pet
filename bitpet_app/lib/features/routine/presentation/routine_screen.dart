@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/app_toggle.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/skeleton_loader.dart';
 import '../../../core/widgets/toast_message.dart';
@@ -75,8 +76,8 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
   String _query = '';
   RoutineType? _filterType;
 
-  // 알람 토글 로컬 상태 (낙관적 업데이트)
-  final Map<int, bool> _alarmOverrides = {};
+  // 루틴 on/off 토글 로컬 상태 (낙관적 업데이트) — active 필드 제어, 홈 카드 노출 조건과 직결
+  final Map<int, bool> _activeOverrides = {};
 
   @override
   void dispose() {
@@ -84,24 +85,24 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
     super.dispose();
   }
 
-  bool _alarmOn(Routine r) => _alarmOverrides[r.id] ?? r.isAlarmEnabled;
+  bool _routineOn(Routine r) => _activeOverrides[r.id] ?? r.isActive;
 
-  Future<void> _toggleAlarm(Routine r) async {
-    final next = !_alarmOn(r);
-    setState(() => _alarmOverrides[r.id] = next);
+  Future<void> _toggleActive(Routine r) async {
+    final next = !_routineOn(r);
+    setState(() => _activeOverrides[r.id] = next);
     try {
       await ref.read(routineRepositoryProvider).updateRoutine(r.id, {
         'routineType': r.routineType.name,
         'title': r.title,
         'cycleDays': r.cycleDays,
         'alarmTime': r.alarmTime,
-        'alarmEnabled': next,
-        'active': r.isActive,
+        'alarmEnabled': r.isAlarmEnabled,
+        'active': next,
         if (r.memo != null) 'memo': r.memo,
       });
       ref.read(routineListProvider.notifier).load();
     } catch (_) {
-      setState(() => _alarmOverrides.remove(r.id));
+      setState(() => _activeOverrides.remove(r.id));
     }
   }
 
@@ -145,42 +146,36 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
             border: Border(bottom: BorderSide(color: AppColors.divider)),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Container(
-            color: AppColors.card,
-            child: TextField(
-              controller: _searchCtrl,
-              onChanged: (v) => setState(() => _query = v),
-              style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
-              decoration: InputDecoration(
-                hintText: '루틴 이름 검색…',
-                hintStyle: const TextStyle(
-                    color: AppColors.textDisabled, fontSize: 13),
-                prefixIcon: const Icon(Icons.search,
-                    size: 18, color: AppColors.textSecondary),
-                suffixIcon: _query.isNotEmpty
-                    ? GestureDetector(
-                        onTap: () {
-                          _searchCtrl.clear();
-                          setState(() => _query = '');
-                        },
-                        child: const Icon(Icons.close,
-                            size: 16, color: AppColors.textDisabled),
-                      )
-                    : null,
-                contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 11),
-                border: const OutlineInputBorder(
-                  borderRadius: BorderRadius.zero,
-                  borderSide: BorderSide(color: AppColors.border),
-                ),
-                enabledBorder: const OutlineInputBorder(
-                  borderRadius: BorderRadius.zero,
-                  borderSide: BorderSide(color: AppColors.border),
-                ),
-                focusedBorder: const OutlineInputBorder(
-                  borderRadius: BorderRadius.zero,
-                  borderSide: BorderSide(color: AppColors.textPrimary),
-                ),
+          child: TextField(
+            controller: _searchCtrl,
+            onChanged: (v) => setState(() => _query = v),
+            style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
+            decoration: InputDecoration(
+              hintText: '루틴 이름 검색…',
+              hintStyle: const TextStyle(
+                  color: AppColors.textDisabled, fontSize: 13),
+              prefixIcon: const Icon(Icons.search,
+                  size: 18, color: AppColors.textSecondary),
+              suffixIcon: _query.isNotEmpty
+                  ? GestureDetector(
+                      onTap: () {
+                        _searchCtrl.clear();
+                        setState(() => _query = '');
+                      },
+                      child: const Icon(Icons.close,
+                          size: 16, color: AppColors.textDisabled),
+                    )
+                  : null,
+              contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 4, vertical: 11),
+              border: const UnderlineInputBorder(
+                borderSide: BorderSide(color: AppColors.border),
+              ),
+              enabledBorder: const UnderlineInputBorder(
+                borderSide: BorderSide(color: AppColors.border),
+              ),
+              focusedBorder: const UnderlineInputBorder(
+                borderSide: BorderSide(color: AppColors.textPrimary),
               ),
             ),
           ),
@@ -277,8 +272,8 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
                 itemCount: visible.length,
                 itemBuilder: (_, i) => _RoutineCard(
                   routine: visible[i],
-                  alarmOn: _alarmOn(visible[i]),
-                  onToggleAlarm: () => _toggleAlarm(visible[i]),
+                  routineOn: _routineOn(visible[i]),
+                  onToggle: () => _toggleActive(visible[i]),
                   onDelete: () => _deleteRoutine(visible[i]),
                 ),
               );
@@ -296,14 +291,14 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
 
 class _RoutineCard extends ConsumerWidget {
   final Routine routine;
-  final bool alarmOn;
-  final VoidCallback onToggleAlarm;
+  final bool routineOn;
+  final VoidCallback onToggle;
   final VoidCallback onDelete;
 
   const _RoutineCard({
     required this.routine,
-    required this.alarmOn,
-    required this.onToggleAlarm,
+    required this.routineOn,
+    required this.onToggle,
     required this.onDelete,
   });
 
@@ -376,7 +371,7 @@ class _RoutineCard extends ConsumerWidget {
                           Icon(
                             Icons.notifications_outlined,
                             size: 12,
-                            color: alarmOn
+                            color: routineOn
                                 ? AppColors.textSecondary
                                 : AppColors.textDisabled,
                           ),
@@ -387,7 +382,7 @@ class _RoutineCard extends ConsumerWidget {
                               fontFamily: 'monospace',
                               fontSize: 11.5,
                               fontWeight: FontWeight.w700,
-                              color: alarmOn
+                              color: routineOn
                                   ? AppColors.textSecondary
                                   : AppColors.textDisabled,
                             ),
@@ -398,7 +393,7 @@ class _RoutineCard extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                _PaleToggle(on: alarmOn, onToggle: onToggleAlarm),
+                AppToggle(value: routineOn, onToggle: onToggle),
               ],
             ),
           ),
@@ -480,45 +475,6 @@ class _RoutineCard extends ConsumerWidget {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => _CalendarSheet(routine: routine),
-    );
-  }
-}
-
-// ── PALE 토글 ─────────────────────────────────────────────────────
-
-class _PaleToggle extends StatelessWidget {
-  final bool on;
-  final VoidCallback onToggle;
-
-  const _PaleToggle({required this.on, required this.onToggle});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onToggle,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        width: 44,
-        height: 26,
-        decoration: BoxDecoration(
-          // off: #DEDEDE, on: #191919
-          color: on ? AppColors.toggleOn : AppColors.toggleOff,
-          borderRadius: BorderRadius.circular(13), // 토글은 pill 유지 (UX 표준)
-        ),
-        child: AnimatedAlign(
-          duration: const Duration(milliseconds: 150),
-          alignment: on ? Alignment.centerRight : Alignment.centerLeft,
-          child: Container(
-            margin: const EdgeInsets.all(3),
-            width: 20,
-            height: 20,
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
@@ -636,7 +592,7 @@ class _CalendarSheetState extends ConsumerState<_CalendarSheet> {
               ],
             ),
           ),
-          const Divider(height: 1, color: AppColors.paleLineSoft),
+          const SizedBox(height: 16),
           // 스크롤 영역 — Flexible로 남은 공간 채우되 내용 적으면 줄어듦
           Flexible(
             child: SingleChildScrollView(
@@ -761,7 +717,7 @@ class _CalendarSheetState extends ConsumerState<_CalendarSheet> {
                               onTap: () => setState(() => _selDay = sel ? null : d),
                               child: Container(
                                 decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(6),
+                                  borderRadius: BorderRadius.zero,
                                   color: bgColor,
                                   border: border,
                                 ),
@@ -788,9 +744,7 @@ class _CalendarSheetState extends ConsumerState<_CalendarSheet> {
 
                       // ── 선택일 개체 리스트 ──
                       if (_selDay != null) ...[
-                        const SizedBox(height: 20),
-                        const Divider(height: 1, color: AppColors.paleLineSoft),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 28),
                         _PetStatusSection(
                           selDay: _selDay!,
                           month: _month,
@@ -928,10 +882,10 @@ class _PetChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: done ? AppColors.primary.withValues(alpha: 0.08) : AppColors.paleBgAlt,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.zero,
         border: Border.all(
           color: done ? AppColors.primary.withValues(alpha: 0.25) : AppColors.paleLine,
         ),
@@ -1071,7 +1025,7 @@ class _RoutinePetPickerSheetState
                   width: 34, height: 34,
                   decoration: BoxDecoration(
                     color: bg,
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.zero,
                   ),
                   child: Icon(_rtypeIcon(widget.routine.routineType),
                       size: 18, color: AppColors.primary),
@@ -1094,10 +1048,10 @@ class _RoutinePetPickerSheetState
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 4),
+                      horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
                     color: bg,
-                    borderRadius: BorderRadius.circular(999),
+                    borderRadius: BorderRadius.zero,
                   ),
                   child: Text(
                     '${_selectedIds.length}마리',
@@ -1112,7 +1066,7 @@ class _RoutinePetPickerSheetState
               ],
             ),
           ),
-          const Divider(height: 1, color: AppColors.paleLineSoft),
+          const SizedBox(height: 16),
           // ── 개체 그리드 ──
           ConstrainedBox(
             constraints: BoxConstraints(

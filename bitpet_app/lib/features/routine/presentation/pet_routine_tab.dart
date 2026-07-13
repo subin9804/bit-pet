@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/pale_palette.dart';
+import '../../../core/widgets/app_chip.dart';
 import '../../../core/widgets/confirm_modal.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/toast_message.dart';
@@ -133,7 +134,7 @@ class _PetRoutineTabState extends ConsumerState<PetRoutineTab> {
             padding: const EdgeInsets.symmetric(vertical: 13),
             decoration: BoxDecoration(
               color: AppColors.primary,
-              borderRadius: BorderRadius.circular(13),
+              borderRadius: BorderRadius.zero,
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -311,7 +312,7 @@ class _RoutineCardState extends ConsumerState<_RoutineCard> {
           color: widget.isToday ? widget.paleInk : AppColors.paleLine,
           width: widget.isToday ? 1.5 : 1,
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.zero,
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -329,7 +330,7 @@ class _RoutineCardState extends ConsumerState<_RoutineCard> {
                     width: 38, height: 38,
                     decoration: BoxDecoration(
                       color: widget.pale,
-                      borderRadius: BorderRadius.circular(11),
+                      borderRadius: BorderRadius.zero,
                     ),
                     child: Icon(_rtypeIcon(r.routineType),
                         size: 18, color: AppColors.primary),
@@ -357,7 +358,7 @@ class _RoutineCardState extends ConsumerState<_RoutineCard> {
                                   horizontal: 7, vertical: 2),
                               decoration: BoxDecoration(
                                 color: AppColors.paleBgAlt,
-                                borderRadius: BorderRadius.circular(999),
+                                borderRadius: BorderRadius.zero,
                               ),
                               child: Text(_cycleLabel(r),
                                   style: const TextStyle(
@@ -412,7 +413,7 @@ class _RoutineCardState extends ConsumerState<_RoutineCard> {
                           horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: widget.paleInk,
-                        borderRadius: BorderRadius.circular(999),
+                        borderRadius: BorderRadius.zero,
                       ),
                       child: Text('오늘',
                           style: TextStyle(
@@ -483,7 +484,7 @@ class _RoutineCardState extends ConsumerState<_RoutineCard> {
                               border: _done
                                   ? Border.all(color: widget.paleInk)
                                   : null,
-                              borderRadius: BorderRadius.circular(11),
+                              borderRadius: BorderRadius.zero,
                             ),
                             child: _toggling
                                 ? SizedBox(
@@ -521,7 +522,7 @@ class _RoutineCardState extends ConsumerState<_RoutineCard> {
                           decoration: BoxDecoration(
                             color: AppColors.paleBgAlt,
                             border: Border.all(color: AppColors.paleLine),
-                            borderRadius: BorderRadius.circular(11),
+                            borderRadius: BorderRadius.zero,
                           ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -558,7 +559,7 @@ class _RoutineCardState extends ConsumerState<_RoutineCard> {
                     decoration: BoxDecoration(
                       color: AppColors.card,
                       border: Border.all(color: AppColors.paleLine),
-                      borderRadius: BorderRadius.circular(11),
+                      borderRadius: BorderRadius.zero,
                     ),
                     child: const Icon(Icons.link_off,
                         size: 18, color: AppColors.paleInk3),
@@ -744,7 +745,7 @@ class _MiniRoutineCalendarState
                 final missed = scheduled && !done;
                 return Container(
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: BorderRadius.zero,
                     border: (done || missed)
                         ? Border.all(color: widget.accentColor, width: 1.5)
                         : null,
@@ -792,7 +793,7 @@ class _Legend extends StatelessWidget {
         Container(
           width: 11, height: 11,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(3),
+            borderRadius: BorderRadius.zero,
             color: filled ? color : Colors.transparent,
             border: filled ? null : Border.all(color: color, width: 1.5),
           ),
@@ -895,7 +896,7 @@ class _AddPetToRoutinesSheetState
                       margin: const EdgeInsets.fromLTRB(0, 10, 0, 0),
                       decoration: BoxDecoration(
                         color: AppColors.paleLine,
-                        borderRadius: BorderRadius.circular(2),
+                        borderRadius: BorderRadius.zero,
                       ),
                     ),
                   ),
@@ -935,7 +936,7 @@ class _AddPetToRoutinesSheetState
                                 decoration: BoxDecoration(
                                   color: AppColors.card,
                                   border: Border.all(color: AppColors.paleLine),
-                                  borderRadius: BorderRadius.circular(10),
+                                  borderRadius: BorderRadius.zero,
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
@@ -971,7 +972,7 @@ class _AddPetToRoutinesSheetState
                       decoration: BoxDecoration(
                         color: AppColors.card,
                         border: Border.all(color: AppColors.paleLine),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.zero,
                       ),
                       child: TextField(
                         controller: _searchCtrl,
@@ -999,10 +1000,11 @@ class _AddPetToRoutinesSheetState
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 22),
                       children: [
-                        _FilterChip(
+                        AppChip(
                           label: '전체',
                           count: allRoutines.length,
-                          active: _filter == null,
+                          selected: _filter == null,
+                          margin: const EdgeInsets.only(right: 6),
                           onTap: () => setState(() => _filter = null),
                         ),
                         ...RoutineType.values.map((t) {
@@ -1014,10 +1016,11 @@ class _AddPetToRoutinesSheetState
                             RoutineType.WEIGHT   => '체중',
                             RoutineType.CUSTOM   => '사용자',
                           };
-                          return _FilterChip(
+                          return AppChip(
                             label: label,
                             count: cnt,
-                            active: _filter == t,
+                            selected: _filter == t,
+                            margin: const EdgeInsets.only(right: 6),
                             onTap: () =>
                                 setState(() => _filter = _filter == t ? null : t),
                           );
@@ -1025,9 +1028,7 @@ class _AddPetToRoutinesSheetState
                       ],
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  // 구분선
-                  const Divider(color: AppColors.paleLineSoft, height: 1),
+                  const SizedBox(height: 16),
                   // 루틴 리스트
                   Expanded(
                     child: ListView.builder(
@@ -1073,7 +1074,7 @@ class _AddPetToRoutinesSheetState
                                   color: on ? AppColors.petPeachInk : AppColors.paleLine,
                                   width: on ? 1.5 : 1,
                                 ),
-                                borderRadius: BorderRadius.circular(14),
+                                borderRadius: BorderRadius.zero,
                               ),
                               child: Opacity(
                                 opacity: joined ? 0.55 : 1.0,
@@ -1085,7 +1086,7 @@ class _AddPetToRoutinesSheetState
                                         color: on
                                             ? Colors.white.withValues(alpha: 0.55)
                                             : _rtypeBg(r.routineType),
-                                        borderRadius: BorderRadius.circular(12),
+                                        borderRadius: BorderRadius.zero,
                                       ),
                                       child: Icon(_rtypeIcon(r.routineType),
                                           size: 20, color: AppColors.primary),
@@ -1124,7 +1125,7 @@ class _AddPetToRoutinesSheetState
                                           border: Border.all(
                                               color: AppColors.paleLine),
                                           borderRadius:
-                                              BorderRadius.circular(999),
+                                              BorderRadius.zero,
                                         ),
                                         child: const Text('추가됨',
                                             style: TextStyle(
@@ -1139,7 +1140,7 @@ class _AddPetToRoutinesSheetState
                                             const Duration(milliseconds: 120),
                                         width: 22, height: 22,
                                         decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(7),
+                                          borderRadius: BorderRadius.zero,
                                           color: on
                                               ? AppColors.petPeachInk
                                               : AppColors.paleBg,
@@ -1185,7 +1186,7 @@ class _AddPetToRoutinesSheetState
                             decoration: BoxDecoration(
                               color: AppColors.card,
                               border: Border.all(color: AppColors.paleLine),
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.zero,
                             ),
                             child: const Text('취소',
                                 style: TextStyle(
@@ -1209,7 +1210,7 @@ class _AddPetToRoutinesSheetState
                                 color: _picked.isNotEmpty
                                     ? AppColors.primary
                                     : AppColors.paleLineSoft,
-                                borderRadius: BorderRadius.circular(14),
+                                borderRadius: BorderRadius.zero,
                               ),
                               child: _saving
                                   ? const SizedBox(
@@ -1237,7 +1238,7 @@ class _AddPetToRoutinesSheetState
                                               color: Colors.white
                                                   .withValues(alpha: 0.18),
                                               borderRadius:
-                                                  BorderRadius.circular(999),
+                                                  BorderRadius.zero,
                                             ),
                                             child: Text('${_picked.length}',
                                                 style: const TextStyle(
@@ -1263,53 +1264,3 @@ class _AddPetToRoutinesSheetState
   }
 }
 
-class _FilterChip extends StatelessWidget {
-  final String label;
-  final int count;
-  final bool active;
-  final VoidCallback onTap;
-
-  const _FilterChip({
-    required this.label,
-    required this.count,
-    required this.active,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        margin: const EdgeInsets.only(right: 6),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: active ? AppColors.primary : AppColors.card,
-          borderRadius: BorderRadius.circular(999),
-          border: active ? null : Border.all(color: AppColors.paleLine),
-        ),
-        child: Row(
-          children: [
-            Text(label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: active ? AppColors.paleBg : AppColors.primary,
-                )),
-            const SizedBox(width: 5),
-            Text('$count',
-                style: TextStyle(
-                  fontFamily: 'monospace',
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: active
-                      ? AppColors.paleBg.withValues(alpha: 0.6)
-                      : AppColors.paleInk3,
-                )),
-          ],
-        ),
-      ),
-    );
-  }
-}

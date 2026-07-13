@@ -126,7 +126,6 @@ class _SpeciesBottomSheetState extends ConsumerState<SpeciesBottomSheet> {
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
                   color: AppColors.paleBgAlt,
-                  borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: AppColors.paleLine),
                 ),
                 child: Text(
@@ -148,7 +147,6 @@ class _SpeciesBottomSheetState extends ConsumerState<SpeciesBottomSheet> {
         child: Container(
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(12),
             border: Border.all(color: AppColors.paleLine),
           ),
           child: TextField(
@@ -304,7 +302,6 @@ class _SpeciesBottomSheetState extends ConsumerState<SpeciesBottomSheet> {
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     decoration: BoxDecoration(
                       color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(14),
                       border: Border.all(color: AppColors.paleLine),
                     ),
                     child: const Center(
@@ -333,7 +330,6 @@ class _SpeciesBottomSheetState extends ConsumerState<SpeciesBottomSheet> {
                       color: _selectedSpecies != null
                           ? AppColors.primary
                           : AppColors.paleLine,
-                      borderRadius: BorderRadius.circular(14),
                     ),
                     child: Center(
                       child: Text(
@@ -450,14 +446,12 @@ class _SpeciesRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
         margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
         decoration: BoxDecoration(
           color: isSelected ? AppColors.primary : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
         ),
         child: Row(
           children: [
@@ -483,7 +477,6 @@ class _SpeciesRow extends StatelessWidget {
                             color: isSelected
                                 ? AppColors.paleBg.withValues(alpha: 0.18)
                                 : AppColors.paleBgAlt,
-                            borderRadius: BorderRadius.circular(5),
                             border: Border.all(
                               color: isSelected
                                   ? AppColors.paleBg.withValues(alpha: 0.3)

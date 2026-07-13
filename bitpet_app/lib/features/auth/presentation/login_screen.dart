@@ -341,7 +341,7 @@ class _PixelCheckbox extends StatelessWidget {
       decoration: BoxDecoration(
         color: checked ? AppColors.primary : Colors.transparent,
         border: Border.all(color: AppColors.textPrimary, width: 1.5),
-        borderRadius: BorderRadius.circular(3),
+        borderRadius: BorderRadius.zero,
       ),
       child: checked
           ? const Icon(Icons.check, size: 13, color: Colors.white)
@@ -394,7 +394,7 @@ class _InputField extends StatelessWidget {
           cursorColor: AppColors.textPrimary,
           decoration: InputDecoration(
             contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                const EdgeInsets.symmetric(horizontal: 4, vertical: 14),
             suffixIcon: suffixIcon != null
                 ? Padding(
                     padding: const EdgeInsets.only(right: 12),
@@ -403,27 +403,17 @@ class _InputField extends StatelessWidget {
                 : null,
             suffixIconConstraints:
                 const BoxConstraints(minWidth: 0, minHeight: 0),
-            filled: true,
-            fillColor: AppColors.surface,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AppColors.border),
+            enabledBorder: const UnderlineInputBorder(
+              borderSide: BorderSide(color: AppColors.border),
             ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AppColors.border),
+            focusedBorder: const UnderlineInputBorder(
+              borderSide: BorderSide(color: AppColors.textPrimary, width: 1.5),
             ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AppColors.textPrimary, width: 1.5),
+            errorBorder: const UnderlineInputBorder(
+              borderSide: BorderSide(color: AppColors.error),
             ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AppColors.error),
-            ),
-            focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AppColors.error, width: 1.5),
+            focusedErrorBorder: const UnderlineInputBorder(
+              borderSide: BorderSide(color: AppColors.error, width: 1.5),
             ),
             errorStyle: const TextStyle(fontSize: 11, color: AppColors.error),
           ),
@@ -461,7 +451,7 @@ class _FullButton extends StatelessWidget {
           foregroundColor: textColor,
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.zero,
           ),
         ),
         child: isLoading
@@ -527,7 +517,7 @@ class _SocialButton extends StatelessWidget {
           foregroundColor: textColor,
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.zero,
             side: hasBorder
                 ? const BorderSide(color: AppColors.border)
                 : BorderSide.none,

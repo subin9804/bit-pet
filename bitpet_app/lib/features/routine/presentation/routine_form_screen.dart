@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_toggle.dart';
 import '../../../core/widgets/step_shell.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../../pet/data/models/pet_models.dart';
@@ -245,7 +246,7 @@ class _RoutineFormScreenState extends ConsumerState<RoutineFormScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       decoration: BoxDecoration(
                         color: on ? _rtypeBg[ty]! : AppColors.surface,
-                        borderRadius: BorderRadius.circular(13),
+                        borderRadius: BorderRadius.zero,
                         border: Border.all(
                           color: on ? _rtypeInk[ty]! : AppColors.paleLine,
                           width: on ? 1.5 : 1,
@@ -258,7 +259,7 @@ class _RoutineFormScreenState extends ConsumerState<RoutineFormScreen> {
                             height: 32,
                             decoration: BoxDecoration(
                               color: on ? AppColors.surface : _rtypeBg[ty]!,
-                              borderRadius: BorderRadius.circular(9),
+                              borderRadius: BorderRadius.zero,
                             ),
                             child: Icon(_rtypeIcon[ty]!, size: 16, color: AppColors.primary),
                           ),
@@ -366,7 +367,7 @@ class _RoutineFormScreenState extends ConsumerState<RoutineFormScreen> {
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
             decoration: BoxDecoration(
               color: AppColors.surface,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.zero,
               border: Border.all(color: AppColors.paleLine),
             ),
             child: Row(
@@ -376,7 +377,7 @@ class _RoutineFormScreenState extends ConsumerState<RoutineFormScreen> {
                   height: 42,
                   decoration: BoxDecoration(
                     color: _typeBg,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.zero,
                   ),
                   child: Icon(_rtypeIcon[_type]!, color: AppColors.primary, size: 20),
                 ),
@@ -397,7 +398,7 @@ class _RoutineFormScreenState extends ConsumerState<RoutineFormScreen> {
                             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                             decoration: BoxDecoration(
                               color: _typeBg,
-                              borderRadius: BorderRadius.circular(999),
+                              borderRadius: BorderRadius.zero,
                             ),
                             child: Text(
                               '${_petIds.length}마리',
@@ -551,7 +552,7 @@ class _PetSelectorStep extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
                   color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.zero,
                   border: Border.all(color: AppColors.paleLine),
                 ),
                 child: Row(
@@ -590,7 +591,7 @@ class _PetSelectorStep extends ConsumerWidget {
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                           decoration: BoxDecoration(
                             color: active ? AppColors.primary : AppColors.surface,
-                            borderRadius: BorderRadius.circular(999),
+                            borderRadius: BorderRadius.zero,
                             border: active ? null : Border.all(color: AppColors.paleLine),
                           ),
                           child: Text(
@@ -621,7 +622,7 @@ class _PetSelectorStep extends ConsumerWidget {
                         height: 18,
                         decoration: BoxDecoration(
                           color: allOn ? AppColors.primary : AppColors.surface,
-                          borderRadius: BorderRadius.circular(5),
+                          borderRadius: BorderRadius.zero,
                           border: Border.all(
                             color: allOn ? AppColors.primary : AppColors.paleLine,
                             width: 1.5,
@@ -674,7 +675,7 @@ class _PetSelectorStep extends ConsumerWidget {
                         duration: const Duration(milliseconds: 150),
                         decoration: BoxDecoration(
                           color: on ? bg : AppColors.surface,
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.zero,
                           border: Border.all(
                             color: on ? bg.withValues(alpha: 0.5) : AppColors.paleLine,
                             width: on ? 1.5 : 1,
@@ -691,7 +692,7 @@ class _PetSelectorStep extends ConsumerWidget {
                                   height: 46,
                                   decoration: BoxDecoration(
                                     color: on ? AppColors.surface.withValues(alpha: 0.55) : bg,
-                                    borderRadius: BorderRadius.circular(13),
+                                    borderRadius: BorderRadius.zero,
                                   ),
                                   child: const Center(
                                     child: Text('🦎', style: TextStyle(fontSize: 22)),
@@ -813,7 +814,7 @@ class _CycleStep extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
             decoration: BoxDecoration(
               color: AppColors.surface,
-              borderRadius: BorderRadius.circular(13),
+              borderRadius: BorderRadius.zero,
               border: Border.all(color: AppColors.paleLine),
             ),
             child: Row(
@@ -821,7 +822,7 @@ class _CycleStep extends StatelessWidget {
                 Container(
                   width: 34,
                   height: 34,
-                  decoration: BoxDecoration(color: typeBg, borderRadius: BorderRadius.circular(10)),
+                  decoration: BoxDecoration(color: typeBg, borderRadius: BorderRadius.zero),
                   child: const Icon(Icons.calendar_today_outlined, size: 16, color: AppColors.primary),
                 ),
                 const SizedBox(width: 12),
@@ -859,7 +860,7 @@ class _CycleStep extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         color: on ? typeBg : AppColors.surface,
-                        borderRadius: BorderRadius.circular(999),
+                        borderRadius: BorderRadius.zero,
                         border: on ? null : Border.all(color: AppColors.paleLine),
                       ),
                       child: Text(entry.value, style: const TextStyle(
@@ -882,7 +883,7 @@ class _CycleStep extends StatelessWidget {
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
             color: AppColors.paleBgAlt,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.zero,
           ),
           child: Row(
             children: [
@@ -899,11 +900,8 @@ class _CycleStep extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(vertical: 9),
                       decoration: BoxDecoration(
                         color: cycleMode == entry.key ? AppColors.surface : Colors.transparent,
-                        borderRadius: BorderRadius.circular(9),
+                        borderRadius: BorderRadius.zero,
                         border: cycleMode == entry.key ? Border.all(color: AppColors.paleLine) : null,
-                        boxShadow: cycleMode == entry.key
-                            ? [const BoxShadow(color: Color(0x0C3A332B), blurRadius: 2)]
-                            : null,
                       ),
                       child: Text(
                         entry.value,
@@ -948,7 +946,7 @@ class _IntervalPicker extends StatelessWidget {
         Container(
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(11),
+            borderRadius: BorderRadius.zero,
             border: Border.all(color: AppColors.paleLine),
           ),
           child: Row(
@@ -1010,7 +1008,7 @@ class _IntervalPicker extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: on ? typeBg : AppColors.surface,
-                  borderRadius: BorderRadius.circular(999),
+                  borderRadius: BorderRadius.zero,
                   border: on ? null : Border.all(color: AppColors.paleLine),
                 ),
                 child: Text(p.$2, style: const TextStyle(
@@ -1050,7 +1048,7 @@ class _WeekdayPicker extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 14),
               decoration: BoxDecoration(
                 color: on ? AppColors.primary : AppColors.surface,
-                borderRadius: BorderRadius.circular(11),
+                borderRadius: BorderRadius.zero,
                 border: Border.all(color: on ? AppColors.primary : AppColors.paleLine),
               ),
               child: Text(
@@ -1106,7 +1104,7 @@ class _MonthdayPicker extends StatelessWidget {
                 duration: const Duration(milliseconds: 120),
                 decoration: BoxDecoration(
                   color: on ? AppColors.primary : AppColors.surface,
-                  borderRadius: BorderRadius.circular(9),
+                  borderRadius: BorderRadius.zero,
                   border: Border.all(color: on ? AppColors.primary : AppColors.paleLine),
                 ),
                 child: Center(
@@ -1129,7 +1127,7 @@ class _MonthdayPicker extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
             decoration: BoxDecoration(
               color: monthDays.contains(32) ? typeBg : AppColors.surface,
-              borderRadius: BorderRadius.circular(11),
+              borderRadius: BorderRadius.zero,
               border: Border.all(
                 color: monthDays.contains(32) ? Colors.transparent : AppColors.paleLine,
               ),
@@ -1142,7 +1140,7 @@ class _MonthdayPicker extends StatelessWidget {
                   height: 22,
                   decoration: BoxDecoration(
                     color: monthDays.contains(32) ? AppColors.primary : AppColors.paleBgAlt,
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.zero,
                   ),
                   child: monthDays.contains(32)
                       ? const Icon(Icons.check, size: 14, color: AppColors.paleBg)
@@ -1175,7 +1173,7 @@ class _MonthdayPicker extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(9, 3, 4, 3),
                 decoration: BoxDecoration(
                   color: typeBg,
-                  borderRadius: BorderRadius.circular(999),
+                  borderRadius: BorderRadius.zero,
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -1236,7 +1234,7 @@ class _AlarmStep extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
             decoration: BoxDecoration(
               color: AppColors.surface,
-              borderRadius: BorderRadius.circular(13),
+              borderRadius: BorderRadius.zero,
               border: Border.all(color: AppColors.paleLine),
             ),
             child: Column(
@@ -1298,7 +1296,7 @@ class _AlarmStep extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
                             color: on ? typeBg : AppColors.paleBg,
-                            borderRadius: BorderRadius.circular(999),
+                            borderRadius: BorderRadius.zero,
                             border: on ? null : Border.all(color: AppColors.paleLine),
                           ),
                           child: Text(tp, style: TextStyle(
@@ -1321,7 +1319,7 @@ class _AlarmStep extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
             decoration: BoxDecoration(
               color: AppColors.surface,
-              borderRadius: BorderRadius.circular(13),
+              borderRadius: BorderRadius.zero,
               border: Border.all(color: AppColors.paleLine),
             ),
             child: Row(
@@ -1330,7 +1328,7 @@ class _AlarmStep extends StatelessWidget {
                   width: 34, height: 34,
                   decoration: BoxDecoration(
                     color: alarmOn ? typeBg : AppColors.paleBgAlt,
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.zero,
                   ),
                   child: Icon(Icons.notifications_outlined, size: 18,
                       color: alarmOn ? AppColors.primary : AppColors.paleInk3),
@@ -1350,23 +1348,7 @@ class _AlarmStep extends StatelessWidget {
                     ],
                   ),
                 ),
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  width: 44, height: 26,
-                  decoration: BoxDecoration(
-                    color: alarmOn ? AppColors.primary : AppColors.paleLine,
-                    borderRadius: BorderRadius.circular(13),
-                  ),
-                  child: AnimatedAlign(
-                    duration: const Duration(milliseconds: 150),
-                    alignment: alarmOn ? Alignment.centerRight : Alignment.centerLeft,
-                    child: Container(
-                      margin: const EdgeInsets.all(3),
-                      width: 20, height: 20,
-                      decoration: const BoxDecoration(color: AppColors.paleBg, shape: BoxShape.circle),
-                    ),
-                  ),
-                ),
+                AppToggle(value: alarmOn, onToggle: onAlarmToggled),
               ],
             ),
           ),
@@ -1467,7 +1449,7 @@ class _TimeSpinnerState extends State<_TimeSpinner> {
               color: _editing
                   ? widget.typeBg.withValues(alpha: 0.25)
                   : AppColors.paleBgAlt,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.zero,
               border: Border.all(
                 color: _editing ? widget.typeBg : Colors.transparent,
                 width: 2,

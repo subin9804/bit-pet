@@ -26,7 +26,7 @@ class _GroupManagementScreenState
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.card,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: const RoundedRectangleBorder(),
         title: const Text('그룹 이름 수정',
             style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
         content: TextField(
@@ -169,7 +169,6 @@ class _GroupManagementScreenState
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: AppColors.card,
-                    borderRadius: BorderRadius.circular(13),
                     border: Border.all(
                         color: AppColors.error.withValues(alpha: 0.4)),
                   ),
@@ -205,7 +204,6 @@ class _InfoCard extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.paleLine),
       ),
       child: Column(
@@ -221,7 +219,6 @@ class _InfoCard extends StatelessWidget {
                 width: 44, height: 44,
                 decoration: BoxDecoration(
                   color: AppColors.paleBgAlt,
-                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(Icons.group_outlined,
                     size: 22, color: AppColors.primary),
@@ -327,7 +324,6 @@ class _InviteCodeCardState extends ConsumerState<_InviteCodeCard> {
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.paleLine),
       ),
       child: Column(
@@ -349,7 +345,6 @@ class _InviteCodeCardState extends ConsumerState<_InviteCodeCard> {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: _loading
                     ? const SizedBox(
@@ -393,7 +388,6 @@ class _InviteCodeCardState extends ConsumerState<_InviteCodeCard> {
                             horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
                           color: AppColors.paleBgAlt,
-                          borderRadius: BorderRadius.circular(9),
                           border: Border.all(color: AppColors.paleLine),
                         ),
                         child: const Row(
@@ -441,7 +435,6 @@ class _MembersCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.paleLine),
       ),
       child: Column(
@@ -513,12 +506,11 @@ class _MembersCard extends StatelessWidget {
                             const SizedBox(width: 6),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
+                                  horizontal: 6, vertical: 3),
                               decoration: BoxDecoration(
                                 color: m.isOwner
                                     ? AppColors.primary
                                     : AppColors.paleBgAlt,
-                                borderRadius: BorderRadius.circular(999),
                               ),
                               child: Text(
                                 m.role.label,
@@ -545,7 +537,6 @@ class _MembersCard extends StatelessWidget {
                             horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
                           color: AppColors.error.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Text('내보내기',
                             style: TextStyle(

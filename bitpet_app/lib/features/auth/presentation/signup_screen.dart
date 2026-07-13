@@ -173,7 +173,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   height: 92,
                   decoration: BoxDecoration(
                     color: _selectedBg,
-                    borderRadius: BorderRadius.circular(24),
+                    borderRadius: BorderRadius.zero,
                   ),
                   child: const Center(
                     child: Text('🦎', style: TextStyle(fontSize: 40)),
@@ -229,7 +229,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
                       decoration: BoxDecoration(
                         color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(11),
+                        borderRadius: BorderRadius.zero,
                         border: Border.all(color: AppColors.paleLine),
                       ),
                       child: const Text(
@@ -298,7 +298,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                                 horizontal: 14, vertical: 13),
                             decoration: BoxDecoration(
                               color: AppColors.surface,
-                              borderRadius: BorderRadius.circular(11),
+                              borderRadius: BorderRadius.zero,
                               border: Border.all(color: AppColors.paleLine),
                             ),
                             child: _emailChecking
@@ -449,7 +449,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       render: (ctx) => Container(
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.zero,
           border: Border.all(color: AppColors.paleLine),
         ),
         child: Column(
@@ -617,7 +617,7 @@ class _TermsItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.zero,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         decoration: BoxDecoration(

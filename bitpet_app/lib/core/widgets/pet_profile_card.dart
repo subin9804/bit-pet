@@ -38,7 +38,6 @@ class PetProfileCard extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: AppColors.card,
-          borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected ? _accentColor : AppColors.border,
             width: isSelected ? 2 : 1,

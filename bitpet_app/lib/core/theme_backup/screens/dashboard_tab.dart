@@ -1,4 +1,4 @@
-// 홈 대시보드 — 모던 미니멀 (Toss/당근 스타일)
+// 01 · 홈 대시보드 — PALE 디자인 (handoff 반영)
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -30,7 +30,7 @@ class DashboardTab extends ConsumerStatefulWidget {
 }
 
 class _DashboardTabState extends ConsumerState<DashboardTab> {
-  final _pageController = PageController(viewportFraction: 0.88);
+  final _pageController = PageController(viewportFraction: 0.86);
   int _currentPage = 0;
 
   @override
@@ -45,6 +45,7 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
     final authAsync    = ref.watch(authStateProvider);
     final userName     = authAsync.valueOrNull?.name ?? '사용자';
 
+    // 그룹이 없으면 설정 화면으로 이동
     ref.listen(myGroupProvider, (_, next) {
       next.whenData((group) {
         if (group == null) {
@@ -63,10 +64,10 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
     final remaining    = allRoutines.where((r) => !r.isAllCompleted).length;
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.paleBg,
       body: Column(
         children: [
-          // ── 헤더 (고정) ────────────────────────────────────────
+          // ── 헤더 (고정, 스크롤 안됨) ──────────────────────────
           SafeArea(
             bottom: false,
             child: _Header(
@@ -80,7 +81,6 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
           // ── 본문 (스크롤) ────────────────────────────────────
           Expanded(
             child: RefreshIndicator(
-              color: AppColors.primary,
               onRefresh: () async {
                 ref.invalidate(todayRoutinesProvider);
                 ref.invalidate(recentRecordsProvider);
@@ -92,21 +92,21 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 22),
 
                     // ── TODAY 섹션 ──────────────────────────────
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                      padding: const EdgeInsets.fromLTRB(22, 0, 22, 12),
                       child: Row(
                         children: [
                           Text('TODAY',
                               style: AppTextStyles.mono(11, FontWeight.w700,
-                                  color: AppColors.textDisabled)),
+                                  color: AppColors.paleInk2)),
                           const Spacer(),
                           todayAsync.whenOrNull(data: (r) => Text(
                             '${r.length - remaining} / ${r.length}',
                             style: AppTextStyles.mono(11, FontWeight.w700,
-                                color: AppColors.textDisabled),
+                                color: AppColors.paleInk3),
                           )) ?? const SizedBox.shrink(),
                         ],
                       ),
@@ -118,17 +118,15 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
                       onPageChanged: (i) => setState(() => _currentPage = i),
                     ),
 
-                    const SizedBox(height: 32),
-
                     // ── 내 개체 섹션 ────────────────────────────
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 14),
+                      padding: const EdgeInsets.fromLTRB(22, 32, 22, 14),
                       child: Row(
                         children: [
                           const Text('내 개체',
                               style: TextStyle(
                                   fontSize: 16, fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary,
+                                  color: AppColors.primary,
                                   letterSpacing: -0.3)),
                           const Spacer(),
                           GestureDetector(
@@ -139,10 +137,10 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
                                     style: TextStyle(
                                         fontSize: 12.5,
                                         fontWeight: FontWeight.w600,
-                                        color: AppColors.textDisabled)),
+                                        color: AppColors.paleInk2)),
                                 const SizedBox(width: 2),
                                 const Icon(Icons.chevron_right,
-                                    size: 14, color: AppColors.textDisabled),
+                                    size: 14, color: AppColors.paleInk3),
                               ],
                             ),
                           ),
@@ -158,8 +156,9 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
                             const Center(child: Text('개체 로드 실패')),
                         data: (pets) => ListView(
                           scrollDirection: Axis.horizontal,
-                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+                          padding: const EdgeInsets.fromLTRB(22, 0, 22, 4),
                           children: [
+                            // + 추가 (점선) — 제일 앞
                             _AddPetButton(onTap: () => context.push('/pets/new')),
                             ...pets.map((p) => Padding(
                               padding: const EdgeInsets.only(left: 14),
@@ -173,12 +172,11 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
                       ),
                     ),
 
-                    const SizedBox(height: 32),
-
                     // ── 기록 캘린더 섹션 ─────────────────────────
                     _SectionHeader(title: '기록 캘린더'),
+                    const SizedBox(height: 0),
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+                      padding: const EdgeInsets.fromLTRB(22, 0, 22, 0),
                       child: _HomeCalendar(),
                     ),
                   ],
@@ -209,7 +207,7 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+      padding: const EdgeInsets.fromLTRB(22, 20, 22, 6),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -217,35 +215,36 @@ class _Header extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // 워드마크
                 Text(
                   'bit-pet',
                   style: TextStyle(
                     fontFamily: 'Courier New',
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.textDisabled,
+                    color: AppColors.paleInk2,
                     letterSpacing: 0.5,
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
+                // 인사
                 RichText(
                   text: TextSpan(
                     style: const TextStyle(
                       fontFamily: 'Pretendard',
-                      fontSize: 24,
+                      fontSize: 26,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
+                      color: AppColors.primary,
                       letterSpacing: -0.7,
-                      height: 1.2,
+                      height: 1.15,
                     ),
                     children: [
                       TextSpan(text: '안녕, $userName님\n'),
                       TextSpan(
                         text: '오늘의 루틴 $remainingCount개',
                         style: const TextStyle(
-                          fontWeight: FontWeight.w500,
-                          fontSize: 16,
-                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.paleInk2,
                         ),
                       ),
                     ],
@@ -254,16 +253,20 @@ class _Header extends StatelessWidget {
               ],
             ),
           ),
-          // 알림 버튼 — 직각 컨테이너
+          // 알림 버튼
           GestureDetector(
             onTap: onBellTap,
             child: Stack(
               children: [
                 Container(
                   width: 36, height: 36,
-                  color: AppColors.bg2,
+                  decoration: BoxDecoration(
+                    color: AppColors.card,
+                    border: Border.all(color: AppColors.paleLine),
+                    shape: BoxShape.circle,
+                  ),
                   child: const Icon(Icons.notifications_none_outlined,
-                      size: 18, color: AppColors.textPrimary),
+                      size: 18, color: AppColors.primary),
                 ),
                 if (hasUnread)
                   Positioned(
@@ -271,7 +274,7 @@ class _Header extends StatelessWidget {
                     child: Container(
                       width: 7, height: 7,
                       decoration: const BoxDecoration(
-                        color: Color(0xFFE05C3A),
+                        color: Color(0xFFE05C3A), // oklch(0.7 0.18 25)
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -303,30 +306,34 @@ class _TodayDeck extends StatelessWidget {
   Widget build(BuildContext context) {
     return todayAsync.when(
       loading: () => const SizedBox(
-        height: 200,
+        height: 220,
         child: Center(
             child: CircularProgressIndicator(
                 strokeWidth: 2, color: AppColors.primary)),
       ),
       error: (_, __) => const SizedBox(
-        height: 200,
+        height: 220,
         child: Center(child: Text('루틴을 불러올 수 없어요')),
       ),
       data: (allRoutines) {
+        // 미완료 먼저, 완료된 루틴은 뒤로 정렬
         final routines = [...allRoutines]..sort((a, b) {
           if (a.isAllCompleted == b.isAllCompleted) return 0;
           return a.isAllCompleted ? 1 : -1;
         });
         if (routines.isEmpty) {
           return Container(
-            margin: const EdgeInsets.symmetric(horizontal: 20),
+            margin: const EdgeInsets.symmetric(horizontal: 22),
             padding: const EdgeInsets.all(28),
-            color: AppColors.bg2,
+            decoration: BoxDecoration(
+              color: AppColors.paleBgAlt,
+              borderRadius: BorderRadius.circular(20),
+            ),
             child: const Center(
-              child: Text('오늘 예정된 루틴이 없어요',
+              child: Text('오늘 예정된 루틴이 없어요 🌿',
                   style: TextStyle(
-                      fontSize: 14, color: AppColors.textSecondary,
-                      fontWeight: FontWeight.w500)),
+                      fontSize: 14, color: AppColors.paleInk2,
+                      fontWeight: FontWeight.w600)),
             ),
           );
         }
@@ -334,15 +341,15 @@ class _TodayDeck extends StatelessWidget {
         return Column(
           children: [
             SizedBox(
-              height: 200,
+              height: 220,
               child: PageView.builder(
                 controller: pageController,
                 onPageChanged: onPageChanged,
                 itemCount: routines.length,
                 itemBuilder: (_, i) => Padding(
                   padding: EdgeInsets.only(
-                      left: i == 0 ? 20 : 0,
-                      right: 10),
+                      left: i == 0 ? 22 : 0,
+                      right: 12),
                   child: _TodayRoutineCard(
                     routine: routines[i],
                     index: i,
@@ -351,9 +358,10 @@ class _TodayDeck extends StatelessWidget {
                 ),
               ),
             ),
+            // 도트 인디케이터
             if (routines.length > 1)
               Padding(
-                padding: const EdgeInsets.only(top: 10),
+                padding: const EdgeInsets.only(top: 12),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List.generate(routines.length, (i) {
@@ -361,15 +369,18 @@ class _TodayDeck extends StatelessWidget {
                     return AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
                       margin: const EdgeInsets.symmetric(horizontal: 3),
-                      width: active ? 18 : 5,
-                      height: 4,
-                      color: active ? AppColors.primary : AppColors.divider,
+                      width: active ? 18 : 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: active ? AppColors.primary : AppColors.paleLine,
+                        borderRadius: BorderRadius.circular(3),
+                      ),
                     );
                   }),
                 ),
               )
             else
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
           ],
         );
       },
@@ -433,62 +444,71 @@ class _TodayRoutineCard extends StatelessWidget {
     final totalPets = routine.totalPetCount;
 
     return Opacity(
-      opacity: allDone ? 0.60 : 1.0,
+      opacity: allDone ? 0.62 : 1.0,
       child: Container(
-        color: _bg,
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        decoration: BoxDecoration(
+          color: _bg,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 시각 + 인덱스
+            // 시각 + 인덱스 pill
             Row(
               children: [
                 Text(
                   routine.alarmTime ?? '--:--',
                   style: AppTextStyles.mono(11, FontWeight.w700,
-                      color: AppColors.textSecondary),
+                      color: AppColors.paleInk2),
                 ),
                 const Spacer(),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 7, vertical: 2),
-                  color: Colors.white.withValues(alpha: 0.55),
+                      horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.55),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
                   child: Text(
                     '${(index + 1).toString().padLeft(2, '0')} / ${total.toString().padLeft(2, '0')}',
                     style: AppTextStyles.mono(10, FontWeight.w700,
-                        color: AppColors.textSecondary),
+                        color: AppColors.paleInk2),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
 
-            // 아이콘 + 제목 + 마리수
+            // 아이콘 + 제목 + 마리수 pill
             Row(
               children: [
                 Container(
-                  width: 40, height: 40,
-                  color: Colors.white.withValues(alpha: 0.55),
-                  child: Icon(_icon, size: 20, color: AppColors.textPrimary),
+                  width: 44, height: 44,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.55),
+                    borderRadius: BorderRadius.circular(13),
+                  ),
+                  child: Icon(_icon, size: 22, color: AppColors.primary),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(_typeLabel,
                           style: AppTextStyles.mono(9, FontWeight.w700,
-                              color: AppColors.textSecondary)),
-                      const SizedBox(height: 1),
+                              color: AppColors.paleInk2)),
+                      const SizedBox(height: 2),
                       Text(
                         routine.title,
                         style: TextStyle(
-                          fontSize: 17, fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary, letterSpacing: -0.4,
+                          fontSize: 18, fontWeight: FontWeight.w700,
+                          color: AppColors.primary, letterSpacing: -0.4,
                           decoration: allDone
                               ? TextDecoration.lineThrough
                               : TextDecoration.none,
-                          decorationColor: AppColors.textSecondary,
+                          decorationColor: AppColors.paleInk2,
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -497,63 +517,66 @@ class _TodayRoutineCard extends StatelessWidget {
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 4),
-                  color: Colors.white.withValues(alpha: 0.6),
+                      horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.7),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
                   child: Row(
                     children: [
                       const Icon(Icons.person_outline,
-                          size: 11, color: AppColors.textPrimary),
-                      const SizedBox(width: 3),
+                          size: 12, color: AppColors.primary),
+                      const SizedBox(width: 4),
                       Text('$totalPets마리',
-                          style: AppTextStyles.mono(10, FontWeight.w700)),
+                          style: AppTextStyles.mono(11, FontWeight.w700)),
                     ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
 
             // 진행도
             Row(
               children: [
                 const Spacer(),
                 Text('$done / $totalPets 완료',
-                    style: AppTextStyles.mono(11, FontWeight.w700,
-                        color: AppColors.textSecondary)),
+                    style: AppTextStyles.mono(11, FontWeight.w700)),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
 
-            // 액션 버튼 2개 — border-radius 0
+            // 액션 버튼 2개
             Row(
               children: [
                 Expanded(
                   child: GestureDetector(
                     onTap: allDone ? null : () => _openBulk(context),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      padding: const EdgeInsets.symmetric(vertical: 11),
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
                         color: allDone ? Colors.transparent : AppColors.primary,
                         border: allDone
-                            ? Border.all(color: AppColors.textSecondary, width: 1)
+                            ? Border.all(color: AppColors.paleInk2, width: 1.5)
                             : null,
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           if (!allDone) ...[
                             const Icon(Icons.check,
-                                size: 13, color: Colors.white),
-                            const SizedBox(width: 5),
+                                size: 14, color: AppColors.paleBg),
+                            const SizedBox(width: 6),
                           ],
                           Text(
                             allDone ? '완료됨' : '일괄 완료',
                             style: TextStyle(
                               fontSize: 13, fontWeight: FontWeight.w700,
                               color: allDone
-                                  ? AppColors.textSecondary
-                                  : Colors.white,
+                                  ? AppColors.paleInk2
+                                  : AppColors.paleBg,
                             ),
                           ),
                         ],
@@ -566,19 +589,22 @@ class _TodayRoutineCard extends StatelessWidget {
                   child: GestureDetector(
                     onTap: () => _openPerPet(context),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      padding: const EdgeInsets.symmetric(vertical: 11),
                       alignment: Alignment.center,
-                      color: Colors.white.withValues(alpha: 0.65),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.7),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.view_list_outlined,
-                              size: 13, color: AppColors.textPrimary),
-                          const SizedBox(width: 5),
-                          Text('개별 완료',
+                          const Icon(Icons.view_list_outlined,
+                              size: 14, color: AppColors.primary),
+                          const SizedBox(width: 6),
+                          const Text('개별 완료',
                               style: TextStyle(
                                   fontSize: 13, fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary)),
+                                  color: AppColors.primary)),
                         ],
                       ),
                     ),
@@ -594,7 +620,7 @@ class _TodayRoutineCard extends StatelessWidget {
 
 }
 
-// ── 개체 아바타 아이템 ────────────────────────────────────────────
+// ── 개체 아바타 아이템 (64px, 이름만) ────────────────────────────
 class _PetAvatarItem extends StatelessWidget {
   final Pet pet;
   final VoidCallback onTap;
@@ -615,15 +641,21 @@ class _PetAvatarItem extends StatelessWidget {
             Container(
               width: 60,
               height: 60,
-              color: pale,
+              decoration: BoxDecoration(
+                color: pale,
+                borderRadius: BorderRadius.circular(18),
+              ),
               child: pet.profileImageUrl != null
-                  ? Image.network(
-                      pet.profileImageUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const Icon(
-                          Icons.pets, size: 26, color: AppColors.textPrimary),
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(17),
+                      child: Image.network(
+                        pet.profileImageUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const Icon(
+                            Icons.pets, size: 26, color: AppColors.primary),
+                      ),
                     )
-                  : const Icon(Icons.pets, size: 26, color: AppColors.textPrimary),
+                  : const Icon(Icons.pets, size: 26, color: AppColors.primary),
             ),
             const SizedBox(height: 7),
             Text(
@@ -631,7 +663,7 @@ class _PetAvatarItem extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                color: AppColors.primary,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -644,7 +676,7 @@ class _PetAvatarItem extends StatelessWidget {
   }
 }
 
-// ── 개체 추가 버튼 — #F7F7F8 배경, 테두리 없음 ──────────────────────
+// ── 개체 추가 버튼 (점선 원) ─────────────────────────────────────
 class _AddPetButton extends StatelessWidget {
   final VoidCallback onTap;
 
@@ -662,11 +694,18 @@ class _AddPetButton extends StatelessWidget {
             Container(
               width: 60,
               height: 60,
-              color: AppColors.bg2,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: AppColors.paleLine,
+                  width: 1.5,
+                  // Flutter은 dashed border를 기본 지원하지 않으므로 실선으로 대체
+                ),
+              ),
               child: const Icon(
                 Icons.add,
-                size: 22,
-                color: AppColors.textDisabled,
+                size: 24,
+                color: AppColors.paleInk2,
               ),
             ),
             const SizedBox(height: 7),
@@ -675,7 +714,7 @@ class _AddPetButton extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textDisabled,
+                color: AppColors.paleInk2,
               ),
             ),
           ],
@@ -700,22 +739,99 @@ class _SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 14),
+      padding: const EdgeInsets.fromLTRB(22, 32, 22, 14),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(title,
               style: const TextStyle(
                   fontSize: 16, fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary, letterSpacing: -0.3)),
+                  color: AppColors.primary, letterSpacing: -0.3)),
           if (trailing != null)
             GestureDetector(
               onTap: onTap,
               child: Text(trailing!,
                   style: TextStyle(
-                      fontSize: 12, color: AppColors.textDisabled)),
+                      fontSize: 12, color: AppColors.paleInk2)),
             ),
         ],
+      ),
+    );
+  }
+}
+
+// ── 최근 기록 타일 ────────────────────────────────────────────
+class _RecentTile extends StatelessWidget {
+  final RecentRecord record;
+  final bool hasDivider;
+
+  const _RecentTile({required this.record, this.hasDivider = true});
+
+  Color get _dotColor {
+    if (record.colorCode == null) return AppColors.petSage;
+    try {
+      return Color(int.parse(record.colorCode!.replaceFirst('#', '0xFF')));
+    } catch (_) {
+      return AppColors.petSage;
+    }
+  }
+
+  String _timeAgo(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 60) return '${diff.inMinutes}분 전';
+    if (diff.inHours < 24) return '${diff.inHours}시간 전';
+    if (diff.inDays == 1) return '어제';
+    return '${diff.inDays}일 전';
+  }
+
+  String _routeFor(RecentRecord r) {
+    return switch (r.recordType) {
+      'FEEDING'  => '/pets/${r.petId}/feeding',
+      'WEIGHT'   => '/pets/${r.petId}/weight',
+      'CLEANING' => '/pets/${r.petId}/records/cleaning',
+      'MEMO'     => '/pets/${r.petId}/records/memo',
+      'MATING'   => '/pets/${r.petId}/records/mating',
+      'LAYING'   => '/pets/${r.petId}/records/laying',
+      _ => '/pets/${r.petId}',
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => context.push(_routeFor(record)),
+      child: Container(
+        decoration: hasDivider
+            ? const BoxDecoration(
+                border: Border(
+                    bottom: BorderSide(color: AppColors.paleLineSoft)))
+            : null,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 8, height: 8,
+              margin: const EdgeInsets.only(right: 12),
+              decoration: BoxDecoration(
+                color: _dotColor, shape: BoxShape.circle),
+            ),
+            Expanded(
+              child: Text(
+                '${record.petName}  ${record.summary}',
+                style: const TextStyle(
+                    fontSize: 13, color: AppColors.primary),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const Icon(Icons.chevron_right, size: 14, color: AppColors.paleInk3),
+            const SizedBox(width: 2),
+            Text(
+              _timeAgo(record.createdAt),
+              style: AppTextStyles.mono(10, FontWeight.w600,
+                  color: AppColors.paleInk3),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -739,6 +855,7 @@ class _HomeCalendarState extends ConsumerState<_HomeCalendar> {
     super.initState();
     final now = DateTime.now();
     _month = DateTime(now.year, now.month);
+    // 오늘 날짜 자동 선택 및 기록 로드
     final todayStr =
         '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
     _selDate = todayStr;
@@ -815,14 +932,11 @@ class _HomeCalendarState extends ConsumerState<_HomeCalendar> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 캘린더 컨테이너 — 테두리 없이 구분선으로만
         Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: AppColors.card,
-            border: Border(
-              top: BorderSide(color: AppColors.divider),
-              bottom: BorderSide(color: AppColors.divider),
-            ),
+            border: Border.all(color: AppColors.paleLine),
+            borderRadius: BorderRadius.circular(14),
           ),
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
           child: Column(
@@ -832,11 +946,11 @@ class _HomeCalendarState extends ConsumerState<_HomeCalendar> {
                 GestureDetector(
                   onTap: _prev,
                   child: const Icon(Icons.chevron_left,
-                      size: 20, color: AppColors.textSecondary),
+                      size: 20, color: AppColors.paleInk2),
                 ),
                 const SizedBox(width: 6),
                 const Icon(Icons.calendar_today_outlined,
-                    size: 15, color: AppColors.textPrimary),
+                    size: 16, color: AppColors.primary),
                 const SizedBox(width: 7),
                 GestureDetector(
                   onTap: _pickYearMonth,
@@ -848,10 +962,10 @@ class _HomeCalendarState extends ConsumerState<_HomeCalendar> {
                         style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary),
+                            color: AppColors.primary),
                       ),
                       const SizedBox(width: 4),
-                      const Icon(Icons.expand_more, size: 16, color: AppColors.textDisabled),
+                      const Icon(Icons.expand_more, size: 16, color: AppColors.paleInk2),
                     ],
                   ),
                 ),
@@ -861,8 +975,8 @@ class _HomeCalendarState extends ConsumerState<_HomeCalendar> {
                   child: Icon(Icons.chevron_right,
                       size: 20,
                       color: isCurrentMonth
-                          ? AppColors.divider
-                          : AppColors.textSecondary),
+                          ? AppColors.paleLine
+                          : AppColors.paleInk2),
                 ),
               ]),
               const SizedBox(height: 10),
@@ -876,14 +990,15 @@ class _HomeCalendarState extends ConsumerState<_HomeCalendar> {
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
                                   color: d == '일'
-                                      ? AppColors.error.withValues(alpha: 0.5)
-                                      : AppColors.textDisabled,
+                                      ? AppColors.petPeach
+                                      : AppColors.paleInk3,
                                 )),
                           ),
                         ))
                     .toList(),
               ),
               const SizedBox(height: 6),
+              // 날짜 그리드 — 기록 dot 유무와 무관하게 항상 렌더링
               _CalendarGrid(
                 month: _month,
                 days: calAsync.valueOrNull ?? const [],
@@ -909,7 +1024,8 @@ class _HomeCalendarState extends ConsumerState<_HomeCalendar> {
   }
 }
 
-// ── 날짜별 기록 섹션 ────────────────────────────────────────────
+// ── 선택일 기록 섹션 (개체별 그룹핑) ────────────────────────────
+// ── 날짜별 기록 섹션 (카테고리 행 + 개체 칩) ────────────────
 class _DayRecordSection extends StatelessWidget {
   final String dateStr;
   final List<String> weekKo;
@@ -964,20 +1080,17 @@ class _DayRecordSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(header,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary, letterSpacing: -0.2)),
-              if (recordsAsync.hasValue)
-                Text('$totalCount건',
-                    style: AppTextStyles.mono(12, FontWeight.w700,
-                        color: AppColors.textSecondary)),
-            ],
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(header,
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700,
+                    color: AppColors.primary, letterSpacing: -0.2)),
+            if (recordsAsync.hasValue)
+              Text('$totalCount건',
+                  style: AppTextStyles.mono(12, FontWeight.w700,
+                      color: AppColors.paleInk2)),
+          ],
         ),
         const SizedBox(height: 8),
         recordsAsync.when(
@@ -991,36 +1104,39 @@ class _DayRecordSection extends StatelessWidget {
               return Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 22),
-                margin: const EdgeInsets.symmetric(horizontal: 20),
-                color: AppColors.bg2,
+                decoration: BoxDecoration(
+                  border: Border.all(color: AppColors.paleLine, width: 1.5),
+                  borderRadius: BorderRadius.circular(14),
+                ),
                 child: const Center(
                   child: Text('이 날의 기록이 없어요',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500,
-                          color: AppColors.textDisabled)),
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
+                          color: AppColors.paleInk3)),
                 ),
               );
             }
 
+            // 카테고리별 그룹핑 (정해진 순서)
             final grouped = <String, List<RecentRecord>>{};
             for (final r in records) {
               grouped.putIfAbsent(r.recordType, () => []).add(r);
             }
             final categories = _catOrder.where((c) => grouped.containsKey(c)).toList();
 
-            // 리스트 아이템 + 구분선 구조
             return Container(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: AppColors.card,
-                border: Border(
-                  top: BorderSide(color: AppColors.divider),
-                  bottom: BorderSide(color: AppColors.divider),
-                ),
+                border: Border.all(color: AppColors.paleLine),
+                borderRadius: BorderRadius.circular(12),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
               child: Column(
-                children: categories.map((type) {
+                children: categories.asMap().entries.map((e) {
+                  final idx  = e.key;
+                  final type = e.value;
                   final recs = grouped[type]!;
                   return _CategoryRow(
+                    isLast: idx == categories.length - 1,
                     type: type,
                     icon: _catIcon[type] ?? Icons.circle_outlined,
                     label: _catLabel[type] ?? type,
@@ -1040,6 +1156,7 @@ class _DayRecordSection extends StatelessWidget {
 
 // ── 카테고리 행 ──────────────────────────────────────────────
 class _CategoryRow extends StatelessWidget {
+  final bool isLast;
   final String type;
   final IconData icon;
   final String label;
@@ -1048,6 +1165,7 @@ class _CategoryRow extends StatelessWidget {
   final VoidCallback onTap;
 
   const _CategoryRow({
+    required this.isLast,
     required this.type,
     required this.icon,
     required this.label,
@@ -1063,7 +1181,7 @@ class _CategoryRow extends StatelessWidget {
     'MEMO'     => AppColors.catMemo,
     'MATING'   => AppColors.catMating,
     'LAYING'   => AppColors.catLaying,
-    _ => AppColors.bg2,
+    _ => AppColors.paleBgAlt,
   };
 
   static Color _catIconInk(String t) => switch (t) {
@@ -1073,7 +1191,7 @@ class _CategoryRow extends StatelessWidget {
     'MEMO'     => AppColors.catMemoInk,
     'MATING'   => AppColors.catMatingInk,
     'LAYING'   => AppColors.catLayingInk,
-    _ => AppColors.textSecondary,
+    _ => AppColors.paleInk2,
   };
 
   @override
@@ -1087,32 +1205,42 @@ class _CategoryRow extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: Padding(
+      child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          border: isLast ? null
+              : const Border(bottom: BorderSide(color: AppColors.paleLineSoft)),
+        ),
         child: Row(children: [
-          // 카테고리 아이콘 — 직각 컨테이너
+          // 카테고리 아이콘 칩
           Container(
-            width: 28, height: 28,
-            color: chipBg,
-            child: Icon(icon, size: 13, color: _catIconInk(type)),
+            width: 30, height: 30,
+            decoration: BoxDecoration(
+              color: chipBg,
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: Icon(icon, size: 14, color: _catIconInk(type)),
           ),
           const SizedBox(width: 10),
           SizedBox(
             width: 44,
             child: Text(label,
                 style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
-                    color: AppColors.textSecondary)),
+                    color: AppColors.paleInk2)),
           ),
           const Spacer(),
-          // 개체 칩들 — 직각
+          // 개체 칩들 (우측 정렬, 카테고리 색 배경)
           ...visible.map((n) => Padding(
             padding: const EdgeInsets.only(left: 5),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-              color: chipBg,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: chipBg,
+                borderRadius: BorderRadius.circular(999),
+              ),
               child: Text(n.name,
                   style: TextStyle(
-                      fontSize: 11, fontWeight: FontWeight.w600,
+                      fontSize: 12, fontWeight: FontWeight.w700,
                       color: _catIconInk(type)),
                   overflow: TextOverflow.ellipsis),
             ),
@@ -1120,23 +1248,25 @@ class _CategoryRow extends StatelessWidget {
           if (overflow > 0) Padding(
             padding: const EdgeInsets.only(left: 5),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-              color: AppColors.bg2,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: AppColors.paleBgAlt,
+                borderRadius: BorderRadius.circular(999),
+              ),
               child: Text('+$overflow',
                   style: AppTextStyles.mono(11, FontWeight.w700,
-                      color: AppColors.textSecondary)),
+                      color: AppColors.paleInk2)),
             ),
           ),
           const SizedBox(width: 4),
-          const Icon(Icons.chevron_right, size: 14, color: AppColors.textDisabled),
+          const Icon(Icons.chevron_right, size: 14, color: AppColors.paleInk3),
         ]),
       ),
     );
   }
 }
 
-// ── 카테고리 상세 바텀시트 ─────────────────────────────────────
-// 바텀시트는 border-radius 유지
+// ── 카테고리 상세 바텀시트 ────────────────────────────────────
 class _CategoryDetailSheet extends StatelessWidget {
   final String type;
   final String label;
@@ -1150,6 +1280,7 @@ class _CategoryDetailSheet extends StatelessWidget {
     required this.petColor,
   });
 
+  // "CRICKET 3마리" → "귀뚜라미 3마리" : 첫 토큰이 food code면 한글로 치환
   static String _translateFeedingSummary(String raw) {
     if (raw.isEmpty) return raw;
     final parts = raw.split(' ');
@@ -1159,6 +1290,7 @@ class _CategoryDetailSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 개체별 그룹핑 (기록 순서 유지)
     final Map<String, List<RecentRecord>> petGroups = {};
     for (final r in records) {
       final key = r.petId?.toString() ?? r.petName;
@@ -1168,7 +1300,7 @@ class _CategoryDetailSheet extends StatelessWidget {
 
     return Container(
       decoration: const BoxDecoration(
-        color: AppColors.bg,
+        color: AppColors.paleBg,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
@@ -1180,12 +1312,13 @@ class _CategoryDetailSheet extends StatelessWidget {
             child: Container(
               width: 36, height: 4,
               margin: const EdgeInsets.symmetric(vertical: 12),
-              color: AppColors.divider,
+              decoration: BoxDecoration(
+                  color: AppColors.paleLine, borderRadius: BorderRadius.circular(2)),
             ),
           ),
           Text(label,
               style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary, letterSpacing: -0.3)),
+                  color: AppColors.primary, letterSpacing: -0.3)),
           const SizedBox(height: 14),
           ConstrainedBox(
             constraints: BoxConstraints(
@@ -1198,13 +1331,21 @@ class _CategoryDetailSheet extends StatelessWidget {
                 final key      = petKeys[i];
                 final petRecs  = petGroups[key]!;
                 final first    = petRecs.first;
+                final isLast   = i == petKeys.length - 1;
                 final petId    = int.tryParse(key);
 
-                return Padding(
+                return Container(
                   padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    border: isLast
+                        ? null
+                        : const Border(
+                            bottom: BorderSide(color: AppColors.paleLineSoft)),
+                  ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // 개체 컬러 닷
                       Container(
                         width: 8, height: 8,
                         margin: const EdgeInsets.only(top: 5),
@@ -1216,6 +1357,7 @@ class _CategoryDetailSheet extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // 개체명 → 탭 시 상세 페이지로 이동
                             GestureDetector(
                               onTap: petId == null ? null : () {
                                 Navigator.of(context).pop();
@@ -1227,16 +1369,17 @@ class _CategoryDetailSheet extends StatelessWidget {
                                   Text(first.petName,
                                       style: const TextStyle(
                                           fontSize: 13, fontWeight: FontWeight.w700,
-                                          color: AppColors.textPrimary)),
+                                          color: AppColors.primary)),
                                   if (petId != null) ...[
                                     const SizedBox(width: 2),
                                     const Icon(Icons.chevron_right,
-                                        size: 14, color: AppColors.textDisabled),
+                                        size: 14, color: AppColors.paleInk3),
                                   ],
                                 ],
                               ),
                             ),
                             const SizedBox(height: 4),
+                            // 해당 개체의 기록 목록
                             ...petRecs.map((r) {
                               final hasMemo = r.memo != null && r.memo!.isNotEmpty;
                               final rawSummary = r.recordType == 'FEEDING'
@@ -1252,7 +1395,7 @@ class _CategoryDetailSheet extends StatelessWidget {
                                   display,
                                   style: const TextStyle(
                                       fontSize: 12,
-                                      color: AppColors.textSecondary),
+                                      color: AppColors.paleInk2),
                                   overflow: TextOverflow.ellipsis,
                                   maxLines: 2,
                                 ),
@@ -1350,7 +1493,7 @@ class _DayCell extends StatelessWidget {
         'MEMO'     => AppColors.catMemoInk,
         'MATING'   => AppColors.catMatingInk,
         'LAYING'   => AppColors.catLayingInk,
-        _ => AppColors.textDisabled,
+        _ => AppColors.paleInk3,
       };
 
   @override
@@ -1364,17 +1507,20 @@ class _DayCell extends StatelessWidget {
             width: 26,
             height: 26,
             alignment: Alignment.center,
-            color: isSelected
-                ? AppColors.primary
-                : isToday
-                    ? AppColors.bg2
-                    : Colors.transparent,
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? AppColors.primary
+                  : isToday
+                      ? AppColors.paleBgAlt
+                      : Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
+            ),
             child: Text(
               '$day',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: isSelected ? Colors.white : AppColors.textPrimary,
+                color: isSelected ? AppColors.paleBg : AppColors.primary,
               ),
             ),
           ),
@@ -1400,7 +1546,7 @@ class _DayCell extends StatelessWidget {
   }
 }
 
-// ── 년/월 피커 바텀시트 (바텀시트 — border-radius 유지) ──────────
+// ── 년/월 피커 바텀시트 ───────────────────────────────────────────
 class _YearMonthPicker extends StatefulWidget {
   final DateTime current;
   final DateTime maxDate;
@@ -1435,7 +1581,7 @@ class _YearMonthPickerState extends State<_YearMonthPicker> {
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
-        color: AppColors.bg,
+        color: AppColors.paleBg,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       padding: EdgeInsets.fromLTRB(22, 0, 22, MediaQuery.of(context).padding.bottom + 24),
@@ -1446,7 +1592,8 @@ class _YearMonthPickerState extends State<_YearMonthPicker> {
             child: Container(
               width: 36, height: 4,
               margin: const EdgeInsets.symmetric(vertical: 12),
-              color: AppColors.divider,
+              decoration: BoxDecoration(
+                  color: AppColors.paleLine, borderRadius: BorderRadius.circular(2)),
             ),
           ),
           // 연도 선택
@@ -1455,22 +1602,22 @@ class _YearMonthPickerState extends State<_YearMonthPicker> {
             children: [
               GestureDetector(
                 onTap: () => setState(() => _year--),
-                child: const Icon(Icons.chevron_left, size: 24, color: AppColors.textSecondary),
+                child: const Icon(Icons.chevron_left, size: 24, color: AppColors.paleInk2),
               ),
               const SizedBox(width: 28),
               Text('$_year년',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.primary)),
               const SizedBox(width: 28),
               GestureDetector(
                 onTap: _year < widget.maxDate.year ? () => setState(() => _year++) : null,
                 child: Icon(Icons.chevron_right,
                     size: 24,
-                    color: _year < widget.maxDate.year ? AppColors.textSecondary : AppColors.divider),
+                    color: _year < widget.maxDate.year ? AppColors.paleInk2 : AppColors.paleLine),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          // 월 그리드 (4x3) — 직각 버튼
+          // 월 그리드 (4x3)
           GridView.count(
             crossAxisCount: 4,
             shrinkWrap: true,
@@ -1487,9 +1634,10 @@ class _YearMonthPickerState extends State<_YearMonthPicker> {
                 child: Container(
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: selected ? AppColors.primary : AppColors.bg2,
+                    color: selected ? AppColors.primary : AppColors.paleBgAlt,
+                    borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                      color: selected ? AppColors.primary : AppColors.border,
+                      color: selected ? AppColors.primary : AppColors.paleLine,
                     ),
                   ),
                   child: Text(
@@ -1498,10 +1646,10 @@ class _YearMonthPickerState extends State<_YearMonthPicker> {
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: disabled
-                          ? AppColors.textDisabled
+                          ? AppColors.paleLine
                           : selected
-                              ? Colors.white
-                              : AppColors.textPrimary,
+                              ? AppColors.paleBg
+                              : AppColors.primary,
                     ),
                   ),
                 ),

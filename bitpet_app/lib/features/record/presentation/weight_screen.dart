@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/pale_palette.dart';
+import '../../../core/widgets/app_buttons.dart';
 import '../../../core/widgets/skeleton_loader.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../data/models/record_models.dart';
@@ -264,7 +265,7 @@ class _WeightBody extends StatelessWidget {
                       color: delta >= 0
                           ? AppColors.petSage
                           : AppColors.petCoral,
-                      borderRadius: BorderRadius.circular(999),
+                      borderRadius: BorderRadius.zero,
                     ),
                     child: Text(
                       '${delta >= 0 ? '▲' : '▼'} ${delta.abs().toStringAsFixed(1)}g',
@@ -316,7 +317,7 @@ class _WeightBody extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppColors.card,
               border: Border.all(color: AppColors.paleLine),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.zero,
             ),
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
             child: Column(
@@ -330,7 +331,7 @@ class _WeightBody extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: AppColors.paleBgAlt,
                       border: Border.all(color: AppColors.paleLine),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.zero,
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -399,16 +400,18 @@ class _WeightBody extends StatelessWidget {
                     // +/- 스텝 버튼
                     Column(
                       children: [
-                        _StepBtn(
-                          label: '+',
+                        AppStepperButton(
+                          '+',
+                          style: AppStepperStyle.boxed,
                           onTap: () {
                             final v = double.tryParse(entryCtrl.text) ?? 0;
                             entryCtrl.text = (v + 1).toStringAsFixed(0);
                           },
                         ),
                         const SizedBox(height: 4),
-                        _StepBtn(
-                          label: '−',
+                        AppStepperButton(
+                          '−',
+                          style: AppStepperStyle.boxed,
                           onTap: () {
                             final v = double.tryParse(entryCtrl.text) ?? 0;
                             if (v > 0) entryCtrl.text = (v - 1).toStringAsFixed(0);
@@ -425,7 +428,7 @@ class _WeightBody extends StatelessWidget {
                             horizontal: 16, vertical: 12),
                         decoration: BoxDecoration(
                           color: AppColors.primary,
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.zero,
                         ),
                         child: saving
                             ? const SizedBox(
@@ -461,7 +464,7 @@ class _WeightBody extends StatelessWidget {
               decoration: BoxDecoration(
                 color: AppColors.card,
                 border: Border.all(color: AppColors.paleLine),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.zero,
               ),
               child: const Column(
                 children: [
@@ -479,7 +482,7 @@ class _WeightBody extends StatelessWidget {
               decoration: BoxDecoration(
                 color: AppColors.card,
                 border: Border.all(color: AppColors.paleLine),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.zero,
               ),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: Column(
@@ -505,7 +508,7 @@ class _WeightBody extends StatelessWidget {
                           Container(
                             width: 8, height: 8,
                             decoration: BoxDecoration(
-                              color: pale, borderRadius: BorderRadius.circular(4),
+                              color: pale, borderRadius: BorderRadius.zero,
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -543,7 +546,7 @@ class _WeightBody extends StatelessWidget {
                               padding: const EdgeInsets.all(6),
                               decoration: BoxDecoration(
                                 color: AppColors.paleBgAlt,
-                                borderRadius: BorderRadius.circular(7),
+                                borderRadius: BorderRadius.zero,
                                 border: Border.all(color: AppColors.paleLine),
                               ),
                               child: const Icon(Icons.delete_outline,
@@ -590,7 +593,7 @@ class _BigWeightChart extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.card,
         border: Border.all(color: AppColors.paleLine),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.zero,
       ),
       padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
       child: SizedBox(
@@ -751,7 +754,7 @@ class _Segment extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.paleBgAlt,
         border: Border.all(color: AppColors.paleLine),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.zero,
       ),
       padding: const EdgeInsets.all(3),
       child: Row(
@@ -765,12 +768,8 @@ class _Segment extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
               decoration: BoxDecoration(
                 color: active ? AppColors.card : Colors.transparent,
-                borderRadius: BorderRadius.circular(10),
-                boxShadow: active
-                    ? [const BoxShadow(
-                        color: Color(0x100A0A07),
-                        blurRadius: 3, offset: Offset(0, 1))]
-                    : null,
+                border: active ? const Border(bottom: BorderSide(color: AppColors.paleInk2, width: 1.5)) : null,
+                borderRadius: BorderRadius.zero,
               ),
               child: Text(
                 o,
@@ -800,7 +799,7 @@ class _StatCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.card,
           border: Border.all(color: AppColors.paleLine),
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.zero,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -840,28 +839,3 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-class _StepBtn extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-  const _StepBtn({required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 36, height: 28,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          border: Border.all(color: AppColors.paleLine),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(label,
-            style: const TextStyle(
-                fontSize: 16, fontWeight: FontWeight.w700,
-                color: AppColors.primary)),
-      ),
-    );
-  }
-}

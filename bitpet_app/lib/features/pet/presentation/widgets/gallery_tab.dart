@@ -34,9 +34,8 @@ class GalleryTab extends ConsumerWidget {
             crossAxisSpacing: 6,
             mainAxisSpacing: 6,
             children: List.generate(9, (i) => Container(
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: AppColors.paleBgAlt,
-                borderRadius: BorderRadius.circular(10),
               ),
             )),
           ),
@@ -69,7 +68,6 @@ class GalleryTab extends ConsumerWidget {
             decoration: BoxDecoration(
               color: AppColors.card,
               border: Border.all(color: AppColors.paleLine, width: 1.5),
-              borderRadius: BorderRadius.circular(14),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -98,9 +96,7 @@ class _PhotoTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(10),
-      child: Stack(
+    return Stack(
         fit: StackFit.expand,
         children: [
           Image.network(
@@ -122,10 +118,9 @@ class _PhotoTile extends StatelessWidget {
             Positioned(
               bottom: 4, left: 4,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.7),
-                  borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(photo.tag!,
                     style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700,
@@ -142,7 +137,6 @@ class _PhotoTile extends StatelessWidget {
             ),
           ),
         ],
-      ),
     );
   }
 }
