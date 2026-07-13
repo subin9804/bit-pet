@@ -18,11 +18,15 @@ class HomeScreen extends ConsumerWidget {
 
   int get _currentIndex {
     if (location.startsWith('/home')) return 0;
-    if (location.startsWith('/routines')) return 1;
-    if (location.startsWith('/community')) return 2;
-    if (location.startsWith('/my')) return 3;
+    if (location.startsWith('/pets')) return 1;
+    if (location.startsWith('/routines')) return 2;
+    if (location.startsWith('/community')) return 3;
+    if (location.startsWith('/my')) return 4;
     return 0;
   }
+
+  // FAB(기록 추가)는 홈·내 개체 목록에서만 노출
+  bool get _showFab => location.startsWith('/home') || location == '/pets';
 
   void _openFabSheet(BuildContext context) {
     showModalBottomSheet(
@@ -40,6 +44,18 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       body: child,
+      floatingActionButton: _showFab
+          ? SizedBox(
+              width: 50,
+              height: 50,
+              child: FloatingActionButton(
+                heroTag: 'fab-record',
+                elevation: 0,
+                onPressed: () => _openFabSheet(context),
+                child: const Icon(Icons.add, size: 26),
+              ),
+            )
+          : null,
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           color: AppColors.surface,
@@ -60,48 +76,31 @@ class HomeScreen extends ConsumerWidget {
                   onTap: () => context.go('/home'),
                 ),
                 _NavBtn(
+                  icon: Icons.pets,
+                  activeIcon: Icons.pets,
+                  label: '내 개체',
+                  active: _currentIndex == 1,
+                  onTap: () => context.go('/pets'),
+                ),
+                _NavBtn(
                   icon: Icons.schedule_outlined,
                   activeIcon: Icons.schedule,
                   label: '루틴',
-                  active: _currentIndex == 1,
+                  active: _currentIndex == 2,
                   onTap: () => context.go('/routines'),
-                ),
-                // 중앙 FAB — nav bar 안에 임베드, 14px 위로 돌출
-                Expanded(
-                  child: Center(
-                    child: Transform.translate(
-                      offset: const Offset(0, -14),
-                      child: GestureDetector(
-                        onTap: () => _openFabSheet(context),
-                        child: Container(
-                          width: 50,
-                          height: 50,
-                          decoration: const BoxDecoration(
-                            color: AppColors.primary,
-                            // 직각 — border-radius: 0
-                          ),
-                          child: const Icon(
-                            Icons.add,
-                            color: Colors.white,
-                            size: 26,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
                 ),
                 _NavBtn(
                   icon: Icons.forum_outlined,
                   activeIcon: Icons.forum,
                   label: '커뮤니티',
-                  active: _currentIndex == 2,
+                  active: _currentIndex == 3,
                   onTap: () => context.go('/community'),
                 ),
                 _NavBtn(
                   icon: Icons.person_outline,
                   activeIcon: Icons.person,
                   label: '마이',
-                  active: _currentIndex == 3,
+                  active: _currentIndex == 4,
                   onTap: () => context.go('/my'),
                 ),
               ],
