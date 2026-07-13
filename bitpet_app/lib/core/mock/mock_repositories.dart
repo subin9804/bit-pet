@@ -482,7 +482,8 @@ class MockRecordRepository extends RecordRepository {
         const MemoTag(code: 'VET', labelKo: '병원', displayOrder: 1),
         const MemoTag(code: 'SHED', labelKo: '탈피', displayOrder: 2),
         const MemoTag(code: 'BEHAVIOR', labelKo: '행동', displayOrder: 3),
-        const MemoTag(code: 'ETC', labelKo: '기타', displayOrder: 4),
+        const MemoTag(code: 'POOP', labelKo: '배변', displayOrder: 4),
+        const MemoTag(code: 'ETC', labelKo: '기타', displayOrder: 99),
       ];
 
   @override
