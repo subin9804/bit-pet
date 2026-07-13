@@ -25,6 +25,11 @@ public enum ErrorCode {
     AUTH_OAUTH_PROVIDER_NOT_SUPPORTED(HttpStatus.BAD_REQUEST, "Unsupported OAuth provider"),
     AUTH_OAUTH_USER_INFO_MISSING(HttpStatus.BAD_REQUEST, "OAuth provider returned insufficient user info"),
 
+    // --- Password Reset ---
+    PASSWORD_RESET_CODE_NOT_FOUND(HttpStatus.BAD_REQUEST, "인증 코드가 존재하지 않거나 만료되었습니다."),
+    PASSWORD_RESET_CODE_INVALID(HttpStatus.BAD_REQUEST, "인증 코드가 올바르지 않습니다."),
+    PASSWORD_RESET_TOKEN_INVALID(HttpStatus.BAD_REQUEST, "재설정 토큰이 유효하지 않거나 만료되었습니다."),
+
     // --- Pet ---
     PET_NOT_FOUND(HttpStatus.NOT_FOUND, "Pet not found"),
     PET_SERIAL_GENERATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to generate a unique pet serial number"),

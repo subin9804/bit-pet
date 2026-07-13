@@ -85,6 +85,10 @@ public class UserMst extends BaseTimeEntity {
                 .build();
     }
 
+    public void changePassword(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
     public void changeName(String name) {
         this.name = name;
     }

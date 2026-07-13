@@ -165,14 +165,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       const Spacer(),
                       TextButton(
-                        onPressed: () {},
+                        onPressed: () => context.push('/password-reset/request'),
                         style: TextButton.styleFrom(
                           padding: EdgeInsets.zero,
                           minimumSize: Size.zero,
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
                         child: Text(
-                          '비밀번호 찾기',
+                          '비밀번호를 잊으셨나요?',
                           style: TextStyle(
                             fontSize: 12,
                             color: AppColors.textSecondary,

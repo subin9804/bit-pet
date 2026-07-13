@@ -97,6 +97,56 @@ class AuthRepository {
     return UserProfile.fromJson(userData);
   }
 
+  // ── 비밀번호 재설정 ───────────────────────────────────────
+  // 1단계: 인증 코드 발송 (미가입 이메일이어도 서버는 정상 응답)
+  Future<void> requestPasswordReset(String email) async {
+    final res = await _dio.post('/auth/password-reset/request',
+        data: {'email': email});
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => d as Map<String, dynamic>,
+    );
+    if (!apiRes.success) {
+      throw ApiException(
+          statusCode: res.statusCode ?? 0,
+          message: apiRes.message ?? '인증 코드 발송에 실패했습니다.',
+          errorCode: apiRes.errorCode);
+    }
+  }
+
+  // 2단계: 코드 인증 → 비밀번호 변경용 토큰 반환
+  Future<String> verifyResetCode(String email, String code) async {
+    final res = await _dio.post('/auth/password-reset/verify',
+        data: {'email': email, 'code': code});
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => d as Map<String, dynamic>,
+    );
+    if (!apiRes.success || apiRes.data == null) {
+      throw ApiException(
+          statusCode: res.statusCode ?? 0,
+          message: apiRes.message ?? '인증 코드 확인에 실패했습니다.',
+          errorCode: apiRes.errorCode);
+    }
+    return apiRes.data!['token'] as String;
+  }
+
+  // 3단계: 새 비밀번호 저장
+  Future<void> confirmPasswordReset(String token, String newPassword) async {
+    final res = await _dio.post('/auth/password-reset/confirm',
+        data: {'token': token, 'newPassword': newPassword});
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => d as Map<String, dynamic>,
+    );
+    if (!apiRes.success) {
+      throw ApiException(
+          statusCode: res.statusCode ?? 0,
+          message: apiRes.message ?? '비밀번호 변경에 실패했습니다.',
+          errorCode: apiRes.errorCode);
+    }
+  }
+
   // ── 로그아웃 ──────────────────────────────────────────────
   Future<void> logout() async {
     try {

@@ -19,6 +19,18 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
     validate-on-migrate: true
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
   security:
     oauth2:
       client:
@@ -102,6 +114,10 @@ bitpet:
     refresh-token-validity: P14D     # 14 days
     issuer: bit-pet
   token-enc-key: ${BITPET_TOKEN_ENC_KEY:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}
+  mail:
+    from: ${MAIL_FROM:noreply@bit-pet.com}
+    reset-code-ttl-minutes: 5
+    reset-token-ttl-minutes: 10
   serial-number:
     # Pool excludes ambiguous chars (0/O/I/1) → 32 chars
     pool: "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"

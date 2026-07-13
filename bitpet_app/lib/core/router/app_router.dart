@@ -4,6 +4,9 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/signup_screen.dart';
+import '../../features/auth/presentation/password_reset/password_reset_request_screen.dart';
+import '../../features/auth/presentation/password_reset/password_reset_verify_screen.dart';
+import '../../features/auth/presentation/password_reset/password_reset_confirm_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/home/presentation/dashboard_tab.dart';
 import '../../features/pet/presentation/pet_list_screen.dart';
@@ -33,7 +36,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       final authState = ref.read(authStateProvider);
       final isLoggedIn = authState.whenOrNull(data: (u) => u != null) ?? false;
       final loc = state.matchedLocation;
-      final isAuthRoute = loc == '/login' || loc == '/signup';
+      final isAuthRoute = loc == '/login' ||
+          loc == '/signup' ||
+          loc.startsWith('/password-reset');
 
       if (!isLoggedIn && !isAuthRoute) return '/login';
       if (isLoggedIn && isAuthRoute) return '/home';
@@ -43,6 +48,18 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
       GoRoute(path: '/signup', builder: (_, __) => const SignupScreen()),
+      GoRoute(
+        path: '/password-reset/request',
+        builder: (_, __) => const PasswordResetRequestScreen(),
+      ),
+      GoRoute(
+        path: '/password-reset/verify',
+        builder: (_, __) => const PasswordResetVerifyScreen(),
+      ),
+      GoRoute(
+        path: '/password-reset/confirm',
+        builder: (_, __) => const PasswordResetConfirmScreen(),
+      ),
       GoRoute(path: '/groups/setup', builder: (_, __) => const GroupSetupScreen()),
       ShellRoute(
         builder: (context, state, child) => HomeScreen(

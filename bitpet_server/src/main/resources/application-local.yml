@@ -15,6 +15,12 @@ spring:
       host: localhost
       port: 6379
       timeout: 2s
+  # Gmail SMTP 로컬 테스트용
+  # MAIL_USERNAME, MAIL_PASSWORD는 환경변수로 주입 (IntelliJ Run Configuration)
+  # Gmail 앱 비밀번호: Google 계정 → 보안 → 2단계 인증 → 앱 비밀번호 발급
+  mail:
+    host: smtp.gmail.com
+    port: 587
   jpa:
     hibernate:
       ddl-auto: validate
