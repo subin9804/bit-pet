@@ -312,7 +312,7 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
     final label = switch (r.cleaningType) {
       CleaningType.FULL => '전체 청소',
       CleaningType.PARTIAL => '부분 청소',
-      CleaningType.WATER_CHANGE => '물 교체',
+      CleaningType.WATER_CHANGE => '물갈이',
     };
     return RecordEntry(
       id: r.id, dateStr: _dateStr(r.cleanedAt),
@@ -1092,7 +1092,37 @@ class _EditorSheetState extends State<_EditorSheet> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // cleaning: 종류 선택 없음 — 메모만 입력
+                      // ── 청소 종류 ─────────────────────────
+                      if (widget.recordType == 'cleaning') ...[
+                        const Text('청소 종류',
+                            style: TextStyle(fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary)),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            for (final (ct, label) in const [
+                              (CleaningType.FULL, '전체 청소'),
+                              (CleaningType.PARTIAL, '부분 청소'),
+                              (CleaningType.WATER_CHANGE, '물갈이'),
+                            ]) ...[
+                              Expanded(
+                                child: AppChip(
+                                  label: label,
+                                  selected: e.form['cleaningType'] == ct,
+                                  selectedColor: AppColors.petSky,
+                                  selectedTextColor: AppColors.primary,
+                                  centered: true,
+                                  padding: const EdgeInsets.symmetric(vertical: 11),
+                                  onTap: () => _updateForm('cleaningType', ct),
+                                ),
+                              ),
+                              if (ct != CleaningType.WATER_CHANGE)
+                                const SizedBox(width: 8),
+                            ],
+                          ],
+                        ),
+                      ],
 
                       // ── 메모(메모 기록) ───────────────────
                       if (widget.recordType == 'memo') ...[
