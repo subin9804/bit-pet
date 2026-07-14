@@ -99,7 +99,7 @@ class _PetCalendarTabState extends ConsumerState<PetCalendarTab> {
             focusedDay: _focusedDay,
             headerVisible: false,
             daysOfWeekHeight: 26,
-            rowHeight: 44,
+            rowHeight: 48,
             selectedDayPredicate: (day) =>
                 _selectedDay != null && isSameDay(day, _selectedDay),
             eventLoader: (day) => events[_dateKey(day)] ?? const [],
@@ -154,20 +154,23 @@ class _PetCalendarTabState extends ConsumerState<PetCalendarTab> {
                   ),
                 ),
               ),
-              // 마커 — 카테고리별 색상 점 (직각)
+              // 마커 — 카테고리별 미니 아이콘
               markerBuilder: (context, day, cats) {
                 if (cats.isEmpty) return null;
                 return Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
+                  padding: const EdgeInsets.only(bottom: 3),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: cats
-                        .map((c) => Container(
-                              width: 4,
-                              height: 4,
-                              margin: const EdgeInsets.symmetric(
+                        .take(3)
+                        .map((c) => Padding(
+                              padding: const EdgeInsets.symmetric(
                                   horizontal: 1),
-                              color: PalePalette.catInk(c),
+                              child: Icon(
+                                _catIcon[c] ?? Icons.circle,
+                                size: 11,
+                                color: PalePalette.catInk(c),
+                              ),
                             ))
                         .toList(),
                   ),
