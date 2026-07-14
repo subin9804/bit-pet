@@ -129,7 +129,8 @@ public class RoutineService {
     @Transactional
     public void deleteRoutine(Long userId, Long routineId) {
         RoutineMst routine = findAccessibleRoutine(userId, routineId);
-        routineRepository.delete(routine);
+        // soft delete — hard delete 시 routine_log_dtl FK(CASCADE)가 실행 기록을 함께 지움
+        routine.softDelete();
     }
 
     // -------------------------------------------------------------------------
@@ -439,7 +440,11 @@ public class RoutineService {
                     .build());
         }
 
-        if (routine.getRoutineType() == RoutineType.WEIGHT && req.weightG() != null) {
+        if (routine.getRoutineType() == RoutineType.WEIGHT) {
+            // 체중 기록은 실측값이 필수 — 빈값 완료는 기록이 아님
+            if (req.weightG() == null) {
+                throw new BusinessException(ErrorCode.ROUTINE_WEIGHT_REQUIRED);
+            }
             weightRepository.save(WeightDtl.builder()
                     .petId(petId)
                     .routineId(routine.getId())

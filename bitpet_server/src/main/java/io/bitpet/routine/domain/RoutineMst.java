@@ -14,6 +14,7 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -30,6 +31,7 @@ import java.time.ZoneId;
                 @Index(name = "idx_routine_mst_next_due",     columnList = "next_due_at")
         }
 )
+@SQLRestriction("deleted_at IS NULL")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class RoutineMst extends BaseTimeEntity {
 
@@ -81,6 +83,9 @@ public class RoutineMst extends BaseTimeEntity {
     @Column(name = "last_notified_at")
     private Instant lastNotifiedAt;
 
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
+
     @Builder
     private RoutineMst(Long userId, Long groupId, RoutineType routineType, String title,
                        int cycleDays, LocalTime alarmTime, boolean alarmEnabled,
@@ -120,6 +125,11 @@ public class RoutineMst extends BaseTimeEntity {
     /** 알림 발송 기록 — nextDueAt은 변경하지 않음 */
     public void markNotified(Instant at) {
         this.lastNotifiedAt = at;
+    }
+
+    /** soft delete — 루틴만 숨기고 실행 기록(routine_log_dtl 등)은 보존 */
+    public void softDelete() {
+        this.deletedAt = Instant.now();
     }
 
     /** 예정일이 지난 미완료 루틴 — 오늘 이상이 될 때까지 주기만큼 전진 */

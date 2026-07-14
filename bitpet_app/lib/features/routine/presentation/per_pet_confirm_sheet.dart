@@ -22,19 +22,25 @@ import '../../record/providers/record_provider.dart';
 class _PerPetRec {
   List<FeedFormData> feedItems;
   String memo;
+  String weight; // WEIGHT 루틴 전용 — 완료 시 필수
   bool done;
   bool feedOpen;
   bool memoOpen;
   int? savedLogId;
   final TextEditingController memoCtrl;
+  final TextEditingController weightCtrl;
 
   _PerPetRec({required this.done, int? logId})
       : feedItems = const [],
         memo = '',
+        weight = '',
         feedOpen = false,
         memoOpen = false,
         savedLogId = logId,
-        memoCtrl = TextEditingController();
+        memoCtrl = TextEditingController(),
+        weightCtrl = TextEditingController();
+
+  double? get weightG => double.tryParse(weight.trim());
 }
 
 class PerPetConfirmSheet extends ConsumerStatefulWidget {
@@ -54,6 +60,7 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
 
   List<TodayPetStatus> get _pets => widget.routine.petStatuses;
   bool get _isFeed => widget.routine.routineType == RoutineType.FEEDING;
+  bool get _isWeight => widget.routine.routineType == RoutineType.WEIGHT;
   bool get _isLast => _idx >= _pets.length - 1;
   int get _completedCount => _rec.values.where((r) => r.done).length;
 
@@ -86,7 +93,10 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
   @override
   void dispose() {
     _page.dispose();
-    for (final r in _rec.values) r.memoCtrl.dispose();
+    for (final r in _rec.values) {
+      r.memoCtrl.dispose();
+      r.weightCtrl.dispose();
+    }
     super.dispose();
   }
 
@@ -122,6 +132,11 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
   Future<void> _completePet(TodayPetStatus pet) async {
     final rec  = _rec[pet.petId]!;
     final memo = rec.memo.trim().isEmpty ? null : rec.memo.trim();
+    // 체중 루틴은 실측값 필수 (서버도 거부함)
+    if (_isWeight && rec.weightG == null) {
+      showToast(context, '${pet.petName}의 몸무게를 입력해 주세요', type: ToastType.warning);
+      return;
+    }
     setState(() => _saving = true);
     try {
       final log = await ref.read(routineRepositoryProvider).completeIndividual(
@@ -130,6 +145,7 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
           petId:     pet.petId,
           status:    RoutineLogStatus.COMPLETED,
           feedItems: _isFeed ? rec.feedItems : const [],
+          weightG:   _isWeight ? rec.weightG : null,
           memo:      memo,
         ),
       );
@@ -173,8 +189,10 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
   }
 
   // ── 추가 데이터 존재 여부 (피딩 항목 또는 메모) ─────────────────────
+  // WEIGHT 루틴은 체중 미입력 시 서버가 거부하므로 체중이 있어야만 자동 저장 대상
   bool _hasAdditionalData(TodayPetStatus pet) {
     final rec = _rec[pet.petId]!;
+    if (_isWeight) return rec.weightG != null;
     return rec.memo.trim().isNotEmpty ||
         (_isFeed && rec.feedItems.isNotEmpty);
   }
@@ -192,6 +210,7 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
           petId:     pet.petId,
           status:    RoutineLogStatus.COMPLETED,
           feedItems: _isFeed ? rec.feedItems : const [],
+          weightG:   _isWeight ? rec.weightG : null,
           memo:      memo,
         ),
       );
@@ -337,6 +356,7 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
                               pet: _pets[i],
                               rec: _rec[_pets[i].petId]!,
                               isFeed: _isFeed,
+                              isWeight: _isWeight,
                               accent: _accent,
                               saving: _saving,
                               onComplete: () => _completePet(_pets[i]),
@@ -375,6 +395,7 @@ class _PetPage extends StatelessWidget {
   final TodayPetStatus pet;
   final _PerPetRec rec;
   final bool isFeed;
+  final bool isWeight;
   final Color accent;
   final bool saving;
   final VoidCallback onComplete;
@@ -387,6 +408,7 @@ class _PetPage extends StatelessWidget {
     required this.pet,
     required this.rec,
     required this.isFeed,
+    required this.isWeight,
     required this.accent,
     required this.saving,
     required this.onComplete,
@@ -511,13 +533,40 @@ class _PetPage extends StatelessWidget {
             const SizedBox(height: 4),
             Center(
               child: Text(
-                rec.done ? '다시 클릭하면 완료가 취소돼요' : '피딩·메모 입력 후 다음으로 넘기면 자동 저장돼요',
+                rec.done
+                    ? '다시 클릭하면 완료가 취소돼요'
+                    : isWeight
+                        ? '몸무게 입력 후 완료를 눌러주세요'
+                        : '피딩·메모 입력 후 다음으로 넘기면 자동 저장돼요',
                 style: TextStyle(
                     fontSize: 11, fontWeight: FontWeight.w600,
                     color: AppColors.paleInk3),
               ),
             ),
             const SizedBox(height: 4),
+
+            // 몸무게 입력 (WEIGHT 루틴 — 필수)
+            if (isWeight) ...[
+              const SizedBox(height: 8),
+              Text('몸무게 (g) *',
+                  style: TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w700,
+                      color: AppColors.paleInk2)),
+              const SizedBox(height: 4),
+              TextField(
+                controller: rec.weightCtrl,
+                enabled: !rec.done,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                onChanged: (v) {
+                  rec.weight = v;
+                  onChanged();
+                },
+                style: const TextStyle(fontSize: 14, color: AppColors.primary),
+                decoration: AppInputStyles.textarea(hintText: '예: 52.5')
+                    .copyWith(suffixText: 'g'),
+              ),
+            ],
 
             // 피딩 내용 아코디언 (feed 타입만)
             if (isFeed)

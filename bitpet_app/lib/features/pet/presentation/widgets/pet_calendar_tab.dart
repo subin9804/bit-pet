@@ -8,18 +8,20 @@ import '../../../../core/widgets/app_buttons.dart';
 import '../../../record/data/models/record_models.dart';
 import '../../../record/providers/record_provider.dart';
 
-// 캘린더 탭에서 표시하는 카테고리 (급여·체중·메모)
-const _calendarCats = ['FEEDING', 'WEIGHT', 'MEMO'];
+// 캘린더 탭에서 표시하는 카테고리 (급여·체중·청소·메모)
+const _calendarCats = ['FEEDING', 'WEIGHT', 'CLEANING', 'MEMO'];
 
 const _catLabel = {
   'FEEDING': '급여',
   'WEIGHT': '체중',
+  'CLEANING': '청소',
   'MEMO': '메모',
 };
 
 const _catIcon = {
   'FEEDING': Icons.restaurant_outlined,
   'WEIGHT': Icons.monitor_weight_outlined,
+  'CLEANING': Icons.cleaning_services_outlined,
   'MEMO': Icons.note_alt_outlined,
 };
 

@@ -31,7 +31,23 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
   bool _memoOpen = false;
   bool _saving = false;
 
+  // WEIGHT 루틴 — 개체별 체중 입력 (petId → controller)
+  final Map<int, TextEditingController> _weightCtrls = {};
+
   bool get _isFeed => widget.routine.routineType == RoutineType.FEEDING;
+  bool get _isWeight => widget.routine.routineType == RoutineType.WEIGHT;
+
+  TextEditingController _weightCtrlFor(int petId) =>
+      _weightCtrls.putIfAbsent(petId, () => TextEditingController());
+
+  double? _weightGFor(int petId) =>
+      double.tryParse(_weightCtrlFor(petId).text.trim());
+
+  @override
+  void dispose() {
+    for (final c in _weightCtrls.values) c.dispose();
+    super.dispose();
+  }
 
   Color get _accent => switch (widget.routine.routineType) {
         RoutineType.FEEDING  => AppColors.petPeach,
@@ -50,6 +66,16 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
   Future<void> _confirm() async {
     final pending = widget.routine.petStatuses.where((s) => !s.isCompleted).toList();
     if (pending.isEmpty) { Navigator.of(context).pop(); return; }
+    // 체중 루틴은 개체별 실측값 필수 (서버도 거부함)
+    if (_isWeight) {
+      final missing =
+          pending.where((p) => _weightGFor(p.petId) == null).toList();
+      if (missing.isNotEmpty) {
+        showToast(context, '${missing.first.petName}의 몸무게를 입력해 주세요',
+            type: ToastType.warning);
+        return;
+      }
+    }
     setState(() => _saving = true);
     try {
       final repo = ref.read(routineRepositoryProvider);
@@ -62,6 +88,7 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
             petId:     pet.petId,
             status:    RoutineLogStatus.COMPLETED,
             feedItems: _isFeed ? _feedItems : const [],
+            weightG:   _isWeight ? _weightGFor(pet.petId) : null,
             memo:      memo,
           ),
         );
@@ -216,6 +243,55 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
                                   ],
                                 ),
                               ),
+
+                              // 몸무게 입력 (WEIGHT 타입 — 개체별 필수)
+                              if (_isWeight) ...[
+                                const SizedBox(height: 4),
+                                Text('몸무게 (g) *',
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.paleInk2)),
+                                const SizedBox(height: 6),
+                                ...pets.where((s) => !s.isCompleted).map(
+                                  (pet) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: Row(
+                                      children: [
+                                        SizedBox(
+                                          width: 88,
+                                          child: Text(
+                                            pet.petName,
+                                            style: const TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w700,
+                                                color: AppColors.primary),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: TextField(
+                                            controller:
+                                                _weightCtrlFor(pet.petId),
+                                            keyboardType: const TextInputType
+                                                .numberWithOptions(
+                                                decimal: true),
+                                            onChanged: (_) => setState(() {}),
+                                            style: const TextStyle(
+                                                fontSize: 13,
+                                                color: AppColors.primary),
+                                            decoration: AppInputStyles
+                                                .textarea(hintText: '예: 52.5')
+                                                .copyWith(suffixText: 'g'),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                              ],
 
                               // 급여 내용 아코디언 (feed 타입만)
                               if (_isFeed)
