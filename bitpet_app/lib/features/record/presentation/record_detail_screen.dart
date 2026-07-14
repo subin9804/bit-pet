@@ -1092,7 +1092,7 @@ class _EditorSheetState extends State<_EditorSheet> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ── 청소 종류 ─────────────────────────
+                      // ── 청소 종류 (FAB 기록 시트와 동일한 폼) ──
                       if (widget.recordType == 'cleaning') ...[
                         const Text('청소 종류',
                             style: TextStyle(fontSize: 12,
@@ -1100,27 +1100,53 @@ class _EditorSheetState extends State<_EditorSheet> {
                                 color: AppColors.primary)),
                         const SizedBox(height: 10),
                         Row(
-                          children: [
-                            for (final (ct, label) in const [
-                              (CleaningType.FULL, '전체 청소'),
-                              (CleaningType.PARTIAL, '부분 청소'),
-                              (CleaningType.WATER_CHANGE, '물 교체'),
-                            ]) ...[
-                              Expanded(
-                                child: AppChip(
-                                  label: label,
-                                  selected: e.form['cleaningType'] == ct,
-                                  selectedColor: AppColors.petSky,
-                                  selectedTextColor: AppColors.primary,
-                                  centered: true,
-                                  padding: const EdgeInsets.symmetric(vertical: 11),
-                                  onTap: () => _updateForm('cleaningType', ct),
+                          children: const [
+                            (CleaningType.FULL, '전체 청소',
+                                Icons.cleaning_services_outlined),
+                            (CleaningType.PARTIAL, '부분 청소',
+                                Icons.brush_outlined),
+                            (CleaningType.WATER_CHANGE, '물 교체',
+                                Icons.water_drop_outlined),
+                          ].map((t) {
+                            final sel = e.form['cleaningType'] == t.$1;
+                            return Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: GestureDetector(
+                                  onTap: () => _updateForm('cleaningType', t.$1),
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 120),
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    decoration: BoxDecoration(
+                                      color: sel ? AppColors.petSky : AppColors.card,
+                                      border: Border.all(
+                                          color: sel
+                                              ? AppColors.petSkyInk
+                                              : AppColors.paleLine,
+                                          width: sel ? 1.5 : 1),
+                                      borderRadius: BorderRadius.zero,
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        Icon(t.$3, size: 20,
+                                            color: sel
+                                                ? AppColors.petSkyInk
+                                                : AppColors.paleInk2),
+                                        const SizedBox(height: 5),
+                                        Text(t.$2,
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w700,
+                                                color: sel
+                                                    ? AppColors.petSkyInk
+                                                    : AppColors.paleInk2)),
+                                      ],
+                                    ),
+                                  ),
                                 ),
                               ),
-                              if (ct != CleaningType.WATER_CHANGE)
-                                const SizedBox(width: 8),
-                            ],
-                          ],
+                            );
+                          }).toList(),
                         ),
                       ],
 
