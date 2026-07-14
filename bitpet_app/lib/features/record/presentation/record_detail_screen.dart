@@ -173,16 +173,25 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
           showToast(context, '내용을 입력하세요', type: ToastType.error);
           return;
         }
+        final tags = List<String>.from(e.form['tags'] as List? ?? const []);
+        final data = <String, dynamic>{
+          'content': content,
+          'loggedAt': dateTime,
+          'tags': tags, // PUT은 태그 전체 교체 — 항상 전송해야 기존 태그가 보존됨
+        };
+        // VET 태그 메모는 vetExt 필수 (기존 값 보존, 없으면 빈 객체)
+        if (tags.contains('VET')) {
+          final vetExt = e.form['vetExt'] as MemoVetExt?;
+          data['vetExt'] = {
+            'clinicName': vetExt?.clinicName,
+            'cost': vetExt?.cost,
+            'nextVisitAt': vetExt?.nextVisitAt?.toUtc().toIso8601String(),
+          };
+        }
         if (e.isEdit && e.editId != null) {
-          await repo.updateMemo(e.editId!, {
-            'content': content,
-            'loggedAt': dateTime,
-          });
+          await repo.updateMemo(e.editId!, data);
         } else {
-          await repo.addMemo(widget.petId, {
-            'content': content,
-            'loggedAt': dateTime,
-          });
+          await repo.addMemo(widget.petId, data);
         }
       } else if (widget.recordType == 'mating') {
         final memo = (e.form['memo'] as String).trim();
@@ -338,7 +347,7 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
 
   Map<String, dynamic> _defaultForm() => switch (widget.recordType) {
     'cleaning' => {'cleaningType': CleaningType.FULL, 'memo': ''},
-    'memo'     => {'content': '', 'memo': ''},
+    'memo'     => {'content': '', 'tags': <String>[], 'memo': ''},
     'mating'   => {'isSuccessful': null, 'memo': ''},
     'laying'   => {'totalCount': 1, 'memo': ''},
     _ => {},
@@ -351,7 +360,13 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
         return {'cleaningType': r.cleaningType, 'memo': r.memo ?? ''};
       case 'memo':
         final r = entry.raw as Memo;
-        return {'content': r.content, 'memo': ''};
+        // VET 태그·vetExt는 이 폼에서 편집하지 않지만 저장 시 보존해야 함
+        return {
+          'content': r.content,
+          'tags': List<String>.from(r.tags),
+          'vetExt': r.vetExt,
+          'memo': '',
+        };
       case 'mating':
         final r = entry.raw as MatingRecord;
         return {'isSuccessful': r.isSuccessful, 'memo': r.memo ?? ''};
@@ -1165,6 +1180,64 @@ class _EditorSheetState extends State<_EditorSheet> {
                             hintText: '메모 내용을 입력하세요',
                           ),
                         ),
+                        const SizedBox(height: 16),
+
+                        // ── 태그 (탈피/배변/행동/기타 — 서버 제공 목록) ──
+                        Row(children: [
+                          const Text('태그',
+                              style: TextStyle(fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.primary)),
+                          const SizedBox(width: 6),
+                          Text('OPTIONAL', style: AppTextStyles.monoXxs),
+                        ]),
+                        const SizedBox(height: 8),
+                        Consumer(builder: (context, ref, _) {
+                          final tags = ref.watch(memoTagsProvider).valueOrNull ??
+                              const <MemoTag>[];
+                          // VET(병원)은 병원비·재방문일 등 전용 폼이 필요해 여기선 제외
+                          final visible =
+                              tags.where((t) => t.code != 'VET').toList();
+                          if (visible.isEmpty) return const SizedBox.shrink();
+                          final selected = List<String>.from(
+                              e.form['tags'] as List? ?? const []);
+                          return Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: visible.map((t) {
+                              final sel = selected.contains(t.code);
+                              return GestureDetector(
+                                onTap: () {
+                                  final next = List<String>.from(selected);
+                                  sel ? next.remove(t.code) : next.add(t.code);
+                                  _updateForm('tags', next);
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 7),
+                                  decoration: BoxDecoration(
+                                    color: sel
+                                        ? AppColors.petLilac
+                                        : AppColors.card,
+                                    border: Border.all(
+                                        color: sel
+                                            ? AppColors.petLilacInk
+                                            : AppColors.paleLine,
+                                        width: sel ? 1.5 : 1),
+                                    borderRadius: BorderRadius.zero,
+                                  ),
+                                  child: Text('#${t.labelKo}',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: sel
+                                              ? AppColors.petLilacInk
+                                              : AppColors.paleInk2)),
+                                ),
+                              );
+                            }).toList(),
+                          );
+                        }),
                       ],
 
                       // ── 교배 ──────────────────────────────

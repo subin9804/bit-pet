@@ -93,6 +93,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
   String? _cleaningType; // 'FULL' | 'PARTIAL' | 'WATER_CHANGE'
   // note
   bool _isVetMemo = false;
+  final Set<String> _memoTags = {}; // 탈피/배변 등 (VET 제외)
   // mate
   bool _partnerExternal = false;
   Pet? _partnerPet;       // 내 개체 (인터널)
@@ -998,10 +999,13 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
               now, memo.isEmpty ? null : memo,
             );
           case 'note':
+            final tags = [..._memoTags, if (_isVetMemo) 'VET'];
             final data = <String, dynamic>{
               'content': memo,
               'loggedAt': now.toUtc().toIso8601String(),
-              if (_isVetMemo) 'tags': ['VET'],
+              if (tags.isNotEmpty) 'tags': tags,
+              // VET 태그는 vetExt 필수 (없으면 서버가 400) — 상세 정보는 추후 입력
+              if (_isVetMemo) 'vetExt': <String, dynamic>{},
             };
             await repo.addMemo(pet.id, data);
           case 'mate':
@@ -1253,6 +1257,47 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
               ).copyWith(alignLabelWithHint: true),
               onChanged: (_) => setState(() {}),
             ),
+            const SizedBox(height: 14),
+            // 태그 (탈피/배변/행동/기타 — 서버 제공 목록, VET은 아래 체크박스)
+            _FieldLabel('태그', required: false),
+            const SizedBox(height: 8),
+            Builder(builder: (context) {
+              final tags = ref.watch(memoTagsProvider).valueOrNull ??
+                  const <MemoTag>[];
+              final visible = tags.where((t) => t.code != 'VET').toList();
+              if (visible.isEmpty) return const SizedBox.shrink();
+              return Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: visible.map((t) {
+                  final sel = _memoTags.contains(t.code);
+                  return GestureDetector(
+                    onTap: () => setState(() =>
+                        sel ? _memoTags.remove(t.code) : _memoTags.add(t.code)),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: sel ? AppColors.petLilac : AppColors.card,
+                        border: Border.all(
+                            color: sel
+                                ? AppColors.petLilacInk
+                                : AppColors.paleLine,
+                            width: sel ? 1.5 : 1),
+                        borderRadius: BorderRadius.zero,
+                      ),
+                      child: Text('#${t.labelKo}',
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: sel
+                                  ? AppColors.petLilacInk
+                                  : AppColors.paleInk2)),
+                    ),
+                  );
+                }).toList(),
+              );
+            }),
             const SizedBox(height: 14),
             // 병원메모 체크박스
             GestureDetector(
