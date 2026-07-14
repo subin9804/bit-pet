@@ -75,6 +75,10 @@ public class CalendarService {
             }
         }
 
+        // dtl 없는 루틴 완료(먹이 정보 없는 FEEDING, 메모 없는 CUSTOM)도 캘린더에 합산
+        mergeRoutineOnlyCounts(dayMap, null, userId, "FEEDING", "feeding_dtl", "fed_at", "FEEDING", start, end);
+        mergeRoutineOnlyCounts(dayMap, null, userId, "CUSTOM", "memo_dtl", "logged_at", "MEMO", start, end);
+
         List<CalendarDayDto> days = dayMap.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())
                 .map(e -> new CalendarDayDto(
@@ -165,6 +169,14 @@ public class CalendarService {
             }
         }
 
+        // dtl 없는 루틴 완료(먹이 정보 없는 FEEDING, 메모 없는 CUSTOM)도 캘린더에 합산
+        if (targets.contains(RecordCategory.FEEDING)) {
+            mergeRoutineOnlyCounts(dayMap, petId, null, "FEEDING", "feeding_dtl", "fed_at", "FEEDING", start, end);
+        }
+        if (targets.contains(RecordCategory.MEMO)) {
+            mergeRoutineOnlyCounts(dayMap, petId, null, "CUSTOM", "memo_dtl", "logged_at", "MEMO", start, end);
+        }
+
         List<CalendarDayDto> days = dayMap.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())
                 .map(e -> new CalendarDayDto(
@@ -174,6 +186,47 @@ public class CalendarService {
                 .toList();
 
         return new CalendarResponse(petId, yearMonthStr, days);
+    }
+
+    /**
+     * dtl 기록 없이 완료만 된 루틴 로그 수를 날짜별로 dayMap에 합산.
+     * petId 지정 시 개체별, userId 지정 시 유저 전체 집계.
+     * dtl과 동시 저장된 로그는 NOT EXISTS로 제외해 이중 카운트를 막는다.
+     */
+    private void mergeRoutineOnlyCounts(Map<LocalDate, Map<String, Integer>> dayMap,
+                                        Long petId, Long userId,
+                                        String routineType, String dtlTable, String dtlTimeCol,
+                                        String categoryKey, LocalDate start, LocalDate end) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("SELECT DATE(l.executed_at AT TIME ZONE 'UTC') AS day, COUNT(*) AS cnt ")
+          .append("FROM routine_log_dtl l ")
+          .append("JOIN routine_mst r ON r.id = l.routine_id ");
+        if (userId != null) {
+            sb.append("JOIN pet_mst p ON p.id = l.pet_id ");
+        }
+        sb.append("WHERE l.status = 'COMPLETED' AND l.deleted_at IS NULL ")
+          .append("AND r.routine_type = '").append(routineType).append("' ")
+          .append(userId != null
+                  ? "AND p.user_id = ? AND p.deleted_at IS NULL "
+                  : "AND l.pet_id = ? ")
+          .append("AND NOT EXISTS (SELECT 1 FROM ").append(dtlTable).append(" d ")
+          .append("WHERE d.routine_id = l.routine_id AND d.pet_id = l.pet_id ")
+          .append("AND d.").append(dtlTimeCol).append(" = l.executed_at AND d.deleted_at IS NULL) ")
+          .append("AND DATE(l.executed_at AT TIME ZONE 'UTC') BETWEEN ? AND ? ")
+          .append("GROUP BY day");
+
+        jdbc.query(sb.toString(),
+                ps -> {
+                    ps.setLong(1, userId != null ? userId : petId);
+                    ps.setObject(2, start);
+                    ps.setObject(3, end);
+                },
+                rs -> {
+                    LocalDate date = rs.getDate("day").toLocalDate();
+                    int cnt = rs.getInt("cnt");
+                    dayMap.computeIfAbsent(date, k -> new HashMap<>())
+                            .merge(categoryKey, cnt, Integer::sum);
+                });
     }
 
     private String buildSql(RecordCategory cat) {

@@ -74,16 +74,29 @@ public class TimelineService {
                         long id = rs.getLong("id");
                         Instant loggedAt = rs.getTimestamp("logged_at").toInstant();
                         String summary = rs.getString("summary");
+                        String routineTitle = rs.getString("routine_title");
 
                         items.add(new RecordTimelineItem(
                                 cat,
                                 id,
                                 loggedAt,
                                 summary,
+                                routineTitle,
                                 null,
                                 buildDetailUrl(cat, id)
                         ));
                     });
+        }
+
+        // 루틴 완료 로그 — dtl 기록이 없는 완료(먹이 정보 없는 FEEDING, 메모 없는 CUSTOM)를
+        // 루틴 제목을 내용으로 타임라인에 표시
+        if (targets.contains(RecordCategory.FEEDING)) {
+            queryRoutineOnlyLogs(items, petId, "FEEDING", "feeding_dtl", "fed_at",
+                    RecordCategory.FEEDING, fromInst, toInst, effectiveLimit);
+        }
+        if (targets.contains(RecordCategory.MEMO)) {
+            queryRoutineOnlyLogs(items, petId, "CUSTOM", "memo_dtl", "logged_at",
+                    RecordCategory.MEMO, fromInst, toInst, effectiveLimit);
         }
 
         // 전체 시간 역순 정렬 후 limit 적용
@@ -146,7 +159,7 @@ public class TimelineService {
                 String matingSummary = "CONCAT('합사', CASE WHEN duration_minutes IS NOT NULL THEN CONCAT(' — ', duration_minutes, '분') ELSE '' END)";
                 StringBuilder ms = new StringBuilder();
                 ms.append("SELECT id, tried_at AS logged_at, ")
-                  .append(matingSummary).append(" AS summary ")
+                  .append(matingSummary).append(" AS summary, NULL AS routine_title ")
                   .append("FROM mating_dtl ")
                   .append("WHERE (male_pet_id = ? OR female_pet_id = ?) AND deleted_at IS NULL");
                 if (from != null) ms.append(" AND tried_at >= ?");
@@ -161,17 +174,67 @@ public class TimelineService {
             default -> throw new IllegalArgumentException("Unknown category: " + cat);
         }
 
-        StringBuilder sb = new StringBuilder();
-        sb.append("SELECT id, ").append(timeCol).append(" AS logged_at, ")
-          .append(summaryExpr).append(" AS summary ")
-          .append("FROM ").append(table)
-          .append(" WHERE pet_id = ? AND deleted_at IS NULL");
+        // laying_dtl은 routine_id가 없음 — 나머지는 루틴 제목 LEFT JOIN
+        boolean hasRoutineId = cat != RecordCategory.LAYING;
 
-        if (from != null) sb.append(" AND ").append(timeCol).append(" >= ?");
-        if (to   != null) sb.append(" AND ").append(timeCol).append(" <= ?");
+        StringBuilder sb = new StringBuilder();
+        sb.append("SELECT t.id, t.").append(timeCol).append(" AS logged_at, ")
+          .append(summaryExpr).append(" AS summary, ")
+          .append(hasRoutineId ? "r.title" : "NULL").append(" AS routine_title ")
+          .append("FROM ").append(table).append(" t ");
+        if (hasRoutineId) {
+            sb.append("LEFT JOIN routine_mst r ON r.id = t.routine_id ");
+        }
+        sb.append("WHERE t.pet_id = ? AND t.deleted_at IS NULL");
+
+        if (from != null) sb.append(" AND t.").append(timeCol).append(" >= ?");
+        if (to   != null) sb.append(" AND t.").append(timeCol).append(" <= ?");
 
         sb.append(" ORDER BY logged_at DESC LIMIT ").append(limit);
         return sb.toString();
+    }
+
+    /**
+     * dtl 기록 없이 완료만 된 루틴 로그 조회 — 루틴 제목을 summary로 표시.
+     * (먹이 정보 없는 FEEDING 완료 → FEEDING, 메모 없는 CUSTOM 완료 → MEMO)
+     * dtl과 동시 저장된 로그는 NOT EXISTS로 제외해 중복 표시를 막는다.
+     */
+    private void queryRoutineOnlyLogs(List<RecordTimelineItem> items, Long petId,
+                                      String routineType, String dtlTable, String dtlTimeCol,
+                                      RecordCategory cat,
+                                      Instant from, Instant to, int limit) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("SELECT l.id, l.executed_at AS logged_at, r.title AS routine_title ")
+          .append("FROM routine_log_dtl l ")
+          .append("JOIN routine_mst r ON r.id = l.routine_id ")
+          .append("WHERE l.pet_id = ? AND l.status = 'COMPLETED' AND l.deleted_at IS NULL ")
+          .append("AND r.routine_type = '").append(routineType).append("' ")
+          .append("AND NOT EXISTS (SELECT 1 FROM ").append(dtlTable).append(" d ")
+          .append("WHERE d.routine_id = l.routine_id AND d.pet_id = l.pet_id ")
+          .append("AND d.").append(dtlTimeCol).append(" = l.executed_at AND d.deleted_at IS NULL)");
+        if (from != null) sb.append(" AND l.executed_at >= ?");
+        if (to   != null) sb.append(" AND l.executed_at <= ?");
+        sb.append(" ORDER BY logged_at DESC LIMIT ").append(limit);
+
+        jdbc.query(sb.toString(),
+                ps -> {
+                    int idx = 1;
+                    ps.setLong(idx++, petId);
+                    if (from != null) ps.setTimestamp(idx++, Timestamp.from(from));
+                    if (to   != null) ps.setTimestamp(idx++, Timestamp.from(to));
+                },
+                rs -> {
+                    String title = rs.getString("routine_title");
+                    items.add(new RecordTimelineItem(
+                            cat,
+                            rs.getLong("id"),
+                            rs.getTimestamp("logged_at").toInstant(),
+                            title,
+                            title,
+                            null,
+                            null // routine_log 기반 — 개별 기록 상세 URL 없음
+                    ));
+                });
     }
 
     private String buildDetailUrl(RecordCategory cat, long id) {

@@ -297,12 +297,14 @@ class TimelineItem {
   final int id;
   final String category; // WEIGHT, FEEDING, CLEANING, MEMO, MATING, LAYING
   final String summary;
+  final String? routineTitle; // 루틴 완료로 생성된 기록이면 해당 루틴 제목
   final DateTime recordedAt;
 
   const TimelineItem({
     required this.id,
     required this.category,
     required this.summary,
+    this.routineTitle,
     required this.recordedAt,
   });
 
@@ -310,9 +312,18 @@ class TimelineItem {
         id: ((json['recordId'] ?? json['id']) as num? ?? 0).toInt(),
         category: json['category'] as String? ?? '',
         summary: json['summary'] as String? ?? '',
+        routineTitle: json['routineTitle'] as String?,
         recordedAt: DateTime.parse(
             (json['loggedAt'] ?? json['recordedAt']) as String),
       );
+
+  /// 카테고리 라벨 옆에 붙일 루틴 출처 표기.
+  /// 루틴 제목이 곧 summary인 경우(부가정보 없는 완료)는 '루틴'만 표시.
+  String routineSuffix() {
+    if (routineTitle == null) return '';
+    if (routineTitle == summary) return ' · 루틴';
+    return " · 루틴 '$routineTitle'";
+  }
 }
 
 // ── 홈 화면 최근 기록 통합 피드 ──────────────────────────────
