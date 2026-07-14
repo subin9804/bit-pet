@@ -193,7 +193,9 @@ public class MemoService {
     // -------------------------------------------------------------------------
 
     private List<MemoResponse> fetchCustomRoutineMemos(Long petId, LocalDate from, LocalDate to) {
-        // 모든 CUSTOM 루틴 '완료' 로그를 메모로 집계 (memo 유무 무관)
+        // CUSTOM 루틴 '완료' 로그를 메모로 집계.
+        // 완료 시 메모를 남기면 같은 시각의 memo_dtl이 생성되므로(이중 표시 방지)
+        // 대응하는 memo_dtl이 없는 로그만 포함한다.
         String sql = """
                 SELECT rl.id, rl.pet_id, rl.memo, rl.executed_at, rl.created_at,
                        COALESCE(rm.title, '루틴') AS title
@@ -203,6 +205,10 @@ public class MemoService {
                   AND rm.routine_type = 'CUSTOM'
                   AND rl.status = 'COMPLETED'
                   AND rl.deleted_at IS NULL
+                  AND NOT EXISTS (
+                      SELECT 1 FROM memo_dtl m
+                      WHERE m.routine_id = rl.routine_id AND m.pet_id = rl.pet_id
+                        AND m.logged_at = rl.executed_at AND m.deleted_at IS NULL)
                 ORDER BY rl.executed_at DESC
                 """;
         return jdbc.query(sql, ps -> ps.setLong(1, petId), (rs, i) -> {
@@ -211,12 +217,13 @@ public class MemoService {
             if (to   != null && loggedAt.isAfter(to.atTime(23, 59, 59).toInstant(ZoneOffset.UTC))) return null;
             Instant createdAt = rs.getTimestamp("created_at").toInstant();
             String memo = rs.getString("memo");
-            // memo 있으면 메모, 없으면 "[루틴제목] 완료"
+            String title = rs.getString("title");
+            // 메모 있으면 "[루틴제목] 메모", 없으면 "[루틴제목] 완료"
             String content = (memo != null && !memo.isBlank())
-                    ? memo
-                    : "[" + rs.getString("title") + "] 완료";
+                    ? "[" + title + "] " + memo
+                    : "[" + title + "] 완료";
             return new MemoResponse(rs.getLong("id"), rs.getLong("pet_id"),
-                    content, loggedAt, List.of(), null, createdAt, createdAt);
+                    content, loggedAt, List.of(), null, null, createdAt, createdAt);
         }).stream().filter(m -> m != null).toList();
     }
 
@@ -225,7 +232,17 @@ public class MemoService {
         List<Long> tagIds = tagLinks.stream().map(MemoTagRls::getTagId).toList();
         List<MemoTagCd> tags = tagIds.isEmpty() ? List.of() : tagCdRepo.findAllById(tagIds);
         MemoVetExtDtl vetExt = vetExtRepo.findByMemoId(memo.getId()).orElse(null);
-        return MemoResponse.of(memo, tags, vetExt);
+        return MemoResponse.of(memo, tags, vetExt, findRoutineTitle(memo.getRoutineId()));
+    }
+
+    /** 루틴發 메모의 루틴 제목 (soft delete된 루틴도 기록 표시를 위해 조회) */
+    private String findRoutineTitle(Long routineId) {
+        if (routineId == null) return null;
+        List<String> titles = jdbc.query(
+                "SELECT title FROM routine_mst WHERE id = ?",
+                ps -> ps.setLong(1, routineId),
+                (rs, i) -> rs.getString("title"));
+        return titles.isEmpty() ? null : titles.get(0);
     }
 
     private List<MemoTagCd> resolveTags(List<String> codes) {

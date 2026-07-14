@@ -145,6 +145,7 @@ class Memo {
   final DateTime loggedAt;
   final List<String> tags;
   final MemoVetExt? vetExt;
+  final String? routineTitle; // 루틴 완료로 생성된 메모면 해당 루틴 제목
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -155,6 +156,7 @@ class Memo {
     required this.loggedAt,
     required this.tags,
     this.vetExt,
+    this.routineTitle,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -168,9 +170,14 @@ class Memo {
         vetExt: json['vetExt'] != null
             ? MemoVetExt.fromJson(json['vetExt'] as Map<String, dynamic>)
             : null,
+        routineTitle: json['routineTitle'] as String?,
         createdAt: DateTime.parse(json['createdAt'] as String),
         updatedAt: DateTime.parse(json['updatedAt'] as String),
       );
+
+  /// 목록 표시용 — 루틴發 메모는 "[루틴제목] 내용" (편집 시에는 content만 사용)
+  String get displayContent =>
+      routineTitle != null ? '[$routineTitle] $content' : content;
 }
 
 // ── Mating (v5) ────────────────────────────────────────────

@@ -329,7 +329,7 @@ class _MemoList extends ConsumerWidget {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  Text(r.content, style: AppTextStyles.body),
+                  Text(r.displayContent, style: AppTextStyles.body),
                 ],
               ),
             );

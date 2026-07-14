@@ -330,7 +330,7 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
 
   RecordEntry _fromMemo(Memo r) => RecordEntry(
     id: r.id, dateStr: _dateStr(r.loggedAt),
-    timeStr: _timeStr(r.loggedAt), summary: r.content, raw: r);
+    timeStr: _timeStr(r.loggedAt), summary: r.displayContent, raw: r);
 
   RecordEntry _fromMating(MatingRecord r) {
     final label = r.isSuccessful == true
