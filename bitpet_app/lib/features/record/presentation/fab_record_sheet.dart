@@ -1183,7 +1183,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         const types = [
           ('FULL',         '전체 청소',  Icons.cleaning_services_outlined),
           ('PARTIAL',      '부분 청소',  Icons.brush_outlined),
-          ('WATER_CHANGE', '물갈이',     Icons.water_drop_outlined),
+          ('WATER_CHANGE', '물 교체',    Icons.water_drop_outlined),
         ];
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,

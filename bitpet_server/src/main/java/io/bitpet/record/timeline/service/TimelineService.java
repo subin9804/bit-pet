@@ -148,7 +148,7 @@ public class TimelineService {
             }
             case CLEANING -> {
                 table = "cleaning_dtl"; timeCol = "cleaned_at";
-                summaryExpr = "CASE cleaning_type WHEN 'FULL' THEN '전체 청소' WHEN 'PARTIAL' THEN '부분 청소' ELSE '물갈이' END";
+                summaryExpr = "CASE cleaning_type WHEN 'FULL' THEN '전체 청소' WHEN 'PARTIAL' THEN '부분 청소' ELSE '물 교체' END";
             }
             case MEMO -> {
                 table = "memo_dtl"; timeCol = "logged_at";

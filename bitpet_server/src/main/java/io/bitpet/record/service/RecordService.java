@@ -5,6 +5,7 @@ import io.bitpet.common.exception.ErrorCode;
 import io.bitpet.pet.domain.PetMst;
 import io.bitpet.pet.repository.PetMstRepository;
 import io.bitpet.record.domain.CleaningDtl;
+import io.bitpet.record.domain.CleaningType;
 import io.bitpet.record.domain.FeedingDtl;
 import io.bitpet.record.domain.WeightDtl;
 import io.bitpet.record.dto.CleaningCreateRequest;
@@ -201,7 +202,7 @@ public class RecordService {
                 all.add(RecentRecordResponse.of("CLEANING", c.getId(), c.getPetId(),
                         petNameMap.getOrDefault(c.getPetId(), ""),
                         petColorMap.get(c.getPetId()),
-                        c.getCleanedAt(), c.getCleaningType() != null ? c.getCleaningType().name() : "", c.getMemo())));
+                        c.getCleanedAt(), cleaningTypeKo(c.getCleaningType()), c.getMemo())));
 
         memoRepository.findAllByPetIdInOrderByLoggedAtDesc(petIds, page).forEach(m ->
                 all.add(RecentRecordResponse.of("MEMO", m.getId(), m.getPetId(),
@@ -253,7 +254,7 @@ public class RecordService {
                         petNameMap.getOrDefault(c.getPetId(), ""),
                         petColorMap.get(c.getPetId()),
                         c.getCleanedAt(),
-                        c.getCleaningType() != null ? c.getCleaningType().name() : "",
+                        cleaningTypeKo(c.getCleaningType()),
                         c.getMemo())));
 
         // MEMO: memo_dtl (루틴 CUSTOM 완료 메모 + 단독 메모 모두 포함 — routine_id 유무로 구분 가능)
@@ -307,6 +308,15 @@ public class RecordService {
             "VITAMIN",   "비타민",
             "OTHER",     "영양제"
     );
+
+    private static String cleaningTypeKo(CleaningType type) {
+        if (type == null) return "청소";
+        return switch (type) {
+            case FULL         -> "전체 청소";
+            case PARTIAL      -> "부분 청소";
+            case WATER_CHANGE -> "물 교체";
+        };
+    }
 
     private String buildFeedingSummary(FeedingDtl f) {
         String typeKo = f.getFoodType() != null
