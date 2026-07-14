@@ -4,10 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../../core/theme/pale_palette.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../notification/providers/notification_provider.dart';
-import '../../pet/data/models/pet_models.dart';
 import '../../pet/providers/pet_provider.dart';
 import '../../record/providers/record_provider.dart';
 import '../../record/data/record_repository.dart';
@@ -29,14 +27,30 @@ class DashboardTab extends ConsumerStatefulWidget {
   ConsumerState<DashboardTab> createState() => _DashboardTabState();
 }
 
-class _DashboardTabState extends ConsumerState<DashboardTab> {
+class _DashboardTabState extends ConsumerState<DashboardTab>
+    with WidgetsBindingObserver {
   final _pageController = PageController(viewportFraction: 0.88);
   int _currentPage = 0;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _pageController.dispose();
     super.dispose();
+  }
+
+  // 백그라운드에서 복귀 시 날짜가 바뀌었으면 오늘 루틴 재로드
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.read(todayRoutinesProvider.notifier).reloadIfStale();
+    }
   }
 
 
@@ -55,7 +69,6 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
     });
 
     final todayAsync   = ref.watch(todayRoutinesProvider);
-    final petsAsync    = ref.watch(petListProvider);
     final recentAsync  = ref.watch(recentRecordsProvider);
     final unread       = ref.watch(unreadNotificationCountProvider);
 
@@ -116,61 +129,6 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
                       currentPage: _currentPage,
                       pageController: _pageController,
                       onPageChanged: (i) => setState(() => _currentPage = i),
-                    ),
-
-                    const SizedBox(height: 32),
-
-                    // ── 내 개체 섹션 ────────────────────────────
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 14),
-                      child: Row(
-                        children: [
-                          const Text('내 개체',
-                              style: TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary,
-                                  letterSpacing: -0.3)),
-                          const Spacer(),
-                          GestureDetector(
-                            onTap: () => context.go('/pets'),
-                            child: Row(
-                              children: [
-                                Text('전체보기',
-                                    style: TextStyle(
-                                        fontSize: 12.5,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.textDisabled)),
-                                const SizedBox(width: 2),
-                                const Icon(Icons.chevron_right,
-                                    size: 14, color: AppColors.textDisabled),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(
-                      height: 96,
-                      child: petsAsync.when(
-                        loading: () => const Center(
-                            child: CircularProgressIndicator(strokeWidth: 2)),
-                        error: (_, __) =>
-                            const Center(child: Text('개체 로드 실패')),
-                        data: (pets) => ListView(
-                          scrollDirection: Axis.horizontal,
-                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
-                          children: [
-                            _AddPetButton(onTap: () => context.push('/pets/new')),
-                            ...pets.map((p) => Padding(
-                              padding: const EdgeInsets.only(left: 14),
-                              child: _PetAvatarItem(
-                                pet: p,
-                                onTap: () => context.push('/pets/${p.id}'),
-                              ),
-                            )),
-                          ],
-                        ),
-                      ),
                     ),
 
                     const SizedBox(height: 32),
@@ -592,97 +550,6 @@ class _TodayRoutineCard extends StatelessWidget {
     );
   }
 
-}
-
-// ── 개체 아바타 아이템 ────────────────────────────────────────────
-class _PetAvatarItem extends StatelessWidget {
-  final Pet pet;
-  final VoidCallback onTap;
-
-  const _PetAvatarItem({required this.pet, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final pale = PalePalette.pale(PalePalette.keyFromHex(pet.colorCode));
-
-    return GestureDetector(
-      onTap: onTap,
-      child: SizedBox(
-        width: 64,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 60,
-              height: 60,
-              color: pale,
-              child: pet.profileImageUrl != null
-                  ? Image.network(
-                      pet.profileImageUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const Icon(
-                          Icons.pets, size: 26, color: AppColors.textPrimary),
-                    )
-                  : const Icon(Icons.pets, size: 26, color: AppColors.textPrimary),
-            ),
-            const SizedBox(height: 7),
-            Text(
-              pet.name,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── 개체 추가 버튼 — #F7F7F8 배경, 테두리 없음 ──────────────────────
-class _AddPetButton extends StatelessWidget {
-  final VoidCallback onTap;
-
-  const _AddPetButton({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: SizedBox(
-        width: 64,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 60,
-              height: 60,
-              color: AppColors.bg2,
-              child: const Icon(
-                Icons.add,
-                size: 22,
-                color: AppColors.textDisabled,
-              ),
-            ),
-            const SizedBox(height: 7),
-            const Text(
-              '추가',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textDisabled,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 // ── 섹션 헤더 ─────────────────────────────────────────────────
