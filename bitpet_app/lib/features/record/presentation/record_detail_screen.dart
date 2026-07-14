@@ -312,7 +312,7 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
     final label = switch (r.cleaningType) {
       CleaningType.FULL => '전체 청소',
       CleaningType.PARTIAL => '부분 청소',
-      CleaningType.WATER_CHANGE => '물갈이',
+      CleaningType.WATER_CHANGE => '물 교체',
     };
     return RecordEntry(
       id: r.id, dateStr: _dateStr(r.cleanedAt),
@@ -1104,7 +1104,7 @@ class _EditorSheetState extends State<_EditorSheet> {
                             for (final (ct, label) in const [
                               (CleaningType.FULL, '전체 청소'),
                               (CleaningType.PARTIAL, '부분 청소'),
-                              (CleaningType.WATER_CHANGE, '물갈이'),
+                              (CleaningType.WATER_CHANGE, '물 교체'),
                             ]) ...[
                               Expanded(
                                 child: AppChip(
