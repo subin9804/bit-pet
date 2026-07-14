@@ -327,13 +327,12 @@ class _DayRecordRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('${_catLabel[cat] ?? cat}${item.routineSuffix()}',
+              Text(_catLabel[cat] ?? cat,
                   style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.paleInk2),
-                  overflow: TextOverflow.ellipsis),
-              Text(item.summary,
+                      color: AppColors.paleInk2)),
+              Text(item.displayText,
                   style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,

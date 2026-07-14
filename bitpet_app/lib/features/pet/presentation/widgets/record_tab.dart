@@ -330,7 +330,7 @@ class _RecordTabState extends ConsumerState<RecordTab> {
                           color: AppColors.primary)),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text('${item.summary}${item.routineSuffix()}',
+                    child: Text(item.displayText,
                         style: TextStyle(
                             fontSize: 13, color: AppColors.paleInk2),
                         overflow: TextOverflow.ellipsis),

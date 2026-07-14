@@ -317,12 +317,12 @@ class TimelineItem {
             (json['loggedAt'] ?? json['recordedAt']) as String),
       );
 
-  /// 카테고리 라벨 옆에 붙일 루틴 출처 표기.
-  /// 루틴 제목이 곧 summary인 경우(부가정보 없는 완료)는 '루틴'만 표시.
-  String routineSuffix() {
-    if (routineTitle == null) return '';
-    if (routineTitle == summary) return ' · 루틴';
-    return " · 루틴 '$routineTitle'";
+  /// 기록 표시 텍스트 — 루틴發 기록은 앞에 [루틴제목]을 붙인다.
+  /// 부가정보 없는 완료(summary == 루틴제목)는 "[제목] 완료"로 표시.
+  String get displayText {
+    if (routineTitle == null) return summary;
+    if (routineTitle == summary) return '[$routineTitle] 완료';
+    return '[$routineTitle] $summary';
   }
 }
 
