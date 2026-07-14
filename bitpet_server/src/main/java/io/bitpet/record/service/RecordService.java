@@ -28,6 +28,7 @@ import io.bitpet.record.repository.FeedingDtlRepository;
 import io.bitpet.record.repository.WeightDtlRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -53,6 +54,7 @@ public class RecordService {
     private final MemoDtlRepository memoRepository;
     private final MatingDtlRepository matingRepository;
     private final LayingDtlRepository layingRepository;
+    private final JdbcTemplate jdbc;
 
 
     // -------------------------------------------------------------------------
@@ -286,6 +288,46 @@ public class RecordService {
                     petColorMap.get(l.getPetId()),
                     l.getLaidAt(), summary, l.getMemo()));
         });
+
+        // 부가정보 없는 루틴 완료 (먹이 정보 없는 FEEDING, 메모 없는 CUSTOM)
+        // — dtl 기록이 없어도 "[루틴제목] 완료"로 표시. dtl과 동시 저장된 로그는 제외
+        String routineOnlySql = """
+                SELECT l.id, l.pet_id, l.executed_at, r.title, r.routine_type
+                FROM routine_log_dtl l
+                JOIN routine_mst r ON r.id = l.routine_id
+                JOIN pet_mst p ON p.id = l.pet_id
+                WHERE p.user_id = ? AND p.deleted_at IS NULL
+                  AND l.status = 'COMPLETED' AND l.deleted_at IS NULL
+                  AND r.routine_type IN ('FEEDING', 'CUSTOM')
+                  AND l.executed_at >= ? AND l.executed_at < ?
+                  AND NOT EXISTS (
+                      SELECT 1 FROM feeding_dtl f
+                      WHERE r.routine_type = 'FEEDING'
+                        AND f.routine_id = l.routine_id AND f.pet_id = l.pet_id
+                        AND f.fed_at = l.executed_at AND f.deleted_at IS NULL)
+                  AND NOT EXISTS (
+                      SELECT 1 FROM memo_dtl m
+                      WHERE r.routine_type = 'CUSTOM'
+                        AND m.routine_id = l.routine_id AND m.pet_id = l.pet_id
+                        AND m.logged_at = l.executed_at AND m.deleted_at IS NULL)
+                """;
+        jdbc.query(routineOnlySql,
+                ps -> {
+                    ps.setLong(1, userId);
+                    ps.setTimestamp(2, java.sql.Timestamp.from(from));
+                    ps.setTimestamp(3, java.sql.Timestamp.from(to));
+                },
+                rs -> {
+                    Long petId = rs.getLong("pet_id");
+                    String recordType = "FEEDING".equals(rs.getString("routine_type"))
+                            ? "FEEDING" : "MEMO";
+                    all.add(RecentRecordResponse.of(
+                            recordType, rs.getLong("id"), petId,
+                            petNameMap.getOrDefault(petId, ""),
+                            petColorMap.get(petId),
+                            rs.getTimestamp("executed_at").toInstant(),
+                            "[" + rs.getString("title") + "] 완료", null));
+                });
 
         all.sort(Comparator.comparing(RecentRecordResponse::createdAt).reversed());
         return all;
