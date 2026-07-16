@@ -22,6 +22,7 @@ import '../../features/routine/presentation/routines_page.dart';
 import '../../features/routine/presentation/routine_form_screen.dart';
 import '../../features/pet/share/presentation/pet_share_screen.dart';
 import '../../features/pet/share/presentation/share_inbox_screen.dart';
+import '../../features/pet/share/presentation/share_hub_screen.dart';
 import '../../features/my/presentation/my_screen.dart';
 import '../../features/notification/data/notification_repository.dart';
 import '../../features/notification/data/models/notification_models.dart';
@@ -134,6 +135,8 @@ final routerProvider = Provider<GoRouter>((ref) {
                 postId: int.tryParse(state.pathParameters['id']!)),
           ),
           GoRoute(path: '/my', builder: (_, __) => const MyScreen()),
+          // 공유 허브 (공유코드·받은 초대·시작 안내)
+          GoRoute(path: '/share', builder: (_, __) => const ShareHubScreen()),
           // 받은 공유·입분양 초대함
           GoRoute(path: '/share/inbox', builder: (_, __) => const ShareInboxScreen()),
           // 개체별 공유 관리 (소유자)

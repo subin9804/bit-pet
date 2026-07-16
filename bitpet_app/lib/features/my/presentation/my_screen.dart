@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
@@ -68,16 +67,8 @@ class MyScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 24),
 
-            // 내 공유코드 — 다른 사육자가 이 코드로 나를 개체 공유/입분양 대상으로 지정
-            const _ShareCodeCard(),
-            const SizedBox(height: 24),
-
-            // 메뉴 그룹 1
-            _MenuItem(
-              icon: Icons.mail_outline,
-              label: '받은 공유 초대',
-              onTap: () => context.push('/share/inbox'),
-            ),
+            // 공유 관리 허브 — 공유코드·받은 초대·개체 공유 시작
+            const _ShareManageItem(),
             _MenuItem(
               icon: Icons.notifications_outlined,
               label: '알림 설정',
@@ -137,57 +128,43 @@ class MyScreen extends ConsumerWidget {
   }
 }
 
-/// 내 공유코드 카드 — 조회 시 서버가 없으면 발급. 복사 지원.
-class _ShareCodeCard extends ConsumerWidget {
-  const _ShareCodeCard();
+/// 공유 관리 메뉴 — 받은 초대 개수 배지 포함. 탭 시 공유 허브로 이동.
+class _ShareManageItem extends ConsumerWidget {
+  const _ShareManageItem();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final codeAsync = ref.watch(myShareCodeProvider);
+    final count = ref.watch(receivedBatchesProvider).maybeWhen(
+          data: (list) => list.length,
+          orElse: () => 0,
+        );
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.bg2,
-        border: Border.all(color: AppColors.paleLine),
-      ),
-      child: Row(
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('내 공유코드', style: AppTextStyles.label),
-              const SizedBox(height: 4),
-              codeAsync.when(
-                loading: () => Text('발급 중...', style: AppTextStyles.h3),
-                error: (_, __) =>
-                    Text('불러오기 실패', style: AppTextStyles.caption),
-                data: (code) => Text(
-                  code,
-                  style: AppTextStyles.h3.copyWith(
-                    letterSpacing: 2.0,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
+    return InkWell(
+      onTap: () => context.push('/share'),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Row(
+          children: [
+            const Icon(Icons.handshake_outlined,
+                size: 20, color: AppColors.textSecondary),
+            const SizedBox(width: 14),
+            Expanded(child: Text('공유 관리', style: AppTextStyles.body)),
+            if (count > 0)
+              Container(
+                margin: const EdgeInsets.only(right: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.error,
+                  borderRadius: BorderRadius.circular(20),
                 ),
+                child: Text('$count',
+                    style: AppTextStyles.label.copyWith(color: Colors.white)),
               ),
-            ],
-          ),
-          const Spacer(),
-          codeAsync.maybeWhen(
-            data: (code) => IconButton(
-              icon: const Icon(Icons.copy, size: 18),
-              color: AppColors.textSecondary,
-              onPressed: () async {
-                await Clipboard.setData(ClipboardData(text: code));
-                if (context.mounted) {
-                  ToastMessage.show(context, '공유코드를 복사했어요');
-                }
-              },
-            ),
-            orElse: () => const SizedBox.shrink(),
-          ),
-        ],
+            const Icon(Icons.chevron_right,
+                size: 18, color: AppColors.textDisabled),
+          ],
+        ),
       ),
     );
   }

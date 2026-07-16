@@ -28,6 +28,12 @@ void _exitSelection(WidgetRef ref) {
   ref.read(selectedPetIdsProvider.notifier).state = {};
 }
 
+/// 롱프레스 등으로 선택 모드에 바로 진입하며 해당 개체를 선택
+void _enterSelectionWith(WidgetRef ref, int id) {
+  ref.read(petSelectionModeProvider.notifier).state = true;
+  ref.read(selectedPetIdsProvider.notifier).state = {id};
+}
+
 class PetListScreen extends ConsumerWidget {
   const PetListScreen({super.key});
 
@@ -66,30 +72,25 @@ class PetListScreen extends ConsumerWidget {
         TextButton.icon(
           onPressed: () =>
               ref.read(petSelectionModeProvider.notifier).state = true,
-          icon: const Icon(Icons.checklist, size: 15),
-          label: const Text('선택'),
+          icon: const Icon(Icons.group_add, size: 15),
+          label: const Text('공유·분양'),
           style: TextButton.styleFrom(
-            foregroundColor: AppColors.paleInk2,
+            foregroundColor: AppColors.primary,
             minimumSize: const Size(0, 36),
             padding: const EdgeInsets.symmetric(horizontal: 8),
             textStyle:
-                const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
           ),
         ),
-        TextButton.icon(
+        IconButton(
           onPressed: () => context.push('/pets/bulk-new'),
-          icon: const Icon(Icons.library_add_outlined, size: 15),
-          label: const Text('일괄'),
-          style: TextButton.styleFrom(
-            foregroundColor: AppColors.paleInk2,
-            minimumSize: const Size(0, 36),
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            textStyle:
-                const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-          ),
+          icon: const Icon(Icons.library_add_outlined, size: 19),
+          color: AppColors.paleInk2,
+          tooltip: '개체 일괄 등록',
+          visualDensity: VisualDensity.compact,
         ),
         Padding(
-          padding: const EdgeInsets.only(right: 16, left: 4),
+          padding: const EdgeInsets.only(right: 16, left: 0),
           child: ElevatedButton.icon(
             onPressed: () => context.push('/pets/new'),
             icon: const Icon(Icons.add, size: 16),
@@ -117,6 +118,19 @@ class PetListScreen extends ConsumerWidget {
       ),
       title: Text(count == 0 ? '개체 선택' : '$count마리 선택됨'),
       titleSpacing: 0,
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(28),
+        child: Container(
+          width: double.infinity,
+          alignment: Alignment.centerLeft,
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+          child: Text(
+            '함께 키우거나 분양 보낼 개체를 선택하세요',
+            style: AppTextStyles.caption
+                .copyWith(color: AppColors.textSecondary),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -384,6 +398,8 @@ class _PetCard extends ConsumerWidget {
       onTap: selecting
           ? () => _togglePet(ref, pet.id)
           : () => context.push('/pets/${pet.id}'),
+      onLongPress:
+          selecting ? null : () => _enterSelectionWith(ref, pet.id),
       child: Container(
         decoration: BoxDecoration(
           color: AppColors.surface,
@@ -524,6 +540,8 @@ class _PetListTile extends ConsumerWidget {
       onTap: selecting
           ? () => _togglePet(ref, pet.id)
           : () => context.push('/pets/${pet.id}'),
+      onLongPress:
+          selecting ? null : () => _enterSelectionWith(ref, pet.id),
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       shape: RoundedRectangleBorder(
           side: BorderSide(
