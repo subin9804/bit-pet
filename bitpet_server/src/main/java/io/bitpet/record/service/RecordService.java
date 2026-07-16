@@ -369,15 +369,28 @@ public class RecordService {
                 ? FOOD_TYPE_KO.getOrDefault(f.getFoodType(), f.getFoodType())
                 : "급여";
         StringBuilder sb = new StringBuilder(typeKo);
+        if (f.getSizeLabel() != null && !f.getSizeLabel().isBlank()) {
+            sb.append(" ").append(f.getSizeLabel());
+        }
         if (f.getAmount() != null) {
             sb.append(" ").append(f.getAmount().stripTrailingZeros().toPlainString());
-            if (f.getUnit() != null) sb.append(f.getUnit());
+            sb.append(unitKo(f.getUnit()));
         }
         if (f.getSupplement() != null) {
             String supKo = SUPPLEMENT_KO.getOrDefault(f.getSupplement().name(), f.getSupplement().name());
             sb.append(" + ").append(supKo);
         }
         return sb.toString().trim();
+    }
+
+    /** 저장 단위 코드 → 표시 단위. PIECE=마리, ML=ml, 그 외(레거시 '마리' 등)는 그대로. */
+    private static String unitKo(String unit) {
+        if (unit == null) return "";
+        return switch (unit) {
+            case "PIECE" -> "마리";
+            case "ML" -> "ml";
+            default -> unit;
+        };
     }
 
     private static String truncate(String s, int max) {

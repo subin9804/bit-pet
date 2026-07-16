@@ -99,14 +99,24 @@ class DioFeedRepository implements FeedRepository {
   final Dio _dio;
   DioFeedRepository(this._dio);
 
-  // FeedingRecord → FeedSession 변환
+  // FeedingRecord → FeedSession 변환 (size_label·ml·영양제 보존)
   static FeedSession _toSession(FeedingRecord r) {
     final dt = r.fedAt;
+    final isMl = r.unit == 'ML';
     return FeedSession(
       id: r.id.toString(),
       date: '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}',
       time: '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}',
-      items: [FeedItem(food: FoodType.labelForCode(r.foodType), amt: r.amount?.toInt() ?? 1)],
+      items: [
+        FeedItem(
+          food: FoodType.labelForCode(r.foodType),
+          foodCode: r.foodType,
+          amt: isMl ? 0 : (r.amount?.toInt() ?? 0),
+          sizeLabel: r.sizeLabel,
+          mlAmount: isMl ? r.amount : null,
+          supplement: r.supplement,
+        ),
+      ],
       memo: r.memo ?? '',
     );
   }
@@ -132,13 +142,9 @@ class DioFeedRepository implements FeedRepository {
         : const FeedItem(food: '귀뚜라미', amt: 1);
     final fedAt = DateTime.parse(
         '${session.date}T${session.time.length == 5 ? "${session.time}:00" : session.time}');
-    final res = await _dio.post('/pets/$petId/feedings', data: {
-      'foodType': FoodType.codeForLabel(item.food),
-      'amount': item.amt.toDouble(),
-      'unit': '마리',
-      'fedAt': fedAt.toUtc().toIso8601String(),
-      if (session.memo.isNotEmpty) 'memo': session.memo,
-    });
+    final data = item.toForm().toApiMap(fedAt: fedAt);
+    if (session.memo.isNotEmpty) data['memo'] = session.memo;
+    final res = await _dio.post('/pets/$petId/feedings', data: data);
     final apiRes = ApiResponse.fromJson(
       res.data as Map<String, dynamic>,
       (d) => FeedingRecord.fromJson(d as Map<String, dynamic>),
@@ -155,12 +161,9 @@ class DioFeedRepository implements FeedRepository {
     final item = session.items.isNotEmpty ? session.items.first : const FeedItem(food: '귀뚜라미', amt: 1);
     final fedAt = DateTime.parse(
         '${session.date}T${session.time.length == 5 ? "${session.time}:00" : session.time}');
-    final res = await _dio.patch('/feedings/${session.id}', data: {
-      'foodType': FoodType.codeForLabel(item.food),
-      'amount': item.amt.toDouble(),
-      'fedAt': fedAt.toUtc().toIso8601String(),
-      'memo': session.memo,
-    });
+    final data = item.toForm().toApiMap(fedAt: fedAt);
+    data['memo'] = session.memo; // 빈 문자열도 전송해 메모 제거 반영
+    final res = await _dio.patch('/feedings/${session.id}', data: data);
     final apiRes = ApiResponse.fromJson(
       res.data as Map<String, dynamic>,
       (d) => FeedingRecord.fromJson(d as Map<String, dynamic>),

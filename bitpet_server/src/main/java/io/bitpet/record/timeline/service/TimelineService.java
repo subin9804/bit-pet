@@ -132,10 +132,13 @@ public class TimelineService {
                                 WHEN 'FROZEN_RAT'   THEN '래트'
                                 ELSE COALESCE(food_type, '급여')
                             END,
-                            CASE WHEN amount IS NOT NULL AND unit IS NOT NULL
-                                 THEN CONCAT(' ', TRIM(TRAILING '0' FROM TRIM(TRAILING '.' FROM TO_CHAR(amount, 'FM999999990.99'))), unit)
-                                 WHEN amount IS NOT NULL
-                                 THEN CONCAT(' ', TRIM(TRAILING '0' FROM TRIM(TRAILING '.' FROM TO_CHAR(amount, 'FM999999990.99'))))
+                            CASE WHEN size_label IS NOT NULL AND size_label <> ''
+                                 THEN CONCAT(' ', size_label)
+                                 ELSE ''
+                            END,
+                            CASE WHEN amount IS NOT NULL
+                                 THEN CONCAT(' ', TRIM(TRAILING '0' FROM TRIM(TRAILING '.' FROM TO_CHAR(amount, 'FM999999990.99'))),
+                                             CASE unit WHEN 'PIECE' THEN '마리' WHEN 'ML' THEN 'ml' ELSE COALESCE(unit, '') END)
                                  ELSE ''
                             END,
                             CASE supplement

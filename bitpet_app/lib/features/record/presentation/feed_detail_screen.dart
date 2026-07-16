@@ -9,6 +9,7 @@ import '../../../core/widgets/skeleton_loader.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../data/models/feed_models.dart';
 import '../providers/feed_provider.dart';
+import 'widgets/feed_items_editor.dart';
 import '../../pet/providers/pet_provider.dart';
 
 // ── 먹이 종류 → 색상 매핑 ──────────────────────────────────
@@ -372,9 +373,11 @@ class SessionCard extends StatelessWidget {
                 ...session.items.map((item) => Padding(
                   padding: const EdgeInsets.only(bottom: 6),
                   child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
                         width: 8, height: 8,
+                        margin: const EdgeInsets.only(top: 4),
                         decoration: BoxDecoration(
                           color: _dotColor(item.food),
                           shape: BoxShape.circle,
@@ -382,18 +385,11 @@ class SessionCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       Expanded(
-                        child: Text(item.food,
+                        child: Text(item.detail,
                             style: const TextStyle(
                                 fontSize: 14, fontWeight: FontWeight.w600,
                                 color: AppColors.primary)),
                       ),
-                      Text(
-                        '×${item.amt}',
-                        style: AppTextStyles.monoBody,
-                      ),
-                      Text(' 마리',
-                          style: TextStyle(
-                              fontSize: 11, color: AppColors.paleInk2)),
                     ],
                   ),
                 )),
@@ -872,8 +868,6 @@ class FeedEditorSheet extends StatefulWidget {
 }
 
 class _FeedEditorSheetState extends State<FeedEditorSheet> {
-  String _draftFood = '귀뚜라미';
-  int    _draftAmt  = 5;
   final _memoCtrl = TextEditingController();
 
   @override
@@ -888,18 +882,6 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
     super.dispose();
   }
 
-  void _addItem() {
-    if (_draftAmt < 1) return;
-    widget.onChanged(widget.editor.copyWith(
-      items: [...widget.editor.items, FeedItem(food: _draftFood, amt: _draftAmt)],
-    ));
-  }
-
-  void _removeItem(int idx) {
-    final items = [...widget.editor.items]..removeAt(idx);
-    widget.onChanged(widget.editor.copyWith(items: items));
-  }
-
   void _shiftDate(int days) {
     final parts = widget.editor.date.split('-').map(int.parse).toList();
     final dt = DateTime(parts[0], parts[1], parts[2] + days);
@@ -912,8 +894,6 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
   Widget build(BuildContext context) {
     final e   = widget.editor;
     final dt  = DateTime.parse(e.date);
-    final total = e.items.fold(0, (s, i) => s + i.amt);
-    final bg  = _chipColor('귀뚜라미');
 
     return Material(
       color: Colors.transparent,
@@ -926,7 +906,10 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
           Positioned(
             left: 0, right: 0, bottom: 0,
             top: 70,
-            child: Container(
+            child: ClipRRect(
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(20)),
+              child: Container(
               decoration: const BoxDecoration(
                 color: AppColors.paleBg,
                 border: Border(top: BorderSide(color: AppColors.paleLine)),
@@ -938,7 +921,7 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
                     width: 44, height: 4, margin: const EdgeInsets.only(top: 8, bottom: 8),
                     decoration: BoxDecoration(
                       color: AppColors.paleLine,
-                      borderRadius: BorderRadius.zero,
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
                   // 헤더 + 날짜 스테퍼
@@ -1016,241 +999,16 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // 컴포저 카드
-                          Container(
-                            decoration: BoxDecoration(
-                              color: AppColors.card,
-                              border: Border.all(color: AppColors.paleLine),
-                              borderRadius: BorderRadius.zero,
-                            ),
-                            padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text('피딩 추가',
-                                    style: TextStyle(
-                                        fontSize: 12, fontWeight: FontWeight.w700,
-                                        color: AppColors.primary)),
-                                const SizedBox(height: 10),
-                                // 먹이 선택
-                                DropdownButtonFormField<String>(
-                                  value: _draftFood,
-                                  onChanged: (v) =>
-                                      setState(() => _draftFood = v!),
-                                  items: _foods.map((f) => DropdownMenuItem(
-                                    value: f,
-                                    child: Row(children: [
-                                      Container(
-                                        width: 8, height: 8,
-                                        margin: const EdgeInsets.only(right: 8),
-                                        decoration: BoxDecoration(
-                                            color: _dotColor(f),
-                                            shape: BoxShape.circle),
-                                      ),
-                                      Text(f),
-                                    ]),
-                                  )).toList(),
-                                  decoration: InputDecoration(
-                                    contentPadding: const EdgeInsets.symmetric(
-                                        horizontal: 12, vertical: 11),
-                                    border: UnderlineInputBorder(
-                                      borderRadius: BorderRadius.zero,
-                                      borderSide: const BorderSide(
-                                          color: AppColors.paleLine),
-                                    ),
-                                    enabledBorder: UnderlineInputBorder(
-                                      borderRadius: BorderRadius.zero,
-                                      borderSide: const BorderSide(
-                                          color: AppColors.paleLine),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                // 마리수 스테퍼
-                                Container(
-                                  decoration: BoxDecoration(
-                                    border: Border.all(color: AppColors.paleLine),
-                                    borderRadius: BorderRadius.zero,
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      AppStepperButton('−',
-                                          onTap: () => setState(() =>
-                                              _draftAmt = (_draftAmt - 1).clamp(1, 99))),
-                                      Expanded(
-                                        child: Row(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            Text(
-                                              '$_draftAmt',
-                                              style: AppTextStyles.mono(
-                                                  20, FontWeight.w700),
-                                            ),
-                                            const SizedBox(width: 6),
-                                            Text('마리',
-                                                style: TextStyle(
-                                                    fontSize: 13,
-                                                    color: AppColors.paleInk2)),
-                                          ],
-                                        ),
-                                      ),
-                                      AppStepperButton('+',
-                                          onTap: () => setState(
-                                              () => _draftAmt = (_draftAmt + 1).clamp(1, 99))),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                // 프리셋 버튼
-                                Wrap(
-                                  spacing: 6,
-                                  children: [1, 3, 5, 7, 10].map((n) {
-                                    final active = _draftAmt == n;
-                                    return GestureDetector(
-                                      onTap: () => setState(() => _draftAmt = n),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 10, vertical: 5),
-                                        decoration: BoxDecoration(
-                                          color: active ? bg : AppColors.paleBg,
-                                          border: Border.all(
-                                              color: active
-                                                  ? Colors.transparent
-                                                  : AppColors.paleLine),
-                                          borderRadius: BorderRadius.zero,
-                                        ),
-                                        child: Text('$n마리',
-                                            style: AppTextStyles.mono(
-                                                11, FontWeight.w700)),
-                                      ),
-                                    );
-                                  }).toList(),
-                                ),
-                                const SizedBox(height: 12),
-                                // 목록에 추가 버튼
-                                GestureDetector(
-                                  onTap: _addItem,
-                                  child: Container(
-                                    width: double.infinity,
-                                    padding: const EdgeInsets.symmetric(vertical: 12),
-                                    decoration: BoxDecoration(
-                                      color: bg,
-                                      border: Border.all(color: AppColors.primary, width: 1.5),
-                                      borderRadius: BorderRadius.zero,
-                                    ),
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        const Icon(Icons.add, size: 16,
-                                            color: AppColors.primary),
-                                        const SizedBox(width: 8),
-                                        const Text('목록에 추가',
-                                            style: TextStyle(
-                                                fontSize: 14, fontWeight: FontWeight.w700,
-                                                color: AppColors.primary)),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
+                          // 공용 리치 컴포저 (FAB·루틴 완료와 동일 폼)
+                          FeedItemsEditor(
+                            items: e.items.map((i) => i.toForm()).toList(),
+                            bandColor: _chipColor('귀뚜라미'),
+                            onChanged: (forms) => widget.onChanged(
+                              e.copyWith(
+                                items: forms.map(FeedItem.fromForm).toList(),
+                              ),
                             ),
                           ),
-                          const SizedBox(height: 20),
-
-                          // 이 끼니의 급여 목록
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text('이 끼니의 피딩',
-                                  style: TextStyle(
-                                      fontSize: 13, fontWeight: FontWeight.w700,
-                                      color: AppColors.primary)),
-                              Text(
-                                '${e.items.length}종 · 총 ${total}마리',
-                                style: AppTextStyles.mono(11, FontWeight.w700,
-                                    color: AppColors.paleInk2),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-
-                          if (e.items.isEmpty)
-                            Container(
-                              padding: const EdgeInsets.symmetric(vertical: 20),
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                border: Border.all(color: AppColors.paleLine,
-                                    width: 1.5, style: BorderStyle.solid),
-                                borderRadius: BorderRadius.zero,
-                              ),
-                              child: Text(
-                                '위에서 피딩을 골라 추가해 주세요',
-                                style: TextStyle(fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.paleInk3),
-                              ),
-                            )
-                          else
-                            Container(
-                              decoration: BoxDecoration(
-                                color: AppColors.card,
-                                border: Border.all(color: AppColors.paleLine),
-                                borderRadius: BorderRadius.zero,
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 2),
-                              child: Column(
-                                children: e.items.asMap().entries.map((entry) {
-                                  final idx = entry.key;
-                                  final item = entry.value;
-                                  return Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 11),
-                                    decoration: BoxDecoration(
-                                      border: idx < e.items.length - 1
-                                          ? const Border(bottom: BorderSide(
-                                              color: AppColors.paleLineSoft))
-                                          : null,
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          width: 8, height: 8,
-                                          decoration: BoxDecoration(
-                                            color: _dotColor(item.food),
-                                            shape: BoxShape.circle,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 10),
-                                        Expanded(
-                                          child: Text(item.food,
-                                              style: const TextStyle(
-                                                  fontSize: 14, fontWeight: FontWeight.w600,
-                                                  color: AppColors.primary)),
-                                        ),
-                                        Text(
-                                          '×${item.amt}',
-                                          style: AppTextStyles.monoBody,
-                                        ),
-                                        Text(' 마리',
-                                            style: TextStyle(
-                                                fontSize: 11,
-                                                color: AppColors.paleInk2)),
-                                        const SizedBox(width: 4),
-                                        GestureDetector(
-                                          onTap: () => _removeItem(idx),
-                                          child: Container(
-                                            width: 26, height: 26,
-                                            alignment: Alignment.center,
-                                            child: const Icon(Icons.close,
-                                                size: 16, color: AppColors.paleInk3),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                }).toList(),
-                              ),
-                            ),
 
                           const SizedBox(height: 16),
                           // 메모
@@ -1376,6 +1134,7 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
                   ),
                 ],
               ),
+            ),
             ),
           ),
         ],

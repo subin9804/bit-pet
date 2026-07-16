@@ -51,6 +51,12 @@ class FoodType {
     return label;
   }
 
+  /// API 코드로 FoodType 조회. 카탈로그에 없으면 custom(직접입력) 반환.
+  static FoodType byCodeOrCustom(String code) {
+    for (final f in all) { if (f.code == code) return f; }
+    return custom;
+  }
+
   @override bool operator==(Object o) => o is FoodType && o.code == code;
   @override int get hashCode => code.hashCode;
 }

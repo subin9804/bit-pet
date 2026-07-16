@@ -1,21 +1,106 @@
-// 05b 급여 기록 도메인 모델 — feed-data.json 구조 그대로 반영
-// 추후 API 응답이 같은 구조를 따름
+// 05b 급여 기록 도메인 모델
+// 공용 리치 컴포저(FeedFormData)와 상호 변환하여 size_label·ml·영양제까지 표현.
+
+import '../food_catalog.dart';
 
 class FeedItem {
-  final String food; // 먹이 종류 (귀뚜라미, 슈퍼웜, ...)
-  final int amt;     // 마리수
+  final String food;                    // 표시 라벨 (귀뚜라미 등) 또는 커스텀 텍스트
+  final int amt;                        // 마릿수 (sizeCount 모드)
+  final String? foodCode;               // API 코드(CRICKET 등). 없으면 라벨로 역산
+  final String? sizeLabel;              // 크기/용량 라벨 (소/중/대, 소량 등)
+  final double? mlAmount;               // ml 모드 급여량
+  final FeedingSupplement? supplement;  // 영양제
 
-  const FeedItem({required this.food, required this.amt});
+  const FeedItem({
+    required this.food,
+    required this.amt,
+    this.foodCode,
+    this.sizeLabel,
+    this.mlAmount,
+    this.supplement,
+  });
+
+  /// API 코드 (foodCode 우선, 없으면 라벨→코드 역산)
+  String get code => foodCode ?? FoodType.codeForLabel(food);
+
+  /// 간단 생성 (mock 시드 / 레거시 라벨 기반)
+  factory FeedItem.simple({required String food, required int amt}) =>
+      FeedItem(food: food, amt: amt);
+
+  /// 공용 리치 폼 → FeedItem
+  factory FeedItem.fromForm(FeedFormData f) {
+    final ft = f.foodType;
+    final isCustom = ft?.isCustom ?? false;
+    final label = isCustom ? (f.customText?.trim() ?? '직접입력') : (ft?.label ?? '');
+    return FeedItem(
+      food: label,
+      amt: f.count ?? 0,
+      foodCode: isCustom ? (f.customText?.trim() ?? 'CUSTOM') : ft?.code,
+      sizeLabel: f.sizeLabel,
+      mlAmount: f.useMl ? f.mlAmount : null,
+      supplement: f.supplement,
+    );
+  }
+
+  /// FeedItem → 공용 리치 폼
+  FeedFormData toForm() {
+    final ft = FoodType.byCodeOrCustom(code);
+    final isCustom = ft.isCustom;
+    return FeedFormData(
+      foodType: ft,
+      count: amt > 0 ? amt : null,
+      sizeLabel: sizeLabel,
+      mlAmount: mlAmount,
+      useMl: mlAmount != null,
+      customText: isCustom ? food : null,
+      supplement: supplement,
+    );
+  }
+
+  /// 표시용 상세 문자열 (라벨 · 크기 · 마릿수 · ml · 영양제)
+  String get detail {
+    final s = toForm().summary;
+    return s.isNotEmpty ? s : food;
+  }
 
   factory FeedItem.fromJson(Map<String, dynamic> json) => FeedItem(
         food: json['food'] as String,
-        amt:  json['amt']  as int,
+        amt: json['amt'] as int? ?? 0,
+        foodCode: json['foodCode'] as String?,
+        sizeLabel: json['sizeLabel'] as String?,
+        mlAmount: (json['mlAmount'] as num?)?.toDouble(),
+        supplement: json['supplement'] != null
+            ? FeedingSupplement.values.firstWhere(
+                (e) => e.name == json['supplement'],
+                orElse: () => FeedingSupplement.OTHER)
+            : null,
       );
 
-  Map<String, dynamic> toJson() => {'food': food, 'amt': amt};
+  Map<String, dynamic> toJson() => {
+        'food': food,
+        'amt': amt,
+        if (foodCode != null) 'foodCode': foodCode,
+        if (sizeLabel != null) 'sizeLabel': sizeLabel,
+        if (mlAmount != null) 'mlAmount': mlAmount,
+        if (supplement != null) 'supplement': supplement!.name,
+      };
 
-  FeedItem copyWith({String? food, int? amt}) =>
-      FeedItem(food: food ?? this.food, amt: amt ?? this.amt);
+  FeedItem copyWith({
+    String? food,
+    int? amt,
+    String? foodCode,
+    String? sizeLabel,
+    double? mlAmount,
+    FeedingSupplement? supplement,
+  }) =>
+      FeedItem(
+        food: food ?? this.food,
+        amt: amt ?? this.amt,
+        foodCode: foodCode ?? this.foodCode,
+        sizeLabel: sizeLabel ?? this.sizeLabel,
+        mlAmount: mlAmount ?? this.mlAmount,
+        supplement: supplement ?? this.supplement,
+      );
 }
 
 class FeedSession {
