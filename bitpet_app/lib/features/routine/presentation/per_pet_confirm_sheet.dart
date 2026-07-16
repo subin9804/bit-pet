@@ -24,6 +24,7 @@ class _PerPetRec {
   String memo;
   String weight; // WEIGHT 루틴 전용 — 완료 시 필수
   bool done;
+  bool dirty; // 마지막 저장 이후 입력이 바뀌었는지 — 완료 상태에서 재저장 판단용
   bool feedOpen;
   bool memoOpen;
   int? savedLogId;
@@ -34,6 +35,7 @@ class _PerPetRec {
       : feedItems = const [],
         memo = '',
         weight = '',
+        dirty = false,
         feedOpen = false,
         memoOpen = false,
         savedLogId = logId,
@@ -130,8 +132,7 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
 
   // ── 개체 완료 저장 (이 개체 완료 버튼) ───────────────────────────
   Future<void> _completePet(TodayPetStatus pet) async {
-    final rec  = _rec[pet.petId]!;
-    final memo = rec.memo.trim().isEmpty ? null : rec.memo.trim();
+    final rec = _rec[pet.petId]!;
     // 체중 루틴은 실측값 필수 (서버도 거부함)
     if (_isWeight && rec.weightG == null) {
       showToast(context, '${pet.petName}의 몸무게를 입력해 주세요', type: ToastType.warning);
@@ -139,21 +140,9 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
     }
     setState(() => _saving = true);
     try {
-      final log = await ref.read(routineRepositoryProvider).completeIndividual(
-        widget.routine.id,
-        RoutineCompleteIndividualRequest(
-          petId:     pet.petId,
-          status:    RoutineLogStatus.COMPLETED,
-          feedItems: _isFeed ? rec.feedItems : const [],
-          weightG:   _isWeight ? rec.weightG : null,
-          memo:      memo,
-        ),
-      );
-      rec.savedLogId = log?.id;
-      ref.read(todayRoutinesProvider.notifier)
-          .updatePetStatus(widget.routine.id, pet.petId, true);
+      await _persist(pet);
       if (mounted) {
-        setState(() => rec.done = true);
+        setState(() {});
         showToast(context, '${pet.petName} 완료', type: ToastType.success);
       }
     } catch (e) {
@@ -161,6 +150,35 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  // ── 실제 저장 (신규 생성 또는 기존 로그 갈아끼우기) ─────────────────
+  // 이미 저장된 로그가 있으면 삭제 후 재생성 → 완료 뒤 수정한 메모·부가정보도 반영.
+  // (백엔드 deleteLog가 짝 급여·체중·청소·메모 기록까지 함께 정리)
+  Future<void> _persist(TodayPetStatus pet) async {
+    final rec  = _rec[pet.petId]!;
+    final repo = ref.read(routineRepositoryProvider);
+    final memo = rec.memo.trim().isEmpty ? null : rec.memo.trim();
+    final prevLogId = rec.savedLogId;
+    if (prevLogId != null) {
+      await repo.deleteLog(prevLogId);
+      rec.savedLogId = null;
+    }
+    final log = await repo.completeIndividual(
+      widget.routine.id,
+      RoutineCompleteIndividualRequest(
+        petId:     pet.petId,
+        status:    RoutineLogStatus.COMPLETED,
+        feedItems: _isFeed ? rec.feedItems : const [],
+        weightG:   _isWeight ? rec.weightG : null,
+        memo:      memo,
+      ),
+    );
+    rec.savedLogId = log?.id;
+    rec.done  = true;
+    rec.dirty = false;
+    ref.read(todayRoutinesProvider.notifier)
+        .updatePetStatus(widget.routine.id, pet.petId, true);
   }
 
   // ── 완료 취소 (완료됨 버튼 → 로그 삭제) ───────────────────────────
@@ -197,47 +215,45 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
         (_isFeed && rec.feedItems.isNotEmpty);
   }
 
-  // ── 추가 데이터가 있을 때만 저장 (다음/종료/슬라이드 트리거) ──────
-  Future<void> _saveIfHasData(TodayPetStatus pet) async {
+  // ── 저장이 필요할 때만 저장 (다음/종료/슬라이드 트리거) ──────────
+  //  · 미완료: 입력한 추가 데이터가 있을 때 저장
+  //  · 완료됨: 완료 후 수정(dirty)이 있으면 갈아끼우기로 재저장
+  Future<void> _saveIfNeeded(TodayPetStatus pet) async {
     final rec = _rec[pet.petId]!;
-    if (rec.done) return;
-    if (!_hasAdditionalData(pet)) return;
-    final memo = rec.memo.trim().isEmpty ? null : rec.memo.trim();
+    if (rec.done) {
+      if (!rec.dirty) return;
+    } else if (!_hasAdditionalData(pet)) {
+      return;
+    }
+    // 체중 루틴은 실측값 없으면 자동 저장 대상 아님 (서버가 거부)
+    if (_isWeight && rec.weightG == null) return;
     try {
-      final log = await ref.read(routineRepositoryProvider).completeIndividual(
-        widget.routine.id,
-        RoutineCompleteIndividualRequest(
-          petId:     pet.petId,
-          status:    RoutineLogStatus.COMPLETED,
-          feedItems: _isFeed ? rec.feedItems : const [],
-          weightG:   _isWeight ? rec.weightG : null,
-          memo:      memo,
-        ),
-      );
-      rec.savedLogId = log?.id;
-      ref.read(todayRoutinesProvider.notifier)
-          .updatePetStatus(widget.routine.id, pet.petId, true);
-      if (mounted) setState(() => rec.done = true);
+      await _persist(pet);
+      if (mounted) setState(() {});
     } catch (_) {}
   }
 
   void _handleNext() {
-    _saveIfHasData(_pets[_idx]).then((_) {
+    _saveIfNeeded(_pets[_idx]).then((_) {
       if (mounted) _go(_idx + 1);
     });
   }
 
   void _handleFinish() {
     final routine = widget.routine;
-    Navigator.of(context).pop();
-    ref.invalidate(routineTodayStatusProvider(routine.id));
-    final ym = DateTime.now();
-    ref.invalidate(homeCalendarProvider(
-        '${ym.year}-${ym.month.toString().padLeft(2, '0')}'));
-    if (_completedCount > 0) {
-      showToast(context, '$_completedCount마리 완료 처리됐어요',
-          type: ToastType.success);
-    }
+    // 종료 시 현재 개체의 입력·수정도 반드시 저장하고 닫는다
+    _saveIfNeeded(_pets[_idx]).then((_) {
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ref.invalidate(routineTodayStatusProvider(routine.id));
+      final ym = DateTime.now();
+      ref.invalidate(homeCalendarProvider(
+          '${ym.year}-${ym.month.toString().padLeft(2, '0')}'));
+      if (_completedCount > 0) {
+        showToast(context, '$_completedCount마리 완료 처리됐어요',
+            type: ToastType.success);
+      }
+    });
   }
 
   void _go(int target) {
@@ -251,8 +267,9 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
   @override
   Widget build(BuildContext context) {
     final routine = widget.routine;
-    final screenH = MediaQuery.of(context).size.height;
-    final cardH   = (screenH - 112).clamp(0.0, 524.0);
+    final screenH   = MediaQuery.of(context).size.height;
+    final keyboardH = MediaQuery.of(context).viewInsets.bottom;
+    final cardH   = (screenH - 112 - keyboardH).clamp(0.0, 524.0);
 
     return Material(
       type: MaterialType.transparency,
@@ -262,7 +279,11 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
             onTap: () => Navigator.of(context).pop(),
             child: Container(color: const Color(0x801C1610)),
           ),
-          Center(
+          // 키보드가 올라오면 그만큼 위로 밀어 입력창을 가리지 않게 함 (일괄 완료와 동일)
+          AnimatedPadding(
+            duration: const Duration(milliseconds: 150),
+            padding: EdgeInsets.only(bottom: keyboardH),
+            child: Center(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 26),
               child: ConstrainedBox(
@@ -347,7 +368,7 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
                               final prev = _idx;
                               setState(() => _idx = i);
                               // 앞으로 슬라이드할 때 이전 개체 조건부 저장
-                              if (i > prev) _saveIfHasData(_pets[prev]);
+                              if (i > prev) _saveIfNeeded(_pets[prev]);
                             },
                             itemCount: _pets.length,
                             itemBuilder: (_, i) => _PetPage(
@@ -381,6 +402,7 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
                 ),
               ),
             ),
+          ),
           ),
         ],
       ),
@@ -555,11 +577,11 @@ class _PetPage extends StatelessWidget {
               const SizedBox(height: 4),
               TextField(
                 controller: rec.weightCtrl,
-                enabled: !rec.done,
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
                 onChanged: (v) {
                   rec.weight = v;
+                  rec.dirty = true;
                   onChanged();
                 },
                 style: const TextStyle(fontSize: 14, color: AppColors.primary),
@@ -585,6 +607,7 @@ class _PetPage extends StatelessWidget {
                   bandColor: accent,
                   onChanged: (items) {
                     rec.feedItems = items;
+                    rec.dirty = true;
                     onChanged();
                   },
                 ),
@@ -603,7 +626,10 @@ class _PetPage extends StatelessWidget {
               },
               child: TextField(
                 controller: rec.memoCtrl,
-                onChanged: (v) => rec.memo = v,
+                onChanged: (v) {
+                  rec.memo = v;
+                  rec.dirty = true;
+                },
                 maxLines: 2,
                 style: const TextStyle(fontSize: 13, color: AppColors.primary),
                 decoration: AppInputStyles.textarea(

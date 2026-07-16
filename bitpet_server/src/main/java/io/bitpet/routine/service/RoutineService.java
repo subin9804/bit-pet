@@ -64,18 +64,35 @@ public class RoutineService {
     // Routine CRUD (생성자 개인 소유 — 본인이 만든 루틴만 조회·수정 가능)
     // -------------------------------------------------------------------------
 
+    @Transactional
     public List<RoutineResponse> listRoutines(Long userId) {
+        LocalDate today = LocalDate.now(SEOUL);
         List<RoutineMst> routines = loadRoutines(userId);
+        catchUpOverdue(routines, today);
         return routines.stream().map(r -> {
             List<Long> petIds = routinePetRepository.findPetIdsByRoutineId(r.getId());
             return RoutineResponse.from(r, petIds);
         }).toList();
     }
 
+    @Transactional
     public RoutineResponse getRoutine(Long userId, Long routineId) {
         RoutineMst routine = findAccessibleRoutine(userId, routineId);
+        catchUpOverdue(List.of(routine), LocalDate.now(SEOUL));
         List<Long> petIds = routinePetRepository.findPetIdsByRoutineId(routineId);
         return RoutineResponse.from(routine, petIds);
+    }
+
+    /**
+     * 예정일이 지난 미완료 루틴을 오늘 이후가 될 때까지 다음 주기로 전진.
+     * 자정 배치(rollOverPastDueRoutines)가 서버 다운 등으로 미실행돼도 조회 시점에 자가 치유.
+     */
+    private void catchUpOverdue(List<RoutineMst> routines, LocalDate today) {
+        routines.forEach(r -> {
+            if (r.getNextDueAt() != null && r.getNextDueAt().isBefore(today)) {
+                r.advanceDueDate();
+            }
+        });
     }
 
     private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
@@ -169,11 +186,7 @@ public class RoutineService {
         Instant[] todayRange = todayRange(today);
         List<RoutineMst> routines = loadActiveRoutines(userId);
         // 자정 스케줄러가 미실행된 경우 즉석 catchup
-        routines.forEach(r -> {
-            if (r.getNextDueAt() != null && r.getNextDueAt().isBefore(today)) {
-                r.advanceDueDate();
-            }
-        });
+        catchUpOverdue(routines, today);
         return routines.stream()
                 .filter(r -> r.getNextDueAt() != null && isDueOrCompletedToday(r, today))
                 .map(r -> {
@@ -228,11 +241,13 @@ public class RoutineService {
     // Pet view: routines with subscription status
     // -------------------------------------------------------------------------
 
+    @Transactional
     public List<RoutineWithSubscriptionResponse> listRoutinesForPet(Long userId, Long petId) {
         verifyPetAccessible(userId, petId);
         LocalDate today = LocalDate.now(SEOUL);
         Instant[] todayRange = todayRange(today);
         List<RoutineMst> routines = loadActiveRoutines(userId);
+        catchUpOverdue(routines, today);
         return routines.stream()
                 .filter(r -> routinePetRepository.existsByRoutineIdAndPetId(r.getId(), petId))
                 .map(r -> {
@@ -329,8 +344,30 @@ public class RoutineService {
     public void deleteLog(Long userId, Long logId) {
         RoutineLogDtl log = routineLogRepository.findById(logId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ROUTINE_LOG_NOT_FOUND));
-        findAccessibleRoutine(userId, log.getRoutineId());
+        RoutineMst routine = findAccessibleRoutine(userId, log.getRoutineId());
+        // 완료와 함께 생성된 짝 기록(급여·체중·청소·메모)도 함께 정리 —
+        // 취소 시 기록이 남거나 재저장 시 중복되는 것을 방지
+        deletePairedDtl(routine, log.getPetId(), log.getExecutedAt());
         routineLogRepository.delete(log);
+    }
+
+    /** 루틴 완료 로그와 동일 시각으로 생성된 도메인 기록을 soft delete */
+    private void deletePairedDtl(RoutineMst routine, Long petId, Instant executedAt) {
+        if (executedAt == null) return;
+        switch (routine.getRoutineType()) {
+            case FEEDING -> feedingRepository
+                    .findAllByRoutineIdAndPetIdAndFedAt(routine.getId(), petId, executedAt)
+                    .forEach(FeedingDtl::softDelete);
+            case WEIGHT -> weightRepository
+                    .findAllByRoutineIdAndPetIdAndMeasuredAt(routine.getId(), petId, executedAt)
+                    .forEach(WeightDtl::softDelete);
+            case CLEANING -> cleaningRepository
+                    .findAllByRoutineIdAndPetIdAndCleanedAt(routine.getId(), petId, executedAt)
+                    .forEach(CleaningDtl::softDelete);
+            case CUSTOM -> memoRepository
+                    .findAllByRoutineIdAndPetIdAndLoggedAt(routine.getId(), petId, executedAt)
+                    .forEach(MemoDtl::softDelete);
+        }
     }
 
     // -------------------------------------------------------------------------

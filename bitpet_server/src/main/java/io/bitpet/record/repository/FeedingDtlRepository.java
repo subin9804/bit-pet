@@ -18,5 +18,9 @@ public interface FeedingDtlRepository extends JpaRepository<FeedingDtl, Long> {
     List<FeedingDtl> findAllByPetIdInAndFedAtBetweenOrderByFedAtDesc(
             Collection<Long> petIds, java.time.Instant from, java.time.Instant to);
 
+    /** 루틴 완료로 생성된 급여 기록 조회 (완료 취소·재저장 시 짝 정리용) */
+    List<FeedingDtl> findAllByRoutineIdAndPetIdAndFedAt(
+            Long routineId, Long petId, java.time.Instant fedAt);
+
     Optional<FeedingDtl> findByClientIdAndClientChangeId(String clientId, UUID clientChangeId);
 }
