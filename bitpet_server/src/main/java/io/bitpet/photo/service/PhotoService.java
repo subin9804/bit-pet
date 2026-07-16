@@ -31,6 +31,7 @@ public class PhotoService {
 
     private final PhotoDtlRepository photoRepo;
     private final PetMstRepository petRepo;
+    private final io.bitpet.pet.service.PetKeeperService petKeeper;
     private final S3Service s3Service;
 
     @Transactional
@@ -126,12 +127,8 @@ public class PhotoService {
     }
 
     private PetMst loadOwnedPet(Long userId, Long petId) {
-        PetMst pet = petRepo.findById(petId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.PET_NOT_FOUND));
-        if (!pet.getUserId().equals(userId)) {
-            throw new BusinessException(ErrorCode.PET_ACCESS_DENIED);
-        }
-        return pet;
+        // 공유 개체 포함 — 사육자(OWNER/KEEPER)면 사진 등록·조회 가능
+        return petKeeper.assertKeeper(userId, petId);
     }
 
     private String buildS3Key(EntityType entityType, Long entityId, String ext) {

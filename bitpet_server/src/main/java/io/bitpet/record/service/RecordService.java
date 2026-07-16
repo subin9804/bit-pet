@@ -48,6 +48,7 @@ import java.util.stream.Collectors;
 public class RecordService {
 
     private final PetMstRepository petRepository;
+    private final io.bitpet.pet.service.PetKeeperService petKeeper;
     private final WeightDtlRepository weightRepository;
     private final FeedingDtlRepository feedingRepository;
     private final CleaningDtlRepository cleaningRepository;
@@ -72,6 +73,7 @@ public class RecordService {
         verifyPetOwnership(userId, petId);
         WeightDtl saved = weightRepository.save(WeightDtl.builder()
                 .petId(petId)
+                .createdByUserId(userId)
                 .weightG(req.weightG())
                 .measuredAt(req.measuredAt())
                 .source(req.source())
@@ -103,6 +105,7 @@ public class RecordService {
         verifyPetOwnership(userId, petId);
         FeedingDtl saved = feedingRepository.save(FeedingDtl.builder()
                 .petId(petId)
+                .createdByUserId(userId)
                 .foodType(req.foodType())
                 .amount(req.amount())
                 .unit(req.unit())
@@ -146,6 +149,7 @@ public class RecordService {
         verifyPetOwnership(userId, petId);
         CleaningDtl saved = cleaningRepository.save(CleaningDtl.builder()
                 .petId(petId)
+                .createdByUserId(userId)
                 .cleaningType(req.cleaningType())
                 .cleanedAt(req.cleanedAt())
                 .memo(req.memo())
@@ -386,9 +390,10 @@ public class RecordService {
     // -------------------------------------------------------------------------
 
     private void verifyPetOwnership(Long userId, Long petId) {
-        PetMst pet = petRepository.findById(petId)
+        // 공유 개체 포함 — 사육자(OWNER/KEEPER)면 기록 작성·조회 가능
+        petRepository.findById(petId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PET_NOT_FOUND));
-        if (!pet.getUserId().equals(userId)) {
+        if (!petKeeper.isKeeper(userId, petId)) {
             throw new BusinessException(ErrorCode.RECORD_ACCESS_DENIED);
         }
     }

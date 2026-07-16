@@ -89,14 +89,15 @@ public enum ErrorCode {
     PHOTO_NOT_FOUND(HttpStatus.NOT_FOUND, "Photo not found"),
     PHOTO_ENTITY_TYPE_INVALID(HttpStatus.BAD_REQUEST, "Invalid entityType"),
 
-    // --- Group ---
-    GROUP_NOT_FOUND(HttpStatus.NOT_FOUND, "Breeding group not found"),
-    GROUP_ALREADY_JOINED(HttpStatus.CONFLICT, "You are already in a group"),
-    GROUP_INVITE_CODE_INVALID(HttpStatus.BAD_REQUEST, "Invalid invite code"),
-    GROUP_ACCESS_DENIED(HttpStatus.FORBIDDEN, "Only the group owner can perform this action"),
-    GROUP_CANNOT_KICK_OWNER(HttpStatus.BAD_REQUEST, "Cannot kick the group owner"),
-    GROUP_MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "Member not found in this group"),
-    GROUP_NOT_MEMBER(HttpStatus.BAD_REQUEST, "You are not in any group"),
+    // --- Pet Share / Transfer ---
+    SHARE_CODE_INVALID(HttpStatus.BAD_REQUEST, "존재하지 않는 공유 코드입니다."),
+    SHARE_SELF(HttpStatus.BAD_REQUEST, "자기 자신에게는 공유·입분양할 수 없습니다."),
+    SHARE_ALREADY_KEEPER(HttpStatus.CONFLICT, "이미 이 개체의 사육자입니다."),
+    SHARE_INVITATION_NOT_FOUND(HttpStatus.NOT_FOUND, "공유 요청을 찾을 수 없습니다."),
+    SHARE_INVITATION_ALREADY_PENDING(HttpStatus.CONFLICT, "이미 대기 중인 공유 요청이 있습니다."),
+    SHARE_INVITATION_NOT_PENDING(HttpStatus.BAD_REQUEST, "이미 처리된 공유 요청입니다."),
+    SHARE_INVITATION_EXPIRED(HttpStatus.GONE, "만료된 공유 요청입니다."),
+    SHARE_INVITATION_FORBIDDEN(HttpStatus.FORBIDDEN, "이 공유 요청에 대한 권한이 없습니다."),
 
     // --- Community ---
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "Post not found"),

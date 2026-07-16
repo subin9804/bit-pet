@@ -51,15 +51,20 @@ public class LayingHatchDtl extends BaseSyncEntity {
     @Column(columnDefinition = "TEXT")
     private String memo;
 
+    @Column(name = "created_by_user_id")
+    private Long createdByUserId;
+
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
     @Builder
-    private LayingHatchDtl(Long layingId, HatchStatus status, Instant hatchedAt, String memo) {
+    private LayingHatchDtl(Long layingId, HatchStatus status, Instant hatchedAt, String memo,
+                           Long createdByUserId) {
         this.layingId = layingId;
         this.status = status != null ? status : HatchStatus.PENDING;
         this.hatchedAt = hatchedAt;
         this.memo = memo;
+        this.createdByUserId = createdByUserId;
     }
 
     public void update(HatchStatus status, Instant hatchedAt, Long hatchedPetId, String memo) {

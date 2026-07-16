@@ -29,6 +29,7 @@ public class TimelineService {
 
     private final JdbcTemplate jdbc;
     private final PetMstRepository petRepo;
+    private final io.bitpet.pet.service.PetKeeperService petKeeper;
 
     public TimelineResponse getTimeline(Long petId, Long userId,
                                          LocalDate date,
@@ -249,11 +250,7 @@ public class TimelineService {
     }
 
     private PetMst loadOwnedPet(Long userId, Long petId) {
-        PetMst pet = petRepo.findById(petId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.PET_NOT_FOUND));
-        if (!pet.getUserId().equals(userId)) {
-            throw new BusinessException(ErrorCode.PET_ACCESS_DENIED);
-        }
-        return pet;
+        // 공유 개체 포함 — 사육자(OWNER/KEEPER)면 조회 가능
+        return petKeeper.assertKeeper(userId, petId);
     }
 }

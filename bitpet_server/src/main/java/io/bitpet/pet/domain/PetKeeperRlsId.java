@@ -1,4 +1,4 @@
-package io.bitpet.group.domain;
+package io.bitpet.pet.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
@@ -14,10 +14,10 @@ import java.io.Serializable;
 @EqualsAndHashCode
 @NoArgsConstructor
 @AllArgsConstructor
-public class BreedingGroupUserRlsId implements Serializable {
+public class PetKeeperRlsId implements Serializable {
 
-    @Column(name = "group_id")
-    private Long groupId;
+    @Column(name = "pet_id")
+    private Long petId;
 
     @Column(name = "user_id")
     private Long userId;

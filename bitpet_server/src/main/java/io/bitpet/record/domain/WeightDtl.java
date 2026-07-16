@@ -52,18 +52,22 @@ public class WeightDtl extends BaseSyncEntity {
     @Column(name = "routine_id")
     private Long routineId;
 
+    @Column(name = "created_by_user_id")
+    private Long createdByUserId;
+
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
     @Builder
     private WeightDtl(Long petId, BigDecimal weightG, Instant measuredAt,
-                      WeightSource source, String memo, Long routineId) {
+                      WeightSource source, String memo, Long routineId, Long createdByUserId) {
         this.petId = petId;
         this.weightG = weightG;
         this.measuredAt = measuredAt;
         this.source = source != null ? source : WeightSource.MANUAL;
         this.memo = memo;
         this.routineId = routineId;
+        this.createdByUserId = createdByUserId;
     }
 
     public void update(BigDecimal weightG, Instant measuredAt, WeightSource source, String memo) {

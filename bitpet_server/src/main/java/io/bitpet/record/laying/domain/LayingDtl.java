@@ -58,13 +58,16 @@ public class LayingDtl extends BaseSyncEntity {
     @Column(columnDefinition = "TEXT")
     private String memo;
 
+    @Column(name = "created_by_user_id")
+    private Long createdByUserId;
+
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
     @Builder
     private LayingDtl(Long petId, Long matingId, Instant laidAt, int eggCountTotal,
                       Integer eggCountFertile, BigDecimal incubationTemp,
-                      BigDecimal incubationHumidity, String memo) {
+                      BigDecimal incubationHumidity, String memo, Long createdByUserId) {
         this.petId = petId;
         this.matingId = matingId;
         this.laidAt = laidAt;
@@ -73,6 +76,7 @@ public class LayingDtl extends BaseSyncEntity {
         this.incubationTemp = incubationTemp;
         this.incubationHumidity = incubationHumidity;
         this.memo = memo;
+        this.createdByUserId = createdByUserId;
     }
 
     public void update(Long matingId, Instant laidAt, int eggCountTotal,

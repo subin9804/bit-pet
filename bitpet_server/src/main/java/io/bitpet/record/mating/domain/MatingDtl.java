@@ -58,13 +58,16 @@ public class MatingDtl extends BaseSyncEntity {
     @Column(columnDefinition = "TEXT")
     private String memo;
 
+    @Column(name = "created_by_user_id")
+    private Long createdByUserId;
+
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
     @Builder
     private MatingDtl(Long malePetId, Long femalePetId, String externalPartnerText,
                       Instant triedAt, Integer durationMinutes, Boolean isSuccessful,
-                      String seasonLabel, String memo) {
+                      String seasonLabel, String memo, Long createdByUserId) {
         this.malePetId = malePetId;
         this.femalePetId = femalePetId;
         this.externalPartnerText = externalPartnerText;
@@ -73,6 +76,7 @@ public class MatingDtl extends BaseSyncEntity {
         this.isSuccessful = isSuccessful;
         this.seasonLabel = seasonLabel;
         this.memo = memo;
+        this.createdByUserId = createdByUserId;
     }
 
     public void update(Long malePetId, Long femalePetId, String externalPartnerText,

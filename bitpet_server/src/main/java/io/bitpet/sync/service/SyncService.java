@@ -50,6 +50,7 @@ public class SyncService {
 
     private final JdbcTemplate jdbc;
     private final PetMstRepository petRepo;
+    private final io.bitpet.pet.service.PetKeeperService petKeeper;
     private final WeightDtlRepository weightRepo;
     private final FeedingDtlRepository feedingRepo;
     private final CleaningDtlRepository cleaningRepo;
@@ -215,7 +216,7 @@ public class SyncService {
             Long id = toLong(data.get("id"));
             PetMst pet = petRepo.findById(id)
                     .orElseThrow(() -> new BusinessException(ErrorCode.PET_NOT_FOUND));
-            if (!pet.getUserId().equals(userId)) throw new BusinessException(ErrorCode.PET_ACCESS_DENIED);
+            petKeeper.assertOwner(userId, id); // 개체 삭제는 소유자만
             pet.softDelete();
             petRepo.save(pet);
             return PushResult.applied(changeId, id, pet.getUpdatedAt(), pet.getSyncVersion());
@@ -227,7 +228,7 @@ public class SyncService {
 
         PetMst pet = petRepo.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PET_NOT_FOUND));
-        if (!pet.getUserId().equals(userId)) throw new BusinessException(ErrorCode.PET_ACCESS_DENIED);
+        petKeeper.assertOwner(userId, id); // 개체 프로필 수정은 소유자만
 
         Instant localUpdatedAt = toInstant(data.get("localUpdatedAt"));
         if (localUpdatedAt != null && !pet.getUpdatedAt().isBefore(localUpdatedAt)) {
@@ -276,6 +277,7 @@ public class SyncService {
             verifyPetOwner(petId, userId);
             WeightDtl w = WeightDtl.builder()
                     .petId(petId)
+                    .createdByUserId(userId)
                     .weightG(toBigDecimal(data.get("weightG")))
                     .measuredAt(toInstant(data.get("measuredAt")))
                     .source(toEnum(data.get("source"), WeightSource.class, WeightSource.MANUAL))
@@ -334,6 +336,7 @@ public class SyncService {
             verifyPetOwner(petId, userId);
             FeedingDtl f = FeedingDtl.builder()
                     .petId(petId)
+                    .createdByUserId(userId)
                     .foodType(str(data.get("foodType")))
                     .amount(toBigDecimal(data.get("amount")))
                     .unit(str(data.get("unit")))
@@ -397,6 +400,7 @@ public class SyncService {
             verifyPetOwner(petId, userId);
             CleaningDtl c = CleaningDtl.builder()
                     .petId(petId)
+                    .createdByUserId(userId)
                     .cleaningType(toEnum(data.get("cleaningType"), CleaningType.class, CleaningType.FULL))
                     .cleanedAt(toInstant(data.get("cleanedAt")))
                     .memo(str(data.get("memo")))
@@ -454,6 +458,7 @@ public class SyncService {
             verifyPetOwner(petId, userId);
             MemoDtl m = MemoDtl.builder()
                     .petId(petId)
+                    .createdByUserId(userId)
                     .content(str(data.get("content")))
                     .loggedAt(toInstant(data.get("loggedAt")))
                     .build();
@@ -483,9 +488,8 @@ public class SyncService {
     // -------------------------------------------------------------------------
 
     private void verifyPetOwner(Long petId, Long userId) {
-        PetMst pet = petRepo.findById(petId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.PET_NOT_FOUND));
-        if (!pet.getUserId().equals(userId)) throw new BusinessException(ErrorCode.PET_ACCESS_DENIED);
+        // 기록 push — 공유 개체 포함, 사육자(OWNER/KEEPER) 허용
+        petKeeper.assertKeeper(userId, petId);
     }
 
     private Map<String, Object> petToMap(PetMst pet) {

@@ -27,6 +27,7 @@ public class MatingService {
 
     private final MatingDtlRepository matingRepo;
     private final PetMstRepository petRepo;
+    private final io.bitpet.pet.service.PetKeeperService petKeeper;
 
     // -------------------------------------------------------------------------
     // 메이팅 등록
@@ -45,6 +46,7 @@ public class MatingService {
         MatingDtl mating = matingRepo.save(MatingDtl.builder()
                 .malePetId(req.petIdMale())
                 .femalePetId(req.petIdFemale())
+                .createdByUserId(userId)
                 .externalPartnerText(req.externalPartnerText())
                 .triedAt(req.triedAt().toInstant())
                 .durationMinutes(req.durationMinutes())
@@ -168,18 +170,13 @@ public class MatingService {
     }
 
     private boolean isOwnedBy(Long userId, Long petId) {
-        return petRepo.findById(petId)
-                .map(p -> p.getUserId().equals(userId))
-                .orElse(false);
+        // 공유 개체 포함 — 사육자(OWNER/KEEPER)면 본인 개체로 취급
+        return petKeeper.isKeeper(userId, petId);
     }
 
     private PetMst loadOwnedPet(Long userId, Long petId) {
-        PetMst pet = petRepo.findById(petId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.PET_NOT_FOUND));
-        if (!pet.getUserId().equals(userId)) {
-            throw new BusinessException(ErrorCode.PET_ACCESS_DENIED);
-        }
-        return pet;
+        // 공유 개체 포함 — 사육자(OWNER/KEEPER)면 기록 작성·조회 가능
+        return petKeeper.assertKeeper(userId, petId);
     }
 
     private MatingDtl loadAccessibleMating(Long matingId, Long userId) {

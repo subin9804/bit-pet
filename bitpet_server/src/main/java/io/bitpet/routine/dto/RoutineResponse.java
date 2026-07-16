@@ -11,7 +11,6 @@ import java.util.List;
 public record RoutineResponse(
         Long id,
         Long userId,
-        Long groupId,
         RoutineType routineType,
         String title,
         int cycleDays,
@@ -29,7 +28,7 @@ public record RoutineResponse(
 ) {
     public static RoutineResponse from(RoutineMst r, List<Long> petIds) {
         return new RoutineResponse(
-                r.getId(), r.getUserId(), r.getGroupId(), r.getRoutineType(), r.getTitle(),
+                r.getId(), r.getUserId(), r.getRoutineType(), r.getTitle(),
                 r.getCycleDays(), r.getAlarmTime(), r.isAlarmEnabled(),
                 r.getStartDate(), r.getLastExecutedAt(), r.getNextDueAt(),
                 r.isActive(), r.getMemo(),

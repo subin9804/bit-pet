@@ -88,9 +88,6 @@ public class PetMst extends BaseSyncEntity {
     @Column(name = "profile_photo_id")
     private Long profilePhotoId;
 
-    @Column(name = "group_id")
-    private Long groupId;
-
     @Column(name = "private_yn", nullable = false, length = 1)
     private String privateYn = "Y";
 
@@ -147,9 +144,8 @@ public class PetMst extends BaseSyncEntity {
         this.profilePhotoId = photoId;
     }
 
-    public void assignGroup(Long groupId) { this.groupId = groupId; }
-
-    public void removeGroup() { this.groupId = null; }
+    /** 입분양 — 소유자 이전 시 pet_mst.user_id 동기화 (권한 판정은 pet_keeper_rls) */
+    public void transferOwnerTo(Long newOwnerUserId) { this.userId = newOwnerUserId; }
 
     public void markDeceased(LocalDate date) {
         this.deceasedAt = date != null ? date : LocalDate.now();

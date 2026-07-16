@@ -49,6 +49,7 @@ public class LayingService {
     private final LayingHatchDtlRepository hatchRepo;
     private final MatingDtlRepository matingRepo;
     private final PetMstRepository petRepo;
+    private final io.bitpet.pet.service.PetKeeperService petKeeper;
     private final PetRelationRlsRepository relationRepo;
     private final SpeciesCdRepository speciesRepo;
     private final MorphCdRepository morphRepo;
@@ -70,6 +71,7 @@ public class LayingService {
 
         LayingDtl laying = layingRepo.save(LayingDtl.builder()
                 .petId(petId)
+                .createdByUserId(userId)
                 .matingId(req.matingId())
                 .laidAt(req.laidAt().toInstant())
                 .eggCountTotal(req.eggCountTotal())
@@ -153,6 +155,7 @@ public class LayingService {
 
         LayingHatchDtl hatch = hatchRepo.save(LayingHatchDtl.builder()
                 .layingId(layingId)
+                .createdByUserId(userId)
                 .status(req.status())
                 .hatchedAt(req.hatchedAt() != null ? req.hatchedAt().toInstant() : null)
                 .memo(req.memo())
@@ -226,6 +229,8 @@ public class LayingService {
                 .hatchingDate(req.birthDate())
                 .description(req.memo())
                 .build());
+        // 권한 판정 단일 소스 — 새 개체 OWNER 등록 (누락 시 소유자도 접근 거부됨)
+        petKeeper.registerOwner(newPet.getId(), userId);
 
         if (morph != null) {
             newPet.getMorphs().add(PetMorphRls.of(newPet, morph));
@@ -309,12 +314,8 @@ public class LayingService {
     }
 
     private PetMst loadOwnedPet(Long userId, Long petId) {
-        PetMst pet = petRepo.findById(petId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.PET_NOT_FOUND));
-        if (!pet.getUserId().equals(userId)) {
-            throw new BusinessException(ErrorCode.PET_ACCESS_DENIED);
-        }
-        return pet;
+        // 공유 개체 포함 — 사육자(OWNER/KEEPER)면 기록 작성·조회 가능
+        return petKeeper.assertKeeper(userId, petId);
     }
 
     private LayingDtl loadAccessibleLaying(Long layingId, Long userId) {

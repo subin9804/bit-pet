@@ -2,7 +2,6 @@ package io.bitpet.pet.service;
 
 import io.bitpet.common.exception.BusinessException;
 import io.bitpet.common.exception.ErrorCode;
-import io.bitpet.group.repository.BreedingGroupUserRlsRepository;
 import io.bitpet.pet.domain.MorphCd;
 import io.bitpet.pet.domain.PetGender;
 import io.bitpet.pet.domain.PetMorphRls;
@@ -40,7 +39,8 @@ public class PetService {
     private final MorphCdRepository morphRepository;
     private final PetRelationRlsRepository relationRepository;
     private final SerialNumberGenerator serialNumberGenerator;
-    private final BreedingGroupUserRlsRepository groupMembershipRepository;
+    private final PetKeeperService petKeeper;
+    private final io.bitpet.routine.service.RoutineMaintenanceService routineMaintenance;
     private final WeightDtlRepository weightRepository;
 
     // -------------------------------------------------------------------------
@@ -69,15 +69,15 @@ public class PetService {
                 .hatchingDateApproximate(req.hatchingDateApproximate())
                 .adoptionDate(req.adoptionDate())
                 .build();
-        groupMembershipRepository.findByIdUserId(userId)
-                .ifPresent(membership -> pet.assignGroup(membership.getId().getGroupId()));
         petRepository.save(pet);
+        petKeeper.registerOwner(pet.getId(), userId);
 
         attachMorphs(pet, req.morphIds(), species);
 
         if (req.currentWeightG() != null && req.currentWeightG() > 0) {
             weightRepository.save(WeightDtl.builder()
                     .petId(pet.getId())
+                    .createdByUserId(userId)
                     .weightG(BigDecimal.valueOf(req.currentWeightG()))
                     .measuredAt(Instant.now())
                     .source(WeightSource.MANUAL)
@@ -88,7 +88,7 @@ public class PetService {
     }
 
     public PetResponse get(Long userId, Long petId) {
-        PetMst pet = loadOwnedPet(userId, petId);
+        PetMst pet = petKeeper.assertKeeper(userId, petId);
         Double latestWeight = weightRepository.findAllByPetIdOrderByMeasuredAtDesc(pet.getId())
                 .stream().findFirst()
                 .map(w -> w.getWeightG().doubleValue())
@@ -97,8 +97,11 @@ public class PetService {
         return PetResponse.from(pet, latestWeight, parentRelations);
     }
 
+    /** 내가 사육하는 개체 목록 (소유 + 공유받은 개체) */
     public List<PetResponse> listByOwner(Long userId) {
-        return petRepository.findAllByUserId(userId).stream()
+        List<Long> petIds = petKeeper.keptPetIds(userId);
+        if (petIds.isEmpty()) return List.of();
+        return petRepository.findAllById(petIds).stream()
                 // 폐사(이별) 개체는 목록 마지막으로 (stable sort — 기존 순서 유지)
                 .sorted(java.util.Comparator.comparing(p -> p.getDeceasedAt() != null))
                 .map(pet -> {
@@ -155,6 +158,8 @@ public class PetService {
     public void delete(Long userId, Long petId) {
         PetMst pet = loadOwnedPet(userId, petId);
         pet.softDelete();
+        // 이 개체에 연결된 모든 루틴에서 연결 제거 + 활성 재계산 (빈 루틴 비활성화)
+        routineMaintenance.onPetDeleted(petId);
     }
 
     /** 이별하기 — 폐사 처리 (기록은 그대로 보존) */
@@ -195,7 +200,7 @@ public class PetService {
     }
 
     public List<PetRelationResponse> listRelations(Long userId, Long petId) {
-        loadOwnedPet(userId, petId);
+        petKeeper.assertKeeper(userId, petId);
         List<PetRelationRls> asChild  = relationRepository.findAllByChildPetId(petId);
         List<PetRelationRls> asParent = relationRepository.findAllByParentPetId(petId);
         return java.util.stream.Stream.concat(asChild.stream(), asParent.stream())
@@ -212,7 +217,7 @@ public class PetService {
     }
 
     public GenealogyResponse getGenealogy(Long userId, Long petId) {
-        PetMst pet = loadOwnedPet(userId, petId);
+        PetMst pet = petKeeper.assertKeeper(userId, petId);
         List<PetMst> parents  = relationRepository.findParentsOf(petId);
         List<PetMst> children = relationRepository.findChildrenOf(petId);
         return new GenealogyResponse(
@@ -226,13 +231,9 @@ public class PetService {
     // 내부 헬퍼
     // -------------------------------------------------------------------------
 
+    /** 소유자 전용 작업 검증 (프로필 수정·삭제·관계 편집) */
     private PetMst loadOwnedPet(Long userId, Long petId) {
-        PetMst pet = petRepository.findById(petId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.PET_NOT_FOUND));
-        if (!pet.getUserId().equals(userId)) {
-            throw new BusinessException(ErrorCode.PET_ACCESS_DENIED);
-        }
-        return pet;
+        return petKeeper.assertOwner(userId, petId);
     }
 
     private void attachMorphs(PetMst pet, List<Long> morphIds, SpeciesCd species) {

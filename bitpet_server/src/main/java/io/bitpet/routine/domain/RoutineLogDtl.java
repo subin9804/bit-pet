@@ -56,18 +56,23 @@ public class RoutineLogDtl extends BaseTimeEntity {
     @Column(columnDefinition = "TEXT")
     private String memo;
 
+    @Column(name = "created_by_user_id")
+    private Long createdByUserId;
+
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
     @Builder
     private RoutineLogDtl(Long routineId, Long petId, RoutineLogStatus status,
-                          Instant executedAt, Map<String, Object> extraData, String memo) {
+                          Instant executedAt, Map<String, Object> extraData, String memo,
+                          Long createdByUserId) {
         this.routineId  = routineId;
         this.petId      = petId;
         this.status     = status != null ? status : RoutineLogStatus.COMPLETED;
         this.executedAt = executedAt != null ? executedAt : Instant.now();
         this.extraData  = extraData;
         this.memo       = memo;
+        this.createdByUserId = createdByUserId;
     }
 
     public void softDelete() {

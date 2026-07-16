@@ -13,29 +13,10 @@ import java.util.List;
 
 public interface RoutineMstRepository extends JpaRepository<RoutineMst, Long> {
 
-    // ── 개인 루틴 조회 (그룹 미소속 유저: group_id IS NULL) ──────────────────────
-    List<RoutineMst> findAllByUserIdAndGroupIdIsNullOrderByCreatedAtDesc(Long userId);
+    // ── 개인 루틴 조회 (루틴은 생성자 소유) ──────────────────────────────────────
+    List<RoutineMst> findAllByUserIdOrderByCreatedAtDesc(Long userId);
 
-    List<RoutineMst> findAllByUserIdAndGroupIdIsNullAndActiveOrderByCreatedAtDesc(
-            Long userId, boolean active);
-
-    // ── 그룹 루틴 조회 ──────────────────────────────────────────────────────────
-    List<RoutineMst> findAllByGroupIdOrderByCreatedAtDesc(Long groupId);
-
-    List<RoutineMst> findAllByGroupIdAndActiveOrderByCreatedAtDesc(Long groupId, boolean active);
-
-    // ── 그룹 가입/탈퇴 시 루틴 group_id 동기화 (pet_mst와 동일 패턴) ──────────────
-    @Modifying
-    @Query("UPDATE RoutineMst r SET r.groupId = :groupId WHERE r.userId = :userId")
-    void assignGroupToUserRoutines(@Param("userId") Long userId, @Param("groupId") Long groupId);
-
-    @Modifying
-    @Query("UPDATE RoutineMst r SET r.groupId = NULL WHERE r.userId = :userId AND r.groupId = :groupId")
-    void removeGroupFromUserRoutines(@Param("userId") Long userId, @Param("groupId") Long groupId);
-
-    @Modifying
-    @Query("UPDATE RoutineMst r SET r.groupId = NULL WHERE r.groupId = :groupId")
-    void removeGroupFromAllRoutines(@Param("groupId") Long groupId);
+    List<RoutineMst> findAllByUserIdAndActiveOrderByCreatedAtDesc(Long userId, boolean active);
 
     /**
      * 오늘 날짜(Seoul)가 due이고, 알람 시각이 지났으며, 오늘 아직 알림을 보내지 않은 루틴.

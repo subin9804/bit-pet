@@ -31,6 +31,7 @@ public class PetPhotoService {
     private final PetMstRepository petRepository;
     private final PhotoDtlRepository photoRepository;
     private final S3Service s3Service;
+    private final io.bitpet.pet.service.PetKeeperService petKeeper;
 
     public PresignedUploadResponse generatePresignedUrl(Long userId, Long petId, String filename) {
         verifyPetOwnership(userId, petId);
@@ -106,11 +107,8 @@ public class PetPhotoService {
     // -------------------------------------------------------------------------
 
     private void verifyPetOwnership(Long userId, Long petId) {
-        PetMst pet = petRepository.findById(petId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.PET_NOT_FOUND));
-        if (!pet.getUserId().equals(userId)) {
-            throw new BusinessException(ErrorCode.PET_ACCESS_DENIED);
-        }
+        // 공유 개체 포함 — 사육자(OWNER/KEEPER)면 사진 등록·조회 가능
+        petKeeper.assertKeeper(userId, petId);
     }
 
     private PhotoDtl findPhotoOfPet(Long photoId, Long petId) {

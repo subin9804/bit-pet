@@ -64,13 +64,16 @@ public class FeedingDtl extends BaseSyncEntity {
     @Column(columnDefinition = "TEXT")
     private String memo;
 
+    @Column(name = "created_by_user_id")
+    private Long createdByUserId;
+
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
     @Builder
     private FeedingDtl(Long petId, Long routineId, String foodType, BigDecimal amount,
                        String unit, String sizeLabel, FeedingSupplement supplement,
-                       Instant fedAt, String memo) {
+                       Instant fedAt, String memo, Long createdByUserId) {
         this.petId       = petId;
         this.routineId   = routineId;
         this.foodType    = foodType;
@@ -80,6 +83,7 @@ public class FeedingDtl extends BaseSyncEntity {
         this.supplement  = supplement;
         this.fedAt       = fedAt;
         this.memo        = memo;
+        this.createdByUserId = createdByUserId;
     }
 
     public void update(String foodType, BigDecimal amount, String unit,

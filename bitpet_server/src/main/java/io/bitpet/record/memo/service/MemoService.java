@@ -49,6 +49,7 @@ public class MemoService {
     private final MemoTagRlsRepository tagRlsRepo;
     private final MemoVetExtDtlRepository vetExtRepo;
     private final PetMstRepository petRepo;
+    private final io.bitpet.pet.service.PetKeeperService petKeeper;
     private final JdbcTemplate jdbc;
 
     // -------------------------------------------------------------------------
@@ -79,6 +80,7 @@ public class MemoService {
 
         MemoDtl memo = memoRepo.save(MemoDtl.builder()
                 .petId(petId)
+                .createdByUserId(userId)
                 .content(req.content())
                 .loggedAt(req.loggedAt().toInstant())
                 .build());
@@ -269,12 +271,8 @@ public class MemoService {
     }
 
     private PetMst loadOwnedPet(Long userId, Long petId) {
-        PetMst pet = petRepo.findById(petId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.PET_NOT_FOUND));
-        if (!pet.getUserId().equals(userId)) {
-            throw new BusinessException(ErrorCode.PET_ACCESS_DENIED);
-        }
-        return pet;
+        // 공유 개체 포함 — 사육자(OWNER/KEEPER)면 메모 작성·조회 가능
+        return petKeeper.assertKeeper(userId, petId);
     }
 
     private MemoDtl loadAccessibleMemo(Long memoId, Long userId) {

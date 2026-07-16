@@ -53,6 +53,10 @@ public class UserMst extends BaseTimeEntity {
     @Column(name = "last_login_at")
     private Instant lastLoginAt;
 
+    /** 개체 공유/입분양 대상 식별 코드 (전역 유일, 지연 발급) */
+    @Column(name = "share_code", length = 8)
+    private String shareCode;
+
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
@@ -99,6 +103,10 @@ public class UserMst extends BaseTimeEntity {
 
     public void markLoggedIn() {
         this.lastLoginAt = Instant.now();
+    }
+
+    public void assignShareCode(String shareCode) {
+        this.shareCode = shareCode;
     }
 
     public void softDelete() {

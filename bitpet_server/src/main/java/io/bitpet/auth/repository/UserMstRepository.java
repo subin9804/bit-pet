@@ -10,4 +10,8 @@ public interface UserMstRepository extends JpaRepository<UserMst, Long> {
     Optional<UserMst> findByEmail(String email);
 
     boolean existsByEmail(String email);
+
+    Optional<UserMst> findByShareCode(String shareCode);
+
+    boolean existsByShareCode(String shareCode);
 }

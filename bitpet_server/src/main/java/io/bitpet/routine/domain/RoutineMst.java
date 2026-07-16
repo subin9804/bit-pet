@@ -27,7 +27,6 @@ import java.time.ZoneId;
         name = "routine_mst",
         indexes = {
                 @Index(name = "idx_routine_mst_user_active",  columnList = "user_id, is_active"),
-                @Index(name = "idx_routine_mst_group_active", columnList = "group_id, is_active"),
                 @Index(name = "idx_routine_mst_next_due",     columnList = "next_due_at")
         }
 )
@@ -43,10 +42,6 @@ public class RoutineMst extends BaseTimeEntity {
 
     @Column(name = "user_id", nullable = false)
     private Long userId;
-
-    /** 소속 사육 그룹 (NULL = 개인 루틴). user_id는 생성자로 유지 */
-    @Column(name = "group_id")
-    private Long groupId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "routine_type", nullable = false, length = 20)
@@ -87,11 +82,10 @@ public class RoutineMst extends BaseTimeEntity {
     private Instant deletedAt;
 
     @Builder
-    private RoutineMst(Long userId, Long groupId, RoutineType routineType, String title,
+    private RoutineMst(Long userId, RoutineType routineType, String title,
                        int cycleDays, LocalTime alarmTime, boolean alarmEnabled,
                        LocalDate startDate, LocalDate nextDueAt, String memo) {
         this.userId       = userId;
-        this.groupId      = groupId;
         this.routineType  = routineType;
         this.title        = title;
         this.cycleDays    = cycleDays;
@@ -125,6 +119,11 @@ public class RoutineMst extends BaseTimeEntity {
     /** 알림 발송 기록 — nextDueAt은 변경하지 않음 */
     public void markNotified(Instant at) {
         this.lastNotifiedAt = at;
+    }
+
+    /** 연결된 '내' 개체 수 변화에 따른 활성 토글 (0개 → 비활성, 1개 이상 → 활성) */
+    public void setActiveState(boolean active) {
+        this.active = active;
     }
 
     /** soft delete — 루틴만 숨기고 실행 기록(routine_log_dtl 등)은 보존 */

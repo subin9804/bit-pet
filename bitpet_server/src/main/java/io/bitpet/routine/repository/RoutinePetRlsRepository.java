@@ -24,4 +24,15 @@ public interface RoutinePetRlsRepository extends JpaRepository<RoutinePetRls, Lo
 
     @Query("SELECT rp.petId FROM RoutinePetRls rp WHERE rp.routineId = :routineId ORDER BY rp.petId ASC")
     List<Long> findPetIdsByRoutineId(@Param("routineId") Long routineId);
+
+    /** 특정 개체에 연결된 모든 루틴 id */
+    @Query("SELECT rp.routineId FROM RoutinePetRls rp WHERE rp.petId = :petId")
+    List<Long> findRoutineIdsByPetId(@Param("petId") Long petId);
+
+    /** 특정 개체에 연결되었고 소유자가 :userId 인 루틴 id */
+    @Query("""
+            SELECT rp.routineId FROM RoutinePetRls rp, RoutineMst r
+            WHERE rp.routineId = r.id AND rp.petId = :petId AND r.userId = :userId
+            """)
+    List<Long> findRoutineIdsByPetIdAndOwner(@Param("petId") Long petId, @Param("userId") Long userId);
 }
