@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
@@ -6,6 +7,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/confirm_modal.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../pet/share/providers/share_provider.dart';
 
 class MyScreen extends ConsumerWidget {
   const MyScreen({super.key});
@@ -66,11 +68,15 @@ class MyScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 24),
 
+            // 내 공유코드 — 다른 사육자가 이 코드로 나를 개체 공유/입분양 대상으로 지정
+            const _ShareCodeCard(),
+            const SizedBox(height: 24),
+
             // 메뉴 그룹 1
             _MenuItem(
-              icon: Icons.group_outlined,
-              label: '그룹 관리',
-              onTap: () => context.push('/groups/management'),
+              icon: Icons.mail_outline,
+              label: '받은 공유 초대',
+              onTap: () => context.push('/share/inbox'),
             ),
             _MenuItem(
               icon: Icons.notifications_outlined,
@@ -126,6 +132,62 @@ class MyScreen extends ConsumerWidget {
             const SizedBox(height: 12),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// 내 공유코드 카드 — 조회 시 서버가 없으면 발급. 복사 지원.
+class _ShareCodeCard extends ConsumerWidget {
+  const _ShareCodeCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final codeAsync = ref.watch(myShareCodeProvider);
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.bg2,
+        border: Border.all(color: AppColors.paleLine),
+      ),
+      child: Row(
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('내 공유코드', style: AppTextStyles.label),
+              const SizedBox(height: 4),
+              codeAsync.when(
+                loading: () => Text('발급 중...', style: AppTextStyles.h3),
+                error: (_, __) =>
+                    Text('불러오기 실패', style: AppTextStyles.caption),
+                data: (code) => Text(
+                  code,
+                  style: AppTextStyles.h3.copyWith(
+                    letterSpacing: 2.0,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const Spacer(),
+          codeAsync.maybeWhen(
+            data: (code) => IconButton(
+              icon: const Icon(Icons.copy, size: 18),
+              color: AppColors.textSecondary,
+              onPressed: () async {
+                await Clipboard.setData(ClipboardData(text: code));
+                if (context.mounted) {
+                  ToastMessage.show(context, '공유코드를 복사했어요');
+                }
+              },
+            ),
+            orElse: () => const SizedBox.shrink(),
+          ),
+        ],
       ),
     );
   }

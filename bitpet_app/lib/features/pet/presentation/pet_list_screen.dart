@@ -8,62 +8,183 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/skeleton_loader.dart';
 import '../data/models/pet_models.dart';
 import '../providers/pet_provider.dart';
+import '../share/data/models/share_models.dart';
+import '../share/presentation/bulk_share_sheet.dart';
+
+/// 개체 다중 선택 모드 on/off (함께 키우기·분양 보내기용)
+final petSelectionModeProvider = StateProvider.autoDispose<bool>((_) => false);
+
+/// 선택된 개체 id 집합
+final selectedPetIdsProvider = StateProvider.autoDispose<Set<int>>((_) => {});
+
+void _togglePet(WidgetRef ref, int id) {
+  final set = {...ref.read(selectedPetIdsProvider)};
+  if (!set.add(id)) set.remove(id);
+  ref.read(selectedPetIdsProvider.notifier).state = set;
+}
+
+void _exitSelection(WidgetRef ref) {
+  ref.read(petSelectionModeProvider.notifier).state = false;
+  ref.read(selectedPetIdsProvider.notifier).state = {};
+}
 
 class PetListScreen extends ConsumerWidget {
   const PetListScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final selecting = ref.watch(petSelectionModeProvider);
+    final selectedCount = ref.watch(selectedPetIdsProvider).length;
+
     return Scaffold(
       backgroundColor: AppColors.bg,
-      appBar: AppBar(
-        backgroundColor: AppColors.bg,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('manage',
-                style: AppTextStyles.label.copyWith(
-                    fontSize: 11,
-                    color: AppColors.textDisabled,
-                    letterSpacing: 1.5)),
-            const Text('내 개체 관리'),
-          ],
-        ),
-        titleSpacing: 20,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: TextButton.icon(
-              onPressed: () => context.push('/pets/bulk-new'),
-              icon: const Icon(Icons.library_add_outlined, size: 15),
-              label: const Text('일괄'),
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.paleInk2,
-                minimumSize: const Size(0, 36),
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: ElevatedButton.icon(
-              onPressed: () => context.push('/pets/new'),
-              icon: const Icon(Icons.add, size: 16),
-              label: const Text('추가'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                minimumSize: const Size(0, 36),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
-                textStyle: AppTextStyles.bodyBold.copyWith(fontSize: 13),
-              ),
-            ),
-          ),
+      appBar: selecting
+          ? _selectionAppBar(context, ref, selectedCount)
+          : _normalAppBar(context, ref),
+      body: const _PetTab(),
+      bottomNavigationBar:
+          selecting ? const _ShareActionBar() : null,
+    );
+  }
+
+  PreferredSizeWidget _normalAppBar(BuildContext context, WidgetRef ref) {
+    return AppBar(
+      backgroundColor: AppColors.bg,
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('manage',
+              style: AppTextStyles.label.copyWith(
+                  fontSize: 11,
+                  color: AppColors.textDisabled,
+                  letterSpacing: 1.5)),
+          const Text('내 개체 관리'),
         ],
       ),
-      body: const _PetTab(),
+      titleSpacing: 20,
+      actions: [
+        TextButton.icon(
+          onPressed: () =>
+              ref.read(petSelectionModeProvider.notifier).state = true,
+          icon: const Icon(Icons.checklist, size: 15),
+          label: const Text('선택'),
+          style: TextButton.styleFrom(
+            foregroundColor: AppColors.paleInk2,
+            minimumSize: const Size(0, 36),
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            textStyle:
+                const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+        ),
+        TextButton.icon(
+          onPressed: () => context.push('/pets/bulk-new'),
+          icon: const Icon(Icons.library_add_outlined, size: 15),
+          label: const Text('일괄'),
+          style: TextButton.styleFrom(
+            foregroundColor: AppColors.paleInk2,
+            minimumSize: const Size(0, 36),
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            textStyle:
+                const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(right: 16, left: 4),
+          child: ElevatedButton.icon(
+            onPressed: () => context.push('/pets/new'),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('추가'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              minimumSize: const Size(0, 36),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
+              textStyle: AppTextStyles.bodyBold.copyWith(fontSize: 13),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  PreferredSizeWidget _selectionAppBar(
+      BuildContext context, WidgetRef ref, int count) {
+    return AppBar(
+      backgroundColor: AppColors.bg,
+      leading: IconButton(
+        icon: const Icon(Icons.close),
+        onPressed: () => _exitSelection(ref),
+      ),
+      title: Text(count == 0 ? '개체 선택' : '$count마리 선택됨'),
+      titleSpacing: 0,
+    );
+  }
+}
+
+// ── 하단 공유 액션바 (선택 모드) ────────────────────────────────────────────
+
+class _ShareActionBar extends ConsumerWidget {
+  const _ShareActionBar();
+
+  Future<void> _startShare(
+      BuildContext context, WidgetRef ref, ShareInviteType type) async {
+    final ids = ref.read(selectedPetIdsProvider).toList();
+    if (ids.isEmpty) return;
+    final ok = await showBulkShareSheet(context, petIds: ids, inviteType: type);
+    if (ok == true) {
+      _exitSelection(ref);
+      ref.read(petListProvider.notifier).load();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hasSelection = ref.watch(selectedPetIdsProvider).isNotEmpty;
+    return SafeArea(
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          border: Border(top: BorderSide(color: AppColors.paleLine)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: hasSelection
+                    ? () =>
+                        _startShare(context, ref, ShareInviteType.share)
+                    : null,
+                icon: const Icon(Icons.group_add, size: 18),
+                label: const Text('함께 키우기'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: BorderSide(
+                      color: hasSelection
+                          ? AppColors.primary
+                          : AppColors.paleLine),
+                  minimumSize: const Size(0, 46),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: hasSelection
+                    ? () =>
+                        _startShare(context, ref, ShareInviteType.transfer)
+                    : null,
+                icon: const Icon(Icons.swap_horiz, size: 18),
+                label: const Text('분양 보내기'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.error,
+                  minimumSize: const Size(0, 46),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -229,7 +350,7 @@ class _PetGrid extends StatelessWidget {
   }
 }
 
-class _PetCard extends StatelessWidget {
+class _PetCard extends ConsumerWidget {
   final Pet pet;
   const _PetCard({required this.pet});
 
@@ -255,13 +376,21 @@ class _PetCard extends StatelessWidget {
       };
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selecting = ref.watch(petSelectionModeProvider);
+    final selected = ref.watch(selectedPetIdsProvider).contains(pet.id);
+
     return GestureDetector(
-      onTap: () => context.push('/pets/${pet.id}'),
+      onTap: selecting
+          ? () => _togglePet(ref, pet.id)
+          : () => context.push('/pets/${pet.id}'),
       child: Container(
         decoration: BoxDecoration(
           color: AppColors.surface,
-          border: Border.all(color: AppColors.border),
+          border: Border.all(
+            color: selected ? AppColors.primary : AppColors.border,
+            width: selected ? 2 : 1,
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -281,6 +410,12 @@ class _PetCard extends StatelessWidget {
                                 errorBuilder: (_, __, ___) => _spriteIcon())
                         : _spriteIcon(),
                   ),
+                  if (selecting)
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: _CheckBadge(selected: selected),
+                    ),
                   Positioned(
                     top: 8,
                     right: 8,
@@ -337,6 +472,30 @@ class _PetCard extends StatelessWidget {
           size: 48, color: AppColors.primary.withValues(alpha: 0.3)));
 }
 
+/// 선택 모드 체크 배지
+class _CheckBadge extends StatelessWidget {
+  final bool selected;
+  const _CheckBadge({required this.selected});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 22,
+      height: 22,
+      decoration: BoxDecoration(
+        color: selected ? AppColors.primary : AppColors.surface.withValues(alpha: 0.9),
+        shape: BoxShape.circle,
+        border: Border.all(
+            color: selected ? AppColors.primary : AppColors.textDisabled,
+            width: 1.5),
+      ),
+      child: selected
+          ? const Icon(Icons.check, size: 14, color: Colors.white)
+          : null,
+    );
+  }
+}
+
 class _PetListView extends StatelessWidget {
   final List<Pet> pets;
   const _PetListView({required this.pets});
@@ -347,24 +506,39 @@ class _PetListView extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       itemCount: pets.length,
       separatorBuilder: (_, __) => const SizedBox(height: 8),
-      itemBuilder: (_, i) {
-        final pet = pets[i];
-        return ListTile(
-          onTap: () => context.push('/pets/${pet.id}'),
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          shape: const RoundedRectangleBorder(
-              side: BorderSide(color: AppColors.border)),
-          tileColor: AppColors.surface,
-          leading: _PetAvatarSmall(pet: pet),
-          title: Text(pet.name, style: AppTextStyles.bodyBold),
-          subtitle: Text(pet.speciesName, style: AppTextStyles.caption),
-          trailing: pet.latestWeightG != null
-              ? Text('${pet.latestWeightG!.toStringAsFixed(0)}g',
-                  style: AppTextStyles.caption)
-              : null,
-        );
-      },
+      itemBuilder: (_, i) => _PetListTile(pet: pets[i]),
+    );
+  }
+}
+
+class _PetListTile extends ConsumerWidget {
+  final Pet pet;
+  const _PetListTile({required this.pet});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selecting = ref.watch(petSelectionModeProvider);
+    final selected = ref.watch(selectedPetIdsProvider).contains(pet.id);
+
+    return ListTile(
+      onTap: selecting
+          ? () => _togglePet(ref, pet.id)
+          : () => context.push('/pets/${pet.id}'),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      shape: RoundedRectangleBorder(
+          side: BorderSide(
+              color: selected ? AppColors.primary : AppColors.border,
+              width: selected ? 2 : 1)),
+      tileColor: AppColors.surface,
+      leading: selecting
+          ? _CheckBadge(selected: selected)
+          : _PetAvatarSmall(pet: pet),
+      title: Text(pet.name, style: AppTextStyles.bodyBold),
+      subtitle: Text(pet.speciesName, style: AppTextStyles.caption),
+      trailing: pet.latestWeightG != null
+          ? Text('${pet.latestWeightG!.toStringAsFixed(0)}g',
+              style: AppTextStyles.caption)
+          : null,
     );
   }
 }

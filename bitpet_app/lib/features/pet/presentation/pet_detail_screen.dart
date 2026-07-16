@@ -197,6 +197,21 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
           ),
         ),
         PopupMenuItem(
+          value: 'share',
+          height: 44,
+          child: Row(
+            children: const [
+              Icon(Icons.ios_share, size: 16, color: AppColors.textSecondary),
+              SizedBox(width: 8),
+              Text('공유 관리',
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary)),
+            ],
+          ),
+        ),
+        PopupMenuItem(
           value: 'delete',
           height: 44,
           child: Row(
@@ -218,6 +233,7 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
     switch (action) {
       case 'farewell': await _handleFarewell(pet.name);
       case 'revert':   await _handleRevertFarewell();
+      case 'share':    context.push('/pets/${widget.petId}/share');
       case 'delete':   await _handleDelete(pet.name);
     }
   }

@@ -114,7 +114,6 @@ class TodayPetStatus {
 class Routine {
   final int id;
   final int userId;
-  final int? groupId; // 소속 사육 그룹 (null = 개인 루틴)
   final RoutineType routineType;
   final String title;
   final int cycleDays;
@@ -132,7 +131,6 @@ class Routine {
   const Routine({
     required this.id,
     required this.userId,
-    this.groupId,
     required this.routineType,
     required this.title,
     required this.cycleDays,
@@ -151,7 +149,6 @@ class Routine {
   factory Routine.fromJson(Map<String, dynamic> json) => Routine(
         id: json['id'] as int,
         userId: json['userId'] as int,
-        groupId: json['groupId'] as int?,
         routineType: RoutineType.values.firstWhere(
           (e) => e.name == json['routineType'],
           orElse: () => RoutineType.CUSTOM,

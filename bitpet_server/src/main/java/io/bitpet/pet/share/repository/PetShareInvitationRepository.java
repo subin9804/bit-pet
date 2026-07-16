@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 public interface PetShareInvitationRepository
         extends JpaRepository<PetShareInvitation, Long> {
@@ -21,4 +22,8 @@ public interface PetShareInvitationRepository
     /** 동일 개체·대상 PENDING 중복 확인 */
     Optional<PetShareInvitation> findByPetIdAndInviteeUserIdAndStatus(
             Long petId, Long inviteeUserId, ShareInviteStatus status);
+
+    /** 배치 단위 조회 — 받은 사람이 배치 전체를 수락/거절할 때 */
+    List<PetShareInvitation> findAllByBatchIdAndInviteeUserIdAndStatus(
+            UUID batchId, Long inviteeUserId, ShareInviteStatus status);
 }

@@ -16,6 +16,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.UUID;
 
 @Entity
 @Getter
@@ -23,7 +24,8 @@ import java.time.Instant;
         name = "pet_share_invitation",
         indexes = {
                 @Index(name = "idx_pet_share_inv_invitee", columnList = "invitee_user_id, status"),
-                @Index(name = "idx_pet_share_inv_pet",     columnList = "pet_id, status")
+                @Index(name = "idx_pet_share_inv_pet",     columnList = "pet_id, status"),
+                @Index(name = "idx_pet_share_inv_batch",   columnList = "batch_id")
         }
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -41,6 +43,10 @@ public class PetShareInvitation {
 
     @Column(name = "invitee_user_id", nullable = false)
     private Long inviteeUserId;
+
+    /** 벌크 초대 그룹 식별자 (단건 초대도 고유 배치 1건) */
+    @Column(name = "batch_id", nullable = false, updatable = false)
+    private UUID batchId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "invite_type", nullable = false, length = 20)
@@ -64,11 +70,12 @@ public class PetShareInvitation {
 
     @Builder
     private PetShareInvitation(Long petId, Long inviterUserId, Long inviteeUserId,
-                               ShareInviteType inviteType) {
+                               ShareInviteType inviteType, UUID batchId) {
         this.petId          = petId;
         this.inviterUserId  = inviterUserId;
         this.inviteeUserId  = inviteeUserId;
         this.inviteType     = inviteType;
+        this.batchId        = batchId != null ? batchId : UUID.randomUUID();
         this.status         = ShareInviteStatus.PENDING;
         this.createdAt      = Instant.now();
         this.expiresAt      = this.createdAt.plus(TTL);

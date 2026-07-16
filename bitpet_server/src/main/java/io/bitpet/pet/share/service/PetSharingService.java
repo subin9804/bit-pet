@@ -12,8 +12,10 @@ import io.bitpet.pet.service.PetKeeperService;
 import io.bitpet.pet.share.domain.PetShareInvitation;
 import io.bitpet.pet.share.domain.ShareInviteStatus;
 import io.bitpet.pet.share.domain.ShareInviteType;
+import io.bitpet.pet.share.dto.BulkShareInviteRequest;
 import io.bitpet.pet.share.dto.KeeperResponse;
 import io.bitpet.pet.share.dto.ShareCodeResponse;
+import io.bitpet.pet.share.dto.ShareInvitationBatchResponse;
 import io.bitpet.pet.share.dto.ShareInviteRequest;
 import io.bitpet.pet.share.dto.ShareInvitationResponse;
 import io.bitpet.pet.share.repository.PetShareInvitationRepository;
@@ -22,7 +24,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 /**
  * 개체 공유(SHARE)·입분양(TRANSFER) 초대 처리.
@@ -70,8 +77,50 @@ public class PetSharingService {
                 .inviterUserId(ownerUserId)
                 .inviteeUserId(invitee.getId())
                 .inviteType(req.inviteType())
+                .batchId(UUID.randomUUID())   // 단건도 고유 배치 1건
                 .build());
         return toResponse(saved);
+    }
+
+    /**
+     * 여러 개체를 한 번에 초대 (같은 batch_id 공유).
+     * - 소유권 검증: petIds 중 하나라도 소유자가 아니면 403 (전체 실패)
+     * - 이미 사육자(SHARE)이거나 대기중인 개체는 건너뜀
+     * - 유효한 개체가 하나도 없으면 SHARE_BULK_NO_VALID_PET
+     */
+    @Transactional
+    public ShareInvitationBatchResponse inviteBulk(Long ownerUserId, BulkShareInviteRequest req) {
+        UserMst invitee = userRepository.findByShareCode(req.shareCode().toUpperCase())
+                .orElseThrow(() -> new BusinessException(ErrorCode.SHARE_CODE_INVALID));
+        if (invitee.getId().equals(ownerUserId)) {
+            throw new BusinessException(ErrorCode.SHARE_SELF);
+        }
+
+        UUID batchId = UUID.randomUUID();
+        List<PetShareInvitation> created = new ArrayList<>();
+        for (Long petId : new LinkedHashSet<>(req.petIds())) {   // 중복 제거, 순서 보존
+            petKeeper.assertOwner(ownerUserId, petId);           // 소유권 — 하나라도 아니면 403
+
+            if (req.inviteType() == ShareInviteType.SHARE
+                    && keeperRepository.existsByIdPetIdAndIdUserId(petId, invitee.getId())) {
+                continue;   // 이미 사육자 — 건너뜀
+            }
+            if (invitationRepository.findByPetIdAndInviteeUserIdAndStatus(
+                    petId, invitee.getId(), ShareInviteStatus.PENDING).isPresent()) {
+                continue;   // 이미 대기중 — 건너뜀
+            }
+            created.add(invitationRepository.save(PetShareInvitation.builder()
+                    .petId(petId)
+                    .inviterUserId(ownerUserId)
+                    .inviteeUserId(invitee.getId())
+                    .inviteType(req.inviteType())
+                    .batchId(batchId)
+                    .build()));
+        }
+        if (created.isEmpty()) {
+            throw new BusinessException(ErrorCode.SHARE_BULK_NO_VALID_PET);
+        }
+        return toBatchResponse(created);
     }
 
     // -------------------------------------------------------------------------
@@ -86,6 +135,22 @@ public class PetSharingService {
                 .stream()
                 .filter(this::keepIfNotExpired)
                 .map(this::toResponse).toList();
+    }
+
+    /** 내가 받은 대기중 초대함 — batch_id 로 묶어 반환 (최신 배치 우선) */
+    @Transactional
+    public List<ShareInvitationBatchResponse> listReceivedBatches(Long userId) {
+        List<PetShareInvitation> pending = invitationRepository
+                .findAllByInviteeUserIdAndStatusOrderByCreatedAtDesc(userId, ShareInviteStatus.PENDING)
+                .stream()
+                .filter(this::keepIfNotExpired)
+                .toList();
+        // createdAt desc 순서 보존하며 batch_id 로 그룹핑
+        Map<UUID, List<PetShareInvitation>> byBatch = new LinkedHashMap<>();
+        for (PetShareInvitation inv : pending) {
+            byBatch.computeIfAbsent(inv.getBatchId(), k -> new ArrayList<>()).add(inv);
+        }
+        return byBatch.values().stream().map(this::toBatchResponse).toList();
     }
 
     /** 특정 개체에 대해 내가 보낸 대기중 초대 (소유자 전용, 만료분은 EXPIRED 전환 후 제외) */
@@ -115,22 +180,57 @@ public class PetSharingService {
     @Transactional
     public void accept(Long userId, Long invitationId) {
         PetShareInvitation inv = loadPendingForInvitee(userId, invitationId);
-
-        if (inv.getInviteType() == ShareInviteType.TRANSFER) {
-            transferOwnership(inv.getPetId(), inv.getInviterUserId(), userId);
-        } else {
-            // SHARE — 이미 사육자가 아니면 KEEPER 추가
-            if (!keeperRepository.existsByIdPetIdAndIdUserId(inv.getPetId(), userId)) {
-                petKeeper.registerKeeper(inv.getPetId(), userId);
-            }
-        }
-        inv.accept();
+        applyAccept(inv);
     }
 
     @Transactional
     public void reject(Long userId, Long invitationId) {
         PetShareInvitation inv = loadPendingForInvitee(userId, invitationId);
         inv.reject();
+    }
+
+    /** 배치 전체 수락 — 만료된 건은 EXPIRED 처리 후 건너뜀 */
+    @Transactional
+    public void acceptBatch(Long userId, UUID batchId) {
+        List<PetShareInvitation> items = invitationRepository
+                .findAllByBatchIdAndInviteeUserIdAndStatus(batchId, userId, ShareInviteStatus.PENDING);
+        if (items.isEmpty()) {
+            throw new BusinessException(ErrorCode.SHARE_INVITATION_NOT_FOUND);
+        }
+        for (PetShareInvitation inv : items) {
+            if (inv.isExpired()) {
+                inv.expire();
+                continue;
+            }
+            applyAccept(inv);
+        }
+    }
+
+    /** 배치 전체 거절 */
+    @Transactional
+    public void rejectBatch(Long userId, UUID batchId) {
+        List<PetShareInvitation> items = invitationRepository
+                .findAllByBatchIdAndInviteeUserIdAndStatus(batchId, userId, ShareInviteStatus.PENDING);
+        if (items.isEmpty()) {
+            throw new BusinessException(ErrorCode.SHARE_INVITATION_NOT_FOUND);
+        }
+        for (PetShareInvitation inv : items) {
+            inv.reject();
+        }
+    }
+
+    /** 단건 수락 실행 (accept/acceptBatch 공용) */
+    private void applyAccept(PetShareInvitation inv) {
+        Long inviteeUserId = inv.getInviteeUserId();
+        if (inv.getInviteType() == ShareInviteType.TRANSFER) {
+            transferOwnership(inv.getPetId(), inv.getInviterUserId(), inviteeUserId);
+        } else {
+            // SHARE — 이미 사육자가 아니면 KEEPER 추가
+            if (!keeperRepository.existsByIdPetIdAndIdUserId(inv.getPetId(), inviteeUserId)) {
+                petKeeper.registerKeeper(inv.getPetId(), inviteeUserId);
+            }
+        }
+        inv.accept();
     }
 
     // -------------------------------------------------------------------------
@@ -251,11 +351,21 @@ public class PetSharingService {
     }
 
     private ShareInvitationResponse toResponse(PetShareInvitation inv) {
-        String petName = petRepository.findById(inv.getPetId())
-                .map(PetMst::getName).orElse(null);
+        String petName = petName(inv.getPetId());
         String inviterName = userName(inv.getInviterUserId());
         String inviteeName = userName(inv.getInviteeUserId());
         return ShareInvitationResponse.of(inv, petName, inviterName, inviteeName);
+    }
+
+    private ShareInvitationBatchResponse toBatchResponse(List<PetShareInvitation> items) {
+        PetShareInvitation head = items.get(0);
+        String inviterName = userName(head.getInviterUserId());
+        String inviteeName = userName(head.getInviteeUserId());
+        return ShareInvitationBatchResponse.of(items, this::petName, inviterName, inviteeName);
+    }
+
+    private String petName(Long petId) {
+        return petRepository.findById(petId).map(PetMst::getName).orElse(null);
     }
 
     private KeeperResponse toKeeperResponse(PetKeeperRls k) {

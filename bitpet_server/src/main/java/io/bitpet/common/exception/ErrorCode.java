@@ -98,6 +98,7 @@ public enum ErrorCode {
     SHARE_INVITATION_NOT_PENDING(HttpStatus.BAD_REQUEST, "이미 처리된 공유 요청입니다."),
     SHARE_INVITATION_EXPIRED(HttpStatus.GONE, "만료된 공유 요청입니다."),
     SHARE_INVITATION_FORBIDDEN(HttpStatus.FORBIDDEN, "이 공유 요청에 대한 권한이 없습니다."),
+    SHARE_BULK_NO_VALID_PET(HttpStatus.CONFLICT, "초대할 수 있는 개체가 없습니다. (이미 공유했거나 대기 중)"),
 
     // --- Community ---
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "Post not found"),

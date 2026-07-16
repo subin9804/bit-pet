@@ -20,8 +20,8 @@ import '../../features/community/presentation/post_detail_screen.dart';
 import '../../features/community/presentation/post_compose_screen.dart';
 import '../../features/routine/presentation/routines_page.dart';
 import '../../features/routine/presentation/routine_form_screen.dart';
-import '../../features/group/presentation/group_setup_screen.dart';
-import '../../features/group/presentation/group_management_screen.dart';
+import '../../features/pet/share/presentation/pet_share_screen.dart';
+import '../../features/pet/share/presentation/share_inbox_screen.dart';
 import '../../features/my/presentation/my_screen.dart';
 import '../../features/notification/data/notification_repository.dart';
 import '../../features/notification/data/models/notification_models.dart';
@@ -60,7 +60,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/password-reset/confirm',
         builder: (_, __) => const PasswordResetConfirmScreen(),
       ),
-      GoRoute(path: '/groups/setup', builder: (_, __) => const GroupSetupScreen()),
       ShellRoute(
         builder: (context, state, child) => HomeScreen(
           child: child,
@@ -135,8 +134,14 @@ final routerProvider = Provider<GoRouter>((ref) {
                 postId: int.tryParse(state.pathParameters['id']!)),
           ),
           GoRoute(path: '/my', builder: (_, __) => const MyScreen()),
-          GoRoute(path: '/groups/management',
-              builder: (_, __) => const GroupManagementScreen()),
+          // 받은 공유·입분양 초대함
+          GoRoute(path: '/share/inbox', builder: (_, __) => const ShareInboxScreen()),
+          // 개체별 공유 관리 (소유자)
+          GoRoute(
+            path: '/pets/:id/share',
+            builder: (_, state) =>
+                PetShareScreen(petId: int.parse(state.pathParameters['id']!)),
+          ),
         ],
       ),
     ],

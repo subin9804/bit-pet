@@ -15,7 +15,6 @@ import '../../routine/data/models/routine_models.dart';
 import '../../routine/providers/routine_provider.dart';
 import '../../routine/presentation/bulk_confirm_sheet.dart';
 import '../../routine/presentation/per_pet_confirm_sheet.dart';
-import '../../group/providers/group_provider.dart';
 
 // ignore_for_file: prefer_const_constructors_in_immutables
 
@@ -58,15 +57,6 @@ class _DashboardTabState extends ConsumerState<DashboardTab>
   Widget build(BuildContext context) {
     final authAsync    = ref.watch(authStateProvider);
     final userName     = authAsync.valueOrNull?.name ?? '사용자';
-
-    ref.listen(myGroupProvider, (_, next) {
-      next.whenData((group) {
-        if (group == null) {
-          WidgetsBinding.instance.addPostFrameCallback(
-              (_) => context.go('/groups/setup'));
-        }
-      });
-    });
 
     final todayAsync   = ref.watch(todayRoutinesProvider);
     final recentAsync  = ref.watch(recentRecordsProvider);

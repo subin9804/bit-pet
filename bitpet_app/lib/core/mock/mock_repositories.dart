@@ -6,8 +6,6 @@ import '../../features/auth/data/models/auth_models.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/community/data/post_repository.dart';
 import '../../features/community/data/models/post_models.dart';
-import '../../features/group/data/group_repository.dart';
-import '../../features/group/data/models/group_models.dart';
 import '../../features/notification/data/notification_repository.dart';
 import '../../features/notification/data/models/notification_models.dart';
 import '../../features/pet/data/pet_repository.dart';
@@ -310,6 +308,11 @@ class MockAuthRepository extends AuthRepository {
 
   @override
   Future<bool> get isLoggedIn async => true;
+
+  // AuthNotifier._init()이 isLoggedIn 이후 getMe()를 호출한다.
+  // 오버라이드하지 않으면 실제 네트워크로 나가 실패 → 강제 logout → 미로그인 상태가 됨.
+  @override
+  Future<UserProfile> getMe() async => _mockUser;
 
   @override
   Future<UserProfile> login(LoginRequest request, {bool keepLoggedIn = true}) async => _mockUser;
@@ -846,71 +849,6 @@ class MockPhotoRepository extends PhotoRepository {
 // Riverpod overrides — main.dart에서 사용
 // ────────────────────────────────────────────────────────────────────
 
-// ────────────────────────────────────────────────────────────────────
-// Group Mock
-// ────────────────────────────────────────────────────────────────────
-
-class MockGroupRepository extends GroupRepository {
-  MockGroupRepository() : super(Dio());
-
-  GroupInfo? _group; // null = 그룹 없음 (설정 화면 진입)
-
-  // 유효한 초대코드로 취급할 mock 코드
-  static const _validCode = 'MOCK01';
-
-  @override
-  Future<GroupInfo?> getMyGroup() async => _group;
-
-  @override
-  Future<GroupInfo> createGroup(String name) async {
-    _group = GroupInfo(
-      id: 1, name: name,
-      ownerId: 1, myRole: GroupRole.owner,
-      members: [GroupMember(userId: 1, name: '테스트',
-          role: GroupRole.owner, joinedAt: DateTime.now())],
-    );
-    return _group!;
-  }
-
-  @override
-  Future<InviteCode> issueInviteCode() async =>
-      const InviteCode(code: _validCode, expiresInSeconds: 300);
-
-  @override
-  Future<GroupInfo> joinGroup(String inviteCode) async {
-    if (inviteCode != _validCode) {
-      throw ApiException(
-        statusCode: 400,
-        message: 'Invalid invite code',
-        errorCode: 'GROUP_INVITE_CODE_INVALID',
-      );
-    }
-    _group = GroupInfo(
-      id: 2, name: '공동 사육실',
-      ownerId: 2, myRole: GroupRole.member,
-      members: [GroupMember(userId: 2, name: '다른사람',
-          role: GroupRole.owner, joinedAt: DateTime.now())],
-    );
-    return _group!;
-  }
-
-  @override
-  Future<GroupInfo> updateGroupName(String name) async {
-    _group = GroupInfo(
-      id: _group!.id, name: name,
-      ownerId: _group!.ownerId, myRole: _group!.myRole,
-      members: _group!.members,
-    );
-    return _group!;
-  }
-
-  @override
-  Future<void> leaveOrDisband() async => _group = null;
-
-  @override
-  Future<void> kickMember(int userId) async {}
-}
-
 List<Override> buildMockOverrides() => [
       authRepositoryProvider.overrideWithValue(MockAuthRepository()),
       authStateProvider.overrideWith((ref) => MockAuthNotifier()),
@@ -921,5 +859,4 @@ List<Override> buildMockOverrides() => [
           .overrideWithValue(MockNotificationRepository()),
       postRepositoryProvider.overrideWithValue(MockPostRepository()),
       photoRepositoryProvider.overrideWithValue(MockPhotoRepository()),
-      groupRepositoryProvider.overrideWithValue(MockGroupRepository()),
     ];
