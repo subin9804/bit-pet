@@ -117,8 +117,9 @@ class MemoTag {
 
   factory MemoTag.fromJson(Map<String, dynamic> json) => MemoTag(
         code: json['code'] as String,
-        labelKo: json['labelKo'] as String,
-        displayOrder: json['displayOrder'] as int,
+        // 서버 응답 키는 label/order (labelKo/displayOrder 아님) — 하위호환 위해 둘 다 허용
+        labelKo: (json['label'] ?? json['labelKo']) as String,
+        displayOrder: (json['order'] ?? json['displayOrder']) as int,
       );
 }
 

@@ -23,6 +23,7 @@ import io.bitpet.routine.domain.RoutineType;
 import io.bitpet.routine.dto.RoutineCompleteBatchRequest;
 import io.bitpet.routine.dto.RoutineCompleteIndividualRequest;
 import io.bitpet.routine.dto.FeedItemRequest;
+import io.bitpet.routine.dto.FeedItemResponse;
 import io.bitpet.routine.dto.RoutineCreateRequest;
 import io.bitpet.routine.dto.RoutineLogResponse;
 import io.bitpet.routine.dto.RoutineResponse;
@@ -35,6 +36,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -309,18 +311,18 @@ public class RoutineService {
         Instant executedAt = req.executedAt() != null ? req.executedAt() : Instant.now();
 
         if (req.status() == RoutineLogStatus.REFUSED) {
-            if (req.memo() == null || req.memo().isBlank()) {
-                return null; // REFUSED without memo → no record
-            }
-            RoutineLogDtl log = routineLogRepository.save(RoutineLogDtl.builder()
-                    .routineId(routineId)
-                    .petId(req.petId())
-                    .createdByUserId(userId)
-                    .status(RoutineLogStatus.REFUSED)
-                    .executedAt(executedAt)
-                    .memo(req.memo())
-                    .build());
-            return RoutineLogResponse.from(log);
+            // 미완료 — '이 개체 완료'는 안 눌렀지만 유저가 입력한 내용(급여·체중·메모 등)은 모두 저장.
+            // 입력한 게 하나도 없으면 남길 것이 없으므로 기록하지 않는다.
+            boolean hasData = (req.memo() != null && !req.memo().isBlank())
+                    || (req.feedItems() != null && !req.feedItems().isEmpty())
+                    || req.weightG() != null
+                    || req.cleaningType() != null;
+            if (!hasData) return null;
+            RoutineCompleteBatchRequest refusedReq = new RoutineCompleteBatchRequest(
+                    executedAt, req.feedItems(), req.cleaningType(), req.weightG(), req.memo()
+            );
+            return saveSingleLog(routine, req.petId(),
+                    RoutineLogStatus.REFUSED, executedAt, refusedReq);
         }
 
         RoutineCompleteBatchRequest batchReq = new RoutineCompleteBatchRequest(
@@ -336,38 +338,56 @@ public class RoutineService {
 
     public List<RoutineLogResponse> listLogs(Long userId, Long routineId) {
         findAccessibleRoutine(userId, routineId);
-        return routineLogRepository.findAllByRoutineId(routineId)
-                .stream().map(RoutineLogResponse::from).toList();
+        List<RoutineLogDtl> logs = routineLogRepository.findAllByRoutineId(routineId);
+        if (logs.isEmpty()) return List.of();
+
+        List<Long> logIds = logs.stream().map(RoutineLogDtl::getId).toList();
+
+        // 로그별 급여 항목·메모·체중 (routine_log_id 로 연결된 dtl 에서 파생)
+        Map<Long, List<FeedItemResponse>> feedByLog = new HashMap<>();
+        Map<Long, String> memoByLog = new HashMap<>();
+        Map<Long, java.math.BigDecimal> weightByLog = new HashMap<>();
+        for (FeedingDtl d : feedingRepository.findByRoutineLogIdIn(logIds)) {
+            feedByLog.computeIfAbsent(d.getRoutineLogId(), k -> new ArrayList<>())
+                    .add(FeedItemResponse.from(d));
+            if (d.getMemo() != null) memoByLog.putIfAbsent(d.getRoutineLogId(), d.getMemo());
+        }
+        for (WeightDtl d : weightRepository.findByRoutineLogIdIn(logIds)) {
+            weightByLog.putIfAbsent(d.getRoutineLogId(), d.getWeightG());
+            if (d.getMemo() != null) memoByLog.putIfAbsent(d.getRoutineLogId(), d.getMemo());
+        }
+        for (CleaningDtl d : cleaningRepository.findByRoutineLogIdIn(logIds)) {
+            if (d.getMemo() != null) memoByLog.putIfAbsent(d.getRoutineLogId(), d.getMemo());
+        }
+        // 미완료·커스텀 메모는 memo_dtl 에 저장됨
+        for (MemoDtl d : memoRepository.findByRoutineLogIdIn(logIds)) {
+            memoByLog.putIfAbsent(d.getRoutineLogId(), d.getContent());
+        }
+
+        return logs.stream()
+                .map(l -> RoutineLogResponse.from(l, memoByLog.get(l.getId()),
+                        weightByLog.get(l.getId()),
+                        feedByLog.getOrDefault(l.getId(), List.of())))
+                .toList();
     }
 
     @Transactional
     public void deleteLog(Long userId, Long logId) {
         RoutineLogDtl log = routineLogRepository.findById(logId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ROUTINE_LOG_NOT_FOUND));
-        RoutineMst routine = findAccessibleRoutine(userId, log.getRoutineId());
-        // 완료와 함께 생성된 짝 기록(급여·체중·청소·메모)도 함께 정리 —
+        findAccessibleRoutine(userId, log.getRoutineId());
+        // 이 로그에 연결된 짝 기록(급여·체중·청소·메모)도 함께 정리 —
         // 취소 시 기록이 남거나 재저장 시 중복되는 것을 방지
-        deletePairedDtl(routine, log.getPetId(), log.getExecutedAt());
+        deletePairedDtl(logId);
         routineLogRepository.delete(log);
     }
 
-    /** 루틴 완료 로그와 동일 시각으로 생성된 도메인 기록을 soft delete */
-    private void deletePairedDtl(RoutineMst routine, Long petId, Instant executedAt) {
-        if (executedAt == null) return;
-        switch (routine.getRoutineType()) {
-            case FEEDING -> feedingRepository
-                    .findAllByRoutineIdAndPetIdAndFedAt(routine.getId(), petId, executedAt)
-                    .forEach(FeedingDtl::softDelete);
-            case WEIGHT -> weightRepository
-                    .findAllByRoutineIdAndPetIdAndMeasuredAt(routine.getId(), petId, executedAt)
-                    .forEach(WeightDtl::softDelete);
-            case CLEANING -> cleaningRepository
-                    .findAllByRoutineIdAndPetIdAndCleanedAt(routine.getId(), petId, executedAt)
-                    .forEach(CleaningDtl::softDelete);
-            case CUSTOM -> memoRepository
-                    .findAllByRoutineIdAndPetIdAndLoggedAt(routine.getId(), petId, executedAt)
-                    .forEach(MemoDtl::softDelete);
-        }
+    /** routine_log_id 로 연결된 도메인 기록을 soft delete */
+    private void deletePairedDtl(Long logId) {
+        feedingRepository.findByRoutineLogId(logId).forEach(FeedingDtl::softDelete);
+        weightRepository.findByRoutineLogId(logId).forEach(WeightDtl::softDelete);
+        cleaningRepository.findByRoutineLogId(logId).forEach(CleaningDtl::softDelete);
+        memoRepository.findByRoutineLogId(logId).forEach(MemoDtl::softDelete);
     }
 
     // -------------------------------------------------------------------------
@@ -402,81 +422,103 @@ public class RoutineService {
     private RoutineLogResponse saveSingleLog(RoutineMst routine, Long petId,
                                               RoutineLogStatus status,
                                               Instant executedAt, RoutineCompleteBatchRequest req) {
-        if (routine.getRoutineType() == RoutineType.FEEDING) {
-            List<FeedItemRequest> items = req.feedItems() != null ? req.feedItems() : List.of();
-            for (FeedItemRequest item : items) {
-                feedingRepository.save(FeedingDtl.builder()
-                        .petId(petId)
-                        .routineId(routine.getId())
-                        .createdByUserId(routine.getUserId())
-                        .foodType(item.foodType() != null ? item.foodType() : "")
-                        .amount(item.amount())
-                        .unit(item.unit())
-                        .sizeLabel(item.sizeLabel())
-                        .supplement(item.supplement())
-                        .fedAt(executedAt)
-                        .memo(req.memo())
-                        .build());
-            }
-            RoutineLogDtl log = routineLogRepository.save(RoutineLogDtl.builder()
-                    .routineId(routine.getId())
-                    .petId(petId)
-                    .createdByUserId(routine.getUserId())
-                    .status(status)
-                    .executedAt(executedAt)
-                    .memo(req.memo())
-                    .build());
-            return RoutineLogResponse.from(log);
+        // 체중 실측값은 '완료(COMPLETED)'에서만 필수. 미완료는 값 없으면 체중 기록만 생략.
+        if (status == RoutineLogStatus.COMPLETED
+                && routine.getRoutineType() == RoutineType.WEIGHT && req.weightG() == null) {
+            throw new BusinessException(ErrorCode.ROUTINE_WEIGHT_REQUIRED);
         }
 
-        if (routine.getRoutineType() == RoutineType.CLEANING) {
-            CleaningType cleaningType = req.cleaningType() != null
-                    ? CleaningType.valueOf(req.cleaningType())
-                    : CleaningType.FULL;
-            cleaningRepository.save(CleaningDtl.builder()
-                    .petId(petId)
-                    .routineId(routine.getId())
-                    .createdByUserId(routine.getUserId())
-                    .cleaningType(cleaningType)
-                    .cleanedAt(executedAt)
-                    .memo(req.memo())
-                    .build());
-        }
+        final Long userId = routine.getUserId();
+        final String memo = (req.memo() != null && !req.memo().isBlank()) ? req.memo() : null;
 
-        if (routine.getRoutineType() == RoutineType.WEIGHT) {
-            // 체중 기록은 실측값이 필수 — 빈값 완료는 기록이 아님
-            if (req.weightG() == null) {
-                throw new BusinessException(ErrorCode.ROUTINE_WEIGHT_REQUIRED);
-            }
-            weightRepository.save(WeightDtl.builder()
-                    .petId(petId)
-                    .routineId(routine.getId())
-                    .createdByUserId(routine.getUserId())
-                    .weightG(req.weightG())
-                    .measuredAt(executedAt)
-                    .source(WeightSource.MANUAL)
-                    .memo(req.memo())
-                    .build());
-        }
-
-        if (routine.getRoutineType() == RoutineType.CUSTOM
-                && req.memo() != null && !req.memo().isBlank()) {
-            memoRepository.save(MemoDtl.builder()
-                    .petId(petId)
-                    .routineId(routine.getId())
-                    .createdByUserId(routine.getUserId())
-                    .content(req.memo())
-                    .loggedAt(executedAt)
-                    .build());
-        }
-
+        // 1) 로그를 먼저 저장해 dtl 이 참조할 id 확보 (memo 는 dtl 에 저장)
         RoutineLogDtl log = routineLogRepository.save(RoutineLogDtl.builder()
                 .routineId(routine.getId())
                 .petId(petId)
-                .createdByUserId(routine.getUserId())
+                .createdByUserId(userId)
                 .status(status)
                 .executedAt(executedAt)
                 .build());
-        return RoutineLogResponse.from(log);
+        Long logId = log.getId();
+
+        List<FeedItemResponse> feedItems = List.of();
+        boolean memoStored = false; // 메모를 담은 dtl 이 생성됐는지
+
+        switch (routine.getRoutineType()) {
+            case FEEDING -> {
+                List<FeedItemRequest> items = req.feedItems() != null ? req.feedItems() : List.of();
+                List<FeedItemResponse> saved = new ArrayList<>();
+                for (FeedItemRequest item : items) {
+                    FeedingDtl d = feedingRepository.save(FeedingDtl.builder()
+                            .petId(petId)
+                            .routineId(routine.getId())
+                            .routineLogId(logId)
+                            .createdByUserId(userId)
+                            .foodType(item.foodType() != null ? item.foodType() : "")
+                            .amount(item.amount())
+                            .unit(item.unit())
+                            .sizeLabel(item.sizeLabel())
+                            .supplement(item.supplement())
+                            .fedAt(executedAt)
+                            .memo(memo)
+                            .build());
+                    saved.add(FeedItemResponse.from(d));
+                }
+                feedItems = saved;
+                if (!items.isEmpty()) memoStored = true;
+            }
+            case CLEANING -> {
+                CleaningType cleaningType = req.cleaningType() != null
+                        ? CleaningType.valueOf(req.cleaningType())
+                        : CleaningType.FULL;
+                cleaningRepository.save(CleaningDtl.builder()
+                        .petId(petId)
+                        .routineId(routine.getId())
+                        .routineLogId(logId)
+                        .createdByUserId(userId)
+                        .cleaningType(cleaningType)
+                        .cleanedAt(executedAt)
+                        .memo(memo)
+                        .build());
+                memoStored = true;
+            }
+            case WEIGHT -> {
+                // 미완료는 값이 없을 수 있음 — 값이 있을 때만 체중 기록
+                if (req.weightG() != null) {
+                    weightRepository.save(WeightDtl.builder()
+                            .petId(petId)
+                            .routineId(routine.getId())
+                            .routineLogId(logId)
+                            .createdByUserId(userId)
+                            .weightG(req.weightG())
+                            .measuredAt(executedAt)
+                            .source(WeightSource.MANUAL)
+                            .memo(memo)
+                            .build());
+                    memoStored = true;
+                }
+            }
+            case CUSTOM -> {
+                if (memo != null) {
+                    memoRepository.save(MemoDtl.builder()
+                            .petId(petId)
+                            .routineId(routine.getId())
+                            .routineLogId(logId)
+                            .createdByUserId(userId)
+                            .content(memo)
+                            .loggedAt(executedAt)
+                            .build());
+                    memoStored = true;
+                }
+            }
+        }
+        // 메모는 있는데 담을 dtl 이 없었으면 memo_dtl 에 보관 (급여항목 없는 완료, 값 없는 체중 미완료 등)
+        if (memo != null && !memoStored) {
+            memoRepository.save(MemoDtl.builder()
+                    .petId(petId).routineId(routine.getId()).routineLogId(logId)
+                    .createdByUserId(userId).content(memo).loggedAt(executedAt).build());
+        }
+        BigDecimal weightG = routine.getRoutineType() == RoutineType.WEIGHT ? req.weightG() : null;
+        return RoutineLogResponse.from(log, memo, weightG, feedItems);
     }
 }

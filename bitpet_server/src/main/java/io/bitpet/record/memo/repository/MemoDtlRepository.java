@@ -23,9 +23,10 @@ public interface MemoDtlRepository extends JpaRepository<MemoDtl, Long> {
     List<MemoDtl> findAllByPetIdInAndLoggedAtBetweenOrderByLoggedAtDesc(
             List<Long> petIds, Instant from, Instant to);
 
-    /** 루틴 완료로 생성된 메모 기록 조회 (완료 취소·재저장 시 짝 정리용) */
-    List<MemoDtl> findAllByRoutineIdAndPetIdAndLoggedAt(
-            Long routineId, Long petId, Instant loggedAt);
+    /** 루틴 로그에 연결된 메모 기록 (짝 정리·재로딩용) */
+    List<MemoDtl> findByRoutineLogId(Long routineLogId);
+
+    List<MemoDtl> findByRoutineLogIdIn(java.util.Collection<Long> routineLogIds);
 
     @Query("""
             SELECT DISTINCT m FROM MemoDtl m

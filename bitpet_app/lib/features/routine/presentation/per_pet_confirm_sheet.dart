@@ -102,31 +102,38 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
     super.dispose();
   }
 
-  // ── 이미 완료된 개체의 저장 메모 로드 ─────────────────────────────
+  // ── 저장된 오늘 로그 복원 (메모·피딩 항목·체중, 완료/미완료 무관) ─────
   Future<void> _loadSavedLogs() async {
-    if (!mounted || !_pets.any((p) => p.isCompleted)) return;
+    if (!mounted) return;
     try {
       final logs = await ref.read(routineRepositoryProvider).getLogs(widget.routine.id);
-      final today = DateTime.now();
+      final now = DateTime.now();
       for (final pet in _pets) {
-        if (!pet.isCompleted) continue;
         final rec = _rec[pet.petId]!;
-        final log = logs.where((l) =>
-          l.petId == pet.petId &&
-          l.executedAt.year == today.year &&
-          l.executedAt.month == today.month &&
-          l.executedAt.day == today.day
-        ).lastOrNull;
-        if (log != null && mounted) {
-          setState(() {
-            rec.savedLogId = log.id;
-            if (log.memo != null) {
-              rec.memo = log.memo!;
-              rec.memoCtrl.text = log.memo!;
-            }
-          });
+        // executedAt은 UTC로 내려오므로 로컬로 변환해 '오늘'을 비교
+        final log = logs.where((l) {
+          final ex = l.executedAt.toLocal();
+          return l.petId == pet.petId &&
+              ex.year == now.year && ex.month == now.month && ex.day == now.day;
+        }).lastOrNull;
+        if (log == null) continue;
+        rec.savedLogId = log.id;
+        rec.done = log.status == RoutineLogStatus.COMPLETED;
+        if (log.memo != null && log.memo!.isNotEmpty) {
+          rec.memo = log.memo!;
+          rec.memoCtrl.text = log.memo!;
+          rec.memoOpen = true;
+        }
+        if (_isFeed && log.feedItems.isNotEmpty) {
+          rec.feedItems = log.feedItems;
+          rec.feedOpen = true;
+        }
+        if (_isWeight && log.weightG != null) {
+          rec.weight = log.weightG!.toString();
+          rec.weightCtrl.text = rec.weight;
         }
       }
+      if (mounted) setState(() {});
     } catch (_) {}
   }
 
@@ -140,7 +147,7 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
     }
     setState(() => _saving = true);
     try {
-      await _persist(pet);
+      await _persist(pet, completed: true);
       if (mounted) {
         setState(() {});
         showToast(context, '${pet.petName} 완료', type: ToastType.success);
@@ -153,9 +160,11 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
   }
 
   // ── 실제 저장 (신규 생성 또는 기존 로그 갈아끼우기) ─────────────────
-  // 이미 저장된 로그가 있으면 삭제 후 재생성 → 완료 뒤 수정한 메모·부가정보도 반영.
+  // completed=true  → 완료(COMPLETED), false → 미완료(REFUSED).
+  // 완료 여부와 무관하게 유저가 입력한 내용(피딩·체중·메모)은 모두 저장한다.
+  // 기존 로그가 있으면 삭제 후 재생성 → 완료↔미완료 전환·수정 반영.
   // (백엔드 deleteLog가 짝 급여·체중·청소·메모 기록까지 함께 정리)
-  Future<void> _persist(TodayPetStatus pet) async {
+  Future<void> _persist(TodayPetStatus pet, {required bool completed}) async {
     final rec  = _rec[pet.petId]!;
     final repo = ref.read(routineRepositoryProvider);
     final memo = rec.memo.trim().isEmpty ? null : rec.memo.trim();
@@ -168,17 +177,17 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
       widget.routine.id,
       RoutineCompleteIndividualRequest(
         petId:     pet.petId,
-        status:    RoutineLogStatus.COMPLETED,
+        status:    completed ? RoutineLogStatus.COMPLETED : RoutineLogStatus.REFUSED,
         feedItems: _isFeed ? rec.feedItems : const [],
         weightG:   _isWeight ? rec.weightG : null,
         memo:      memo,
       ),
     );
     rec.savedLogId = log?.id;
-    rec.done  = true;
+    rec.done  = completed;
     rec.dirty = false;
     ref.read(todayRoutinesProvider.notifier)
-        .updatePetStatus(widget.routine.id, pet.petId, true);
+        .updatePetStatus(widget.routine.id, pet.petId, completed);
   }
 
   // ── 완료 취소 (완료됨 버튼 → 로그 삭제) ───────────────────────────
@@ -206,29 +215,32 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
     }
   }
 
-  // ── 추가 데이터 존재 여부 (피딩 항목 또는 메모) ─────────────────────
-  // WEIGHT 루틴은 체중 미입력 시 서버가 거부하므로 체중이 있어야만 자동 저장 대상
-  bool _hasAdditionalData(TodayPetStatus pet) {
-    final rec = _rec[pet.petId]!;
-    if (_isWeight) return rec.weightG != null;
-    return rec.memo.trim().isNotEmpty ||
-        (_isFeed && rec.feedItems.isNotEmpty);
-  }
+  // ── 입력한 내용 존재 여부 (메모·피딩 항목·체중) ─────────────────────
+  bool _hasEnteredData(_PerPetRec rec) =>
+      rec.memo.trim().isNotEmpty ||
+      (_isFeed && rec.feedItems.isNotEmpty) ||
+      (_isWeight && rec.weightG != null);
 
   // ── 저장이 필요할 때만 저장 (다음/종료/슬라이드 트리거) ──────────
-  //  · 미완료: 입력한 추가 데이터가 있을 때 저장
-  //  · 완료됨: 완료 후 수정(dirty)이 있으면 갈아끼우기로 재저장
+  //  · 완료됨(버튼 누름): 이후 수정(dirty)이 있으면 완료 상태로 재저장
+  //  · 미완료: '이 개체 완료'를 안 눌렀어도, 입력한 내용(피딩·체중·메모)이
+  //           있으면 미완료(REFUSED)로 저장해 내용을 보존하고 나중에 다시 볼 수 있게 함.
   Future<void> _saveIfNeeded(TodayPetStatus pet) async {
     final rec = _rec[pet.petId]!;
     if (rec.done) {
       if (!rec.dirty) return;
-    } else if (!_hasAdditionalData(pet)) {
+      // 완료 상태 유지한 채 수정분 반영 (체중 미입력이면 서버 거부 → 스킵)
+      if (_isWeight && rec.weightG == null) return;
+      try {
+        await _persist(pet, completed: true);
+        if (mounted) setState(() {});
+      } catch (_) {}
       return;
     }
-    // 체중 루틴은 실측값 없으면 자동 저장 대상 아님 (서버가 거부)
-    if (_isWeight && rec.weightG == null) return;
+    // 완료 버튼을 안 눌렀어도 입력한 내용이 있으면 '미완료'로 저장
+    if (!_hasEnteredData(rec)) return;
     try {
-      await _persist(pet);
+      await _persist(pet, completed: false);
       if (mounted) setState(() {});
     } catch (_) {}
   }
@@ -559,7 +571,7 @@ class _PetPage extends StatelessWidget {
                     ? '다시 클릭하면 완료가 취소돼요'
                     : isWeight
                         ? '몸무게 입력 후 완료를 눌러주세요'
-                        : '피딩·메모 입력 후 다음으로 넘기면 자동 저장돼요',
+                        : '완료하려면 위 버튼 · 입력만 하고 넘기면 미완료로 저장돼요',
                 style: TextStyle(
                     fontSize: 11, fontWeight: FontWeight.w600,
                     color: AppColors.paleInk3),

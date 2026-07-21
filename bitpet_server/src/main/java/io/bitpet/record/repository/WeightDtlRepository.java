@@ -18,9 +18,10 @@ public interface WeightDtlRepository extends JpaRepository<WeightDtl, Long> {
     List<WeightDtl> findAllByPetIdInAndMeasuredAtBetweenOrderByMeasuredAtDesc(
             Collection<Long> petIds, java.time.Instant from, java.time.Instant to);
 
-    /** 루틴 완료로 생성된 체중 기록 조회 (완료 취소·재저장 시 짝 정리용) */
-    List<WeightDtl> findAllByRoutineIdAndPetIdAndMeasuredAt(
-            Long routineId, Long petId, java.time.Instant measuredAt);
+    /** 루틴 완료 로그에 연결된 체중 기록 (짝 정리·재로딩용) */
+    List<WeightDtl> findByRoutineLogId(Long routineLogId);
+
+    List<WeightDtl> findByRoutineLogIdIn(Collection<Long> routineLogIds);
 
     Optional<WeightDtl> findByClientIdAndClientChangeId(String clientId, UUID clientChangeId);
 }

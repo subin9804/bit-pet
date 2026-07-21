@@ -123,6 +123,29 @@ class FeedFormData {
     memo:        memo       ?? this.memo,
   );
 
+  /// 서버 급여 항목({foodType, amount, unit, sizeLabel, supplement}) → 폼 데이터 복원
+  factory FeedFormData.fromApiMap(Map<String, dynamic> m) {
+    final code   = m['foodType'] as String?;
+    final ft     = code == null ? null : FoodType.byCodeOrCustom(code);
+    final unit   = m['unit'] as String?;
+    final amount = (m['amount'] as num?)?.toDouble();
+    final isMl   = unit == 'ML';
+    final supRaw = m['supplement'] as String?;
+    return FeedFormData(
+      foodType:   ft,
+      count:      (!isMl && amount != null) ? amount.toInt() : null,
+      sizeLabel:  m['sizeLabel'] as String?,
+      mlAmount:   isMl ? amount : null,
+      useMl:      isMl,
+      customText: (ft != null && ft.isCustom) ? code : null,
+      supplement: supRaw == null
+          ? null
+          : FeedingSupplement.values.firstWhere(
+              (s) => s.name == supRaw,
+              orElse: () => FeedingSupplement.values.first),
+    );
+  }
+
   Map<String, dynamic> toApiMap({DateTime? fedAt}) {
     if (foodType == null) return {};
     final m = <String, dynamic>{};

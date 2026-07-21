@@ -14,11 +14,8 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
-import java.util.Map;
 
 @Entity
 @Getter
@@ -49,13 +46,6 @@ public class RoutineLogDtl extends BaseTimeEntity {
     @Column(name = "executed_at", nullable = false)
     private Instant executedAt;
 
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "extra_data", columnDefinition = "jsonb")
-    private Map<String, Object> extraData;
-
-    @Column(columnDefinition = "TEXT")
-    private String memo;
-
     @Column(name = "created_by_user_id")
     private Long createdByUserId;
 
@@ -64,14 +54,11 @@ public class RoutineLogDtl extends BaseTimeEntity {
 
     @Builder
     private RoutineLogDtl(Long routineId, Long petId, RoutineLogStatus status,
-                          Instant executedAt, Map<String, Object> extraData, String memo,
-                          Long createdByUserId) {
+                          Instant executedAt, Long createdByUserId) {
         this.routineId  = routineId;
         this.petId      = petId;
         this.status     = status != null ? status : RoutineLogStatus.COMPLETED;
         this.executedAt = executedAt != null ? executedAt : Instant.now();
-        this.extraData  = extraData;
-        this.memo       = memo;
         this.createdByUserId = createdByUserId;
     }
 

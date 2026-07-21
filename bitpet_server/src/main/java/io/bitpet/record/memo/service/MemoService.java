@@ -29,7 +29,7 @@ import java.sql.ResultSet;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -43,6 +43,7 @@ import java.util.stream.Collectors;
 public class MemoService {
 
     private static final String VET_TAG = "VET";
+    private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
 
     private final MemoDtlRepository memoRepo;
     private final MemoTagCdRepository tagCdRepo;
@@ -111,8 +112,8 @@ public class MemoService {
         } else if (from != null && to != null) {
             page = memoRepo.findByPetIdAndPeriod(
                     petId,
-                    from.atStartOfDay().toInstant(ZoneOffset.UTC),
-                    to.atTime(23, 59, 59).toInstant(ZoneOffset.UTC),
+                    from.atStartOfDay(SEOUL).toInstant(),
+                    to.plusDays(1).atStartOfDay(SEOUL).toInstant().minusMillis(1),
                     pageable);
         } else {
             page = memoRepo.findAllByPetIdOrderByLoggedAtDesc(petId, pageable);
@@ -198,8 +199,11 @@ public class MemoService {
         // CUSTOM 루틴 '완료' 로그를 메모로 집계.
         // 완료 시 메모를 남기면 같은 시각의 memo_dtl이 생성되므로(이중 표시 방지)
         // 대응하는 memo_dtl이 없는 로그만 포함한다.
+        // 메모가 있는 CUSTOM 완료는 memo_dtl 로 저장되어 일반 메모 목록에 표시되므로(NOT EXISTS로 제외),
+        // 여기 포함되는 것은 '메모 없는 완료'뿐 → "[루틴제목] 완료" 로 표시.
+        // (routine_log_dtl.memo 는 V47에서 제거됨)
         String sql = """
-                SELECT rl.id, rl.pet_id, rl.memo, rl.executed_at, rl.created_at,
+                SELECT rl.id, rl.pet_id, rl.executed_at, rl.created_at,
                        COALESCE(rm.title, '루틴') AS title
                 FROM routine_log_dtl rl
                 JOIN routine_mst rm ON rm.id = rl.routine_id
@@ -213,17 +217,15 @@ public class MemoService {
                         AND m.logged_at = rl.executed_at AND m.deleted_at IS NULL)
                 ORDER BY rl.executed_at DESC
                 """;
+        Instant fromInst = from != null ? from.atStartOfDay(SEOUL).toInstant() : null;
+        Instant toInst   = to   != null ? to.plusDays(1).atStartOfDay(SEOUL).toInstant() : null;
         return jdbc.query(sql, ps -> ps.setLong(1, petId), (rs, i) -> {
             Instant loggedAt = rs.getTimestamp("executed_at").toInstant();
-            if (from != null && loggedAt.isBefore(from.atStartOfDay().toInstant(ZoneOffset.UTC))) return null;
-            if (to   != null && loggedAt.isAfter(to.atTime(23, 59, 59).toInstant(ZoneOffset.UTC))) return null;
+            if (fromInst != null && loggedAt.isBefore(fromInst)) return null;
+            if (toInst   != null && !loggedAt.isBefore(toInst)) return null;
             Instant createdAt = rs.getTimestamp("created_at").toInstant();
-            String memo = rs.getString("memo");
             String title = rs.getString("title");
-            // 메모 있으면 "[루틴제목] 메모", 없으면 "[루틴제목] 완료"
-            String content = (memo != null && !memo.isBlank())
-                    ? "[" + title + "] " + memo
-                    : "[" + title + "] 완료";
+            String content = "[" + title + "] 완료";
             return new MemoResponse(rs.getLong("id"), rs.getLong("pet_id"),
                     content, loggedAt, List.of(), null, null, createdAt, createdAt);
         }).stream().filter(m -> m != null).toList();

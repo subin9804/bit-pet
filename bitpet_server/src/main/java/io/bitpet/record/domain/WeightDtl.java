@@ -52,6 +52,9 @@ public class WeightDtl extends BaseSyncEntity {
     @Column(name = "routine_id")
     private Long routineId;
 
+    @Column(name = "routine_log_id")
+    private Long routineLogId;
+
     @Column(name = "created_by_user_id")
     private Long createdByUserId;
 
@@ -60,13 +63,15 @@ public class WeightDtl extends BaseSyncEntity {
 
     @Builder
     private WeightDtl(Long petId, BigDecimal weightG, Instant measuredAt,
-                      WeightSource source, String memo, Long routineId, Long createdByUserId) {
+                      WeightSource source, String memo, Long routineId, Long routineLogId,
+                      Long createdByUserId) {
         this.petId = petId;
         this.weightG = weightG;
         this.measuredAt = measuredAt;
         this.source = source != null ? source : WeightSource.MANUAL;
         this.memo = memo;
         this.routineId = routineId;
+        this.routineLogId = routineLogId;
         this.createdByUserId = createdByUserId;
     }
 

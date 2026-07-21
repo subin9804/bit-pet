@@ -221,8 +221,9 @@ class RoutineLog {
   final int petId;
   final RoutineLogStatus status;
   final DateTime executedAt;
-  final Map<String, dynamic>? extraData;
   final String? memo;
+  final double? weightG;               // 연결된 weight_dtl 에서 파생
+  final List<FeedFormData> feedItems;  // 연결된 feeding_dtl 에서 파생
   final DateTime createdAt;
 
   const RoutineLog({
@@ -231,8 +232,9 @@ class RoutineLog {
     required this.petId,
     required this.status,
     required this.executedAt,
-    this.extraData,
     this.memo,
+    this.weightG,
+    this.feedItems = const [],
     required this.createdAt,
   });
 
@@ -245,8 +247,12 @@ class RoutineLog {
           orElse: () => RoutineLogStatus.COMPLETED,
         ),
         executedAt: DateTime.parse(json['executedAt'] as String),
-        extraData: json['extraData'] as Map<String, dynamic>?,
         memo: json['memo'] as String?,
+        weightG: (json['weightG'] as num?)?.toDouble(),
+        feedItems: (json['feedItems'] as List?)
+                ?.map((e) => FeedFormData.fromApiMap(e as Map<String, dynamic>))
+                .toList() ??
+            const [],
         createdAt: DateTime.parse(json['createdAt'] as String),
       );
 }

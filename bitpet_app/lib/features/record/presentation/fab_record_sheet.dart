@@ -91,9 +91,8 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
   final _weightCtrl = TextEditingController();
   // clean
   String? _cleaningType; // 'FULL' | 'PARTIAL' | 'WATER_CHANGE'
-  // note
-  bool _isVetMemo = false;
-  final Set<String> _memoTags = {}; // 탈피/배변 등 (VET 제외)
+  // note — 분류 단일 선택(라디오). null이면 미분류.
+  String? _memoTag; // 'VET' | 'SHED' | 'POOP' | 'BEHAVIOR' | 'ETC'
   // mate
   bool _partnerExternal = false;
   Pet? _partnerPet;       // 내 개체 (인터널)
@@ -971,7 +970,8 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
       'scale' => _weightCtrl.text.trim().isNotEmpty &&
                  (double.tryParse(_weightCtrl.text.trim()) ?? 0) > 0,
       'clean' => _cleaningType != null,
-      'note'  => _simpleMemoCtrl.text.trim().isNotEmpty,
+      // 내용을 적었거나, 분류(병원/탈피/배변 등)를 하나 골랐으면 저장 가능
+      'note'  => _simpleMemoCtrl.text.trim().isNotEmpty || _memoTag != null,
       'mate'  => _partnerExternal
                    ? _searchedPartner != null
                    : _partnerPet != null,
@@ -999,13 +999,21 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
               now, memo.isEmpty ? null : memo,
             );
           case 'note':
-            final tags = [..._memoTags, if (_isVetMemo) 'VET'];
+            final isVet = _memoTag == 'VET';
+            // 선택한 분류의 한글 라벨 — 내용을 안 적었으면 이 값으로 저장
+            final tagLabel = _memoTag == null
+                ? null
+                : (ref.read(memoTagsProvider).valueOrNull ?? const <MemoTag>[])
+                    .where((t) => t.code == _memoTag)
+                    .map((t) => t.labelKo)
+                    .firstOrNull;
+            final content = memo.isNotEmpty ? memo : (tagLabel ?? '');
             final data = <String, dynamic>{
-              'content': memo,
+              'content': content,
               'loggedAt': now.toUtc().toIso8601String(),
-              if (tags.isNotEmpty) 'tags': tags,
+              if (_memoTag != null) 'tags': [_memoTag],
               // VET 태그는 vetExt 필수 (없으면 서버가 400) — 상세 정보는 추후 입력
-              if (_isVetMemo) 'vetExt': <String, dynamic>{},
+              if (isVet) 'vetExt': <String, dynamic>{},
             };
             await repo.addMemo(pet.id, data);
           case 'mate':
@@ -1246,37 +1254,23 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _FieldLabel('내용', required: true),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _simpleMemoCtrl,
-              maxLines: 5,
-              style: const TextStyle(fontSize: 13, color: AppColors.primary),
-              decoration: AppInputStyles.textarea(
-                hintText: '관찰한 내용을 기록해요',
-              ).copyWith(alignLabelWithHint: true),
-              onChanged: (_) => setState(() {}),
-            ),
-            const SizedBox(height: 14),
-            // 태그 (탈피/배변/행동/기타 — 서버 제공 목록, VET은 아래 체크박스)
-            _FieldLabel('태그', required: false),
+            // 분류 (병원/탈피/배변/행동/기타 — 서버 제공 목록, 단일 선택 라디오)
+            _FieldLabel('분류', required: false),
             const SizedBox(height: 8),
             Builder(builder: (context) {
               final tags = ref.watch(memoTagsProvider).valueOrNull ??
                   const <MemoTag>[];
-              final visible = tags.where((t) => t.code != 'VET').toList();
-              if (visible.isEmpty) return const SizedBox.shrink();
+              if (tags.isEmpty) return const SizedBox.shrink();
               return Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: visible.map((t) {
-                  final sel = _memoTags.contains(t.code);
+                children: tags.map((t) {
+                  final sel = _memoTag == t.code;
                   return GestureDetector(
-                    onTap: () => setState(() =>
-                        sel ? _memoTags.remove(t.code) : _memoTags.add(t.code)),
+                    onTap: () => setState(() => _memoTag = sel ? null : t.code),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 7),
+                          horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
                         color: sel ? AppColors.petLilac : AppColors.card,
                         border: Border.all(
@@ -1286,68 +1280,57 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                             width: sel ? 1.5 : 1),
                         borderRadius: BorderRadius.zero,
                       ),
-                      child: Text('#${t.labelKo}',
-                          style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: sel
-                                  ? AppColors.petLilacInk
-                                  : AppColors.paleInk2)),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // 라디오 원형 표시
+                          Container(
+                            width: 16, height: 16,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                  color: sel
+                                      ? AppColors.petLilacInk
+                                      : AppColors.paleLine,
+                                  width: 1.5),
+                            ),
+                            child: sel
+                                ? Center(
+                                    child: Container(
+                                      width: 8, height: 8,
+                                      decoration: const BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: AppColors.petLilacInk),
+                                    ),
+                                  )
+                                : null,
+                          ),
+                          const SizedBox(width: 7),
+                          Text(t.labelKo,
+                              style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: sel
+                                      ? AppColors.petLilacInk
+                                      : AppColors.paleInk2)),
+                        ],
+                      ),
                     ),
                   );
                 }).toList(),
               );
             }),
-            const SizedBox(height: 14),
-            // 병원메모 체크박스
-            GestureDetector(
-              onTap: () => setState(() => _isVetMemo = !_isVetMemo),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                decoration: BoxDecoration(
-                  color: _isVetMemo ? AppColors.petLilac : AppColors.card,
-                  border: Border.all(
-                      color: _isVetMemo ? AppColors.petLilacInk : AppColors.paleLine,
-                      width: _isVetMemo ? 1.5 : 1),
-                  borderRadius: BorderRadius.zero,
-                ),
-                child: Row(
-                  children: [
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 120),
-                      width: 20, height: 20,
-                      decoration: BoxDecoration(
-                        color: _isVetMemo ? AppColors.petLilacInk : AppColors.card,
-                        border: Border.all(
-                            color: _isVetMemo ? AppColors.petLilacInk : AppColors.paleLine,
-                            width: 1.5),
-                        borderRadius: BorderRadius.zero,
-                      ),
-                      child: _isVetMemo
-                          ? const Icon(Icons.check, size: 13, color: Colors.white)
-                          : null,
-                    ),
-                    const SizedBox(width: 10),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('병원 메모',
-                            style: TextStyle(
-                                fontSize: 13, fontWeight: FontWeight.w700,
-                                color: _isVetMemo
-                                    ? AppColors.petLilacInk
-                                    : AppColors.primary)),
-                        Text('동물병원 방문 기록으로 분류해요',
-                            style: TextStyle(
-                                fontSize: 11,
-                                color: _isVetMemo
-                                    ? AppColors.petLilacInk
-                                    : AppColors.paleInk2)),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
+            const SizedBox(height: 16),
+            _FieldLabel('내용', required: false),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _simpleMemoCtrl,
+              maxLines: 5,
+              style: const TextStyle(fontSize: 13, color: AppColors.primary),
+              decoration: AppInputStyles.textarea(
+                hintText: '관찰한 내용을 기록해요 (선택)',
+              ).copyWith(alignLabelWithHint: true),
+              onChanged: (_) => setState(() {}),
             ),
           ],
         );
