@@ -101,7 +101,7 @@ class DioFeedRepository implements FeedRepository {
 
   // FeedingRecord → FeedSession 변환 (size_label·ml·영양제 보존)
   static FeedSession _toSession(FeedingRecord r) {
-    final dt = r.fedAt;
+    final dt = r.fedAt.toLocal(); // 서버가 UTC로 내려주므로 로컬(KST)로 변환해 표시
     final isMl = r.unit == 'ML';
     return FeedSession(
       id: r.id.toString(),

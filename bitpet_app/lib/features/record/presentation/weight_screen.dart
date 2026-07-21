@@ -565,14 +565,21 @@ class _WeightBody extends StatelessWidget {
     );
   }
 
-  String _fmtDate(DateTime d) =>
-      '${d.year}.${d.month.toString().padLeft(2,'0')}.${d.day.toString().padLeft(2,'0')}';
+  // 서버 시각(UTC)을 로컬(KST)로 변환해 표시 (이미 로컬이면 무해)
+  String _fmtDate(DateTime dt) {
+    final d = dt.toLocal();
+    return '${d.year}.${d.month.toString().padLeft(2,'0')}.${d.day.toString().padLeft(2,'0')}';
+  }
 
-  String _fmtDateShort(DateTime d) =>
-      '${d.month.toString().padLeft(2,'0')}/${d.day.toString().padLeft(2,'0')}';
+  String _fmtDateShort(DateTime dt) {
+    final d = dt.toLocal();
+    return '${d.month.toString().padLeft(2,'0')}/${d.day.toString().padLeft(2,'0')}';
+  }
 
-  String _fmtDateTime(DateTime d) =>
-      '${d.year}.${d.month.toString().padLeft(2,'0')}.${d.day.toString().padLeft(2,'0')} · ${d.hour.toString().padLeft(2,'0')}:${d.minute.toString().padLeft(2,'0')}';
+  String _fmtDateTime(DateTime dt) {
+    final d = dt.toLocal();
+    return '${d.year}.${d.month.toString().padLeft(2,'0')}.${d.day.toString().padLeft(2,'0')} · ${d.hour.toString().padLeft(2,'0')}:${d.minute.toString().padLeft(2,'0')}';
+  }
 }
 
 // ── 큰 라인 차트 (CustomPainter) ─────────────────────────────

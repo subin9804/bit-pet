@@ -34,7 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -46,6 +46,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class RecordService {
+
+    private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
 
     private final PetMstRepository petRepository;
     private final io.bitpet.pet.service.PetKeeperService petKeeper;
@@ -232,8 +234,10 @@ public class RecordService {
                 .collect(Collectors.toMap(PetMst::getId,
                         p -> p.getColorCode() != null ? p.getColorCode() : ""));
 
-        Instant from = date.atStartOfDay(ZoneOffset.UTC).toInstant();
-        Instant to   = date.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+        // 날짜 경계는 한국시간 기준 — 캘린더 버킷(Asia/Seoul)과 일치시켜
+        // 자정 근처(예: 00:00 KST) 기록이 전날로 새지 않게 한다.
+        Instant from = date.atStartOfDay(SEOUL).toInstant();
+        Instant to   = date.plusDays(1).atStartOfDay(SEOUL).toInstant();
 
         List<RecentRecordResponse> all = new ArrayList<>();
 

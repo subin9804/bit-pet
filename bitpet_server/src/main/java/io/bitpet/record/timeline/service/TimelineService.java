@@ -15,7 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -26,6 +26,7 @@ public class TimelineService {
 
     private static final int DEFAULT_LIMIT = 20;
     private static final int MAX_LIMIT      = 100;
+    private static final ZoneId SEOUL       = ZoneId.of("Asia/Seoul");
 
     private final JdbcTemplate jdbc;
     private final PetMstRepository petRepo;
@@ -47,12 +48,14 @@ public class TimelineService {
         Instant fromInst = null;
         Instant toInst   = null;
 
+        // 날짜 경계는 한국시간 기준 — 캘린더 버킷(Asia/Seoul)과 일치시켜야
+        // 자정 근처 기록이 하루 어긋나지 않는다.
         if (date != null) {
-            fromInst = date.atStartOfDay().toInstant(ZoneOffset.UTC);
-            toInst   = date.atTime(23, 59, 59).toInstant(ZoneOffset.UTC);
+            fromInst = date.atStartOfDay(SEOUL).toInstant();
+            toInst   = date.plusDays(1).atStartOfDay(SEOUL).toInstant().minusMillis(1);
         } else {
-            if (from != null) fromInst = from.atStartOfDay().toInstant(ZoneOffset.UTC);
-            if (to   != null) toInst   = to.atTime(23, 59, 59).toInstant(ZoneOffset.UTC);
+            if (from != null) fromInst = from.atStartOfDay(SEOUL).toInstant();
+            if (to   != null) toInst   = to.plusDays(1).atStartOfDay(SEOUL).toInstant().minusMillis(1);
         }
 
         List<RecordTimelineItem> items = new ArrayList<>();

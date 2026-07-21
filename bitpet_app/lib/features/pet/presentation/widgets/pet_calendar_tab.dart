@@ -306,7 +306,7 @@ class _DayRecordRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cat = item.category;
-    final at = item.recordedAt;
+    final at = item.recordedAt.toLocal(); // 서버 UTC → 로컬(KST)
     final time =
         '${at.hour.toString().padLeft(2, '0')}:${at.minute.toString().padLeft(2, '0')}';
 

@@ -130,7 +130,7 @@ class _WeightList extends ConsumerWidget {
                       Text('${r.weightG.toStringAsFixed(1)}g',
                           style: AppTextStyles.bodyBold),
                       Text(
-                          '${r.measuredAt.year}.${r.measuredAt.month}.${r.measuredAt.day}',
+                          '${r.measuredAt.toLocal().year}.${r.measuredAt.toLocal().month}.${r.measuredAt.toLocal().day}',
                           style: AppTextStyles.caption),
                     ],
                   ),
@@ -200,7 +200,7 @@ class _FeedingList extends ConsumerWidget {
                       children: [
                         Text(subtitle, style: AppTextStyles.bodyBold),
                         Text(
-                            '${r.fedAt.year}.${r.fedAt.month}.${r.fedAt.day}',
+                            '${r.fedAt.toLocal().year}.${r.fedAt.toLocal().month}.${r.fedAt.toLocal().day}',
                             style: AppTextStyles.caption),
                       ],
                     ),
@@ -324,7 +324,7 @@ class _MemoList extends ConsumerWidget {
                             style: AppTextStyles.bodyBold),
                       const Spacer(),
                       Text(
-                          '${r.loggedAt.year}.${r.loggedAt.month}.${r.loggedAt.day}',
+                          '${r.loggedAt.toLocal().year}.${r.loggedAt.toLocal().month}.${r.loggedAt.toLocal().day}',
                           style: AppTextStyles.caption),
                     ],
                   ),

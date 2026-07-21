@@ -378,11 +378,16 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
     }
   }
 
-  static String _dateStr(DateTime dt) =>
-      '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+  // 서버 시각은 UTC — 로컬(KST) 벽시계로 변환해 표시 (이미 로컬이면 무해)
+  static String _dateStr(DateTime dt) {
+    final d = dt.toLocal();
+    return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+  }
 
-  static String _timeStr(DateTime dt) =>
-      '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  static String _timeStr(DateTime dt) {
+    final d = dt.toLocal();
+    return '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+  }
 
   static String _todayStr() => _dateStr(DateTime.now());
 }

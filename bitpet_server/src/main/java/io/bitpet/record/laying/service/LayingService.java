@@ -37,13 +37,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class LayingService {
+
+    private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
 
     private final LayingDtlRepository layingRepo;
     private final LayingHatchDtlRepository hatchRepo;
@@ -93,8 +95,8 @@ public class LayingService {
                                             LocalDate from, LocalDate to,
                                             Pageable pageable) {
         loadOwnedPet(userId, petId);
-        Instant fromInst = from != null ? from.atStartOfDay().toInstant(ZoneOffset.UTC) : null;
-        Instant toInst   = to   != null ? to.atTime(23, 59, 59).toInstant(ZoneOffset.UTC) : null;
+        Instant fromInst = from != null ? from.atStartOfDay(SEOUL).toInstant() : null;
+        Instant toInst   = to   != null ? to.plusDays(1).atStartOfDay(SEOUL).toInstant().minusMillis(1) : null;
 
         return layingRepo.findByPetIdWithFilters(petId, matingId, fromInst, toInst, pageable)
                 .map(l -> LayingResponse.of(l, buildHatches(l.getId())));

@@ -101,11 +101,11 @@ public class CalendarService {
             default -> throw new IllegalArgumentException("Unsupported: " + cat);
         }
         return String.format("""
-                SELECT DATE(t.%s AT TIME ZONE 'UTC') AS day, COUNT(*) AS cnt
+                SELECT DATE(t.%s AT TIME ZONE 'Asia/Seoul') AS day, COUNT(*) AS cnt
                 FROM %s t
                 JOIN pet_mst p ON p.id = t.pet_id
                 WHERE p.user_id = ?
-                  AND DATE(t.%s AT TIME ZONE 'UTC') BETWEEN ? AND ?
+                  AND DATE(t.%s AT TIME ZONE 'Asia/Seoul') BETWEEN ? AND ?
                   AND t.deleted_at IS NULL
                   AND p.deleted_at IS NULL
                 GROUP BY day
@@ -199,7 +199,7 @@ public class CalendarService {
                                         String routineType, String dtlTable, String dtlTimeCol,
                                         String categoryKey, LocalDate start, LocalDate end) {
         StringBuilder sb = new StringBuilder();
-        sb.append("SELECT DATE(l.executed_at AT TIME ZONE 'UTC') AS day, COUNT(*) AS cnt ")
+        sb.append("SELECT DATE(l.executed_at AT TIME ZONE 'Asia/Seoul') AS day, COUNT(*) AS cnt ")
           .append("FROM routine_log_dtl l ")
           .append("JOIN routine_mst r ON r.id = l.routine_id ");
         if (userId != null) {
@@ -213,7 +213,7 @@ public class CalendarService {
           .append("AND NOT EXISTS (SELECT 1 FROM ").append(dtlTable).append(" d ")
           .append("WHERE d.routine_id = l.routine_id AND d.pet_id = l.pet_id ")
           .append("AND d.").append(dtlTimeCol).append(" = l.executed_at AND d.deleted_at IS NULL) ")
-          .append("AND DATE(l.executed_at AT TIME ZONE 'UTC') BETWEEN ? AND ? ")
+          .append("AND DATE(l.executed_at AT TIME ZONE 'Asia/Seoul') BETWEEN ? AND ? ")
           .append("GROUP BY day");
 
         jdbc.query(sb.toString(),
@@ -233,10 +233,10 @@ public class CalendarService {
     private String buildSql(RecordCategory cat) {
         if (cat == RecordCategory.MATING) {
             return """
-                    SELECT DATE(tried_at AT TIME ZONE 'UTC') AS day, COUNT(*) AS cnt
+                    SELECT DATE(tried_at AT TIME ZONE 'Asia/Seoul') AS day, COUNT(*) AS cnt
                     FROM mating_dtl
                     WHERE (male_pet_id = ? OR female_pet_id = ?)
-                      AND DATE(tried_at AT TIME ZONE 'UTC') BETWEEN ? AND ?
+                      AND DATE(tried_at AT TIME ZONE 'Asia/Seoul') BETWEEN ? AND ?
                       AND deleted_at IS NULL
                     GROUP BY day
                     """;
@@ -252,10 +252,10 @@ public class CalendarService {
             default -> throw new IllegalArgumentException("Unknown category: " + cat);
         }
         return String.format("""
-                SELECT DATE(%s AT TIME ZONE 'UTC') AS day, COUNT(*) AS cnt
+                SELECT DATE(%s AT TIME ZONE 'Asia/Seoul') AS day, COUNT(*) AS cnt
                 FROM %s
                 WHERE pet_id = ?
-                  AND DATE(%s AT TIME ZONE 'UTC') BETWEEN ? AND ?
+                  AND DATE(%s AT TIME ZONE 'Asia/Seoul') BETWEEN ? AND ?
                   AND deleted_at IS NULL
                 GROUP BY day
                 """, timeCol, table, timeCol);
@@ -263,11 +263,11 @@ public class CalendarService {
 
     private String buildUserMemoSql() {
         return """
-                SELECT DATE(t.logged_at AT TIME ZONE 'UTC') AS day, COUNT(*) AS cnt
+                SELECT DATE(t.logged_at AT TIME ZONE 'Asia/Seoul') AS day, COUNT(*) AS cnt
                 FROM memo_dtl t
                 JOIN pet_mst p ON p.id = t.pet_id
                 WHERE p.user_id = ?
-                  AND DATE(t.logged_at AT TIME ZONE 'UTC') BETWEEN ? AND ?
+                  AND DATE(t.logged_at AT TIME ZONE 'Asia/Seoul') BETWEEN ? AND ?
                   AND t.deleted_at IS NULL AND p.deleted_at IS NULL
                 GROUP BY day
                 """;
@@ -275,10 +275,10 @@ public class CalendarService {
 
     private String buildPetMemoSql() {
         return """
-                SELECT DATE(logged_at AT TIME ZONE 'UTC') AS day, COUNT(*) AS cnt
+                SELECT DATE(logged_at AT TIME ZONE 'Asia/Seoul') AS day, COUNT(*) AS cnt
                 FROM memo_dtl
                 WHERE pet_id = ?
-                  AND DATE(logged_at AT TIME ZONE 'UTC') BETWEEN ? AND ?
+                  AND DATE(logged_at AT TIME ZONE 'Asia/Seoul') BETWEEN ? AND ?
                   AND deleted_at IS NULL
                 GROUP BY day
                 """;
