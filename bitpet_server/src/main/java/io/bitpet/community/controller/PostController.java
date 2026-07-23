@@ -58,12 +58,13 @@ public class PostController {
         return ApiResponse.ok(postService.createPost(principal.userId(), request));
     }
 
-    @Operation(summary = "게시글 목록 (카테고리 필터 / 페이지네이션)")
+    @Operation(summary = "게시글 목록 (카테고리 필터 / 페이지네이션 / 공지 상단 고정)")
     @GetMapping
     public ApiResponse<Page<PostSummaryResponse>> listPosts(
+            @AuthenticationPrincipal AuthPrincipal principal,
             @RequestParam(required = false) Long categoryId,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        return ApiResponse.ok(postService.listPosts(categoryId, pageable));
+        return ApiResponse.ok(postService.listPosts(principal.userId(), categoryId, pageable));
     }
 
     @Operation(summary = "내 게시글 목록")
@@ -97,6 +98,16 @@ public class PostController {
             @AuthenticationPrincipal AuthPrincipal principal,
             @PathVariable Long postId) {
         postService.deletePost(principal.userId(), postId);
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "공지 상단 고정 / 해제 (관리자 전용)")
+    @PatchMapping("/{postId}/pin")
+    public ApiResponse<Void> setPinned(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @PathVariable Long postId,
+            @RequestParam boolean pinned) {
+        postService.setPinned(principal.userId(), postId, pinned);
         return ApiResponse.ok();
     }
 

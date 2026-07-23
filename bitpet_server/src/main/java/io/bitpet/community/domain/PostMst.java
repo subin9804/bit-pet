@@ -54,6 +54,10 @@ public class PostMst extends BaseSyncEntity {
     @Column(name = "comment_count", nullable = false)
     private int commentCount;
 
+    /** 공지 상단 고정 여부 Y/N (관리자만 설정) */
+    @Column(name = "pinned_yn", nullable = false, length = 1)
+    private String pinnedYn = "N";
+
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
@@ -63,7 +67,12 @@ public class PostMst extends BaseSyncEntity {
         this.categoryId = categoryId;
         this.title      = title;
         this.content    = content;
+        this.pinnedYn   = "N";
     }
+
+    public boolean isPinned() { return "Y".equals(this.pinnedYn); }
+
+    public void setPinned(boolean pinned) { this.pinnedYn = pinned ? "Y" : "N"; }
 
     public void update(Long categoryId, String title, String content) {
         this.categoryId = categoryId;

@@ -1,21 +1,11 @@
-// 09 / 09b · 글 등록·수정 — PALE 디자인 핸드오프 반영
+// 09 / 09b · 글 등록·수정 — 서버 카테고리 기반, 간소화
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_input_styles.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../../core/widgets/app_toggle.dart';
-import '../data/models/post_models.dart';
 import '../providers/post_provider.dart';
-
-// 게시판 탭 (전체 제외)
-const _kCats = [
-  ('free', '자유'),
-  ('qna', 'QnA'),
-  ('info', '정보'),
-  ('sell', '분양'),
-];
 
 class PostComposeScreen extends ConsumerStatefulWidget {
   final int? postId; // null → 새 글, non-null → 수정
@@ -30,7 +20,6 @@ class PostComposeScreen extends ConsumerStatefulWidget {
 class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
   late final TextEditingController _titleCtrl;
   late final TextEditingController _bodyCtrl;
-  final _tagCtrl = TextEditingController();
 
   @override
   void initState() {
@@ -41,8 +30,7 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
 
     if (widget.isEdit) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        final postAsync =
-            ref.read(postDetailProvider(widget.postId!));
+        final postAsync = ref.read(postDetailProvider(widget.postId!));
         postAsync.whenOrNull(data: (post) {
           if (post != null) {
             ref.read(composeProvider.notifier).prefill(post);
@@ -60,16 +48,7 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
   void dispose() {
     _titleCtrl.dispose();
     _bodyCtrl.dispose();
-    _tagCtrl.dispose();
     super.dispose();
-  }
-
-  void _addTag() {
-    final raw = _tagCtrl.text.trim();
-    if (raw.isEmpty) return;
-    final tag = raw.startsWith('#') ? raw : '#$raw';
-    ref.read(composeProvider.notifier).addTag(tag);
-    _tagCtrl.clear();
   }
 
   Future<void> _submit() async {
@@ -101,6 +80,7 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(composeProvider);
+    final categories = ref.watch(visibleCategoriesProvider);
 
     return Scaffold(
       backgroundColor: AppColors.paleBg,
@@ -108,7 +88,6 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
         bottom: false,
         child: Column(
           children: [
-            // ── TopBar ──────────────────────────────────────────
             _TopBar(
               isEdit: widget.isEdit,
               canSubmit: state.canSubmit && !state.isSubmitting,
@@ -116,14 +95,10 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
               onCancel: () => context.pop(),
               onSubmit: _submit,
             ),
-
-            // ── 폼 본문 ─────────────────────────────────────────
             Expanded(
               child: ListView(
                 padding: EdgeInsets.fromLTRB(
-                    22,
-                    8,
-                    22,
+                    22, 8, 22,
                     MediaQuery.of(context).viewInsets.bottom + 30),
                 children: [
                   // ── 게시판 선택 ────────────────────────────────
@@ -133,12 +108,12 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
                     child: Wrap(
                       spacing: 6,
                       runSpacing: 6,
-                      children: _kCats.map((c) {
-                        final active = state.cat == c.$1;
+                      children: categories.map((c) {
+                        final active = state.categoryId == c.id;
                         return GestureDetector(
                           onTap: () => ref
                               .read(composeProvider.notifier)
-                              .setCat(c.$1),
+                              .setCategory(c.id),
                           child: Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 14, vertical: 8),
@@ -154,7 +129,7 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
                               borderRadius: BorderRadius.zero,
                             ),
                             child: Text(
-                              c.$2,
+                              c.nameKo,
                               style: AppTextStyles.bodyBold.copyWith(
                                 fontSize: 13,
                                 color: active
@@ -189,12 +164,11 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
                       onChanged: (v) =>
                           ref.read(composeProvider.notifier).setBody(v),
                       maxLines: null,
-                      minLines: 7,
+                      minLines: 8,
                       style: AppTextStyles.body
                           .copyWith(color: AppColors.primary, height: 1.6),
                       decoration: AppInputStyles.textarea(
-                        hintText:
-                            '자유롭게 작성해보세요.\n마크다운을 지원합니다.',
+                        hintText: '자유롭게 작성해보세요.',
                         hintStyle: AppTextStyles.body
                             .copyWith(color: AppColors.paleInk3),
                         contentPadding: const EdgeInsets.symmetric(
@@ -202,175 +176,11 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
                       ),
                     ),
                   ),
-
-                  // ── 태그 ──────────────────────────────────────
-                  _Field(
-                    label: '태그',
-                    hint: '최대 5개까지 추가할 수 있습니다.',
-                    child: Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        ...state.tags.map((tg) => _TagChip(
-                              label: tg,
-                              onRemove: () => ref
-                                  .read(composeProvider.notifier)
-                                  .removeTag(tg),
-                            )),
-                        if (state.tags.length < 5)
-                          GestureDetector(
-                            onTap: () => _showTagInput(context),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 7),
-                              decoration: BoxDecoration(
-                                border: Border.all(
-                                    color: AppColors.paleLine,
-                                    style: BorderStyle.solid),
-                                borderRadius: BorderRadius.zero,
-                              ),
-                              child: Text(
-                                '+ 태그 추가',
-                                style: AppTextStyles.caption.copyWith(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.paleInk2,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-
-                  // ── 이미지 첨부 ────────────────────────────────
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        // 카메라 추가 박스
-                        Container(
-                          width: 78,
-                          height: 78,
-                          decoration: BoxDecoration(
-                            color: AppColors.card,
-                            border: Border.all(
-                              color: AppColors.paleLine,
-                              style: BorderStyle.solid,
-                              width: 1.5,
-                            ),
-                            borderRadius: BorderRadius.zero,
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.camera_alt_outlined,
-                                  size: 22, color: AppColors.paleInk2),
-                              const SizedBox(height: 4),
-                              Text(
-                                '0/5',
-                                style: AppTextStyles.monoXs.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.paleInk2,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // ── 옵션 카드 ──────────────────────────────────
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.card,
-                      border: Border.all(color: AppColors.paleLine),
-                      borderRadius: BorderRadius.zero,
-                    ),
-                    child: Column(
-                      children: [
-                        _OptionRow(
-                          label: '익명으로 작성',
-                          sub: '닉네임 대신 익명으로 표시됩니다',
-                          value: state.anonymous,
-                          onToggle: () => ref
-                              .read(composeProvider.notifier)
-                              .toggleAnonymous(),
-                          showDivider: true,
-                        ),
-                        _OptionRow(
-                          label: '댓글 허용',
-                          sub: '다른 사용자의 댓글을 받습니다',
-                          value: state.allowComments,
-                          onToggle: () => ref
-                              .read(composeProvider.notifier)
-                              .toggleAllowComments(),
-                          showDivider: true,
-                        ),
-                        _OptionRow(
-                          label: '알림 받기',
-                          sub: '내 글에 댓글이 달리면 알림',
-                          value: state.notify,
-                          onToggle: () =>
-                              ref.read(composeProvider.notifier).toggleNotify(),
-                          showDivider: false,
-                        ),
-                      ],
-                    ),
-                  ),
                 ],
               ),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  void _showTagInput(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: AppColors.card,
-        title: Text('태그 추가',
-            style: AppTextStyles.bodyBold.copyWith(fontSize: 15)),
-        content: TextField(
-          controller: _tagCtrl,
-          autofocus: true,
-          style: AppTextStyles.body.copyWith(color: AppColors.primary),
-          decoration: InputDecoration(
-            hintText: '#레오파드게코',
-            hintStyle:
-                AppTextStyles.body.copyWith(color: AppColors.paleInk3),
-            prefixText: '# ',
-            border: const UnderlineInputBorder(
-              borderSide: BorderSide(color: AppColors.paleLine),
-            ),
-          ),
-          onSubmitted: (_) {
-            _addTag();
-            Navigator.pop(context);
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child:
-                Text('취소', style: TextStyle(color: AppColors.paleInk2)),
-          ),
-          TextButton(
-            onPressed: () {
-              _addTag();
-              Navigator.pop(context);
-            },
-            child: Text('추가',
-                style: TextStyle(color: AppColors.primary)),
-          ),
-        ],
       ),
     );
   }
@@ -552,101 +362,3 @@ class _PaleTextField extends StatelessWidget {
     );
   }
 }
-
-class _TagChip extends StatelessWidget {
-  final String label;
-  final VoidCallback onRemove;
-  const _TagChip({required this.label, required this.onRemove});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(10, 6, 4, 6),
-      decoration: BoxDecoration(
-        color: AppColors.paleBgAlt,
-        borderRadius: BorderRadius.zero,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: AppTextStyles.caption.copyWith(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppColors.paleInk2,
-            ),
-          ),
-          const SizedBox(width: 6),
-          GestureDetector(
-            onTap: onRemove,
-            child: Container(
-              width: 18,
-              height: 18,
-              decoration: const BoxDecoration(
-                color: AppColors.card,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.close,
-                  size: 11, color: AppColors.paleInk2),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _OptionRow extends StatelessWidget {
-  final String label;
-  final String sub;
-  final bool value;
-  final VoidCallback onToggle;
-  final bool showDivider;
-
-  const _OptionRow({
-    required this.label,
-    required this.sub,
-    required this.value,
-    required this.onToggle,
-    required this.showDivider,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      label,
-                      style: AppTextStyles.bodyBold.copyWith(fontSize: 13),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      sub,
-                      style: AppTextStyles.caption
-                          .copyWith(color: AppColors.paleInk3),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              AppToggle(value: value, onToggle: onToggle),
-            ],
-          ),
-        ),
-        if (showDivider)
-          const Divider(
-              height: 1, thickness: 1, color: AppColors.paleLineSoft),
-      ],
-    );
-  }
-}
-

@@ -1,5 +1,8 @@
 package io.bitpet.community.service;
 
+import io.bitpet.auth.domain.UserMst;
+import io.bitpet.auth.repository.AdminRoleRlsRepository;
+import io.bitpet.auth.repository.UserMstRepository;
 import io.bitpet.common.exception.BusinessException;
 import io.bitpet.common.exception.ErrorCode;
 import io.bitpet.community.domain.PostCommentDtl;
@@ -26,13 +29,17 @@ import io.bitpet.community.repository.PostPhotoDtlRepository;
 import io.bitpet.storage.S3Service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
@@ -49,6 +56,8 @@ public class PostService {
     private final PostPhotoDtlRepository photoRepository;
     private final PostCommentDtlRepository commentRepository;
     private final PostLikeRlsRepository likeRepository;
+    private final UserMstRepository userRepository;
+    private final AdminRoleRlsRepository adminRepository;
     private final S3Service s3Service;
 
     // -------------------------------------------------------------------------
@@ -73,29 +82,41 @@ public class PostService {
                 .title(req.title())
                 .content(req.content())
                 .build());
-        return PostDetailResponse.of(post, false, List.of());
+        UserMst author = userRepository.findById(userId).orElse(null);
+        return PostDetailResponse.of(post, false, List.of(),
+                nameOf(author), imageOf(author));
     }
 
-    public Page<PostSummaryResponse> listPosts(Long categoryId, Pageable pageable) {
+    public Page<PostSummaryResponse> listPosts(Long userId, Long categoryId, Pageable pageable) {
+        // 공지 우선 정렬은 @Query 에서 처리 → sort 제거하고 page/size 만 전달
+        Pageable pageOnly = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
         Page<PostMst> page = categoryId != null
-                ? postRepository.findByCategoryId(categoryId, pageable)
-                : postRepository.findAllBy(pageable);
-
-        return page.map(p -> {
-            List<PostPhotoDtl> photos = photoRepository.findAllByPostIdOrderByDisplayOrderAsc(p.getId());
-            String thumbnail = photos.isEmpty() ? null
-                    : s3Service.presignGet(photos.get(0).getS3Key()).url().toString();
-            return PostSummaryResponse.of(p, thumbnail);
-        });
+                ? postRepository.findByCategoryOrdered(categoryId, pageOnly)
+                : postRepository.findAllOrdered(pageOnly);
+        return toSummaryPage(userId, page);
     }
 
     public Page<PostSummaryResponse> listMyPosts(Long userId, Pageable pageable) {
-        return postRepository.findByUserId(userId, pageable).map(p -> {
+        return toSummaryPage(userId, postRepository.findByUserId(userId, pageable));
+    }
+
+    private Page<PostSummaryResponse> toSummaryPage(Long userId, Page<PostMst> page) {
+        List<PostMst> posts = page.getContent();
+        Map<Long, UserMst> authors = loadAuthors(
+                posts.stream().map(PostMst::getUserId).collect(Collectors.toSet()));
+        Set<Long> liked = likedPostIds(userId,
+                posts.stream().map(PostMst::getId).collect(Collectors.toSet()));
+
+        List<PostSummaryResponse> content = posts.stream().map(p -> {
             List<PostPhotoDtl> photos = photoRepository.findAllByPostIdOrderByDisplayOrderAsc(p.getId());
             String thumbnail = photos.isEmpty() ? null
                     : s3Service.presignGet(photos.get(0).getS3Key()).url().toString();
-            return PostSummaryResponse.of(p, thumbnail);
-        });
+            UserMst author = authors.get(p.getUserId());
+            return PostSummaryResponse.of(p, thumbnail,
+                    nameOf(author), imageOf(author), liked.contains(p.getId()));
+        }).toList();
+
+        return new PageImpl<>(content, page.getPageable(), page.getTotalElements());
     }
 
     @Transactional
@@ -105,7 +126,8 @@ public class PostService {
 
         boolean likedByMe = likeRepository.existsByPostIdAndUserId(postId, userId);
         List<PostPhotoResponse> photos = buildPhotoResponses(postId);
-        return PostDetailResponse.of(post, likedByMe, photos);
+        UserMst author = userRepository.findById(post.getUserId()).orElse(null);
+        return PostDetailResponse.of(post, likedByMe, photos, nameOf(author), imageOf(author));
     }
 
     @Transactional
@@ -117,7 +139,8 @@ public class PostService {
 
         boolean likedByMe = likeRepository.existsByPostIdAndUserId(postId, userId);
         List<PostPhotoResponse> photos = buildPhotoResponses(postId);
-        return PostDetailResponse.of(post, likedByMe, photos);
+        UserMst author = userRepository.findById(post.getUserId()).orElse(null);
+        return PostDetailResponse.of(post, likedByMe, photos, nameOf(author), imageOf(author));
     }
 
     @Transactional
@@ -129,6 +152,16 @@ public class PostService {
         photoRepository.findAllByPostIdOrderByDisplayOrderAsc(postId)
                 .forEach(p -> s3Service.deleteObject(p.getS3Key()));
         post.softDelete();
+    }
+
+    /** 공지 상단 고정/해제 — 관리자(admin_role_rls)만 가능 */
+    @Transactional
+    public void setPinned(Long userId, Long postId, boolean pinned) {
+        if (!adminRepository.existsByUserId(userId)) {
+            throw new BusinessException(ErrorCode.POST_ACCESS_DENIED);
+        }
+        PostMst post = findPost(postId);
+        post.setPinned(pinned);
     }
 
     // -------------------------------------------------------------------------
@@ -187,19 +220,24 @@ public class PostService {
     // -------------------------------------------------------------------------
 
     public List<CommentResponse> listComments(Long postId) {
-        findPost(postId);
+        PostMst post = findPost(postId);
         List<PostCommentDtl> all = commentRepository.findAllByPostIdOrderByCreatedAtAsc(postId);
+        Map<Long, UserMst> authors = loadAuthors(
+                all.stream().map(PostCommentDtl::getUserId).collect(Collectors.toSet()));
+        Long postAuthorId = post.getUserId();
 
         Map<Long, List<CommentResponse>> repliesByParent = all.stream()
                 .filter(c -> c.getParentCommentId() != null)
                 .collect(Collectors.groupingBy(
                         PostCommentDtl::getParentCommentId,
-                        Collectors.mapping(c -> CommentResponse.of(c, List.of()), Collectors.toList())
+                        Collectors.mapping(c -> toCommentResponse(c, List.of(), authors, postAuthorId),
+                                Collectors.toList())
                 ));
 
         return all.stream()
                 .filter(c -> c.getParentCommentId() == null)
-                .map(c -> CommentResponse.of(c, repliesByParent.getOrDefault(c.getId(), List.of())))
+                .map(c -> toCommentResponse(c,
+                        repliesByParent.getOrDefault(c.getId(), List.of()), authors, postAuthorId))
                 .toList();
     }
 
@@ -221,16 +259,20 @@ public class PostService {
                 .build());
 
         post.incrementCommentCount();
-        return CommentResponse.of(saved, List.of());
+        UserMst author = userRepository.findById(userId).orElse(null);
+        return CommentResponse.of(saved, List.of(), nameOf(author), imageOf(author),
+                userId.equals(post.getUserId()));
     }
 
     @Transactional
     public CommentResponse updateComment(Long userId, Long postId, Long commentId, CommentUpdateRequest req) {
-        findPost(postId);
+        PostMst post = findPost(postId);
         PostCommentDtl comment = findComment(commentId, postId);
         verifyCommentOwner(comment, userId);
         comment.update(req.content());
-        return CommentResponse.of(comment, List.of());
+        UserMst author = userRepository.findById(userId).orElse(null);
+        return CommentResponse.of(comment, List.of(), nameOf(author), imageOf(author),
+                userId.equals(post.getUserId()));
     }
 
     @Transactional
@@ -267,6 +309,29 @@ public class PostService {
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
+
+    private Map<Long, UserMst> loadAuthors(Collection<Long> userIds) {
+        if (userIds.isEmpty()) return Map.of();
+        return userRepository.findAllById(userIds).stream()
+                .collect(Collectors.toMap(UserMst::getId, u -> u));
+    }
+
+    private Set<Long> likedPostIds(Long userId, Collection<Long> postIds) {
+        if (postIds.isEmpty()) return Set.of();
+        return likeRepository.findByUserIdAndPostIdIn(userId, postIds).stream()
+                .map(PostLikeRls::getPostId).collect(Collectors.toSet());
+    }
+
+    private CommentResponse toCommentResponse(PostCommentDtl c, List<CommentResponse> replies,
+                                              Map<Long, UserMst> authors, Long postAuthorId) {
+        UserMst author = authors.get(c.getUserId());
+        return CommentResponse.of(c, replies, nameOf(author), imageOf(author),
+                c.getUserId().equals(postAuthorId));
+    }
+
+    private static String nameOf(UserMst u) { return u != null ? u.getName() : "알 수 없음"; }
+
+    private static String imageOf(UserMst u) { return u != null ? u.getProfileImageUrl() : null; }
 
     private PostMst findPost(Long postId) {
         return postRepository.findById(postId)

@@ -1,19 +1,43 @@
+// 커뮤니티 모델 — 서버(io.bitpet.community) 응답 계약 기준
+//
+// 서버 카테고리: FREE / QNA / INFO / ADOPTION (id 는 서버가 부여)
+// 게시글 목록은 Spring Page 로 내려오며, pinned(공지) 항목이 항상 상단에 온다.
+
+class PostCategory {
+  final int id;
+  final String code; // FREE / QNA / INFO / ADOPTION
+  final String nameKo;
+  final int displayOrder;
+
+  const PostCategory({
+    required this.id,
+    required this.code,
+    required this.nameKo,
+    required this.displayOrder,
+  });
+
+  factory PostCategory.fromJson(Map<String, dynamic> json) => PostCategory(
+        id: json['id'] as int,
+        code: json['code'] as String,
+        nameKo: json['nameKo'] as String? ?? json['code'] as String,
+        displayOrder: json['displayOrder'] as int? ?? 0,
+      );
+}
+
 class Post {
   final int id;
   final int userId;
   final String authorName;
   final String? authorImageUrl;
-  final String categoryCode;
+  final int categoryId;
   final String title;
-  final String content;
+  final String content; // 목록 응답엔 없음 → 빈 문자열
   final int viewCount;
   final int likeCount;
   final int commentCount;
   final bool isLiked;
-  final bool isHot;
   final bool isPinned;
-  final bool isBookmarked;
-  final List<String> tags;
+  final String? thumbnailUrl;
   final DateTime createdAt;
 
   const Post({
@@ -21,60 +45,53 @@ class Post {
     required this.userId,
     required this.authorName,
     this.authorImageUrl,
-    required this.categoryCode,
+    required this.categoryId,
     required this.title,
-    required this.content,
+    this.content = '',
     required this.viewCount,
     required this.likeCount,
     required this.commentCount,
     required this.isLiked,
-    this.isHot = false,
     this.isPinned = false,
-    this.isBookmarked = false,
-    this.tags = const [],
+    this.thumbnailUrl,
     required this.createdAt,
   });
 
   factory Post.fromJson(Map<String, dynamic> json) => Post(
         id: json['id'] as int,
         userId: json['userId'] as int,
-        authorName: json['authorName'] as String? ?? '익명',
+        authorName: json['authorName'] as String? ?? '알 수 없음',
         authorImageUrl: json['authorImageUrl'] as String?,
-        categoryCode: json['categoryCode'] as String? ?? 'FREE',
+        categoryId: json['categoryId'] as int,
         title: json['title'] as String,
-        content: json['content'] as String,
+        content: json['content'] as String? ?? '',
         viewCount: json['viewCount'] as int? ?? 0,
         likeCount: json['likeCount'] as int? ?? 0,
         commentCount: json['commentCount'] as int? ?? 0,
-        isLiked: json['isLiked'] as bool? ?? false,
-        isHot: json['isHot'] as bool? ?? false,
-        isPinned: json['isPinned'] as bool? ?? false,
-        isBookmarked: json['isBookmarked'] as bool? ?? false,
-        tags: (json['tags'] as List<dynamic>?)?.cast<String>() ?? [],
+        isLiked: json['likedByMe'] as bool? ?? false,
+        isPinned: json['pinned'] as bool? ?? false,
+        thumbnailUrl: json['thumbnailUrl'] as String?,
         createdAt: DateTime.parse(json['createdAt'] as String),
       );
 
   Post copyWith({
     bool? isLiked,
     int? likeCount,
-    bool? isBookmarked,
   }) =>
       Post(
         id: id,
         userId: userId,
         authorName: authorName,
         authorImageUrl: authorImageUrl,
-        categoryCode: categoryCode,
+        categoryId: categoryId,
         title: title,
         content: content,
         viewCount: viewCount,
         likeCount: likeCount ?? this.likeCount,
         commentCount: commentCount,
         isLiked: isLiked ?? this.isLiked,
-        isHot: isHot,
         isPinned: isPinned,
-        isBookmarked: isBookmarked ?? this.isBookmarked,
-        tags: tags,
+        thumbnailUrl: thumbnailUrl,
         createdAt: createdAt,
       );
 }
@@ -85,11 +102,9 @@ class PostComment {
   final int userId;
   final String authorName;
   final String? authorImageUrl;
+  final bool isPostAuthor; // 게시글 작성자가 단 댓글 → '작성자' 뱃지
   final int? parentCommentId;
   final String content;
-  final int likeCount;
-  final bool isLiked;
-  final bool isAuthor;
   final List<PostComment> replies;
   final DateTime createdAt;
 
@@ -99,11 +114,9 @@ class PostComment {
     required this.userId,
     required this.authorName,
     this.authorImageUrl,
+    this.isPostAuthor = false,
     this.parentCommentId,
     required this.content,
-    this.likeCount = 0,
-    this.isLiked = false,
-    this.isAuthor = false,
     this.replies = const [],
     required this.createdAt,
   });
@@ -112,13 +125,11 @@ class PostComment {
         id: json['id'] as int,
         postId: json['postId'] as int,
         userId: json['userId'] as int,
-        authorName: json['authorName'] as String? ?? '익명',
+        authorName: json['authorName'] as String? ?? '알 수 없음',
         authorImageUrl: json['authorImageUrl'] as String?,
+        isPostAuthor: json['postAuthor'] as bool? ?? false,
         parentCommentId: json['parentCommentId'] as int?,
         content: json['content'] as String,
-        likeCount: json['likeCount'] as int? ?? 0,
-        isLiked: json['isLiked'] as bool? ?? false,
-        isAuthor: json['isAuthor'] as bool? ?? false,
         replies: (json['replies'] as List<dynamic>?)
                 ?.map((e) => PostComment.fromJson(e as Map<String, dynamic>))
                 .toList() ??
@@ -128,49 +139,52 @@ class PostComment {
 }
 
 class CreatePostRequest {
-  final String categoryCode;
+  final int categoryId;
   final String title;
   final String content;
-  final List<String> tags;
-  final bool anonymous;
-  final bool allowComments;
 
   const CreatePostRequest({
-    required this.categoryCode,
+    required this.categoryId,
     required this.title,
     required this.content,
-    this.tags = const [],
-    this.anonymous = false,
-    this.allowComments = true,
   });
 
   Map<String, dynamic> toJson() => {
-        'categoryCode': categoryCode,
+        'categoryId': categoryId,
         'title': title,
         'content': content,
-        'tags': tags,
-        'anonymous': anonymous,
-        'allowComments': allowComments,
       };
 }
 
 class UpdatePostRequest {
-  final String categoryCode;
+  final int categoryId;
   final String title;
   final String content;
-  final List<String> tags;
 
   const UpdatePostRequest({
-    required this.categoryCode,
+    required this.categoryId,
     required this.title,
     required this.content,
-    this.tags = const [],
   });
 
   Map<String, dynamic> toJson() => {
-        'categoryCode': categoryCode,
+        'categoryId': categoryId,
         'title': title,
         'content': content,
-        'tags': tags,
       };
+}
+
+/// 좋아요 토글 결과 (서버 LikeToggleResponse)
+class LikeResult {
+  final bool liked;
+  final int likeCount;
+  const LikeResult({required this.liked, required this.likeCount});
+}
+
+/// 게시글 한 페이지 (Spring Page)
+class PostPage {
+  final List<Post> items;
+  final bool last;
+  final int page;
+  const PostPage({required this.items, required this.last, required this.page});
 }

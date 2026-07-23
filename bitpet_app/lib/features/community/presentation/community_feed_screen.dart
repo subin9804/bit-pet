@@ -1,47 +1,33 @@
-// 07 · 커뮤니티 리스트 — PALE 디자인 핸드오프 반영
+// 07 · 커뮤니티 리스트 — 무한 스크롤 + 서버 카테고리 + 공지 상단 고정
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/app_chip.dart';
 import '../data/models/post_models.dart';
 import '../providers/post_provider.dart';
 
-const _kTabs = [
-  (null, '전체'),
-  ('free', '자유'),
-  ('qna', 'QnA'),
-  ('info', '정보'),
-  ('sell', '분양'),
-];
-
-Color _catBg(String? cat) => switch (cat?.toLowerCase()) {
-      'free' => AppColors.commFreeBg,
-      'qna'  => AppColors.commQnaBg,
-      'info' => AppColors.commInfoBg,
-      'sell' => AppColors.commSellBg,
-      _      => AppColors.paleBgAlt,
+Color _catBg(String? code) => switch (code?.toUpperCase()) {
+      'FREE' => AppColors.commFreeBg,
+      'QNA' => AppColors.commQnaBg,
+      'INFO' => AppColors.commInfoBg,
+      'ADOPTION' => AppColors.commSellBg,
+      _ => AppColors.paleBgAlt,
     };
 
-Color _catInk(String? cat) => switch (cat?.toLowerCase()) {
-      'free' => AppColors.commFreeInk,
-      'qna'  => AppColors.commQnaInk,
-      'info' => AppColors.commInfoInk,
-      'sell' => AppColors.commSellInk,
-      _      => AppColors.paleInk2,
-    };
-
-String _catLabel(String? cat) => switch (cat?.toLowerCase()) {
-      'free' => '자유',
-      'qna'  => 'QnA',
-      'info' => '정보',
-      'sell' => '분양',
-      _      => cat ?? '',
+Color _catInk(String? code) => switch (code?.toUpperCase()) {
+      'FREE' => AppColors.commFreeInk,
+      'QNA' => AppColors.commQnaInk,
+      'INFO' => AppColors.commInfoInk,
+      'ADOPTION' => AppColors.commSellInk,
+      _ => AppColors.paleInk2,
     };
 
 String _relativeTime(DateTime dt) {
-  final d = DateTime.now().difference(dt);
+  final d = DateTime.now().difference(dt.toLocal());
+  if (d.inMinutes < 1) return '방금';
   if (d.inMinutes < 60) return '${d.inMinutes}분 전';
   if (d.inHours < 24) return '${d.inHours}시간 전';
   if (d.inDays == 1) return '어제';
@@ -59,18 +45,40 @@ class CommunityFeedScreen extends ConsumerStatefulWidget {
 class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
   bool _showSearch = false;
   final _searchCtrl = TextEditingController();
+  final _scrollCtrl = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollCtrl.addListener(_onScroll);
+  }
 
   @override
   void dispose() {
     _searchCtrl.dispose();
+    _scrollCtrl.removeListener(_onScroll);
+    _scrollCtrl.dispose();
     super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollCtrl.hasClients) return;
+    final pos = _scrollCtrl.position;
+    if (pos.pixels >= pos.maxScrollExtent - 400) {
+      ref.read(feedProvider.notifier).loadMore();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final selectedTab = ref.watch(categoryFilterProvider);
-    final feedAsync = ref.watch(feedProvider);
+    final selectedCat = ref.watch(categoryFilterProvider);
+    final feed = ref.watch(feedProvider);
     final search = ref.watch(postSearchProvider);
+    // 라벨/색상 해석은 전체 카테고리로, 탭 노출은 visible(INFO·분양 제외)만
+    final allCategories =
+        ref.watch(categoriesProvider).valueOrNull ?? const <PostCategory>[];
+    final catById = {for (final c in allCategories) c.id: c};
+    final categories = ref.watch(visibleCategoriesProvider);
 
     return Scaffold(
       backgroundColor: AppColors.paleBg,
@@ -108,7 +116,6 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                         ],
                       ),
                       const Spacer(),
-                      // 검색 버튼
                       _CircleBtn(
                         onTap: () {
                           setState(() => _showSearch = !_showSearch);
@@ -121,7 +128,6 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                             size: 18, color: AppColors.primary),
                       ),
                       const SizedBox(width: 6),
-                      // 알림 버튼
                       Stack(
                         clipBehavior: Clip.none,
                         children: [
@@ -179,143 +185,36 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                     ),
                   ),
 
-                // ── 탭 칩 ─────────────────────────────────────────
+                // ── 탭 칩 (전체 + 서버 카테고리) ──────────────────
                 SizedBox(
-                  height: 44,
-                  child: feedAsync.when(
-                    loading: () => _buildTabRow(selectedTab, {}, ref),
-                    error: (_, __) => _buildTabRow(selectedTab, {}, ref),
-                    data: (posts) {
-                      final counts = <String?, int>{null: posts.length};
-                      for (final t in _kTabs.skip(1)) {
-                        counts[t.$1] = posts
-                            .where((p) =>
-                                p.categoryCode.toLowerCase() == t.$1)
-                            .length;
-                      }
-                      return _buildTabRow(selectedTab, counts, ref);
-                    },
-                  ),
+                  height: AppChip.barHeight,
+                  child: _buildTabRow(selectedCat, categories),
                 ),
 
                 const SizedBox(height: 8),
 
                 // ── 게시글 목록 ──────────────────────────────────
                 Expanded(
-                  child: feedAsync.when(
-                    loading: () => const Center(
-                        child: CircularProgressIndicator(strokeWidth: 2)),
-                    error: (e, _) => Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text('불러오기 실패',
-                              style: AppTextStyles.bodyBold
-                                  .copyWith(color: AppColors.paleInk2)),
-                          const SizedBox(height: 8),
-                          TextButton(
-                            onPressed: () =>
-                                ref.read(feedProvider.notifier).load(),
-                            child: const Text('다시 시도'),
-                          ),
-                        ],
-                      ),
-                    ),
-                    data: (posts) {
-                      final q = search.trim().toLowerCase();
-                      final filtered = posts.where((p) {
-                        final tabMatch = selectedTab == null ||
-                            p.categoryCode.toLowerCase() == selectedTab;
-                        final searchMatch =
-                            q.isEmpty || p.title.toLowerCase().contains(q);
-                        return tabMatch && searchMatch;
-                      }).toList();
-
-                      final pinned = filtered.where((p) => p.isPinned).toList();
-                      final normal = filtered.where((p) => !p.isPinned).toList();
-
-                      if (filtered.isEmpty) {
-                        return Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text('아직 게시글이 없어요',
-                                  style: AppTextStyles.bodyBold
-                                      .copyWith(color: AppColors.paleInk2)),
-                              const SizedBox(height: 4),
-                              Text('첫 글을 작성해보세요',
-                                  style: AppTextStyles.caption
-                                      .copyWith(color: AppColors.paleInk3)),
-                            ],
-                          ),
-                        );
-                      }
-
-                      return RefreshIndicator(
-                        onRefresh: () =>
-                            ref.read(feedProvider.notifier).load(),
-                        color: AppColors.primary,
-                        child: ListView(
-                          padding: const EdgeInsets.only(bottom: 110),
-                          children: [
-                            if (pinned.isNotEmpty) ...[
-                              ColoredBox(
-                                color: AppColors.commPinnedBg
-                                    .withAlpha(200),
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                  children: [
-                                    Padding(
-                                      padding: const EdgeInsets.fromLTRB(
-                                          22, 8, 22, 4),
-                                      child: Text(
-                                        '📌 PINNED',
-                                        style: AppTextStyles.monoXs.copyWith(
-                                          color: AppColors.paleInk2,
-                                          letterSpacing: 0.4,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ),
-                                    ...pinned.map((p) => _PostRow(
-                                          post: p,
-                                          onTap: () =>
-                                              context.push('/community/${p.id}'),
-                                        )),
-                                  ],
-                                ),
-                              ),
-                            ],
-                            ...normal.map((p) => _PostRow(
-                                  post: p,
-                                  onTap: () =>
-                                      context.push('/community/${p.id}'),
-                                )),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
+                  child: _buildBody(feed, search, catById),
                 ),
               ],
             ),
 
-            // ── 플로팅 글쓰기 버튼 ────────────────────────────────
+            // ── 플로팅 글쓰기 버튼 (홈 FAB와 동일 위치·크기) ──────────
             Positioned(
-              right: 18,
-              bottom: 80,
+              right: 16,
+              bottom: 16,
               child: GestureDetector(
                 onTap: () => context.push('/community/new'),
                 child: Container(
-                  width: 56,
-                  height: 56,
+                  width: 50,
+                  height: 50,
                   decoration: const BoxDecoration(
                     color: AppColors.primary,
                     borderRadius: BorderRadius.zero,
                   ),
                   child: const Icon(Icons.edit_outlined,
-                      color: AppColors.paleBg, size: 22),
+                      color: AppColors.paleBg, size: 24),
                 ),
               ),
             ),
@@ -325,52 +224,114 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
     );
   }
 
-  Widget _buildTabRow(
-      String? selected, Map<String?, int> counts, WidgetRef ref) {
+  Widget _buildBody(
+      FeedState feed, String search, Map<int, PostCategory> catById) {
+    if (feed.loading) {
+      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+    }
+    if (feed.error != null && feed.posts.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('불러오기 실패',
+                style: AppTextStyles.bodyBold
+                    .copyWith(color: AppColors.paleInk2)),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => ref.read(feedProvider.notifier).refresh(),
+              child: const Text('다시 시도'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final q = search.trim().toLowerCase();
+    final filtered = q.isEmpty
+        ? feed.posts
+        : feed.posts
+            .where((p) => p.title.toLowerCase().contains(q))
+            .toList();
+
+    if (filtered.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: () => ref.read(feedProvider.notifier).refresh(),
+        color: AppColors.primary,
+        child: ListView(
+          children: [
+            SizedBox(
+              height: 260,
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(q.isEmpty ? '아직 게시글이 없어요' : '검색 결과가 없어요',
+                        style: AppTextStyles.bodyBold
+                            .copyWith(color: AppColors.paleInk2)),
+                    const SizedBox(height: 4),
+                    if (q.isEmpty)
+                      Text('첫 글을 작성해보세요',
+                          style: AppTextStyles.caption
+                              .copyWith(color: AppColors.paleInk3)),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: () => ref.read(feedProvider.notifier).refresh(),
+      color: AppColors.primary,
+      child: ListView.builder(
+        controller: _scrollCtrl,
+        padding: const EdgeInsets.only(bottom: 110),
+        itemCount: filtered.length + 1,
+        itemBuilder: (_, i) {
+          if (i == filtered.length) {
+            // 하단 로더 / 끝 표시
+            if (feed.loadingMore) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Center(
+                    child: CircularProgressIndicator(strokeWidth: 2)),
+              );
+            }
+            return const SizedBox(height: 8);
+          }
+          final p = filtered[i];
+          return _PostRow(
+            post: p,
+            code: catById[p.categoryId]?.code,
+            label: catById[p.categoryId]?.nameKo ?? '',
+            onTap: () => context.push('/community/${p.id}'),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildTabRow(int? selected, List<PostCategory> categories) {
+    // [전체(null)] + 서버 카테고리
+    final tabs = <(int?, String)>[
+      (null, '전체'),
+      ...categories.map((c) => (c.id, c.nameKo)),
+    ];
     return ListView.separated(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.fromLTRB(22, 0, 22, 12),
-      itemCount: _kTabs.length,
+      itemCount: tabs.length,
       separatorBuilder: (_, __) => const SizedBox(width: 6),
       itemBuilder: (_, i) {
-        final tab = _kTabs[i];
-        final active = selected == tab.$1;
-        final count = counts[tab.$1] ?? 0;
-        return GestureDetector(
+        final tab = tabs[i];
+        return AppChip(
+          label: tab.$2,
+          selected: selected == tab.$1,
           onTap: () =>
               ref.read(categoryFilterProvider.notifier).state = tab.$1,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(
-              color: active ? AppColors.primary : AppColors.card,
-              border: Border.all(
-                color: active ? Colors.transparent : AppColors.paleLine,
-              ),
-              borderRadius: BorderRadius.zero,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  tab.$2,
-                  style: AppTextStyles.bodyBold.copyWith(
-                    fontSize: 13,
-                    color: active ? AppColors.paleBg : AppColors.primary,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  '$count',
-                  style: AppTextStyles.monoXs.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: active
-                        ? AppColors.paleBg.withAlpha(153)
-                        : AppColors.paleInk3,
-                  ),
-                ),
-              ],
-            ),
-          ),
         );
       },
     );
@@ -402,13 +363,18 @@ class _CircleBtn extends StatelessWidget {
 
 class _PostRow extends StatelessWidget {
   final Post post;
+  final String? code;
+  final String label;
   final VoidCallback onTap;
-  const _PostRow({required this.post, required this.onTap});
+  const _PostRow({
+    required this.post,
+    required this.code,
+    required this.label,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final cat = post.categoryCode.toLowerCase();
-
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
@@ -422,26 +388,13 @@ class _PostRow extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 좌측 본문
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 카테고리 태그 + HOT + 시각
                   Row(
                     children: [
-                      _CategoryPill(cat: cat),
-                      if (post.isHot) ...[
-                        const SizedBox(width: 6),
-                        Text(
-                          'HOT',
-                          style: AppTextStyles.monoXs.copyWith(
-                            color: AppColors.commHot,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ],
+                      _CategoryPill(code: code, label: label),
                       const Spacer(),
                       Text(
                         _relativeTime(post.createdAt),
@@ -451,7 +404,6 @@ class _PostRow extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 6),
-                  // 제목
                   Text(
                     post.title,
                     style: AppTextStyles.bodyBold.copyWith(
@@ -464,7 +416,6 @@ class _PostRow extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 8),
-                  // 메타: 작성자 · 좋아요 · 댓글 · 조회
                   Row(
                     children: [
                       Text(post.authorName,
@@ -493,20 +444,27 @@ class _PostRow extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 12),
-            // 우측 썸네일
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                color: _catBg(cat).withAlpha(216),
-                borderRadius: BorderRadius.zero,
+            // 썸네일 — 사진이 있는 게시글만 표시
+            if (post.thumbnailUrl != null) ...[
+              const SizedBox(width: 12),
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: _catBg(code).withAlpha(216),
+                  borderRadius: BorderRadius.zero,
+                ),
+                clipBehavior: Clip.hardEdge,
+                child: Image.network(
+                  post.thumbnailUrl!,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => const Center(
+                    child: Icon(Icons.image_outlined,
+                        size: 28, color: AppColors.paleInk3),
+                  ),
+                ),
               ),
-              child: const Center(
-                child: Icon(Icons.image_outlined,
-                    size: 28, color: AppColors.paleInk3),
-              ),
-            ),
+            ],
           ],
         ),
       ),
@@ -515,21 +473,22 @@ class _PostRow extends StatelessWidget {
 }
 
 class _CategoryPill extends StatelessWidget {
-  final String cat;
-  const _CategoryPill({required this.cat});
+  final String? code;
+  final String label;
+  const _CategoryPill({required this.code, required this.label});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: _catBg(cat),
+        color: _catBg(code),
         borderRadius: BorderRadius.zero,
       ),
       child: Text(
-        _catLabel(cat),
+        label,
         style: AppTextStyles.monoXs.copyWith(
-          color: _catInk(cat),
+          color: _catInk(code),
           fontWeight: FontWeight.w700,
         ),
       ),

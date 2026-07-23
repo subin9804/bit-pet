@@ -2,36 +2,104 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/models/post_models.dart';
 import '../data/post_repository.dart';
 
-// 선택된 카테고리 필터
-final categoryFilterProvider = StateProvider<String?>((ref) => null);
+// 선택된 카테고리 필터 (null = 전체). 서버 categoryId(Long) 기준.
+final categoryFilterProvider = StateProvider<int?>((ref) => null);
 
-// 검색어
+// 검색어 (현재 로드된 목록에 대한 클라이언트 필터)
 final postSearchProvider = StateProvider<String>((ref) => '');
 
-final feedProvider =
-    StateNotifierProvider<FeedNotifier, AsyncValue<List<Post>>>((ref) {
-  final category = ref.watch(categoryFilterProvider);
-  return FeedNotifier(ref.watch(postRepositoryProvider), category);
+// 카테고리 전체 목록 (게시글 라벨/색상 해석용 — 숨긴 카테고리도 포함)
+final categoriesProvider = FutureProvider<List<PostCategory>>((ref) {
+  return ref.watch(postRepositoryProvider).getCategories();
 });
 
-class FeedNotifier extends StateNotifier<AsyncValue<List<Post>>> {
-  final PostRepository _repo;
-  final String? _category;
+// MVP에서 화면에 노출하지 않을 카테고리 코드 (추후 확장 시 사용)
+const kHiddenCategoryCodes = {'INFO', 'ADOPTION'};
 
-  FeedNotifier(this._repo, this._category)
-      : super(const AsyncValue.loading()) {
-    load();
+// 탭/글쓰기에서 실제로 선택 가능한 카테고리 (INFO·분양 제외)
+final visibleCategoriesProvider = Provider<List<PostCategory>>((ref) {
+  final all = ref.watch(categoriesProvider).valueOrNull ?? const <PostCategory>[];
+  return all.where((c) => !kHiddenCategoryCodes.contains(c.code)).toList();
+});
+
+// ── 피드 (무한 스크롤) ────────────────────────────────────────────────
+class FeedState {
+  final List<Post> posts;
+  final bool loading; // 최초 로드
+  final bool loadingMore; // 다음 페이지 로드
+  final bool hasMore;
+  final Object? error;
+
+  const FeedState({
+    this.posts = const [],
+    this.loading = true,
+    this.loadingMore = false,
+    this.hasMore = true,
+    this.error,
+  });
+
+  FeedState copyWith({
+    List<Post>? posts,
+    bool? loading,
+    bool? loadingMore,
+    bool? hasMore,
+    Object? error,
+    bool clearError = false,
+  }) =>
+      FeedState(
+        posts: posts ?? this.posts,
+        loading: loading ?? this.loading,
+        loadingMore: loadingMore ?? this.loadingMore,
+        hasMore: hasMore ?? this.hasMore,
+        error: clearError ? null : (error ?? this.error),
+      );
+}
+
+final feedProvider =
+    StateNotifierProvider<FeedNotifier, FeedState>((ref) {
+  final categoryId = ref.watch(categoryFilterProvider);
+  return FeedNotifier(ref.watch(postRepositoryProvider), categoryId);
+});
+
+class FeedNotifier extends StateNotifier<FeedState> {
+  final PostRepository _repo;
+  final int? _categoryId;
+  int _page = 0;
+
+  FeedNotifier(this._repo, this._categoryId) : super(const FeedState()) {
+    refresh();
   }
 
-  Future<void> load({bool refresh = true}) async {
-    if (refresh) {
-      state = const AsyncValue.loading();
+  Future<void> refresh() async {
+    _page = 0;
+    state = const FeedState(loading: true);
+    try {
+      final p = await _repo.getFeed(categoryId: _categoryId, page: 0);
+      state = FeedState(posts: p.items, loading: false, hasMore: !p.last);
+    } catch (e) {
+      state = FeedState(loading: false, hasMore: false, error: e);
     }
-    state = await AsyncValue.guard(
-        () => _repo.getFeed(categoryCode: _category));
+  }
+
+  Future<void> loadMore() async {
+    if (state.loading || state.loadingMore || !state.hasMore) return;
+    state = state.copyWith(loadingMore: true);
+    try {
+      final next = _page + 1;
+      final p = await _repo.getFeed(categoryId: _categoryId, page: next);
+      _page = next;
+      state = state.copyWith(
+        posts: [...state.posts, ...p.items],
+        loadingMore: false,
+        hasMore: !p.last,
+      );
+    } catch (_) {
+      state = state.copyWith(loadingMore: false);
+    }
   }
 }
 
+// ── 상세 ──────────────────────────────────────────────────────────────
 final postDetailProvider = StateNotifierProvider.family<PostDetailNotifier,
     AsyncValue<Post?>, int>((ref, id) {
   return PostDetailNotifier(ref.watch(postRepositoryProvider), id);
@@ -60,22 +128,13 @@ class PostDetailNotifier extends StateNotifier<AsyncValue<Post?>> {
       likeCount: wasLiked ? post.likeCount - 1 : post.likeCount + 1,
     ));
     try {
-      await _repo.toggleLike(_id, wasLiked);
+      final result = await _repo.toggleLike(_id);
+      state = AsyncValue.data(post.copyWith(
+        isLiked: result.liked,
+        likeCount: result.likeCount,
+      ));
     } catch (_) {
-      // 롤백
-      state = AsyncValue.data(post);
-    }
-  }
-
-  Future<void> toggleBookmark() async {
-    final post = state.valueOrNull;
-    if (post == null) return;
-    final was = post.isBookmarked;
-    state = AsyncValue.data(post.copyWith(isBookmarked: !was));
-    try {
-      await _repo.toggleBookmark(_id, was);
-    } catch (_) {
-      state = AsyncValue.data(post);
+      state = AsyncValue.data(post); // 롤백
     }
   }
 }
@@ -85,51 +144,35 @@ final commentsProvider =
   return ref.watch(postRepositoryProvider).getComments(postId);
 });
 
-// 글쓰기/수정 상태
+// ── 글쓰기/수정 상태 ──────────────────────────────────────────────────
 class ComposeState {
-  final String cat;
+  final int? categoryId;
   final String title;
   final String body;
-  final List<String> tags;
-  final bool anonymous;
-  final bool allowComments;
-  final bool notify;
   final bool isSubmitting;
 
   const ComposeState({
-    this.cat = 'free',
+    this.categoryId,
     this.title = '',
     this.body = '',
-    this.tags = const [],
-    this.anonymous = false,
-    this.allowComments = true,
-    this.notify = true,
     this.isSubmitting = false,
   });
 
   ComposeState copyWith({
-    String? cat,
+    int? categoryId,
     String? title,
     String? body,
-    List<String>? tags,
-    bool? anonymous,
-    bool? allowComments,
-    bool? notify,
     bool? isSubmitting,
   }) =>
       ComposeState(
-        cat: cat ?? this.cat,
+        categoryId: categoryId ?? this.categoryId,
         title: title ?? this.title,
         body: body ?? this.body,
-        tags: tags ?? this.tags,
-        anonymous: anonymous ?? this.anonymous,
-        allowComments: allowComments ?? this.allowComments,
-        notify: notify ?? this.notify,
         isSubmitting: isSubmitting ?? this.isSubmitting,
       );
 
   bool get canSubmit =>
-      cat.isNotEmpty && title.trim().isNotEmpty && body.trim().isNotEmpty;
+      categoryId != null && title.trim().isNotEmpty && body.trim().isNotEmpty;
 }
 
 final composeProvider =
@@ -143,41 +186,25 @@ class ComposeNotifier extends StateNotifier<ComposeState> {
 
   void prefill(Post post) {
     state = ComposeState(
-      cat: post.categoryCode.toLowerCase(),
+      categoryId: post.categoryId,
       title: post.title,
       body: post.content,
-      tags: List.from(post.tags),
     );
   }
 
-  void setCat(String cat) => state = state.copyWith(cat: cat);
+  void setCategory(int categoryId) =>
+      state = state.copyWith(categoryId: categoryId);
   void setTitle(String v) => state = state.copyWith(title: v);
   void setBody(String v) => state = state.copyWith(body: v);
-  void addTag(String tag) {
-    if (state.tags.length >= 5 || state.tags.contains(tag)) return;
-    state = state.copyWith(tags: [...state.tags, tag]);
-  }
-
-  void removeTag(String tag) =>
-      state = state.copyWith(tags: state.tags.where((t) => t != tag).toList());
-
-  void toggleAnonymous() =>
-      state = state.copyWith(anonymous: !state.anonymous);
-  void toggleAllowComments() =>
-      state = state.copyWith(allowComments: !state.allowComments);
-  void toggleNotify() => state = state.copyWith(notify: !state.notify);
 
   Future<Post?> submit() async {
     if (!state.canSubmit) return null;
     state = state.copyWith(isSubmitting: true);
     try {
       return await _repo.createPost(CreatePostRequest(
-        categoryCode: state.cat.toUpperCase(),
+        categoryId: state.categoryId!,
         title: state.title,
         content: state.body,
-        tags: state.tags,
-        anonymous: state.anonymous,
-        allowComments: state.allowComments,
       ));
     } finally {
       if (mounted) state = state.copyWith(isSubmitting: false);
@@ -191,10 +218,9 @@ class ComposeNotifier extends StateNotifier<ComposeState> {
       return await _repo.updatePost(
         postId,
         UpdatePostRequest(
-          categoryCode: state.cat.toUpperCase(),
+          categoryId: state.categoryId!,
           title: state.title,
           content: state.body,
-          tags: state.tags,
         ),
       );
     } finally {

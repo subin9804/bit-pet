@@ -1,4 +1,4 @@
-// 08 · 게시글 상세 — PALE 디자인 핸드오프 반영
+// 08 · 게시글 상세 — 좋아요 / 댓글, 서버 계약 기준 간소화
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,32 +8,25 @@ import '../data/models/post_models.dart';
 import '../data/post_repository.dart';
 import '../providers/post_provider.dart';
 
-Color _catBg(String? cat) => switch (cat?.toLowerCase()) {
-      'free' => AppColors.commFreeBg,
-      'qna'  => AppColors.commQnaBg,
-      'info' => AppColors.commInfoBg,
-      'sell' => AppColors.commSellBg,
-      _      => AppColors.paleBgAlt,
+Color _catBg(String? code) => switch (code?.toUpperCase()) {
+      'FREE' => AppColors.commFreeBg,
+      'QNA' => AppColors.commQnaBg,
+      'INFO' => AppColors.commInfoBg,
+      'ADOPTION' => AppColors.commSellBg,
+      _ => AppColors.paleBgAlt,
     };
 
-Color _catInk(String? cat) => switch (cat?.toLowerCase()) {
-      'free' => AppColors.commFreeInk,
-      'qna'  => AppColors.commQnaInk,
-      'info' => AppColors.commInfoInk,
-      'sell' => AppColors.commSellInk,
-      _      => AppColors.paleInk2,
-    };
-
-String _catLabel(String? cat) => switch (cat?.toLowerCase()) {
-      'free' => '자유',
-      'qna'  => 'QnA',
-      'info' => '정보',
-      'sell' => '분양',
-      _      => cat ?? '',
+Color _catInk(String? code) => switch (code?.toUpperCase()) {
+      'FREE' => AppColors.commFreeInk,
+      'QNA' => AppColors.commQnaInk,
+      'INFO' => AppColors.commInfoInk,
+      'ADOPTION' => AppColors.commSellInk,
+      _ => AppColors.paleInk2,
     };
 
 String _relativeTime(DateTime dt) {
-  final d = DateTime.now().difference(dt);
+  final d = DateTime.now().difference(dt.toLocal());
+  if (d.inMinutes < 1) return '방금';
   if (d.inMinutes < 60) return '${d.inMinutes}분 전';
   if (d.inHours < 24) return '${d.inHours}시간 전';
   if (d.inDays == 1) return '어제';
@@ -69,6 +62,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
           .addComment(widget.postId, _commentCtrl.text.trim());
       _commentCtrl.clear();
       ref.invalidate(commentsProvider(widget.postId));
+      ref.invalidate(postDetailProvider(widget.postId)); // 댓글 수 갱신
     } catch (_) {
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -108,9 +102,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
             ListTile(
               leading: const Icon(Icons.delete_outline,
                   color: AppColors.commHot),
-              title: Text('삭제',
-                  style:
-                      TextStyle(color: AppColors.commHot)),
+              title: Text('삭제', style: TextStyle(color: AppColors.commHot)),
               onTap: () async {
                 Navigator.pop(context);
                 final ok = await showDialog<bool>(
@@ -129,18 +121,11 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                   ),
                 );
                 if (ok == true && context.mounted) {
-                  await ref
-                      .read(postRepositoryProvider)
-                      .deletePost(post.id);
+                  await ref.read(postRepositoryProvider).deletePost(post.id);
+                  ref.invalidate(feedProvider);
                   if (context.mounted) context.pop();
                 }
               },
-            ),
-            ListTile(
-              leading: const Icon(Icons.flag_outlined,
-                  color: AppColors.paleInk2),
-              title: const Text('신고'),
-              onTap: () => Navigator.pop(context),
             ),
             const SizedBox(height: 8),
           ],
@@ -153,27 +138,31 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
   Widget build(BuildContext context) {
     final postAsync = ref.watch(postDetailProvider(widget.postId));
     final commentsAsync = ref.watch(commentsProvider(widget.postId));
+    final categories =
+        ref.watch(categoriesProvider).valueOrNull ?? const <PostCategory>[];
+    final catById = {for (final c in categories) c.id: c};
 
     return Scaffold(
       backgroundColor: AppColors.paleBg,
       body: postAsync.when(
-        loading: () => const Center(
-            child: CircularProgressIndicator(strokeWidth: 2)),
+        loading: () =>
+            const Center(child: CircularProgressIndicator(strokeWidth: 2)),
         error: (e, _) => Center(child: Text(e.toString())),
         data: (post) {
           if (post == null) {
             return const Center(child: Text('게시글을 찾을 수 없어요'));
           }
-          final cat = post.categoryCode.toLowerCase();
+          final cat = catById[post.categoryId];
+          final code = cat?.code;
+          final label = cat?.nameKo ?? '';
 
           return Column(
             children: [
-              // ── TopBar ──────────────────────────────────────────
               SafeArea(
                 bottom: false,
                 child: _TopBar(
                   title: '게시글',
-                  sub: '${_catLabel(cat)} · 자세히',
+                  sub: '$label · 자세히',
                   onBack: () => context.pop(),
                   trailing: GestureDetector(
                     onTap: () => _showMenu(context, post),
@@ -191,47 +180,24 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                   ),
                 ),
               ),
-
-              // ── 본문 스크롤 ──────────────────────────────────────
               Expanded(
                 child: ListView(
                   controller: _scrollCtrl,
-                  padding:
-                      const EdgeInsets.fromLTRB(22, 4, 22, 100),
+                  padding: const EdgeInsets.fromLTRB(22, 4, 22, 100),
                   children: [
-                    // 카테고리 pill + HOT
-                    Row(
-                      children: [
-                        _CategoryPill(cat: cat),
-                        if (post.isHot) ...[
-                          const SizedBox(width: 6),
-                          Text(
-                            'HOT',
-                            style: AppTextStyles.monoXs.copyWith(
-                              color: AppColors.commHot,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
+                    _CategoryPill(code: code, label: label),
                     const SizedBox(height: 10),
-
-                    // 제목
                     Text(
                       post.title,
-                      style: AppTextStyles.h2.copyWith(
-                        letterSpacing: -0.4,
-                        height: 1.3,
-                      ),
+                      style: AppTextStyles.h2
+                          .copyWith(letterSpacing: -0.4, height: 1.3),
                     ),
                     const SizedBox(height: 12),
 
                     // 작성자 행
                     Row(
                       children: [
-                        _AvatarCircle(size: 36, color: AppColors.petSage),
+                        _Avatar(size: 36, imageUrl: post.authorImageUrl),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Column(
@@ -248,29 +214,10 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                             ],
                           ),
                         ),
-                        OutlinedButton(
-                          onPressed: () {},
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: AppColors.paleLine),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 6),
-                            shape: const RoundedRectangleBorder(
-                                borderRadius: BorderRadius.zero),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          child: Text(
-                            '+ 팔로우',
-                            style: AppTextStyles.caption
-                                .copyWith(fontSize: 11, color: AppColors.paleInk2),
-                          ),
-                        ),
                       ],
                     ),
-
                     const SizedBox(height: 20),
 
-                    // 본문 텍스트
                     Text(
                       post.content,
                       style: AppTextStyles.body.copyWith(
@@ -278,35 +225,9 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                         color: AppColors.primary,
                       ),
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 20),
 
-                    // 첨부 이미지 placeholder
-                    Container(
-                      height: 180,
-                      decoration: BoxDecoration(
-                        color: AppColors.petSage,
-                        borderRadius: BorderRadius.zero,
-                      ),
-                      child: const Center(
-                        child: Icon(Icons.image_outlined,
-                            size: 48, color: AppColors.paleInk3),
-                      ),
-                    ),
-
-                    // 해시태그
-                    if (post.tags.isNotEmpty) ...[
-                      const SizedBox(height: 14),
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
-                        children: post.tags
-                            .map((tg) => _TagChip(label: tg))
-                            .toList(),
-                      ),
-                    ],
-                    const SizedBox(height: 16),
-
-                    // 반응 바
+                    // 좋아요
                     Row(
                       children: [
                         Expanded(
@@ -316,8 +237,8 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                                     .notifier)
                                 .toggleLike(),
                             child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 10),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 10),
                               decoration: BoxDecoration(
                                 color: post.isLiked
                                     ? AppColors.commLikeBg
@@ -347,96 +268,56 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        GestureDetector(
-                          onTap: () => ref
-                              .read(postDetailProvider(widget.postId)
-                                  .notifier)
-                              .toggleBookmark(),
-                          child: Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              color: AppColors.card,
-                              border:
-                                  Border.all(color: AppColors.paleLine),
-                              borderRadius: BorderRadius.zero,
-                            ),
-                            child: Icon(
-                              post.isBookmarked
-                                  ? Icons.bookmark
-                                  : Icons.bookmark_outline,
-                              size: 18,
-                              color: post.isBookmarked
-                                  ? AppColors.primary
-                                  : AppColors.paleInk2,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: AppColors.card,
-                            border: Border.all(color: AppColors.paleLine),
-                            borderRadius: BorderRadius.zero,
-                          ),
-                          child: const Center(
-                            child: Text('↗',
-                                style: TextStyle(
-                                    fontSize: 16, color: AppColors.primary)),
-                          ),
-                        ),
                       ],
                     ),
                     const SizedBox(height: 24),
 
                     // 댓글 헤더
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        RichText(
-                          text: TextSpan(
-                            text: '댓글 ',
-                            style: AppTextStyles.bodyBold
-                                .copyWith(fontSize: 14),
-                            children: [
-                              TextSpan(
-                                text: '${post.commentCount}',
-                                style: AppTextStyles.bodyBold.copyWith(
-                                    fontSize: 14,
-                                    color: AppColors.paleInk2),
-                              ),
-                            ],
+                    RichText(
+                      text: TextSpan(
+                        text: '댓글 ',
+                        style:
+                            AppTextStyles.bodyBold.copyWith(fontSize: 14),
+                        children: [
+                          TextSpan(
+                            text: '${post.commentCount}',
+                            style: AppTextStyles.bodyBold.copyWith(
+                                fontSize: 14, color: AppColors.paleInk2),
                           ),
-                        ),
-                        Text('최신순 ↓',
-                            style: AppTextStyles.caption
-                                .copyWith(fontSize: 11, fontWeight: FontWeight.w600)),
-                      ],
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 12),
 
-                    // 댓글 목록
                     commentsAsync.when(
                       loading: () => const Padding(
                         padding: EdgeInsets.symmetric(vertical: 20),
-                        child:
-                            Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                        child: Center(
+                            child:
+                                CircularProgressIndicator(strokeWidth: 2)),
                       ),
                       error: (e, _) => Text(e.toString()),
-                      data: (comments) => Column(
-                        children: comments
-                            .map((c) => _CommentItem(comment: c))
-                            .toList(),
-                      ),
+                      data: (comments) => comments.isEmpty
+                          ? Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 24),
+                              child: Center(
+                                child: Text('첫 댓글을 남겨보세요',
+                                    style: AppTextStyles.caption.copyWith(
+                                        color: AppColors.paleInk3)),
+                              ),
+                            )
+                          : Column(
+                              children: comments
+                                  .map((c) => _CommentItem(comment: c))
+                                  .toList(),
+                            ),
                     ),
                   ],
                 ),
               ),
 
-              // ── 댓글 입력바 ─────────────────────────────────────
+              // 댓글 입력바
               Container(
                 padding: EdgeInsets.fromLTRB(
                     16, 10, 16,
@@ -445,8 +326,8 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                         10),
                 decoration: const BoxDecoration(
                   color: AppColors.paleBg,
-                  border: Border(
-                      top: BorderSide(color: AppColors.paleLine)),
+                  border:
+                      Border(top: BorderSide(color: AppColors.paleLine)),
                 ),
                 child: Row(
                   children: [
@@ -461,15 +342,15 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                               .copyWith(color: AppColors.paleInk3),
                           isDense: true,
                           enabledBorder: const UnderlineInputBorder(
-                            borderSide: BorderSide(color: AppColors.paleLine),
+                            borderSide:
+                                BorderSide(color: AppColors.paleLine),
                           ),
                           focusedBorder: const UnderlineInputBorder(
-                            borderSide:
-                                BorderSide(color: AppColors.primary, width: 1.5),
+                            borderSide: BorderSide(
+                                color: AppColors.primary, width: 1.5),
                           ),
-                          contentPadding:
-                              const EdgeInsets.symmetric(
-                                  horizontal: 4, vertical: 10),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 4, vertical: 10),
                         ),
                       ),
                     ),
@@ -555,11 +436,7 @@ class _TopBar extends StatelessWidget {
                     letterSpacing: -0.2,
                   ),
                 ),
-                if (sub != null)
-                  Text(
-                    sub!,
-                    style: AppTextStyles.monoXs,
-                  ),
+                if (sub != null) Text(sub!, style: AppTextStyles.monoXs),
               ],
             ),
           ),
@@ -571,65 +448,55 @@ class _TopBar extends StatelessWidget {
 }
 
 class _CategoryPill extends StatelessWidget {
-  final String cat;
-  const _CategoryPill({required this.cat});
+  final String? code;
+  final String label;
+  const _CategoryPill({required this.code, required this.label});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: _catBg(cat),
-        borderRadius: BorderRadius.zero,
-      ),
-      child: Text(
-        _catLabel(cat),
-        style: AppTextStyles.monoXs.copyWith(
-          color: _catInk(cat),
-          fontWeight: FontWeight.w700,
-          fontSize: 11,
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: _catBg(code),
+          borderRadius: BorderRadius.zero,
+        ),
+        child: Text(
+          label,
+          style: AppTextStyles.monoXs.copyWith(
+            color: _catInk(code),
+            fontWeight: FontWeight.w700,
+            fontSize: 11,
+          ),
         ),
       ),
     );
   }
 }
 
-class _TagChip extends StatelessWidget {
-  final String label;
-  const _TagChip({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: AppColors.paleBgAlt,
-        borderRadius: BorderRadius.zero,
-      ),
-      child: Text(
-        label.startsWith('#') ? label : '#$label',
-        style: AppTextStyles.caption
-            .copyWith(fontSize: 11, fontWeight: FontWeight.w600),
-      ),
-    );
-  }
-}
-
-class _AvatarCircle extends StatelessWidget {
+class _Avatar extends StatelessWidget {
   final double size;
-  final Color color;
-  const _AvatarCircle({required this.size, required this.color});
+  final String? imageUrl;
+  const _Avatar({required this.size, this.imageUrl});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-      child: Center(
-        child: Icon(Icons.pets_rounded,
-            size: size * 0.45, color: AppColors.paleInk2),
-      ),
+      clipBehavior: Clip.hardEdge,
+      decoration:
+          const BoxDecoration(color: AppColors.petSage, shape: BoxShape.circle),
+      child: imageUrl != null
+          ? Image.network(
+              imageUrl!,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Icon(Icons.pets_rounded,
+                  size: size * 0.45, color: AppColors.paleInk2),
+            )
+          : Icon(Icons.pets_rounded,
+              size: size * 0.45, color: AppColors.paleInk2),
     );
   }
 }
@@ -645,16 +512,12 @@ class _CommentItem extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _AvatarCircle(
-            size: 32,
-            color: comment.isAuthor ? AppColors.petLilac : AppColors.petSky,
-          ),
+          _Avatar(size: 32, imageUrl: comment.authorImageUrl),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 작성자 행
                 Wrap(
                   crossAxisAlignment: WrapCrossAlignment.center,
                   spacing: 6,
@@ -663,7 +526,7 @@ class _CommentItem extends StatelessWidget {
                       comment.authorName,
                       style: AppTextStyles.bodyBold.copyWith(fontSize: 12),
                     ),
-                    if (comment.isAuthor)
+                    if (comment.isPostAuthor)
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 5, vertical: 1),
@@ -687,7 +550,6 @@ class _CommentItem extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 3),
-                // 본문
                 Text(
                   comment.content,
                   style: AppTextStyles.body.copyWith(
@@ -696,55 +558,47 @@ class _CommentItem extends StatelessWidget {
                     color: AppColors.primary,
                   ),
                 ),
-                const SizedBox(height: 6),
-                // 액션
-                Row(
-                  children: [
-                    GestureDetector(
-                      onTap: () {},
+                // 대댓글
+                if (comment.replies.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  ...comment.replies.map(
+                    (r) => Padding(
+                      padding: const EdgeInsets.only(top: 8, left: 4),
                       child: Row(
-                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.favorite_outline,
-                              size: 13, color: AppColors.paleInk2),
-                          const SizedBox(width: 3),
-                          Text(
-                            '${comment.likeCount}',
-                            style: AppTextStyles.monoXs.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.paleInk2,
+                          Text('↳ ',
+                              style: AppTextStyles.caption
+                                  .copyWith(color: AppColors.paleInk3)),
+                          _Avatar(size: 26, imageUrl: r.authorImageUrl),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Wrap(
+                                  crossAxisAlignment:
+                                      WrapCrossAlignment.center,
+                                  spacing: 6,
+                                  children: [
+                                    Text(r.authorName,
+                                        style: AppTextStyles.bodyBold
+                                            .copyWith(fontSize: 12)),
+                                    Text(_relativeTime(r.createdAt),
+                                        style: AppTextStyles.monoXs),
+                                  ],
+                                ),
+                                const SizedBox(height: 3),
+                                Text(r.content,
+                                    style: AppTextStyles.body.copyWith(
+                                        fontSize: 13,
+                                        height: 1.55,
+                                        color: AppColors.primary)),
+                              ],
                             ),
                           ),
                         ],
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    GestureDetector(
-                      onTap: () {},
-                      child: Text(
-                        '답글',
-                        style: AppTextStyles.caption.copyWith(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.paleInk2,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                // 대댓글 보기
-                if (comment.replies.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: AppColors.paleBgAlt,
-                      borderRadius: BorderRadius.zero,
-                    ),
-                    child: Text(
-                      '↳ 답글 ${comment.replies.length}개 보기',
-                      style: AppTextStyles.caption.copyWith(fontSize: 11),
                     ),
                   ),
                 ],

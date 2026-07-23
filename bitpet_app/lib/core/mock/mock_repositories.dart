@@ -738,7 +738,7 @@ final _mockPosts = [
     id: 1,
     userId: 2,
     authorName: '파충류러버',
-    categoryCode: 'FREE',
+    categoryId: 1,
     title: '볼파이톤 처음 키우는데 온도 세팅 어떻게 하시나요?',
     content: '핫스팟 32도, 쿨사이드 26도 정도로 맞추고 있는데 적당한가요?',
     viewCount: 42,
@@ -751,7 +751,7 @@ final _mockPosts = [
     id: 2,
     userId: 3,
     authorName: '레오게코마스터',
-    categoryCode: 'SHARE',
+    categoryId: 3,
     title: '레오파드게코 탈피 성공했어요! 🦎',
     content: '습식 은신처 덕분에 이번에 완벽하게 탈피했습니다. 모두 공유하고 싶었어요.',
     viewCount: 120,
@@ -762,12 +762,27 @@ final _mockPosts = [
   ),
 ];
 
+const _mockCategories = [
+  PostCategory(id: 1, code: 'FREE', nameKo: '자유', displayOrder: 1),
+  PostCategory(id: 2, code: 'QNA', nameKo: 'QnA', displayOrder: 2),
+  PostCategory(id: 3, code: 'INFO', nameKo: '정보', displayOrder: 3),
+  PostCategory(id: 4, code: 'ADOPTION', nameKo: '분양', displayOrder: 4),
+];
+
 class MockPostRepository extends PostRepository {
   MockPostRepository() : super(Dio());
 
   @override
-  Future<List<Post>> getFeed({String? categoryCode, String? cursor}) async =>
-      List.from(_mockPosts);
+  Future<List<PostCategory>> getCategories() async =>
+      List.from(_mockCategories);
+
+  @override
+  Future<PostPage> getFeed({int? categoryId, int page = 0, int size = 20}) async {
+    final items = categoryId == null
+        ? List<Post>.from(_mockPosts)
+        : _mockPosts.where((p) => p.categoryId == categoryId).toList();
+    return PostPage(items: page == 0 ? items : const [], last: true, page: page);
+  }
 
   @override
   Future<Post> getPost(int id) async =>
@@ -778,7 +793,7 @@ class MockPostRepository extends PostRepository {
         id: 99,
         userId: 1,
         authorName: '테스트',
-        categoryCode: request.categoryCode,
+        categoryId: request.categoryId,
         title: request.title,
         content: request.content,
         viewCount: 0,
@@ -792,7 +807,8 @@ class MockPostRepository extends PostRepository {
   Future<void> deletePost(int id) async {}
 
   @override
-  Future<void> toggleLike(int id, bool currentlyLiked) async {}
+  Future<LikeResult> toggleLike(int id) async =>
+      const LikeResult(liked: true, likeCount: 1);
 
   @override
   Future<List<PostComment>> getComments(int postId) async => [

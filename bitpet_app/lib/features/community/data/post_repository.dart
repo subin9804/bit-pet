@@ -12,19 +12,38 @@ class PostRepository {
   final Dio _dio;
   PostRepository(this._dio);
 
-  Future<List<Post>> getFeed({String? categoryCode, String? cursor}) async {
-    final res = await _dio.get('/posts', queryParameters: {
-      if (categoryCode != null) 'categoryCode': categoryCode,
-      if (cursor != null) 'cursor': cursor,
-      'limit': 20,
-    });
+  // ── 카테고리 ────────────────────────────────────────────────────────
+  Future<List<PostCategory>> getCategories() async {
+    final res = await _dio.get('/post-categories');
     final apiRes = ApiResponse.fromJson(
       res.data as Map<String, dynamic>,
       (d) => (d as List)
-          .map((e) => Post.fromJson(e as Map<String, dynamic>))
+          .map((e) => PostCategory.fromJson(e as Map<String, dynamic>))
           .toList(),
     );
     return apiRes.data ?? [];
+  }
+
+  // ── 피드 (페이지네이션 / 공지 상단 고정) ─────────────────────────────
+  Future<PostPage> getFeed({int? categoryId, int page = 0, int size = 20}) async {
+    final res = await _dio.get('/posts', queryParameters: {
+      if (categoryId != null) 'categoryId': categoryId,
+      'page': page,
+      'size': size,
+    });
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => d as Map<String, dynamic>,
+    );
+    final data = apiRes.data ?? const <String, dynamic>{};
+    final content = (data['content'] as List<dynamic>? ?? [])
+        .map((e) => Post.fromJson(e as Map<String, dynamic>))
+        .toList();
+    return PostPage(
+      items: content,
+      last: data['last'] as bool? ?? true,
+      page: data['number'] as int? ?? page,
+    );
   }
 
   Future<Post> getPost(int id) async {
@@ -73,22 +92,21 @@ class PostRepository {
     await _dio.delete('/posts/$id');
   }
 
-  Future<void> toggleLike(int id, bool currentlyLiked) async {
-    if (currentlyLiked) {
-      await _dio.delete('/posts/$id/like');
-    } else {
-      await _dio.post('/posts/$id/like');
-    }
+  // ── 좋아요 (단일 토글) ───────────────────────────────────────────────
+  Future<LikeResult> toggleLike(int id) async {
+    final res = await _dio.post('/posts/$id/like');
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => d as Map<String, dynamic>,
+    );
+    final data = apiRes.data ?? const <String, dynamic>{};
+    return LikeResult(
+      liked: data['liked'] as bool? ?? false,
+      likeCount: data['likeCount'] as int? ?? 0,
+    );
   }
 
-  Future<void> toggleBookmark(int id, bool currentlyBookmarked) async {
-    if (currentlyBookmarked) {
-      await _dio.delete('/posts/$id/bookmark');
-    } else {
-      await _dio.post('/posts/$id/bookmark');
-    }
-  }
-
+  // ── 댓글 ────────────────────────────────────────────────────────────
   Future<List<PostComment>> getComments(int postId) async {
     final res = await _dio.get('/posts/$postId/comments');
     final apiRes = ApiResponse.fromJson(
