@@ -5,10 +5,12 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_input_styles.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_buttons.dart';
+import '../../../core/widgets/confirm_modal.dart';
 import '../../../core/widgets/skeleton_loader.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../data/models/feed_models.dart';
 import '../providers/feed_provider.dart';
+import '../providers/record_provider.dart';
 import 'widgets/feed_items_editor.dart';
 import '../../pet/providers/pet_provider.dart';
 
@@ -109,10 +111,23 @@ class _FeedDetailScreenState extends ConsumerState<FeedDetailScreen> {
   }
 
   Future<void> _delete(String id) async {
-    await ref.read(feedSessionsProvider(widget.petId).notifier).delete(id);
-    if (mounted) {
-      setState(() => _editor = null);
-      showToast(context, '기록이 삭제되었습니다.', type: ToastType.info);
+    final ok = await ConfirmModal.show(
+      context,
+      title: '기록 삭제',
+      message: '이 급여 기록을 삭제할까요?\n삭제하면 복구할 수 없습니다.',
+      confirmLabel: '삭제',
+      isDangerous: true,
+    );
+    if (!ok) return;
+    try {
+      await ref.read(feedSessionsProvider(widget.petId).notifier).delete(id);
+      ref.invalidate(petCalendarProvider);
+      if (mounted) {
+        setState(() => _editor = null);
+        showToast(context, '기록이 삭제되었습니다.', type: ToastType.info);
+      }
+    } catch (e) {
+      if (mounted) showToast(context, '삭제 실패: $e', type: ToastType.error);
     }
   }
 
@@ -906,7 +921,13 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
           Positioned(
             left: 0, right: 0, bottom: 0,
             top: 70,
-            child: ClipRRect(
+            child: TweenAnimationBuilder<double>(
+              tween: Tween<double>(begin: 1, end: 0),
+              duration: const Duration(milliseconds: 260),
+              curve: Curves.easeOutCubic,
+              builder: (context, t, child) =>
+                  FractionalTranslation(translation: Offset(0, t), child: child),
+              child: ClipRRect(
               borderRadius:
                   const BorderRadius.vertical(top: Radius.circular(20)),
               child: Container(
@@ -1134,6 +1155,7 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
                   ),
                 ],
               ),
+            ),
             ),
             ),
           ),

@@ -89,7 +89,7 @@ public class RecordService {
         WeightDtl weight = weightRepository.findById(weightId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.WEIGHT_NOT_FOUND));
         verifyPetOwnership(userId, weight.getPetId());
-        weight.softDelete();
+        weightRepository.delete(weight); // hard delete
     }
 
     // -------------------------------------------------------------------------
@@ -133,7 +133,7 @@ public class RecordService {
         FeedingDtl feeding = feedingRepository.findById(feedingId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.FEEDING_NOT_FOUND));
         verifyPetOwnership(userId, feeding.getPetId());
-        feeding.softDelete();
+        feedingRepository.delete(feeding); // hard delete
     }
 
     // -------------------------------------------------------------------------
@@ -173,7 +173,7 @@ public class RecordService {
         CleaningDtl cleaning = cleaningRepository.findById(cleaningId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.CLEANING_NOT_FOUND));
         verifyPetOwnership(userId, cleaning.getPetId());
-        cleaning.softDelete();
+        cleaningRepository.delete(cleaning); // hard delete
     }
 
     // -------------------------------------------------------------------------

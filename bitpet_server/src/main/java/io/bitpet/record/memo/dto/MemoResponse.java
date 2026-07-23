@@ -15,6 +15,7 @@ public record MemoResponse(
         List<String> tags,
         VetExtResponse vetExt,
         String routineTitle, // 루틴 완료로 생성된 메모면 해당 루틴 제목 (수동 메모는 null)
+        boolean editable,    // false면 루틴 완료 합성 항목 → 실제 memo_dtl 없음, 수정/삭제 불가
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -32,6 +33,7 @@ public record MemoResponse(
                 tags.stream().map(MemoTagCd::getCode).toList(),
                 VetExtResponse.from(vetExt),
                 routineTitle,
+                true, // 실제 memo_dtl 기반 → 수정/삭제 가능
                 memo.getCreatedAt(),
                 memo.getUpdatedAt()
         );

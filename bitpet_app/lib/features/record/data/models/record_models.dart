@@ -147,6 +147,8 @@ class Memo {
   final List<String> tags;
   final MemoVetExt? vetExt;
   final String? routineTitle; // 루틴 완료로 생성된 메모면 해당 루틴 제목
+  // false면 루틴 완료 합성 항목 → 실제 memo가 아니라 수정/삭제 불가
+  final bool editable;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -158,6 +160,7 @@ class Memo {
     required this.tags,
     this.vetExt,
     this.routineTitle,
+    this.editable = true,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -172,6 +175,7 @@ class Memo {
             ? MemoVetExt.fromJson(json['vetExt'] as Map<String, dynamic>)
             : null,
         routineTitle: json['routineTitle'] as String?,
+        editable: json['editable'] as bool? ?? true,
         createdAt: DateTime.parse(json['createdAt'] as String),
         updatedAt: DateTime.parse(json['updatedAt'] as String),
       );

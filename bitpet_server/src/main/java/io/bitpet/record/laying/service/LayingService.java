@@ -137,10 +137,7 @@ public class LayingService {
     @Transactional
     public void deleteLaying(Long layingId, Long userId) {
         LayingDtl laying = loadAccessibleLaying(layingId, userId);
-        // hatch는 DB CASCADE — soft delete
-        hatchRepo.findAllByLayingIdOrderByCreatedAtAsc(layingId)
-                .forEach(LayingHatchDtl::softDelete);
-        laying.softDelete();
+        layingRepo.delete(laying); // hard delete — hatch는 DB ON DELETE CASCADE로 자동 삭제
     }
 
     // -------------------------------------------------------------------------

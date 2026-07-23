@@ -188,7 +188,7 @@ public class MemoService {
         MemoDtl memo = loadAccessibleMemo(memoId, userId);
         tagRlsRepo.deleteByMemoId(memoId);
         vetExtRepo.deleteByMemoId(memoId);
-        memo.softDelete();
+        memoRepo.delete(memo); // hard delete (자식은 위에서 정리 + DB CASCADE)
     }
 
     // -------------------------------------------------------------------------
@@ -227,7 +227,7 @@ public class MemoService {
             String title = rs.getString("title");
             String content = "[" + title + "] 완료";
             return new MemoResponse(rs.getLong("id"), rs.getLong("pet_id"),
-                    content, loggedAt, List.of(), null, null, createdAt, createdAt);
+                    content, loggedAt, List.of(), null, null, false, createdAt, createdAt);
         }).stream().filter(m -> m != null).toList();
     }
 

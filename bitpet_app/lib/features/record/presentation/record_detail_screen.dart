@@ -6,6 +6,7 @@ import '../../../core/theme/app_input_styles.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_buttons.dart';
 import '../../../core/widgets/app_chip.dart';
+import '../../../core/widgets/confirm_modal.dart';
 import '../../../core/widgets/skeleton_loader.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../data/models/record_models.dart';
@@ -38,6 +39,8 @@ class RecordEntry {
   final String timeStr;   // HH:mm
   final String summary;
   final dynamic raw;
+  // false면 수정/삭제 불가 (예: 루틴 완료로 자동 생성된 합성 메모)
+  final bool editable;
 
   const RecordEntry({
     required this.id,
@@ -45,6 +48,7 @@ class RecordEntry {
     required this.timeStr,
     required this.summary,
     required this.raw,
+    this.editable = true,
   });
 }
 
@@ -139,6 +143,12 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
   }
 
   void _openEdit(RecordEntry entry) {
+    if (!entry.editable) {
+      // 루틴 완료로 자동 생성된 기록 — 실제 메모가 아니라 수정/삭제 불가
+      showToast(context, '루틴 완료로 기록된 항목은 수정할 수 없어요.',
+          type: ToastType.info);
+      return;
+    }
     setState(() {
       _editor = _EditorState(
         isEdit: true, editId: entry.id,
@@ -168,12 +178,21 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
               memo.isEmpty ? null : memo);
         }
       } else if (widget.recordType == 'memo') {
-        final content = (e.form['content'] as String).trim();
+        final tags = List<String>.from(e.form['tags'] as List? ?? const []);
+        final rawContent = (e.form['content'] as String).trim();
+        // 내용이 없어도 분류를 골랐으면 그 라벨로 저장 (FAB 메모 폼과 동일)
+        final tagMatches = tags.isEmpty
+            ? const <MemoTag>[]
+            : (ref.read(memoTagsProvider).valueOrNull ?? const <MemoTag>[])
+                .where((t) => t.code == tags.first)
+                .toList();
+        final tagLabel = tagMatches.isEmpty ? null : tagMatches.first.labelKo;
+        final content = rawContent.isNotEmpty ? rawContent : (tagLabel ?? '');
         if (content.isEmpty) {
-          showToast(context, '내용을 입력하세요', type: ToastType.error);
+          showToast(context, '내용을 입력하거나 분류를 선택하세요',
+              type: ToastType.error);
           return;
         }
-        final tags = List<String>.from(e.form['tags'] as List? ?? const []);
         final data = <String, dynamic>{
           'content': content,
           'loggedAt': dateTime,
@@ -232,6 +251,14 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
   }
 
   Future<void> _delete(int id) async {
+    final ok = await ConfirmModal.show(
+      context,
+      title: '기록 삭제',
+      message: '이 기록을 삭제할까요?\n삭제하면 복구할 수 없습니다.',
+      confirmLabel: '삭제',
+      isDangerous: true,
+    );
+    if (!ok) return;
     final repo = ref.read(recordRepositoryProvider);
     try {
       switch (widget.recordType) {
@@ -330,7 +357,8 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
 
   RecordEntry _fromMemo(Memo r) => RecordEntry(
     id: r.id, dateStr: _dateStr(r.loggedAt),
-    timeStr: _timeStr(r.loggedAt), summary: r.displayContent, raw: r);
+    timeStr: _timeStr(r.loggedAt), summary: r.displayContent, raw: r,
+    editable: r.editable);
 
   RecordEntry _fromMating(MatingRecord r) {
     final label = r.isSuccessful == true
@@ -1012,7 +1040,12 @@ class _EditorSheetState extends State<_EditorSheet> {
 
   bool get _canSave {
     if (widget.recordType == 'memo') {
-      return (widget.editor.form['content'] as String? ?? '').trim().isNotEmpty;
+      // 내용을 적었거나, 분류를 하나 골랐으면 저장 가능 (FAB 메모 폼과 동일)
+      final hasContent =
+          (widget.editor.form['content'] as String? ?? '').trim().isNotEmpty;
+      final hasTag =
+          (widget.editor.form['tags'] as List? ?? const []).isNotEmpty;
+      return hasContent || hasTag;
     }
     if (widget.recordType == 'laying') {
       return (_count) > 0;
@@ -1035,19 +1068,26 @@ class _EditorSheetState extends State<_EditorSheet> {
         ),
         Positioned(
           left: 0, right: 0, bottom: 0, top: 70,
-          child: Container(
-            decoration: const BoxDecoration(
-              color: AppColors.paleBg,
-              border: Border(top: BorderSide(color: AppColors.paleLine)),
-            ),
-            child: Column(children: [
+          child: TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: 1, end: 0),
+            duration: const Duration(milliseconds: 260),
+            curve: Curves.easeOutCubic,
+            builder: (context, t, child) =>
+                FractionalTranslation(translation: Offset(0, t), child: child),
+            child: Container(
+              clipBehavior: Clip.antiAlias,
+              decoration: const BoxDecoration(
+                color: AppColors.paleBg,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+              ),
+              child: Column(children: [
               // drag handle
               Container(
                 width: 44, height: 4,
                 margin: const EdgeInsets.only(top: 8, bottom: 8),
                 decoration: BoxDecoration(
                     color: AppColors.paleLine,
-                    borderRadius: BorderRadius.zero),
+                    borderRadius: BorderRadius.circular(2)),
               ),
               // 헤더 + 날짜 스테퍼
               Padding(
@@ -1172,24 +1212,9 @@ class _EditorSheetState extends State<_EditorSheet> {
 
                       // ── 메모(메모 기록) ───────────────────
                       if (widget.recordType == 'memo') ...[
-                        const Text('내용',
-                            style: TextStyle(fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.primary)),
-                        const SizedBox(height: 8),
-                        TextField(
-                          controller: _contentCtrl,
-                          maxLines: 4,
-                          onChanged: (v) => _updateForm('content', v),
-                          decoration: AppInputStyles.textarea(
-                            hintText: '메모 내용을 입력하세요',
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // ── 태그 (탈피/배변/행동/기타 — 서버 제공 목록) ──
+                        // ── 분류 (병원/탈피/배변/행동/기타 — 단일 선택 라디오, FAB 메모 폼과 동일) ──
                         Row(children: [
-                          const Text('태그',
+                          const Text('분류',
                               style: TextStyle(fontSize: 12,
                                   fontWeight: FontWeight.w700,
                                   color: AppColors.primary)),
@@ -1200,26 +1225,22 @@ class _EditorSheetState extends State<_EditorSheet> {
                         Consumer(builder: (context, ref, _) {
                           final tags = ref.watch(memoTagsProvider).valueOrNull ??
                               const <MemoTag>[];
-                          // VET(병원)은 병원비·재방문일 등 전용 폼이 필요해 여기선 제외
-                          final visible =
-                              tags.where((t) => t.code != 'VET').toList();
-                          if (visible.isEmpty) return const SizedBox.shrink();
+                          if (tags.isEmpty) return const SizedBox.shrink();
                           final selected = List<String>.from(
                               e.form['tags'] as List? ?? const []);
+                          final selectedCode =
+                              selected.isEmpty ? null : selected.first;
                           return Wrap(
                             spacing: 8,
                             runSpacing: 8,
-                            children: visible.map((t) {
-                              final sel = selected.contains(t.code);
+                            children: tags.map((t) {
+                              final sel = selectedCode == t.code;
                               return GestureDetector(
-                                onTap: () {
-                                  final next = List<String>.from(selected);
-                                  sel ? next.remove(t.code) : next.add(t.code);
-                                  _updateForm('tags', next);
-                                },
+                                onTap: () => _updateForm(
+                                    'tags', sel ? <String>[] : [t.code]),
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 7),
+                                      horizontal: 12, vertical: 8),
                                   decoration: BoxDecoration(
                                     color: sel
                                         ? AppColors.petLilac
@@ -1231,18 +1252,64 @@ class _EditorSheetState extends State<_EditorSheet> {
                                         width: sel ? 1.5 : 1),
                                     borderRadius: BorderRadius.zero,
                                   ),
-                                  child: Text('#${t.labelKo}',
-                                      style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                          color: sel
-                                              ? AppColors.petLilacInk
-                                              : AppColors.paleInk2)),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      // 라디오 원형 표시
+                                      Container(
+                                        width: 16, height: 16,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                              color: sel
+                                                  ? AppColors.petLilacInk
+                                                  : AppColors.paleLine,
+                                              width: 1.5),
+                                        ),
+                                        child: sel
+                                            ? Center(
+                                                child: Container(
+                                                  width: 8, height: 8,
+                                                  decoration:
+                                                      const BoxDecoration(
+                                                    shape: BoxShape.circle,
+                                                    color:
+                                                        AppColors.petLilacInk,
+                                                  ),
+                                                ),
+                                              )
+                                            : null,
+                                      ),
+                                      const SizedBox(width: 7),
+                                      Text(t.labelKo,
+                                          style: TextStyle(
+                                              fontSize: 12.5,
+                                              fontWeight: FontWeight.w700,
+                                              color: sel
+                                                  ? AppColors.petLilacInk
+                                                  : AppColors.paleInk2)),
+                                    ],
+                                  ),
                                 ),
                               );
                             }).toList(),
                           );
                         }),
+                        const SizedBox(height: 16),
+
+                        const Text('내용',
+                            style: TextStyle(fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary)),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _contentCtrl,
+                          maxLines: 4,
+                          onChanged: (v) => _updateForm('content', v),
+                          decoration: AppInputStyles.textarea(
+                            hintText: '관찰한 내용을 기록해요 (선택)',
+                          ),
+                        ),
                       ],
 
                       // ── 교배 ──────────────────────────────
@@ -1456,6 +1523,7 @@ class _EditorSheetState extends State<_EditorSheet> {
                 ]),
               ),
             ]),
+            ),
           ),
         ),
       ]),

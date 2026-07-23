@@ -6,6 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/pale_palette.dart';
 import '../../../core/widgets/app_buttons.dart';
+import '../../../core/widgets/confirm_modal.dart';
 import '../../../core/widgets/skeleton_loader.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../data/models/record_models.dart';
@@ -118,10 +119,19 @@ class _WeightScreenState extends ConsumerState<WeightScreen> {
   }
 
   Future<void> _delete(int id) async {
+    final ok = await ConfirmModal.show(
+      context,
+      title: '기록 삭제',
+      message: '이 체중 기록을 삭제할까요?\n삭제하면 복구할 수 없습니다.',
+      confirmLabel: '삭제',
+      isDangerous: true,
+    );
+    if (!ok) return;
     try {
       await ref.read(recordRepositoryProvider).deleteWeight(id);
       ref.invalidate(weightListProvider(widget.petId));
       ref.invalidate(petDetailProvider(widget.petId));
+      ref.invalidate(petCalendarProvider);
       if (mounted) showToast(context, '기록을 삭제했어요.', type: ToastType.success);
     } catch (e) {
       if (mounted) showToast(context, '오류: $e', type: ToastType.error);

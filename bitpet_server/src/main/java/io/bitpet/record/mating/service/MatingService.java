@@ -112,7 +112,7 @@ public class MatingService {
     @Transactional
     public void deleteMating(Long matingId, Long userId) {
         MatingDtl mating = loadAccessibleMating(matingId, userId);
-        mating.softDelete();
+        matingRepo.delete(mating); // hard delete
         // 연관 laying.mating_id는 DB ON DELETE SET NULL으로 자동 처리
     }
 

@@ -42,12 +42,18 @@ class FeedSessionsNotifier
     });
   }
 
-  // hard delete — 바로 삭제 (낙관적 X, UI가 즉시 반영)
+  // 즉시 삭제 — UI에서 먼저 제거(낙관적)하되, 서버 실패 시 원상 복구
   Future<void> delete(String sessionId) async {
+    final prev = state;
     state.whenData((list) {
       state = AsyncValue.data(list.where((s) => s.id != sessionId).toList());
     });
-    await _repo.deleteSession(petId, sessionId);
+    try {
+      await _repo.deleteSession(petId, sessionId);
+    } catch (e) {
+      state = prev; // 롤백
+      rethrow;
+    }
   }
 }
 
