@@ -7,6 +7,11 @@ import '../theme/app_colors.dart';
 /// 기본: 선택 시 primary 배경 + 흰 글자, 미선택 시 card 배경 + paleLine 테두리.
 /// 화면 톤에 따라 selectedColor/selectedTextColor/selectedBorderColor만 덮어쓴다.
 class AppChip extends StatelessWidget {
+  /// 가로 스크롤 필터칩 바(row)의 표준 높이.
+  /// 칩을 `SizedBox(height: ...)` + 좌우 스크롤 ListView로 배치할 때 이 값을 쓴다.
+  /// (부모 높이가 칩 내용보다 작으면 글자가 잘리므로, 화면마다 값을 두지 말고 여기서 관리.)
+  static const double barHeight = 52;
+
   final String label;
   final bool selected;
 

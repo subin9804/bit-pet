@@ -214,20 +214,19 @@ class _PetTab extends ConsumerStatefulWidget {
 
 class _PetTabState extends ConsumerState<_PetTab> {
   String _query = '';
-  String? _selectedCategory;
+  int? _selectedSpeciesId;
   bool _isGridView = true;
 
   @override
   Widget build(BuildContext context) {
     final petsAsync = ref.watch(petListProvider);
-    final speciesAsync = ref.watch(speciesListProvider);
 
-    // 종 카테고리 추출
-    final categories = speciesAsync.valueOrNull
-            ?.map((s) => s.category)
-            .toSet()
-            .toList() ??
-        [];
+    // 내 개체에 실제로 존재하는 종만 필터칩으로 노출 (등장 순서 유지, 중복 제거)
+    final allPets = petsAsync.valueOrNull ?? const <Pet>[];
+    final speciesChips = <int, String>{};
+    for (final p in allPets) {
+      speciesChips.putIfAbsent(p.speciesId, () => p.speciesName);
+    }
 
     return Column(
       children: [
@@ -243,7 +242,7 @@ class _PetTabState extends ConsumerState<_PetTab> {
           ),
         ),
         SizedBox(
-          height: 44,
+          height: AppChip.barHeight,
           child: Row(
             children: [
               Expanded(
@@ -253,17 +252,18 @@ class _PetTabState extends ConsumerState<_PetTab> {
                   children: [
                     AppChip(
                       label: '전체',
-                      selected: _selectedCategory == null,
-                      onTap: () => setState(() => _selectedCategory = null),
+                      selected: _selectedSpeciesId == null,
+                      onTap: () => setState(() => _selectedSpeciesId = null),
                     ),
                     const SizedBox(width: 8),
-                    ...categories.map(
-                      (c) => Padding(
+                    ...speciesChips.entries.map(
+                      (e) => Padding(
                         padding: const EdgeInsets.only(right: 8),
                         child: AppChip(
-                          label: c,
-                          selected: _selectedCategory == c,
-                          onTap: () => setState(() => _selectedCategory = c),
+                          label: e.value,
+                          selected: _selectedSpeciesId == e.key,
+                          onTap: () =>
+                              setState(() => _selectedSpeciesId = e.key),
                         ),
                       ),
                     ),
@@ -318,7 +318,8 @@ class _PetTabState extends ConsumerState<_PetTab> {
                     p.speciesName
                         .toLowerCase()
                         .contains(_query.toLowerCase());
-                final matchCategory = _selectedCategory == null;
+                final matchCategory = _selectedSpeciesId == null ||
+                    p.speciesId == _selectedSpeciesId;
                 return matchQuery && matchCategory;
               }).toList();
 

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/app_chip.dart';
 import '../../../core/widgets/app_toggle.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/skeleton_loader.dart';
@@ -187,53 +188,22 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
             border: Border(bottom: BorderSide(color: AppColors.divider)),
           ),
           child: SizedBox(
-            height: 44,
+            height: AppChip.barHeight,
             child: routinesAsync.whenOrNull(data: (all) {
               return ListView(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                 children: _kFilters.map((f) {
                   final (type, label) = f;
-                  final active = _filterType == type;
                   final count = type == null
                       ? all.length
                       : all.where((r) => r.routineType == type).length;
-                  return GestureDetector(
+                  return AppChip(
+                    label: label,
+                    count: count,
+                    selected: _filterType == type,
+                    margin: const EdgeInsets.only(right: 6),
                     onTap: () => setState(() => _filterType = type),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
-                      margin: const EdgeInsets.only(right: 6),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: active ? AppColors.primary : AppColors.bg2,
-                        border: Border.all(
-                          color: active ? AppColors.primary : AppColors.border,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Text(label,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: active
-                                    ? Colors.white
-                                    : AppColors.textPrimary,
-                              )),
-                          const SizedBox(width: 5),
-                          Text('$count',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                fontFamily: 'monospace',
-                                color: active
-                                    ? Colors.white.withValues(alpha: 0.65)
-                                    : AppColors.textDisabled,
-                              )),
-                        ],
-                      ),
-                    ),
                   );
                 }).toList(),
               );
