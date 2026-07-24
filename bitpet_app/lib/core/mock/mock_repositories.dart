@@ -6,6 +6,7 @@ import '../../features/auth/data/models/auth_models.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/community/data/post_repository.dart';
 import '../../features/community/data/models/post_models.dart';
+import '../upload/image_upload.dart';
 import '../../features/notification/data/notification_repository.dart';
 import '../../features/notification/data/models/notification_models.dart';
 import '../../features/pet/data/pet_repository.dart';
@@ -304,7 +305,7 @@ final _mockMorphsBySpecies = <int, List<Morph>>{
 
 class MockAuthRepository extends AuthRepository {
   MockAuthRepository()
-      : super(dio: Dio(), tokenStorage: TokenStorage());
+      : super(dio: Dio(), tokenStorage: TokenStorage(), uploader: ImageUploadService());
 
   @override
   Future<bool> get isLoggedIn async => true;
@@ -770,7 +771,7 @@ const _mockCategories = [
 ];
 
 class MockPostRepository extends PostRepository {
-  MockPostRepository() : super(Dio());
+  MockPostRepository() : super(Dio(), ImageUploadService());
 
   @override
   Future<List<PostCategory>> getCategories() async =>
@@ -840,7 +841,7 @@ class MockPostRepository extends PostRepository {
 // ────────────────────────────────────────────────────────────────────
 
 class MockPhotoRepository extends PhotoRepository {
-  MockPhotoRepository() : super(Dio());
+  MockPhotoRepository() : super(Dio(), ImageUploadService());
 
   @override
   Future<List<PetPhoto>> getPhotos({

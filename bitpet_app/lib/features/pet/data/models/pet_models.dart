@@ -69,6 +69,7 @@ class Pet {
   final String? description;
   final String? environmentMemo;
   final String? profileImageUrl;
+  final int? profilePhotoId; // 대표 사진으로 지정된 갤러리 사진 id
   final DateTime? hatchingDate;
   final String hatchingDatePrecision;  // 'DAY' or 'MONTH'
   final bool hatchingDateApproximate;  // 날짜가 정확하지 않음
@@ -99,6 +100,7 @@ class Pet {
     this.description,
     this.environmentMemo,
     this.profileImageUrl,
+    this.profilePhotoId,
     this.hatchingDate,
     this.hatchingDatePrecision = 'DAY',
     this.hatchingDateApproximate = false,
@@ -141,6 +143,7 @@ class Pet {
         description: json['description'] as String?,
         environmentMemo: json['environmentMemo'] as String?,
         profileImageUrl: json['profileImageUrl'] as String?,
+        profilePhotoId: (json['profilePhotoId'] as num?)?.toInt(),
         hatchingDate: json['hatchingDate'] != null
             ? DateTime.tryParse(json['hatchingDate'] as String)
             : null,

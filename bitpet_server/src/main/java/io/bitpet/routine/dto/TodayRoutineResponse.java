@@ -23,6 +23,7 @@ public record TodayRoutineResponse(
             String petName,
             String speciesName,
             String colorCode,
+            String imageUrl,
             boolean completed,
             Long logId
     ) {}

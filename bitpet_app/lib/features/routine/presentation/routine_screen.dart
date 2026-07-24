@@ -864,8 +864,13 @@ class _PetChip extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 8, height: 8,
+            width: 18, height: 18,
+            clipBehavior: Clip.hardEdge,
             decoration: BoxDecoration(color: _bg, shape: BoxShape.circle),
+            child: pet.profileImageUrl != null
+                ? Image.network(pet.profileImageUrl!, fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const SizedBox.shrink())
+                : null,
           ),
           const SizedBox(width: 6),
           Text(pet.name,

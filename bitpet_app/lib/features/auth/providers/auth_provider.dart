@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/upload/image_upload.dart';
 import '../data/auth_repository.dart';
 import '../data/models/auth_models.dart';
 
@@ -49,5 +50,11 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
   Future<void> logout() async {
     await _repo.logout();
     state = const AsyncValue.data(null);
+  }
+
+  /// 프로필 이미지 업로드 후 상태 갱신
+  Future<void> uploadProfileImage(PickedImage image) async {
+    final updated = await _repo.uploadProfileImage(image);
+    state = AsyncValue.data(updated);
   }
 }

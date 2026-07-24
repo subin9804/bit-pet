@@ -123,6 +123,21 @@ class PetRepository {
     }
   }
 
+  /// 갤러리 사진 하나를 대표(프로필) 사진으로 지정
+  Future<Pet> setProfilePhoto(int petId, int photoId) async {
+    final res = await _dio.put('/pets/$petId/profile-photo/$photoId');
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => Pet.fromJson(d as Map<String, dynamic>),
+    );
+    if (!apiRes.success || apiRes.data == null) {
+      throw ApiException(
+          statusCode: res.statusCode ?? 0,
+          message: apiRes.message ?? '대표 사진 설정 실패');
+    }
+    return apiRes.data!;
+  }
+
   // subcategory(G/L/C/S/T/F/N) 또는 category(R/A) 필터 가능, 둘 다 null이면 전체
   Future<List<Species>> getSpecies({String? subcategory, String? category}) async {
     final params = <String, String>{};

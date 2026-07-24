@@ -2,15 +2,36 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_response.dart';
+import '../../../core/upload/image_upload.dart';
 import 'models/post_models.dart';
 
 final postRepositoryProvider = Provider<PostRepository>((ref) {
-  return PostRepository(ref.watch(dioProvider));
+  return PostRepository(
+    ref.watch(dioProvider),
+    ref.watch(imageUploadServiceProvider),
+  );
 });
 
 class PostRepository {
   final Dio _dio;
-  PostRepository(this._dio);
+  final ImageUploadService _uploader;
+  PostRepository(this._dio, this._uploader);
+
+  /// 게시글 사진 업로드 (presign → S3 PUT → register)
+  Future<void> uploadPostPhoto(int postId, PickedImage image, int displayOrder) async {
+    final presignRes = await _dio.post('/posts/$postId/photos/presign',
+        queryParameters: {'filename': image.filename});
+    final presign = ApiResponse.fromJson(
+      presignRes.data as Map<String, dynamic>,
+      (d) => d as Map<String, dynamic>,
+    ).data!;
+    await _uploader.putToPresignedUrl(
+        presign['uploadUrl'] as String, image.bytes, image.contentType);
+    await _dio.post('/posts/$postId/photos', data: {
+      's3Key': presign['s3Key'],
+      'displayOrder': displayOrder,
+    });
+  }
 
   // ── 카테고리 ────────────────────────────────────────────────────────
   Future<List<PostCategory>> getCategories() async {

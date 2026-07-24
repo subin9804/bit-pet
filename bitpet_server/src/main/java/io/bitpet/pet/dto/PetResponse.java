@@ -36,6 +36,7 @@ public record PetResponse(
         Long motherRelationId,
         Long motherId,
         String motherName,
+        String profileImageUrl,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -48,6 +49,11 @@ public record PetResponse(
     }
 
     public static PetResponse from(PetMst pet, Double latestWeightG, List<PetRelationRls> parentRelations) {
+        return from(pet, latestWeightG, parentRelations, null);
+    }
+
+    public static PetResponse from(PetMst pet, Double latestWeightG,
+                                   List<PetRelationRls> parentRelations, String profileImageUrl) {
         Long fatherRelId = null; Long fatherId = null; String fatherName = null;
         Long motherRelId = null; Long motherId = null; String motherName = null;
         for (PetRelationRls r : parentRelations) {
@@ -88,6 +94,7 @@ public record PetResponse(
                 latestWeightG,
                 fatherRelId, fatherId, fatherName,
                 motherRelId, motherId, motherName,
+                profileImageUrl,
                 pet.getCreatedAt(),
                 pet.getUpdatedAt()
         );

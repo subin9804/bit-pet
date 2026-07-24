@@ -418,6 +418,8 @@ class _PostRow extends StatelessWidget {
                   const SizedBox(height: 8),
                   Row(
                     children: [
+                      _AuthorAvatar(imageUrl: post.authorImageUrl, size: 16),
+                      const SizedBox(width: 5),
                       Text(post.authorName,
                           style: AppTextStyles.caption
                               .copyWith(fontSize: 11)),
@@ -513,6 +515,31 @@ class _MetaIcon extends StatelessWidget {
           style: AppTextStyles.monoXs.copyWith(color: AppColors.paleInk2),
         ),
       ],
+    );
+  }
+}
+
+class _AuthorAvatar extends StatelessWidget {
+  final String? imageUrl;
+  final double size;
+  const _AuthorAvatar({required this.imageUrl, this.size = 16});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      clipBehavior: Clip.hardEdge,
+      decoration: const BoxDecoration(
+          color: AppColors.paleBgAlt, shape: BoxShape.circle),
+      child: imageUrl != null
+          ? Image.network(
+              imageUrl!,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) =>
+                  Icon(Icons.person, size: size * 0.62, color: AppColors.paleInk3),
+            )
+          : Icon(Icons.person, size: size * 0.62, color: AppColors.paleInk3),
     );
   }
 }

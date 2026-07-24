@@ -3,10 +3,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/upload/image_upload.dart';
 import '../../../core/widgets/app_toggle.dart';
 import '../../../core/widgets/step_shell.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../data/models/pet_models.dart';
+import '../data/pet_repository.dart';
+import '../data/photo_repository.dart';
 import '../providers/pet_provider.dart';
 import 'widgets/species_bottom_sheet.dart';
 import 'widgets/parent_pet_bottom_sheet.dart';
@@ -58,6 +61,7 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
   Pet? _fatherPet;
   Pet? _motherPet;
   bool _isPublic = false; // 검색 허용 여부 (기본 비공개)
+  PickedImage? _pickedProfile; // 선택한 프로필 사진 (저장 시 업로드)
 
   // ── 팔레트 헬퍼 ──────────────────────────────────────────────────────────────
   Color get _selectedBg {
@@ -232,6 +236,29 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
     }
   }
 
+  Future<void> _pickProfileImage() async {
+    final picked = await ref.read(imageUploadServiceProvider).pickFromGallery();
+    if (picked != null && mounted) setState(() => _pickedProfile = picked);
+  }
+
+  /// 선택한 프로필 사진을 갤러리에 업로드하고 대표 사진으로 지정
+  Future<void> _uploadProfile(int petId) async {
+    final img = _pickedProfile;
+    if (img == null) return;
+    try {
+      final photo = await ref.read(photoRepositoryProvider).upload(
+            entityType: 'PET',
+            entityId: petId,
+            image: img,
+          );
+      await ref.read(petRepositoryProvider).setProfilePhoto(petId, photo.id);
+    } catch (e) {
+      if (mounted) {
+        ToastMessage.show(context, '사진 업로드 실패: $e', type: ToastType.error);
+      }
+    }
+  }
+
   Future<void> _submit() async {
     if (_species == null) {
       ToastMessage.show(context, '종을 선택해주세요', type: ToastType.warning);
@@ -275,13 +302,14 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
         'description': _memoCtrl.text.trim().isEmpty ? null : _memoCtrl.text.trim(),
       };
       await ref.read(petListProvider.notifier).update(widget.petId!, data);
+      await _uploadProfile(widget.petId!);
       ref.invalidate(petDetailProvider(widget.petId!));
       if (mounted) {
         ToastMessage.show(context, '수정되었습니다!', type: ToastType.success);
         context.pop();
       }
     } else {
-      await ref.read(petListProvider.notifier).add(
+      final pet = await ref.read(petListProvider.notifier).add(
         CreatePetRequest(
           speciesId: _species!.id,
           name: _nameCtrl.text.trim(),
@@ -299,6 +327,7 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
           privateYn: _isPublic ? 'N' : 'Y',
         ),
       );
+      await _uploadProfile(pet.id);
       if (mounted) {
         ToastMessage.show(context, '개체가 등록되었습니다!', type: ToastType.success);
         context.pop();
@@ -338,20 +367,19 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
                     Container(
                       width: 92,
                       height: 92,
-                      decoration: BoxDecoration(
-                        color: _selectedBg,
-                      ),
-                      child: const Center(
-                        child: Text('🦎', style: TextStyle(fontSize: 40)),
-                      ),
+                      clipBehavior: Clip.hardEdge,
+                      decoration: BoxDecoration(color: _selectedBg),
+                      child: _pickedProfile != null
+                          ? Image.memory(_pickedProfile!.bytes, fit: BoxFit.cover)
+                          : const Center(
+                              child: Text('🦎', style: TextStyle(fontSize: 40)),
+                            ),
                     ),
                     Positioned(
                       bottom: -4,
                       right: -4,
                       child: GestureDetector(
-                        onTap: () => ToastMessage.show(
-                          context, '이미지 선택은 준비 중이에요', type: ToastType.info,
-                        ),
+                        onTap: _pickProfileImage,
                         child: Container(
                           width: 30,
                           height: 30,

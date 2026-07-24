@@ -5,6 +5,8 @@ import io.bitpet.common.exception.ErrorCode;
 import io.bitpet.pet.domain.PetMst;
 import io.bitpet.pet.repository.PetMstRepository;
 import io.bitpet.pet.service.PetKeeperService;
+import io.bitpet.photo.repository.PhotoDtlRepository;
+import io.bitpet.storage.S3Service;
 import io.bitpet.record.domain.CleaningDtl;
 import io.bitpet.record.domain.CleaningType;
 import io.bitpet.record.domain.FeedingDtl;
@@ -61,6 +63,16 @@ public class RoutineService {
     private final MemoDtlRepository memoRepository;
     private final PetKeeperService petKeeper;
     private final RoutineMaintenanceService routineMaintenance;
+    private final PhotoDtlRepository photoRepository;
+    private final S3Service s3Service;
+
+    /** 개체 대표 사진 id → 표시용 URL (없으면 null) */
+    private String resolvePetImageUrl(PetMst pet) {
+        if (pet == null || pet.getProfilePhotoId() == null) return null;
+        return photoRepository.findById(pet.getProfilePhotoId())
+                .map(p -> s3Service.resolveUrl(p.getS3Key()))
+                .orElse(null);
+    }
 
     // -------------------------------------------------------------------------
     // Routine CRUD (생성자 개인 소유 — 본인이 만든 루틴만 조회·수정 가능)
@@ -227,6 +239,7 @@ public class RoutineService {
             RoutineLogDtl log  = logByPetId.get(petId);
             return new TodayRoutineResponse.PetTodayStatus(
                     petId, petName, speciesName, colorCode,
+                    resolvePetImageUrl(pet),
                     log != null,
                     log != null ? log.getId() : null
             );

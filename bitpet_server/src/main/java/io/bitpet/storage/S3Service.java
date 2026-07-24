@@ -54,4 +54,16 @@ public class S3Service {
                 .key(s3Key)
                 .build());
     }
+
+    /**
+     * 저장된 이미지 참조값을 표시용 URL로 해석한다.
+     * - null/빈값 → null
+     * - http(s)로 시작(OAuth 외부 프로필 등) → 그대로 사용
+     * - 그 외(우리 S3 key) → presigned GET URL 발급
+     */
+    public String resolveUrl(String stored) {
+        if (stored == null || stored.isBlank()) return null;
+        if (stored.startsWith("http://") || stored.startsWith("https://")) return stored;
+        return presignGet(stored).url().toString();
+    }
 }

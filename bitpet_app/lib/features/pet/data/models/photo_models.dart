@@ -16,11 +16,11 @@ class PetPhoto {
   });
 
   factory PetPhoto.fromJson(Map<String, dynamic> json) => PetPhoto(
-        id:         json['id']         as int,
+        id:         (json['photoId'] ?? json['id']) as int,
         entityType: json['entityType'] as String,
         entityId:   json['entityId']   as int,
         url:        json['url']        as String,
-        tag:        json['tag']        as String?,
+        tag:        (json['caption'] ?? json['tag']) as String?,
         createdAt:  DateTime.parse(json['createdAt'] as String),
       );
 }

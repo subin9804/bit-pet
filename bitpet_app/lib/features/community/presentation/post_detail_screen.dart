@@ -227,6 +227,17 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                     ),
                     const SizedBox(height: 20),
 
+                    // 첨부 사진
+                    ...post.photoUrls.map((url) => Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Image.network(
+                            url,
+                            width: double.infinity,
+                            fit: BoxFit.fitWidth,
+                            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                          ),
+                        )),
+
                     // 좋아요
                     Row(
                       children: [

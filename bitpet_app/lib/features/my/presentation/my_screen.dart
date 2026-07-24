@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/upload/image_upload.dart';
 import '../../../core/widgets/confirm_modal.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -32,13 +33,7 @@ class MyScreen extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
               child: Row(
                 children: [
-                  Container(
-                    width: 56,
-                    height: 56,
-                    color: AppColors.bg2,
-                    child: const Icon(Icons.person,
-                        color: AppColors.textSecondary, size: 28),
-                  ),
+                  _ProfileAvatar(imageUrl: user?.profileImageUrl),
                   const SizedBox(width: 16),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -165,6 +160,78 @@ class _ShareManageItem extends ConsumerWidget {
                 size: 18, color: AppColors.textDisabled),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// 프로필 아바타 — 탭하면 갤러리에서 골라 업로드
+class _ProfileAvatar extends ConsumerStatefulWidget {
+  final String? imageUrl;
+  const _ProfileAvatar({this.imageUrl});
+
+  @override
+  ConsumerState<_ProfileAvatar> createState() => _ProfileAvatarState();
+}
+
+class _ProfileAvatarState extends ConsumerState<_ProfileAvatar> {
+  bool _uploading = false;
+
+  Future<void> _pickAndUpload() async {
+    if (_uploading) return;
+    try {
+      final picked =
+          await ref.read(imageUploadServiceProvider).pickFromGallery();
+      if (picked == null) return;
+      setState(() => _uploading = true);
+      await ref.read(authStateProvider.notifier).uploadProfileImage(picked);
+      if (mounted) showToast(context, '프로필 사진을 변경했어요.', type: ToastType.success);
+    } catch (e) {
+      if (mounted) showToast(context, '업로드 실패: $e', type: ToastType.error);
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final url = widget.imageUrl;
+    return GestureDetector(
+      onTap: _uploading ? null : _pickAndUpload,
+      child: Stack(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            clipBehavior: Clip.hardEdge,
+            decoration: const BoxDecoration(color: AppColors.bg2),
+            child: url != null
+                ? Image.network(
+                    url,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const Icon(Icons.person,
+                        color: AppColors.textSecondary, size: 28),
+                  )
+                : const Icon(Icons.person,
+                    color: AppColors.textSecondary, size: 28),
+          ),
+          Positioned(
+            right: 0,
+            bottom: 0,
+            child: Container(
+              padding: const EdgeInsets.all(3),
+              color: AppColors.primary,
+              child: _uploading
+                  ? const SizedBox(
+                      width: 10,
+                      height: 10,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 1.5, color: Colors.white),
+                    )
+                  : const Icon(Icons.camera_alt, size: 10, color: Colors.white),
+            ),
+          ),
+        ],
       ),
     );
   }

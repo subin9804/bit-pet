@@ -38,6 +38,7 @@ class Post {
   final bool isLiked;
   final bool isPinned;
   final String? thumbnailUrl;
+  final List<String> photoUrls; // 상세 응답의 첨부 사진 URL
   final DateTime createdAt;
 
   const Post({
@@ -54,6 +55,7 @@ class Post {
     required this.isLiked,
     this.isPinned = false,
     this.thumbnailUrl,
+    this.photoUrls = const [],
     required this.createdAt,
   });
 
@@ -71,6 +73,13 @@ class Post {
         isLiked: json['likedByMe'] as bool? ?? false,
         isPinned: json['pinned'] as bool? ?? false,
         thumbnailUrl: json['thumbnailUrl'] as String?,
+        photoUrls: ((json['photos'] as List<dynamic>?) ?? const [])
+            .map((e) {
+              final m = e as Map<String, dynamic>;
+              return (m['viewUrl'] ?? m['url']) as String?;
+            })
+            .whereType<String>()
+            .toList(),
         createdAt: DateTime.parse(json['createdAt'] as String),
       );
 
@@ -92,6 +101,7 @@ class Post {
         isLiked: isLiked ?? this.isLiked,
         isPinned: isPinned,
         thumbnailUrl: thumbnailUrl,
+        photoUrls: photoUrls,
         createdAt: createdAt,
       );
 }

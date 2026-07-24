@@ -465,8 +465,14 @@ class _NameChip extends StatelessWidget {
           children: [
             Container(
               width: 22, height: 22,
-              color: Colors.white.withValues(alpha: 0.6),
-              child: Icon(Icons.pets, size: 12, color: AppColors.textPrimary),
+              clipBehavior: Clip.hardEdge,
+              decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.6)),
+              child: status.imageUrl != null
+                  ? Image.network(status.imageUrl!, fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Icon(Icons.pets,
+                          size: 12, color: AppColors.textPrimary))
+                  : Icon(Icons.pets, size: 12, color: AppColors.textPrimary),
             ),
             const SizedBox(width: 6),
             Text(

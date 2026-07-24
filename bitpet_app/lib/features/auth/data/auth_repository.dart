@@ -3,22 +3,29 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_response.dart';
 import '../../../core/auth/token_storage.dart';
+import '../../../core/upload/image_upload.dart';
 import 'models/auth_models.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepository(
     dio: ref.watch(dioProvider),
     tokenStorage: ref.watch(tokenStorageProvider),
+    uploader: ref.watch(imageUploadServiceProvider),
   );
 });
 
 class AuthRepository {
   final Dio _dio;
   final TokenStorage _tokenStorage;
+  final ImageUploadService _uploader;
 
-  AuthRepository({required Dio dio, required TokenStorage tokenStorage})
-      : _dio = dio,
-        _tokenStorage = tokenStorage;
+  AuthRepository({
+    required Dio dio,
+    required TokenStorage tokenStorage,
+    required ImageUploadService uploader,
+  })  : _dio = dio,
+        _tokenStorage = tokenStorage,
+        _uploader = uploader;
 
   // ── 로그인 ────────────────────────────────────────────────
   // 서버 응답: { success, data: { accessToken, refreshToken, tokenType } }
@@ -55,6 +62,37 @@ class AuthRepository {
           message: apiRes.message ?? '사용자 정보를 불러올 수 없습니다.');
     }
     return UserProfile.fromJson(apiRes.data!);
+  }
+
+  // ── 내 프로필 수정 (닉네임/프로필 이미지) ──────────────────
+  Future<UserProfile> updateMe({String? nickname, String? profileImageKey}) async {
+    final res = await _dio.patch('/auth/me', data: {
+      if (nickname != null) 'nickname': nickname,
+      if (profileImageKey != null) 'profileImageKey': profileImageKey,
+    });
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => d as Map<String, dynamic>,
+    );
+    if (!apiRes.success || apiRes.data == null) {
+      throw ApiException(
+          statusCode: res.statusCode ?? 0,
+          message: apiRes.message ?? '프로필 수정에 실패했습니다.');
+    }
+    return UserProfile.fromJson(apiRes.data!);
+  }
+
+  // ── 프로필 이미지 업로드 (presign → S3 PUT → PATCH /me) ────
+  Future<UserProfile> uploadProfileImage(PickedImage image) async {
+    final presignRes = await _dio.post('/auth/me/profile-image/presign',
+        queryParameters: {'filename': image.filename});
+    final presign = ApiResponse.fromJson(
+      presignRes.data as Map<String, dynamic>,
+      (d) => d as Map<String, dynamic>,
+    ).data!;
+    await _uploader.putToPresignedUrl(
+        presign['presignedUrl'] as String, image.bytes, image.contentType);
+    return updateMe(profileImageKey: presign['s3Key'] as String);
   }
 
   // ── 이메일 중복확인 ───────────────────────────────────────

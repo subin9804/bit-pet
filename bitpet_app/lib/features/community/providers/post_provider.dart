@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/upload/image_upload.dart';
 import '../data/models/post_models.dart';
 import '../data/post_repository.dart';
 
@@ -149,12 +150,14 @@ class ComposeState {
   final int? categoryId;
   final String title;
   final String body;
+  final List<PickedImage> images; // 첨부 이미지 (최대 5장)
   final bool isSubmitting;
 
   const ComposeState({
     this.categoryId,
     this.title = '',
     this.body = '',
+    this.images = const [],
     this.isSubmitting = false,
   });
 
@@ -162,12 +165,14 @@ class ComposeState {
     int? categoryId,
     String? title,
     String? body,
+    List<PickedImage>? images,
     bool? isSubmitting,
   }) =>
       ComposeState(
         categoryId: categoryId ?? this.categoryId,
         title: title ?? this.title,
         body: body ?? this.body,
+        images: images ?? this.images,
         isSubmitting: isSubmitting ?? this.isSubmitting,
       );
 
@@ -197,15 +202,32 @@ class ComposeNotifier extends StateNotifier<ComposeState> {
   void setTitle(String v) => state = state.copyWith(title: v);
   void setBody(String v) => state = state.copyWith(body: v);
 
+  void addImage(PickedImage image) {
+    if (state.images.length >= 5) return;
+    state = state.copyWith(images: [...state.images, image]);
+  }
+
+  void removeImage(int index) {
+    final next = [...state.images]..removeAt(index);
+    state = state.copyWith(images: next);
+  }
+
   Future<Post?> submit() async {
     if (!state.canSubmit) return null;
     state = state.copyWith(isSubmitting: true);
     try {
-      return await _repo.createPost(CreatePostRequest(
+      final post = await _repo.createPost(CreatePostRequest(
         categoryId: state.categoryId!,
         title: state.title,
         content: state.body,
       ));
+      // 게시글 생성 후 첨부 이미지 업로드 (개별 실패는 무시)
+      for (var i = 0; i < state.images.length; i++) {
+        try {
+          await _repo.uploadPostPhoto(post.id, state.images[i], i);
+        } catch (_) {}
+      }
+      return post;
     } finally {
       if (mounted) state = state.copyWith(isSubmitting: false);
     }

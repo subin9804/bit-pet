@@ -99,6 +99,15 @@ public class PetController {
         return ApiResponse.ok(petService.update(principal.userId(), petId, request));
     }
 
+    @Operation(summary = "대표(프로필) 사진 지정 — 갤러리 사진 중 하나")
+    @org.springframework.web.bind.annotation.PutMapping("/{petId}/profile-photo/{photoId}")
+    public ApiResponse<PetResponse> setProfilePhoto(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @PathVariable Long petId,
+            @PathVariable Long photoId) {
+        return ApiResponse.ok(petService.setProfilePhoto(principal.userId(), petId, photoId));
+    }
+
     @Operation(summary = "개체 삭제 (Soft Delete)")
     @DeleteMapping("/{petId}")
     public ApiResponse<Void> delete(

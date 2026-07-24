@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_input_styles.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/upload/image_upload.dart';
 import '../providers/post_provider.dart';
 
 class PostComposeScreen extends ConsumerStatefulWidget {
@@ -174,6 +175,80 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
                         contentPadding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 14),
                       ),
+                    ),
+                  ),
+
+                  // ── 사진 첨부 (선택, 최대 5장) ──────────────────
+                  _Field(
+                    label: '사진',
+                    hint: '최대 5장까지 첨부할 수 있어요.',
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        ...state.images.asMap().entries.map((e) => Stack(
+                              children: [
+                                Container(
+                                  width: 78,
+                                  height: 78,
+                                  clipBehavior: Clip.hardEdge,
+                                  decoration: const BoxDecoration(
+                                      color: AppColors.paleBgAlt),
+                                  child: Image.memory(e.value.bytes,
+                                      fit: BoxFit.cover),
+                                ),
+                                Positioned(
+                                  top: 2,
+                                  right: 2,
+                                  child: GestureDetector(
+                                    onTap: () => ref
+                                        .read(composeProvider.notifier)
+                                        .removeImage(e.key),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(2),
+                                      color: Colors.black54,
+                                      child: const Icon(Icons.close,
+                                          size: 13, color: Colors.white),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            )),
+                        if (state.images.length < 5)
+                          GestureDetector(
+                            onTap: () async {
+                              final picked = await ref
+                                  .read(imageUploadServiceProvider)
+                                  .pickFromGallery();
+                              if (picked != null) {
+                                ref
+                                    .read(composeProvider.notifier)
+                                    .addImage(picked);
+                              }
+                            },
+                            child: Container(
+                              width: 78,
+                              height: 78,
+                              decoration: BoxDecoration(
+                                color: AppColors.card,
+                                border: Border.all(
+                                    color: AppColors.paleLine, width: 1.5),
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(Icons.camera_alt_outlined,
+                                      size: 22, color: AppColors.paleInk2),
+                                  const SizedBox(height: 4),
+                                  Text('${state.images.length}/5',
+                                      style: AppTextStyles.monoXs.copyWith(
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.paleInk2)),
+                                ],
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ],

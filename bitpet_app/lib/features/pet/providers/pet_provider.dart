@@ -25,11 +25,12 @@ class PetListNotifier extends StateNotifier<AsyncValue<List<Pet>>> {
     state = await AsyncValue.guard(() async => _sorted(await _repo.getMyPets()));
   }
 
-  Future<void> add(CreatePetRequest request) async {
+  Future<Pet> add(CreatePetRequest request) async {
     final pet = await _repo.createPet(request);
     state.whenData((list) {
       state = AsyncValue.data(_sorted([...list, pet]));
     });
+    return pet;
   }
 
   Future<void> update(int id, Map<String, dynamic> data) async {

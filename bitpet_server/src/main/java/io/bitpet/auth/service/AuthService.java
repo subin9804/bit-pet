@@ -5,18 +5,23 @@ import io.bitpet.auth.dto.EmailCheckResponse;
 import io.bitpet.auth.dto.LoginRequest;
 import io.bitpet.auth.dto.SignupRequest;
 import io.bitpet.auth.dto.TokenResponse;
+import io.bitpet.auth.dto.UpdateMeRequest;
 import io.bitpet.auth.dto.UserResponse;
 import io.bitpet.auth.jwt.JwtTokenProvider;
 import io.bitpet.auth.jwt.RefreshTokenStore;
 import io.bitpet.auth.repository.UserMstRepository;
+import io.bitpet.common.dto.PresignResponse;
 import io.bitpet.common.exception.BusinessException;
 import io.bitpet.common.exception.ErrorCode;
+import io.bitpet.storage.S3Service;
 import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -27,6 +32,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider tokenProvider;
     private final RefreshTokenStore refreshTokenStore;
+    private final S3Service s3Service;
 
     public EmailCheckResponse checkEmail(String email) {
         return new EmailCheckResponse(!userRepository.existsByEmail(email));
@@ -80,7 +86,45 @@ public class AuthService {
     public UserResponse getMe(Long userId) {
         UserMst user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AUTH_USER_NOT_FOUND));
-        return UserResponse.from(user);
+        return UserResponse.from(user, s3Service.resolveUrl(user.getProfileImageUrl()));
+    }
+
+    /** 프로필 이미지 업로드용 presigned PUT URL 발급 */
+    public PresignResponse presignProfileImage(Long userId, String filename) {
+        String ext = extractExtension(filename);
+        String s3Key = "profiles/user/" + userId + "/" + UUID.randomUUID()
+                + (ext.isEmpty() ? "" : "." + ext);
+        String url = s3Service.presignPut(s3Key, resolveContentType(ext)).url().toString();
+        return new PresignResponse(url, s3Key);
+    }
+
+    /** 내 프로필 수정 (닉네임/프로필 이미지) — 전달된 필드만 반영 */
+    @Transactional
+    public UserResponse updateMe(Long userId, UpdateMeRequest req) {
+        UserMst user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.AUTH_USER_NOT_FOUND));
+        if (req.nickname() != null && !req.nickname().isBlank()) {
+            user.changeName(req.nickname().trim());
+        }
+        if (req.profileImageKey() != null) {
+            user.changeProfileImageUrl(req.profileImageKey().isBlank() ? null : req.profileImageKey());
+        }
+        return UserResponse.from(user, s3Service.resolveUrl(user.getProfileImageUrl()));
+    }
+
+    private static String extractExtension(String filename) {
+        if (filename == null || !filename.contains(".")) return "";
+        return filename.substring(filename.lastIndexOf('.') + 1).toLowerCase();
+    }
+
+    private static String resolveContentType(String ext) {
+        return switch (ext) {
+            case "jpg", "jpeg" -> "image/jpeg";
+            case "png"         -> "image/png";
+            case "webp"        -> "image/webp";
+            case "heic"        -> "image/heic";
+            default            -> "application/octet-stream";
+        };
     }
 
     public void logout(Long userId) {

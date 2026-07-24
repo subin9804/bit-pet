@@ -18,16 +18,23 @@ import io.bitpet.pet.repository.MorphCdRepository;
 import io.bitpet.pet.repository.PetMstRepository;
 import io.bitpet.pet.repository.PetRelationRlsRepository;
 import io.bitpet.pet.repository.SpeciesCdRepository;
+import io.bitpet.photo.domain.EntityType;
+import io.bitpet.photo.domain.PhotoDtl;
+import io.bitpet.photo.repository.PhotoDtlRepository;
 import io.bitpet.record.domain.WeightDtl;
 import io.bitpet.record.domain.WeightSource;
 import io.bitpet.record.repository.WeightDtlRepository;
+import io.bitpet.storage.S3Service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -42,6 +49,16 @@ public class PetService {
     private final PetKeeperService petKeeper;
     private final io.bitpet.routine.service.RoutineMaintenanceService routineMaintenance;
     private final WeightDtlRepository weightRepository;
+    private final PhotoDtlRepository photoRepository;
+    private final S3Service s3Service;
+
+    /** 대표 사진 id → 표시용 presigned URL (없으면 null) */
+    private String resolveProfileImageUrl(PetMst pet) {
+        if (pet.getProfilePhotoId() == null) return null;
+        return photoRepository.findById(pet.getProfilePhotoId())
+                .map(p -> s3Service.resolveUrl(p.getS3Key()))
+                .orElse(null);
+    }
 
     // -------------------------------------------------------------------------
     // D2: Pet CRUD
@@ -94,7 +111,8 @@ public class PetService {
                 .map(w -> w.getWeightG().doubleValue())
                 .orElse(null);
         List<PetRelationRls> parentRelations = relationRepository.findAllByChildPetId(petId);
-        return PetResponse.from(pet, latestWeight, parentRelations);
+        return PetResponse.from(pet, latestWeight, parentRelations,
+                resolveProfileImageUrl(pet));
     }
 
     /** 내가 사육하는 개체 목록 (소유 + 공유받은 개체) */
@@ -109,7 +127,8 @@ public class PetService {
                             .stream().findFirst()
                             .map(w -> w.getWeightG().doubleValue())
                             .orElse(null);
-                    return PetResponse.from(pet, latestWeight);
+                    return PetResponse.from(pet, latestWeight, List.of(),
+                            resolveProfileImageUrl(pet));
                 })
                 .toList();
     }
@@ -148,10 +167,20 @@ public class PetService {
             morphIds = List.of(req.morphId());
         }
         if (morphIds != null) {
-            pet.getMorphs().clear();
-            attachMorphs(pet, morphIds, effectiveSpecies);
+            syncMorphs(pet, morphIds, effectiveSpecies);
         }
         return PetResponse.from(pet);
+    }
+
+    /** 갤러리 사진 중 하나를 대표(프로필) 사진으로 지정 */
+    @Transactional
+    public PetResponse setProfilePhoto(Long userId, Long petId, Long photoId) {
+        PetMst pet = loadOwnedPet(userId, petId);
+        PhotoDtl photo = photoRepository.findByIdAndEntityType(photoId, EntityType.PET)
+                .filter(p -> p.getEntityId().equals(petId))
+                .orElseThrow(() -> new BusinessException(ErrorCode.PHOTO_NOT_FOUND));
+        pet.setProfilePhoto(photo.getId());
+        return PetResponse.from(pet, null, List.of(), s3Service.resolveUrl(photo.getS3Key()));
     }
 
     @Transactional
@@ -238,7 +267,34 @@ public class PetService {
 
     private void attachMorphs(PetMst pet, List<Long> morphIds, SpeciesCd species) {
         if (morphIds == null || morphIds.isEmpty()) return;
-        for (Long morphId : morphIds) {
+        // 요청 내 중복 morphId 제거 (동일 복합키 중복 INSERT 방지)
+        for (Long morphId : new LinkedHashSet<>(morphIds)) {
+            MorphCd morph = morphRepository.findById(morphId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.MORPH_NOT_FOUND));
+            if (species != null && !morph.getSpeciesId().equals(species.getId())) {
+                throw new BusinessException(ErrorCode.MORPH_SPECIES_MISMATCH);
+            }
+            pet.getMorphs().add(PetMorphRls.of(pet, morph));
+        }
+    }
+
+    /**
+     * 모프 목록을 diff 방식으로 동기화한다.
+     * clear() 후 재add하면 (petId,morphId) 복합키가 삭제 예정 인스턴스와 충돌하므로,
+     * 빠진 것만 제거하고 새 것만 추가한다.
+     */
+    private void syncMorphs(PetMst pet, List<Long> morphIds, SpeciesCd species) {
+        Set<Long> desired = new LinkedHashSet<>(morphIds);
+        Set<Long> current = pet.getMorphs().stream()
+                .map(r -> r.getMorph().getId())
+                .collect(Collectors.toSet());
+
+        // 제거: 현재 있는데 desired에 없는 것 (orphanRemoval로 삭제)
+        pet.getMorphs().removeIf(r -> !desired.contains(r.getMorph().getId()));
+
+        // 추가: desired에 있는데 현재 없는 것만
+        for (Long morphId : desired) {
+            if (current.contains(morphId)) continue;
             MorphCd morph = morphRepository.findById(morphId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.MORPH_NOT_FOUND));
             if (species != null && !morph.getSpeciesId().equals(species.getId())) {

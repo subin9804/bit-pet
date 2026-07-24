@@ -17,6 +17,9 @@ dependencies:
   # HTTP
   dio: ^5.4.3
 
+  # 이미지 선택 (갤러리) — 프로필·갤러리·커뮤니티 사진 업로드
+  image_picker: ^1.1.2
+
   # 안전 저장소 (JWT)
   flutter_secure_storage: ^9.2.2
 
