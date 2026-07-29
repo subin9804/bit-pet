@@ -330,7 +330,7 @@ class MockAuthRepository extends AuthRepository {
 
 // AuthNotifier를 상속해 곧바로 로그인 상태로 시작
 class MockAuthNotifier extends AuthNotifier {
-  MockAuthNotifier() : super(MockAuthRepository()) {
+  MockAuthNotifier(Ref ref) : super(MockAuthRepository(), ref) {
     // super 생성자의 _init()은 비동기로 state를 null로 설정하므로,
     // 이벤트 루프 다음 틱에 mock 유저로 덮어씀
     Future.delayed(Duration.zero, () {
@@ -868,7 +868,7 @@ class MockPhotoRepository extends PhotoRepository {
 
 List<Override> buildMockOverrides() => [
       authRepositoryProvider.overrideWithValue(MockAuthRepository()),
-      authStateProvider.overrideWith((ref) => MockAuthNotifier()),
+      authStateProvider.overrideWith((ref) => MockAuthNotifier(ref)),
       petRepositoryProvider.overrideWithValue(MockPetRepository()),
       recordRepositoryProvider.overrideWithValue(MockRecordRepository()),
       routineRepositoryProvider.overrideWithValue(MockRoutineRepository()),

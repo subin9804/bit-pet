@@ -53,3 +53,9 @@ application-prod.local.yml
 
 ### Misc ###
 HELP.md
+
+### Firebase / FCM ###
+# 서비스 계정 비공개 키 — 절대 커밋 금지
+secrets/
+*firebase-adminsdk*.json
+firebase-service-account.json

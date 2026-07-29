@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/push/push_service.dart';
 import '../../../core/upload/image_upload.dart';
 import '../data/auth_repository.dart';
 import '../data/models/auth_models.dart';
@@ -6,13 +8,14 @@ import '../data/models/auth_models.dart';
 // 현재 로그인된 유저 상태 (null = 미로그인)
 final authStateProvider =
     StateNotifierProvider<AuthNotifier, AsyncValue<UserProfile?>>((ref) {
-  return AuthNotifier(ref.watch(authRepositoryProvider));
+  return AuthNotifier(ref.watch(authRepositoryProvider), ref);
 });
 
 class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
   final AuthRepository _repo;
+  final Ref _ref;
 
-  AuthNotifier(this._repo) : super(const AsyncValue.loading()) {
+  AuthNotifier(this._repo, this._ref) : super(const AsyncValue.loading()) {
     _init();
   }
 
@@ -26,6 +29,17 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
     if (state.hasError) {
       await _repo.logout();
       state = const AsyncValue.data(null);
+      return;
+    }
+    await _setUpPush();
+  }
+
+  /// FCM 초기화 + 디바이스 토큰 등록. 실패해도 로그인 흐름은 막지 않는다.
+  Future<void> _setUpPush() async {
+    try {
+      await _ref.read(pushServiceProvider).initialize();
+    } catch (e) {
+      debugPrint('[FCM] 푸시 초기화 실패: $e');
     }
   }
 
@@ -37,6 +51,9 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
         keepLoggedIn: keepLoggedIn,
       ),
     );
+    if (state.hasValue && state.value != null) {
+      await _setUpPush();
+    }
   }
 
   Future<void> signup(String email, String password, String nickname) async {
@@ -45,9 +62,18 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
       () => _repo.signup(
           SignupRequest(email: email, password: password, nickname: nickname)),
     );
+    if (state.hasValue && state.value != null) {
+      await _setUpPush();
+    }
   }
 
   Future<void> logout() async {
+    // 서버에서 디바이스 토큰을 먼저 지운다 — JWT가 살아있는 동안 호출해야 인증이 통과된다
+    try {
+      await _ref.read(pushServiceProvider).unregisterToken();
+    } catch (e) {
+      debugPrint('[FCM] 푸시 토큰 해제 실패: $e');
+    }
     await _repo.logout();
     state = const AsyncValue.data(null);
   }

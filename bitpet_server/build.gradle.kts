@@ -53,6 +53,9 @@ dependencies {
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")
 
+    // --- Firebase Admin SDK (FCM 푸시 발송) ---
+    implementation("com.google.firebase:firebase-admin:9.4.3")
+
     // --- AWS SDK v2 (S3 + LocalStack) ---
     implementation(platform("software.amazon.awssdk:bom:2.26.12"))
     implementation("software.amazon.awssdk:s3")

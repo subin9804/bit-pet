@@ -216,6 +216,26 @@ private Map<String, Object> extraData;
 - `AI_CONSULTING` — AI 컨설팅 완료 (2차 예정)
 - `SYSTEM` — 공지·점검
 
+### FCM 푸시 알림
+- Firebase 프로젝트: `bit-pet` (project_number `531955989389`), Android 패키지 `io.bitpet.bitpet_app`
+- **클라이언트 설정**: `bitpet_app/android/app/google-services.json` + `lib/firebase_options.dart` (둘 다 같은 값 — 하나 바뀌면 같이 갱신)
+  - **둘 다 gitignore 됨** (레포가 public이라 API 키 노출 방지) → 새 PC에서 클론하면 이 두 파일이 없어 **빌드 실패**함
+  - Firebase Console > 프로젝트 설정 > 내 앱 > `google-services.json` 다운로드 → `bitpet_app/android/app/`에 배치
+  - `firebase_options.dart`는 google-services.json 값을 그대로 옮긴 것 (apiKey/appId/messagingSenderId/projectId/storageBucket)
+- **서버 자격증명**: `bitpet_server/secrets/firebase-service-account.json` (gitignore 됨)
+  - Firebase Console > 프로젝트 설정 > 서비스 계정 > 새 비공개 키 생성
+  - 경로 변경은 `BITPET_FCM_CREDENTIALS`, 끄려면 `BITPET_FCM_ENABLED=false`
+  - **키가 없으면 푸시만 꺼지고 서버는 정상 기동** — 알림은 `notification_log_dtl`에 계속 쌓이므로 앱 내 알림함은 동작
+- **발송 흐름**: `NotificationService.save()` → `FcmSender.send()` → 유저의 `device_token_rls` 토큰 전체로 멀티캐스트
+  - `UNREGISTERED`/`INVALID_ARGUMENT` 응답 토큰은 자동 삭제
+  - 푸시 실패는 알림 이력을 롤백시키지 않음 (status만 FAILED)
+  - data 페이로드: `notificationId, type, petId, routineId, referenceId, petCount`
+- **토큰 API**: `POST /api/v1/device-tokens` (upsert) / `DELETE /api/v1/device-tokens?deviceToken=` (로그아웃)
+- **앱 측**: `core/push/push_service.dart` — 로그인 성공/앱 시작 시 `initialize()`, 로그아웃 시 `unregisterToken()`
+  - 알림 채널 ID `bitpet_default_channel` 은 AndroidManifest·서버 설정·PushService 3곳이 일치해야 함
+  - 포그라운드 알림은 OS가 안 띄우므로 `flutter_local_notifications`로 직접 표시
+- **iOS 미구현**: Apple 개발자 계정 + APNs 인증 키 + `GoogleService-Info.plist` 필요. 현재 iOS는 `firebase_options.dart`에서 `UnsupportedError` → main에서 catch되어 푸시 없이 실행
+
 ### 개체 일련번호
 VARCHAR(8) 고정, 32자 풀(0/O/I/1 제외), 6자리 시작, 풀 80% 시 7자리 확장.
 

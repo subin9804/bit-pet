@@ -41,6 +41,14 @@ dependencies:
   # 폰트
   google_fonts: ^6.2.1
 
+  # FCM 푸시 (Firebase 프로젝트: bit-pet)
+  # 상한 없이 하한만 지정 — AGP 9 대응 최신 버전을 받도록. `flutter pub get` 후
+  # pubspec.lock 에 잡힌 버전으로 캐럿(^) 고정해도 된다.
+  firebase_core: '>=3.6.0'
+  firebase_messaging: '>=15.1.0'
+  # 포그라운드에서 알림을 직접 띄우기 위해 필요 (OS가 자동으로 띄워주지 않음)
+  flutter_local_notifications: '>=18.0.0'
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

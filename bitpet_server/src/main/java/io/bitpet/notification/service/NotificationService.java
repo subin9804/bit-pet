@@ -8,6 +8,7 @@ import io.bitpet.notification.domain.NotificationType;
 import io.bitpet.notification.dto.NotificationLogResponse;
 import io.bitpet.notification.repository.NotificationLogDtlRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,12 +16,14 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class NotificationService {
 
     private final NotificationLogDtlRepository notificationLogRepository;
+    private final FcmSender fcmSender;
 
     public List<NotificationLogResponse> listNotifications(Long userId) {
         return notificationLogRepository.findTop50ByUserIdOrderBySentAtDesc(userId)
@@ -128,8 +131,18 @@ public class NotificationService {
     // internal
     // -------------------------------------------------------------------------
 
-    private void save(NotificationLogDtl log) {
-        notificationLogRepository.save(log);
-        // TODO: FCM 실제 발송 연동 (firebase-admin SDK, 2차)
+    /**
+     * 알림 로그 저장 후 FCM 푸시 발송.
+     * 푸시 실패가 알림 이력 자체를 롤백시키면 안 되므로 예외는 삼키고 status만 FAILED로 남긴다.
+     * (FCM 비활성화·디바이스 토큰 없음은 실패가 아니라 SENT 유지 — 앱 내 알림함에는 그대로 노출)
+     */
+    private void save(NotificationLogDtl notificationLog) {
+        notificationLogRepository.save(notificationLog);
+        try {
+            fcmSender.send(notificationLog);
+        } catch (Exception e) {
+            log.warn("[FCM] 푸시 발송 중 예외 (userId={}): {}", notificationLog.getUserId(), e.getMessage());
+            notificationLog.markFailed(e.getMessage());
+        }
     }
 }
