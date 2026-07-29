@@ -5,4 +5,19 @@ build/
 
 # 참고용 폴더 (앱 코드와 무관)
 sessions/
+backup/
 UI/
+
+# 서명·인증 키 — 절대 커밋 금지 (레포가 public)
+# Android: 릴리즈 keystore + 비밀번호 파일
+*.jks
+*.keystore
+key.properties
+# iOS/Apple: APNs 인증 키(.p8), 인증서, 프로비저닝 프로파일
+*.p8
+*.p12
+*.cer
+*.mobileprovision
+# 서비스 계정 키 (Firebase Admin, Google Play Console 배포용 등)
+*-service-account*.json
+*firebase-adminsdk*.json
