@@ -25,16 +25,40 @@ class HomeScreen extends ConsumerWidget {
     return 0;
   }
 
-  // FAB(기록 추가)는 홈·내 개체 목록에서만 노출
-  bool get _showFab => location.startsWith('/home') || location == '/pets';
+  // ── FAB 노출 규칙 ────────────────────────────────────────────
+  // 뜨는 곳: 홈 / 내 개체 목록 / 개체 상세 / 루틴 목록 — 딱 이 넷.
+  // 안 뜨는 곳: 그 외 전부. 특히 **모든 등록·수정 화면**은 아래 _isFormRoute로
+  //             한 번 더 잠가서, 새 폼 라우트가 생겨도 실수로 뜨지 않게 한다.
+  //             (커뮤니티는 자체 글쓰기 버튼, 기록 목록 화면은 자체 FAB이 있다)
 
-  void _openFabSheet(BuildContext context) {
+  /// 개체 상세 `/pets/123` — 하위 경로(/edit, /records/..)는 제외
+  static final _petDetailRe = RegExp(r'^/pets/(\d+)$');
+
+  /// 등록·수정 계열 경로 — 어떤 경우에도 FAB 금지
+  static bool _isFormRoute(String loc) =>
+      loc.endsWith('/new') ||
+      loc.endsWith('/edit') ||
+      loc.endsWith('/bulk-new');
+
+  int? get _detailPetId =>
+      int.tryParse(_petDetailRe.firstMatch(location)?.group(1) ?? '');
+
+  bool get _showFab {
+    if (_isFormRoute(location)) return false;
+    return location == '/home' ||
+        location == '/pets' ||
+        location == '/routines' ||
+        _detailPetId != null;
+  }
+
+  void _onFabPressed(BuildContext context) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => const FabRecordSheet(),
+      // 개체 상세에서 열면 그 개체로 고정 — 종류만 고르면 바로 입력 폼
+      builder: (_) => FabRecordSheet(initialPetId: _detailPetId),
     );
   }
 
@@ -51,7 +75,8 @@ class HomeScreen extends ConsumerWidget {
               child: FloatingActionButton(
                 heroTag: 'fab-record',
                 elevation: 0,
-                onPressed: () => _openFabSheet(context),
+                tooltip: '기록 추가',
+                onPressed: () => _onFabPressed(context),
                 child: const Icon(Icons.add, size: 26),
               ),
             )

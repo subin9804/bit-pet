@@ -27,6 +27,20 @@ const _catMeta = {
 // API 카테고리 코드 → UI 표시용 key (PalePalette.catPale/catInk에서 사용)
 String _paleCatKey(String apiCat) => apiCat; // 이미 WEIGHT/FEEDING/... 형식
 
+/// 최근 기록이 얼마나 지났는지 — 오늘 / 어제 / N일 전 / N주 전 / N개월 전 / N년 전
+String _relativeDay(DateTime dt) {
+  final today = DateTime.now();
+  final d = DateTime(today.year, today.month, today.day)
+      .difference(DateTime(dt.year, dt.month, dt.day))
+      .inDays;
+  if (d <= 0) return '오늘';
+  if (d == 1) return '어제';
+  if (d < 7) return '$d일 전';
+  if (d < 30) return '${d ~/ 7}주 전';
+  if (d < 365) return '${d ~/ 30}개월 전';
+  return '${d ~/ 365}년 전';
+}
+
 // 체중 스파크라인 데이터 포인트
 class WeightPoint {
   final double w;
@@ -143,6 +157,16 @@ class _RecordTabState extends ConsumerState<RecordTab> {
                       const SizedBox(width: 6),
                       Text('체중', style: AppTextStyles.paleCatLabel),
                       const Spacer(),
+                      if (weightItem != null)
+                        Text(
+                          _relativeDay(weightItem.recordedAt),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: PalePalette.catInk('WEIGHT'),
+                          ),
+                        ),
+                      const SizedBox(width: 4),
                       Icon(Icons.chevron_right,
                           size: 18, color: PalePalette.catInk('WEIGHT')),
                     ],
@@ -232,10 +256,15 @@ class _RecordTabState extends ConsumerState<RecordTab> {
                           color: PalePalette.catInk(cat)),
                     ),
                     const SizedBox(width: 12),
-                    // 라벨 고정폭
+                    // 라벨 고정폭 — '메이팅' 3글자가 줄바꿈되지 않을 만큼 확보.
+                    // 시스템 글자 크기를 키운 기기에서도 넘치지 않도록 배율을 반영한다.
                     SizedBox(
-                      width: 38,
+                      width: (48 * MediaQuery.textScalerOf(context).scale(1.0))
+                          .clamp(48.0, 76.0),
                       child: Text(meta.label,
+                          maxLines: 1,
+                          softWrap: false,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
@@ -256,6 +285,19 @@ class _RecordTabState extends ConsumerState<RecordTab> {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    // 얼마나 지난 기록인지
+                    if (!isEmpty) ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        _relativeDay(item.recordedAt),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.paleInk3,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(width: 4),
                     Icon(Icons.chevron_right,
                         size: 18,
                         color: isEmpty

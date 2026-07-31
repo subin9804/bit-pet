@@ -1079,9 +1079,15 @@ class _CategoryRow extends StatelessWidget {
             child: Icon(icon, size: 13, color: _catIconInk(type)),
           ),
           const SizedBox(width: 10),
+          // '몸무게'·'메이팅' 3글자가 줄바꿈되지 않을 만큼 확보.
+          // 시스템 글자 크기를 키운 기기에서도 넘치지 않도록 배율을 반영한다.
           SizedBox(
-            width: 44,
+            width: (48 * MediaQuery.textScalerOf(context).scale(1.0))
+                .clamp(48.0, 76.0),
             child: Text(label,
+                maxLines: 1,
+                softWrap: false,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
                     color: AppColors.textSecondary)),
           ),
