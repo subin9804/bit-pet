@@ -80,6 +80,7 @@ record/
 routine/      루틴 도메인 (user 소유, routine_pet_rls, routine_log_dtl)
 notification/ 알림 로그 + NotificationType enum
 scheduler/    RoutineScheduler (@Scheduled 루틴 알람)
+nfc/          NFC 태그 이름표 (nfc_tag_mst, 태그 조회·연결·해제, assetlinks.json, /t/{tagCd} 랜딩)
 community/    게시글·댓글·좋아요
 photo/        폴리모픽 사진 (photo_dtl: PET/MEMO/MATING/LAYING)
               PhotoController (/api/v1/photos/**)
@@ -105,6 +106,7 @@ features/
   record/       기록 화면 (weight/feeding/cleaning/memo/mating/laying)
   routine/      루틴 관리 (SCR-08A, SCR-08, SCR-12)
   notification/ 알림 목록
+  nfc/          NFC 태그 (TagResolverScreen, 연결 모달, 이름표 관리)
   community/    커뮤니티 피드·게시글 상세
   home/         대시보드 (FAB → FabRecordSheet)
   my/           마이페이지
@@ -151,8 +153,10 @@ features/
 | V33 | routine_mst.next_due_at/last_executed_at 타입 timestamptz → date |
 | V34 | routine_mst.group_id 추가 — 루틴 소속 user → breeding_group 전환, 소유자 현재 그룹으로 백필 |
 | V35 | routine_mst.start_date 추가 — 루틴 시작일 고정 보존(캘린더 표시 하한), created_at 기준 백필 |
+| V36~V48 | (표 미반영 — 실제 파일 기준: cleaning/memo routine_id, pet_deceased_at, memo_tag POOP, routine soft delete, pet_keeper_rls, user_share_code, pet_share_invitation 3종, breeding_group 제거, record_created_by_user, routine_log_link_dtl, post_pinned) |
+| V49 | nfc_tag_mst 신설 — NFC 태그 이름표 (tag_cd PK, pet_id/user_id nullable, default_action_cd, scan_cnt) |
 
-> **다음 마이그레이션은 V36부터 작성.**
+> **다음 마이그레이션은 V50부터 작성.**
 
 ---
 
@@ -235,6 +239,32 @@ private Map<String, Object> extraData;
   - 알림 채널 ID `bitpet_default_channel` 은 AndroidManifest·서버 설정·PushService 3곳이 일치해야 함
   - 포그라운드 알림은 OS가 안 띄우므로 `flutter_local_notifications`로 직접 표시
 - **iOS 미구현**: Apple 개발자 계정 + APNs 인증 키 + `GoogleService-Info.plist` 필요. 현재 iOS는 `firebase_options.dart`에서 `UnsupportedError` → main에서 catch되어 푸시 없이 실행
+
+### NFC 태그 이름표 (v1)
+- **핵심 원칙**: 태그에는 `https://bitpet.kr/t/{tagCd}` **URL만** 굽혀 있고, 태그↔개체 연결은 **서버 DB에만** 존재
+  - 앱은 NFC를 **읽지도 쓰지도 않는다** — OS가 URL을 열고 앱은 딥링크만 받는다 → `nfc_manager` 류 패키지 불필요
+- `tag_cd` = `BP` + 32자 풀 랜덤 4자 (`TagCodeGenerator`). **일련번호와 완전히 다른 체계, 절대 순차 금지** (순차면 남의 태그 주소를 추측 가능)
+- **테이블 분리**: `pet_mst`의 컬럼이 아니라 `nfc_tag_mst` 별도 테이블 — 재사용·해제·분실 처리가 깔끔
+  - `unlink()`는 `pet_id`/`user_id`만 비우고 **`linked_at`은 남긴다** → "판매됐지만 미연결(온보딩 이탈)" 재고 쿼리가 가능해짐
+  - 재고 쿼리: 미판매 = `pet_id IS NULL AND linked_at IS NULL` / 판매·미연결 = `pet_id IS NULL AND linked_at IS NOT NULL`
+- **API** (`io.bitpet.nfc`): `GET /api/v1/tags/{tagCd}` (UNLINKED / LINKED / OWNED_BY_OTHER, 없는 코드는 404 = 위조 차단),
+  `POST /{tagCd}/link` (개체 **소유자만**, 남이 쓰는 태그면 409), `DELETE /{tagCd}/link` (태그 소유자만), `GET /tags/my`, `PATCH /{tagCd}/action`
+  - 어드민: `POST /api/v1/admin/tags/issue?count=` (재고 발급), `GET /api/v1/admin/tags/stats`
+- **딥링크 공개 경로** (`public-paths`): `/.well-known/**`, `/t/**`
+  - `AssetLinksController` — 지문 미설정 시 **404 반환** (지문 없는 파일은 autoVerify를 조용히 실패시켜 링크가 브라우저로 샌다)
+  - `TagLandingController` — 미설치·비로그인용 랜딩. **개체 이름만** 노출, 체중·급여 기록 절대 금지. 모르는 코드도 404 대신 일반 랜딩
+- 🚨 **assetlinks.json 최대 함정**: AAB 업로드 시 Google이 **재서명**하므로 업로드 키 지문이 아니라
+  **Play 앱 서명 키 지문**(Play Console > 설정 > 앱 서명, 업로드 후에만 보임)이 필요. 로컬 빌드 테스트를 위해 **둘 다** 넣을 것
+  - 설정: `bitpet.deeplink.*` (`BITPET_ANDROID_SHA256` 등 환경변수)
+- **앱 측**: `features/nfc/`
+  - AndroidManifest — `autoVerify="true"` intent-filter (`https` / `bitpet.kr` / pathPrefix `/t/`) + `flutter_deeplinking_enabled` 메타데이터
+    - ⚠️ 콜드 스타트: 앱이 꺼진 상태의 첫 링크는 go_router 초기화보다 먼저 도착 → 위 메타데이터 없으면 **홈으로 빠진다**. 반드시 앱 완전 종료 상태로 실기기 테스트
+  - `/t/:tagCd` → `TagResolverScreen` (경유 화면, ShellRoute 바깥). status로 분기, 로그아웃 상태면 `PendingTagLink`에 담아두고 로그인 후 복귀
+  - 개체 진입은 `context.go('/home')` → `context.push('/pets/:id')` — 홈을 스택 하단에 깔지 않으면 뒤로가기 한 번에 앱이 종료됨
+  - `?openRecord=feed|scale` → `PetDetailScreen`이 `addPostFrameCallback`으로 `FabRecordSheet(initialTypeId, initialPetId)` 자동 오픈, 닫아도 상세에 잔류
+  - 마이페이지 > 이름표 관리(`/my/tags`) — 기본 동작 변경·연결 해제 (양도 시 원 소유자가 해제 → 새 주인이 재연결)
+- **제작**: 랜덤 코드 100개 INSERT(`pet_id NULL`) → NTAG213에 URL 굽기 → 재고. 주문 시 각인 이름만 받아 **PETG**(PLA는 사육장 열·습도에 변형) 3D 프린팅 후 아무 태그나 부착 — 어느 태그가 어느 개체인지 알 필요 없음
+- **v1.1+**: `default_action_cd`만으로 제품 라인업 구분(URL 동일 → 재고 1종), 양도 플로우, 사육장 단위 태그, iOS Universal Links
 
 ### 개체 일련번호
 VARCHAR(8) 고정, 32자 풀(0/O/I/1 제외), 6자리 시작, 풀 80% 시 7자리 확장.
