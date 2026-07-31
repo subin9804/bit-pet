@@ -62,7 +62,15 @@ const _recordTypes = [
 
 // ── 메인 위젯 ──────────────────────────────────────────────────
 class FabRecordSheet extends ConsumerStatefulWidget {
-  const FabRecordSheet({super.key});
+  /// 미리 정해진 기록 종류 ('feed' / 'scale' / ...). 지정하면 06 종류 선택을 건너뛴다.
+  final String? initialTypeId;
+
+  /// 대상 개체가 이미 정해진 경우. **06b 개체 선택 단계가 통째로 사라진다.**
+  /// * 개체 상세 FAB — 개체만 고정, 종류 선택부터 시작
+  /// * NFC 태그 스캔 — [initialTypeId]까지 함께 넘어와 폼으로 직행
+  final int? initialPetId;
+
+  const FabRecordSheet({super.key, this.initialTypeId, this.initialPetId});
 
   @override
   ConsumerState<FabRecordSheet> createState() => _FabRecordSheetState();
@@ -72,6 +80,24 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
   _FabStep _step = _FabStep.chooseType;
   String   _typeId = '';          // 선택된 기록 종류
   final Set<int> _selectedPetIds = {};
+
+  /// 개체가 밖에서 정해져 들어온 시트인가 (개체 선택 단계를 건너뛴다)
+  bool get _petLocked => widget.initialPetId != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final petId = widget.initialPetId;
+    if (petId != null) _selectedPetIds.add(petId);
+
+    final type = widget.initialTypeId;
+    if (type == null || !_recordTypes.any((t) => t.id == type)) return;
+    _typeId = type;
+    // 종류까지 정해졌으면 폼으로 직행 (개체 1마리 = 피딩은 06d, 나머지는 단일 폼)
+    _step = petId == null
+        ? _FabStep.pickPets
+        : (type == 'feed' ? _FabStep.feedBulk : _FabStep.simpleForm);
+  }
 
   // 06c
   _FeedMode _feedMode = _FeedMode.bulk;
@@ -111,6 +137,8 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
   // ── 헬퍼 ────────────────────────────────────────────────────
   List<Pet> _selectedPets(AsyncValue<List<Pet>> petsAsync) {
     final all = petsAsync.whenOrNull(data: (l) => l) ?? [];
+    // 개체 목록이 아직 로딩 중일 수 있다 (딥링크로 폼 단계부터 열리는 경우)
+    if (all.isEmpty) return [];
     final order = _selectedPetIds.toList();
     return order.map((id) => all.firstWhere(
       (p) => p.id == id,
@@ -121,7 +149,10 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
   void _onTypeSelected(String typeId) {
     setState(() {
       _typeId = typeId;
-      _step   = _FabStep.pickPets;
+      // 개체가 이미 정해진 시트면 개체 선택을 건너뛰고 바로 폼으로
+      _step = _petLocked
+          ? (typeId == 'feed' ? _FabStep.feedBulk : _FabStep.simpleForm)
+          : _FabStep.pickPets;
     });
   }
 
@@ -166,6 +197,10 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
 
   // ── 저장 ─────────────────────────────────────────────────────
   Future<void> _saveBulk(List<Pet> pets) async {
+    if (pets.isEmpty) {
+      showToast(context, '개체 정보를 불러오는 중이에요', type: ToastType.warning);
+      return;
+    }
     if (_bulkItems.isEmpty) {
       showToast(context, '피딩을 목록에 추가해 주세요', type: ToastType.warning);
       return;
@@ -226,15 +261,28 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
   }
 
   // ── 뒤로 ─────────────────────────────────────────────────────
+  /// 딥링크로 폼 단계부터 열린 시트는 그 첫 화면에서 뒤로 = 시트 닫기.
+  /// (개체도 종류도 이미 정해져 있어 돌아갈 앞 단계가 없다)
+  bool get _isEntryStep =>
+      _petLocked &&
+      widget.initialTypeId != null &&
+      (_step == _FabStep.feedBulk || _step == _FabStep.simpleForm);
+
   void _goBack() {
+    if (_isEntryStep) {
+      Navigator.of(context).pop();
+      return;
+    }
+    // 개체가 고정된 시트에는 개체 선택 단계가 없으므로 종류 선택으로 되돌아간다
+    final afterForm = _petLocked ? _FabStep.chooseType : _FabStep.pickPets;
     setState(() {
       _step = switch (_step) {
         _FabStep.pickPets   => _FabStep.chooseType,
         _FabStep.feedChoice => _FabStep.pickPets,
         _FabStep.feedBulk   =>
-            _selectedPetIds.length > 1 ? _FabStep.feedChoice : _FabStep.pickPets,
+            _selectedPetIds.length > 1 ? _FabStep.feedChoice : afterForm,
         _FabStep.feedPerPet => _FabStep.feedChoice,
-        _FabStep.simpleForm => _FabStep.pickPets,
+        _FabStep.simpleForm => afterForm,
         _                   => _FabStep.chooseType,
       };
     });
@@ -305,6 +353,10 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
 
   // ── 06 · 기록 종류 선택 (BFinalFabSheetV2 — 컴팩트 3×2) ────────
   Widget _buildChooseType(AsyncValue<List<Pet>> petsAsync) {
+    // 개체가 고정된 시트(개체 상세 FAB)는 대상을 제목에 박아준다
+    final locked = _petLocked ? _selectedPets(petsAsync) : const <Pet>[];
+    final lockedPet = locked.isEmpty ? null : locked.first;
+
     return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(
           20, 4, 20, 32 + MediaQuery.of(context).viewPadding.bottom),
@@ -316,14 +368,20 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
               style: AppTextStyles.mono(11, FontWeight.w700,
                   color: AppColors.paleInk2)),
           const SizedBox(height: 3),
-          const Text('무엇을 기록할까요?',
-              style: TextStyle(
-                  fontSize: 20, fontWeight: FontWeight.w700,
-                  color: AppColors.primary, letterSpacing: -0.4)),
+          Text(
+            lockedPet == null ? '무엇을 기록할까요?' : '${lockedPet.name} · 무엇을 기록할까요?',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+                fontSize: 20, fontWeight: FontWeight.w700,
+                color: AppColors.primary, letterSpacing: -0.4),
+          ),
           const SizedBox(height: 3),
-          Text('종류를 고르면 대상 개체를 선택해요',
-              style: TextStyle(fontSize: 11.5, color: AppColors.paleInk3,
-                  fontWeight: FontWeight.w500)),
+          Text(
+            _petLocked ? '종류를 고르면 바로 입력해요' : '종류를 고르면 대상 개체를 선택해요',
+            style: const TextStyle(fontSize: 11.5, color: AppColors.paleInk3,
+                fontWeight: FontWeight.w500),
+          ),
           const SizedBox(height: 14),
 
           // 기록 종류 — 3×2 컴팩트 그리드
@@ -340,6 +398,8 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
             )).toList(),
           ),
 
+          // 개체가 고정된 시트에서는 '개체 추가'가 맥락에 맞지 않아 숨긴다
+          if (!_petLocked) ...[
           const SizedBox(height: 24),
 
           // 개체 추가 버튼
@@ -391,6 +451,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
               ),
             ),
           ),
+          ],
         ],
       ),
     );
@@ -981,6 +1042,10 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
   }
 
   Future<void> _saveSimple(List<Pet> pets) async {
+    if (pets.isEmpty) {
+      showToast(context, '개체 정보를 불러오는 중이에요', type: ToastType.warning);
+      return;
+    }
     setState(() => _saving = true);
     try {
       final repo = ref.read(recordRepositoryProvider);

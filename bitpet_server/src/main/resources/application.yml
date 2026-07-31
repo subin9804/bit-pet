@@ -142,6 +142,9 @@ bitpet:
       - /api/v1/memo-tags
       - /oauth2/authorization/**
       - /login/oauth2/code/**
+      # NFC 태그 딥링크 — OS가 검증 파일을 직접 가져가고, 미설치자는 랜딩 페이지를 본다
+      - /.well-known/**
+      - /t/**
   oauth2:
     # 로그인 성공 시 클라이언트로 리다이렉트할 URL (deep link 가능)
     success-redirect-uri: ${BITPET_OAUTH_SUCCESS_REDIRECT:http://localhost:3000/oauth/callback}
@@ -153,6 +156,16 @@ bitpet:
     credentials-path: ${BITPET_FCM_CREDENTIALS:./secrets/firebase-service-account.json}
     project-id: ${BITPET_FCM_PROJECT_ID:bit-pet}
     android-channel-id: bitpet_default_channel
+  deeplink:
+    # NFC 태그가 굽고 있는 URL 의 호스트. 태그 코드는 https://{host}/t/{tagCd} 형태로 들어온다.
+    host: ${BITPET_DEEPLINK_HOST:bitpet.kr}
+    android-package-name: ${BITPET_ANDROID_PACKAGE:io.bitpet.bitpet_app}
+    # 비어 있으면 /.well-known/assetlinks.json 이 404 → App Links 검증 비활성.
+    # ⚠️ AAB 업로드 시 Google 이 재서명하므로 "Play 앱 서명 키" 지문이 진짜로 필요하다.
+    #    (Play Console > 설정 > 앱 서명, 앱 업로드 후에만 확인 가능)
+    #    로컬 빌드도 테스트하려면 업로드 키 지문까지 콤마로 둘 다 넣는다.
+    sha256-cert-fingerprints: ${BITPET_ANDROID_SHA256:}
+    play-store-url: ${BITPET_PLAY_STORE_URL:}
   s3:
     endpoint: ${BITPET_S3_ENDPOINT:http://localhost:4566}
     region: ${BITPET_S3_REGION:ap-northeast-2}

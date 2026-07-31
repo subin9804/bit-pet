@@ -100,6 +100,11 @@ public enum ErrorCode {
     SHARE_INVITATION_FORBIDDEN(HttpStatus.FORBIDDEN, "이 공유 요청에 대한 권한이 없습니다."),
     SHARE_BULK_NO_VALID_PET(HttpStatus.CONFLICT, "초대할 수 있는 개체가 없습니다. (이미 공유했거나 대기 중)"),
 
+    // --- NFC Tag ---
+    TAG_NOT_FOUND(HttpStatus.NOT_FOUND, "유효하지 않은 태그입니다."),
+    TAG_ALREADY_LINKED(HttpStatus.CONFLICT, "이미 다른 개체에 등록된 태그입니다."),
+    TAG_ACCESS_DENIED(HttpStatus.FORBIDDEN, "이 태그에 대한 권한이 없습니다."),
+
     // --- Community ---
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "Post not found"),
     POST_ACCESS_DENIED(HttpStatus.FORBIDDEN, "You do not own this post"),

@@ -28,7 +28,26 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+
+            <!-- NFC 태그 이름표 딥링크.
+                 태그에는 https://bitpet.kr/t/{tagCd} 만 굽혀 있고, OS가 이 URL을 열면
+                 autoVerify가 통과한 경우 브라우저를 거치지 않고 이 액티비티로 바로 들어온다.
+                 검증에는 서버의 /.well-known/assetlinks.json 이 필요하다. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https"
+                      android:host="bitpet.kr"
+                      android:pathPrefix="/t/" />
+            </intent-filter>
         </activity>
+
+        <!-- 딥링크를 Flutter(go_router)로 그대로 넘긴다.
+             이게 없으면 앱이 꺼진 상태에서 들어온 첫 링크가 홈으로 빠진다. -->
+        <meta-data
+            android:name="flutter_deeplinking_enabled"
+            android:value="true" />
         <!-- FCM: 백그라운드 알림이 사용할 기본 채널 (PushService의 채널 ID와 일치) -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"

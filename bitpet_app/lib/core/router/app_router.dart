@@ -29,6 +29,9 @@ import '../../features/notification/data/models/notification_models.dart';
 import '../../features/notification/providers/notification_provider.dart';
 import '../../features/record/presentation/weight_screen.dart';
 import '../../features/record/presentation/feed_detail_screen.dart';
+import '../../features/nfc/presentation/tag_resolver_screen.dart';
+import '../../features/nfc/presentation/my_tags_screen.dart';
+import '../../features/nfc/providers/tag_provider.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -41,12 +44,25 @@ final routerProvider = Provider<GoRouter>((ref) {
           loc == '/signup' ||
           loc.startsWith('/password-reset');
 
+      // NFC 태그를 찍었는데 로그아웃 상태면, 로그인 후 그 태그로 돌아갈 수 있게 기억해 둔다
+      if (!isLoggedIn && loc.startsWith('/t/')) {
+        PendingTagLink.remember(state.uri.toString());
+        return '/login';
+      }
       if (!isLoggedIn && !isAuthRoute) return '/login';
-      if (isLoggedIn && isAuthRoute) return '/home';
+      if (isLoggedIn && isAuthRoute) return PendingTagLink.take() ?? '/home';
       return null;
     },
     refreshListenable: _AuthListenable(ref),
     routes: [
+      // NFC 태그 이름표 딥링크 — https://bitpet.kr/t/{tagCd}
+      // 앱은 NFC를 직접 읽지 않는다. OS가 URL을 열어주고 이 경유 화면이 서버에 물어본 뒤
+      // status에 따라 개체 상세 / 연결 모달 / 안내로 분기한다.
+      GoRoute(
+        path: '/t/:tagCd',
+        builder: (_, state) =>
+            TagResolverScreen(tagCd: state.pathParameters['tagCd']!),
+      ),
       GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
       GoRoute(path: '/signup', builder: (_, __) => const SignupScreen()),
       GoRoute(
@@ -73,8 +89,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/pets/bulk-new', builder: (_, __) => const PetBulkFormScreen()),
           GoRoute(
             path: '/pets/:id',
-            builder: (_, state) =>
-                PetDetailScreen(petId: int.parse(state.pathParameters['id']!)),
+            // ?openRecord=feed|scale — NFC 태그 스캔 시 기록 바텀시트를 자동으로 연다
+            builder: (_, state) => PetDetailScreen(
+              petId: int.parse(state.pathParameters['id']!),
+              openRecordType: state.uri.queryParameters['openRecord'],
+            ),
           ),
           GoRoute(
             path: '/pets/:id/edit',
@@ -135,6 +154,8 @@ final routerProvider = Provider<GoRouter>((ref) {
                 postId: int.tryParse(state.pathParameters['id']!)),
           ),
           GoRoute(path: '/my', builder: (_, __) => const MyScreen()),
+          // 마이페이지 > 이름표 관리
+          GoRoute(path: '/my/tags', builder: (_, __) => const MyTagsScreen()),
           // 공유 허브 (공유코드·받은 초대·시작 안내)
           GoRoute(path: '/share', builder: (_, __) => const ShareHubScreen()),
           // 받은 공유·입분양 초대함

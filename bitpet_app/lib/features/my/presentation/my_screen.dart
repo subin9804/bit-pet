@@ -64,6 +64,12 @@ class MyScreen extends ConsumerWidget {
 
             // 공유 관리 허브 — 공유코드·받은 초대·개체 공유 시작
             const _ShareManageItem(),
+            // NFC 이름표 — 연결 확인·기본 동작 변경·해제
+            _MenuItem(
+              icon: Icons.sell_outlined,
+              label: '이름표 관리',
+              onTap: () => context.push('/my/tags'),
+            ),
             _MenuItem(
               icon: Icons.notifications_outlined,
               label: '알림 설정',

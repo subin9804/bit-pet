@@ -7,6 +7,7 @@ import '../../../core/theme/pale_palette.dart';
 import '../../../core/widgets/confirm_modal.dart';
 import '../../../core/widgets/skeleton_loader.dart';
 import '../../../core/widgets/toast_message.dart';
+import '../../record/presentation/fab_record_sheet.dart';
 import '../data/models/pet_models.dart';
 import '../providers/pet_provider.dart';
 import 'widgets/pet_hero_card.dart';
@@ -17,7 +18,16 @@ import 'widgets/gallery_tab.dart';
 
 class PetDetailScreen extends ConsumerStatefulWidget {
   final int petId;
-  const PetDetailScreen({super.key, required this.petId});
+
+  /// 진입 직후 자동으로 열 기록 종류 ('feed' / 'scale'). null이면 열지 않는다.
+  /// NFC 태그 스캔 시 `?openRecord=feed` 형태로 들어온다.
+  final String? openRecordType;
+
+  const PetDetailScreen({
+    super.key,
+    required this.petId,
+    this.openRecordType,
+  });
 
   @override
   ConsumerState<PetDetailScreen> createState() => _PetDetailScreenState();
@@ -29,6 +39,28 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
   static const _tabs = ['기록', '캘린더', '갤러리'];
   // mock 탭 카운트 (추후 API 대체)
   static const _tabCounts = [24, 4, 9];
+
+  @override
+  void initState() {
+    super.initState();
+    // 태그 스캔으로 들어온 경우 기록 시트를 바로 띄운다.
+    // 시트를 닫아도 이 상세 화면에 그대로 남는다.
+    final type = widget.openRecordType;
+    if (type == null || type.isEmpty) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => FabRecordSheet(
+          initialTypeId: type,
+          initialPetId: widget.petId,
+        ),
+      );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
