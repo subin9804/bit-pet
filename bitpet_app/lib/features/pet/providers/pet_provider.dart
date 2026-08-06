@@ -64,6 +64,16 @@ class PetListNotifier extends StateNotifier<AsyncValue<List<Pet>>> {
       state = AsyncValue.data(list.where((p) => p.id != id).toList());
     });
   }
+
+  /// 일괄 삭제 — 서버가 전부 성공 아니면 전부 실패로 처리하므로,
+  /// 실패 시 예외가 올라오고 목록은 손대지 않는다.
+  Future<void> removeAll(List<int> ids) async {
+    final deleted = (await _repo.deletePets(ids)).toSet();
+    state.whenData((list) {
+      state = AsyncValue.data(
+          list.where((p) => !deleted.contains(p.id)).toList());
+    });
+  }
 }
 
 final petDetailProvider =

@@ -9,6 +9,7 @@ import io.bitpet.pet.domain.PetMst;
 import io.bitpet.pet.domain.PetRelationRls;
 import io.bitpet.pet.domain.SpeciesCd;
 import io.bitpet.pet.dto.GenealogyResponse;
+import io.bitpet.pet.dto.PetBulkDeleteResponse;
 import io.bitpet.pet.dto.PetCreateRequest;
 import io.bitpet.pet.dto.PetRelationRequest;
 import io.bitpet.pet.dto.PetRelationResponse;
@@ -31,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -112,13 +114,15 @@ public class PetService {
                 .orElse(null);
         List<PetRelationRls> parentRelations = relationRepository.findAllByChildPetId(petId);
         return PetResponse.from(pet, latestWeight, parentRelations,
-                resolveProfileImageUrl(pet));
+                resolveProfileImageUrl(pet), petKeeper.isOwner(userId, petId));
     }
 
     /** 내가 사육하는 개체 목록 (소유 + 공유받은 개체) */
     public List<PetResponse> listByOwner(Long userId) {
         List<Long> petIds = petKeeper.keptPetIds(userId);
         if (petIds.isEmpty()) return List.of();
+        // 목록에는 공유받은 개체도 섞여 있다 — 개체마다 소유자를 다시 묻지 않도록 한 번에 받아둔다
+        Set<Long> ownedIds = petKeeper.ownedPetIds(userId);
         return petRepository.findAllById(petIds).stream()
                 // 폐사(이별) 개체는 목록 마지막으로 (stable sort — 기존 순서 유지)
                 .sorted(java.util.Comparator.comparing(p -> p.getDeceasedAt() != null))
@@ -128,7 +132,7 @@ public class PetService {
                             .map(w -> w.getWeightG().doubleValue())
                             .orElse(null);
                     return PetResponse.from(pet, latestWeight, List.of(),
-                            resolveProfileImageUrl(pet));
+                            resolveProfileImageUrl(pet), ownedIds.contains(pet.getId()));
                 })
                 .toList();
     }
@@ -149,9 +153,15 @@ public class PetService {
         return PetResponse.from(pet);
     }
 
+    /**
+     * 개체 프로필 수정 — <b>공유받은 사육자(KEEPER)도 가능</b>.
+     * 공동 양육자는 이미 체중·급여 같은 기록을 남기는 사람이라,
+     * 이름·모프·해칭일을 고치는 것까지 소유자에게만 열어 둘 이유가 없다.
+     * 반면 삭제·이별·공유·입분양은 개체의 존재나 소유권 자체를 바꾸므로 OWNER 전용으로 남긴다.
+     */
     @Transactional
     public PetResponse update(Long userId, Long petId, PetUpdateRequest req) {
-        PetMst pet = loadOwnedPet(userId, petId);
+        PetMst pet = petKeeper.assertKeeper(userId, petId);
         SpeciesCd species = req.speciesId() != null
                 ? speciesRepository.findById(req.speciesId())
                         .orElseThrow(() -> new BusinessException(ErrorCode.SPECIES_NOT_FOUND))
@@ -169,18 +179,22 @@ public class PetService {
         if (morphIds != null) {
             syncMorphs(pet, morphIds, effectiveSpecies);
         }
-        return PetResponse.from(pet);
+        return PetResponse.from(pet, null, List.of(), null, petKeeper.isOwner(userId, petId));
     }
 
-    /** 갤러리 사진 중 하나를 대표(프로필) 사진으로 지정 */
+    /**
+     * 갤러리 사진 중 하나를 대표(프로필) 사진으로 지정 — KEEPER도 가능.
+     * 사진 등록 자체가 이미 사육자에게 열려 있어(PhotoService), 그중 한 장을 고르는 것만 막을 이유가 없다.
+     */
     @Transactional
     public PetResponse setProfilePhoto(Long userId, Long petId, Long photoId) {
-        PetMst pet = loadOwnedPet(userId, petId);
+        PetMst pet = petKeeper.assertKeeper(userId, petId);
         PhotoDtl photo = photoRepository.findByIdAndEntityType(photoId, EntityType.PET)
                 .filter(p -> p.getEntityId().equals(petId))
                 .orElseThrow(() -> new BusinessException(ErrorCode.PHOTO_NOT_FOUND));
         pet.setProfilePhoto(photo.getId());
-        return PetResponse.from(pet, null, List.of(), s3Service.resolveUrl(photo.getS3Key()));
+        return PetResponse.from(pet, null, List.of(), s3Service.resolveUrl(photo.getS3Key()),
+                petKeeper.isOwner(userId, petId));
     }
 
     @Transactional
@@ -189,6 +203,34 @@ public class PetService {
         pet.softDelete();
         // 이 개체에 연결된 모든 루틴에서 연결 제거 + 활성 재계산 (빈 루틴 비활성화)
         routineMaintenance.onPetDeleted(petId);
+    }
+
+    /**
+     * 개체 일괄 삭제 (Soft Delete).
+     *
+     * <p><b>전부 성공 아니면 전부 실패.</b> 소유자가 아닌 개체가 하나라도 섞여 있으면
+     * 아무것도 지우지 않고 403으로 끝낸다 — 벌크 공유 초대({@code inviteBulk})와 같은 규약이다.
+     * 삭제는 되돌릴 수 없으므로, 일부만 지워진 채 "몇 마리는 실패했다"고 알리는 것보다
+     * 사용자가 선택을 고쳐 다시 시도하게 하는 편이 안전하다.
+     *
+     * <p>소유권을 <b>먼저 전부 확인한 뒤</b> 삭제한다. 확인과 삭제를 번갈아 하면
+     * 뒤쪽에서 예외가 나도 같은 트랜잭션이라 롤백되긴 하지만,
+     * 루틴 정리({@code onPetDeleted})가 부분 수행된 상태를 만들 이유가 없다.
+     */
+    @Transactional
+    public PetBulkDeleteResponse deleteAll(Long userId, List<Long> petIds) {
+        // 중복 제거, 요청 순서 보존
+        List<Long> ids = new ArrayList<>(new LinkedHashSet<>(petIds));
+
+        List<PetMst> pets = new ArrayList<>(ids.size());
+        for (Long petId : ids) {
+            pets.add(loadOwnedPet(userId, petId));   // 하나라도 아니면 여기서 중단
+        }
+        for (int i = 0; i < ids.size(); i++) {
+            pets.get(i).softDelete();
+            routineMaintenance.onPetDeleted(ids.get(i));
+        }
+        return PetBulkDeleteResponse.of(ids);
     }
 
     /** 이별하기 — 폐사 처리 (기록은 그대로 보존) */

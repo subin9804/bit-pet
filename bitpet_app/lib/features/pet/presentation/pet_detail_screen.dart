@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/api/api_response.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/pale_palette.dart';
@@ -10,6 +11,7 @@ import '../../../core/widgets/toast_message.dart';
 import '../../record/presentation/fab_record_sheet.dart';
 import '../data/models/pet_models.dart';
 import '../providers/pet_provider.dart';
+import '../share/data/share_repository.dart';
 import 'widgets/pet_hero_card.dart';
 import 'widgets/pet_info_grid.dart';
 import 'widgets/record_tab.dart';
@@ -190,7 +192,11 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
     );
   }
 
-  /// 점 세개 버튼 아래 드롭다운 메뉴 — 이별하기 / 이 개체 삭제하기
+  /// 점 세개 버튼 아래 드롭다운 메뉴.
+  ///
+  /// 이별·공유 관리·삭제는 모두 **소유자(OWNER) 전용**이다. 공유받은 개체(KEEPER)에
+  /// 그대로 노출하면 눌러야만 403을 알게 되므로, 아예 다른 메뉴를 띄운다 —
+  /// 공유받은 쪽이 할 수 있는 건 '함께 키우기 그만두기'뿐이다.
   Future<void> _showMoreMenu(BuildContext anchorContext, Pet pet) async {
     final box     = anchorContext.findRenderObject() as RenderBox;
     final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
@@ -211,7 +217,20 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
         borderRadius: BorderRadius.zero,
         side: BorderSide(color: AppColors.paleLine),
       ),
-      items: [
+      items: pet.isOwner ? _ownerMenuItems(pet) : _keeperMenuItems(),
+    );
+    if (!mounted) return;
+
+    switch (action) {
+      case 'farewell': await _handleFarewell(pet.name);
+      case 'revert':   await _handleRevertFarewell();
+      case 'share':    context.push('/pets/${widget.petId}/share');
+      case 'delete':   await _handleDelete(pet.name);
+      case 'leave':    await _handleLeave(pet.name);
+    }
+  }
+
+  List<PopupMenuEntry<String>> _ownerMenuItems(Pet pet) => [
         PopupMenuItem(
           value: pet.isDeceased ? 'revert' : 'farewell',
           height: 44,
@@ -259,17 +278,39 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
             ],
           ),
         ),
-      ],
-    );
-    if (!mounted) return;
+      ];
 
-    switch (action) {
-      case 'farewell': await _handleFarewell(pet.name);
-      case 'revert':   await _handleRevertFarewell();
-      case 'share':    context.push('/pets/${widget.petId}/share');
-      case 'delete':   await _handleDelete(pet.name);
-    }
-  }
+  /// 공유받은 개체 — 소유자가 아니므로 나가기만 가능
+  List<PopupMenuEntry<String>> _keeperMenuItems() => [
+        const PopupMenuItem(
+          enabled: false,
+          height: 34,
+          child: Row(
+            children: [
+              Icon(Icons.group_outlined, size: 14, color: AppColors.paleInk3),
+              SizedBox(width: 8),
+              Text('공유받은 개체',
+                  style: TextStyle(fontSize: 12, color: AppColors.paleInk3)),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(height: 1),
+        const PopupMenuItem(
+          value: 'leave',
+          height: 44,
+          child: Row(
+            children: [
+              Icon(Icons.logout, size: 16, color: AppColors.error),
+              SizedBox(width: 8),
+              Text('함께 키우기 그만두기',
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.error)),
+            ],
+          ),
+        ),
+      ];
 
   /// 이별하기 — 폐사 처리 (기록 보존)
   Future<void> _handleFarewell(String name) async {
@@ -314,6 +355,30 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
         context.pop();
         ToastMessage.show(context, '개체가 삭제되었습니다.', type: ToastType.success);
       }
+    }
+  }
+
+  /// 함께 키우기 그만두기 — 공유받은 개체에서 스스로 빠진다 (KEEPER).
+  /// 개체와 기록은 소유자 쪽에 그대로 남고, 내 목록에서만 사라진다.
+  Future<void> _handleLeave(String name) async {
+    final ok = await ConfirmModal.show(
+      context,
+      title: '함께 키우기 그만두기',
+      message: '$name을(를) 내 목록에서 뺄까요?\n'
+          '개체와 기록은 소유자에게 그대로 남고, 나는 더 이상 볼 수 없어요.',
+      confirmLabel: '그만두기',
+      isDangerous: true,
+    );
+    if (!ok || !mounted) return;
+    try {
+      await ref.read(shareRepositoryProvider).leave(widget.petId);
+      await ref.read(petListProvider.notifier).load();
+      if (mounted) {
+        context.pop();
+        ToastMessage.show(context, '$name 공유를 그만뒀어요.', type: ToastType.success);
+      }
+    } on ApiException catch (e) {
+      if (mounted) ToastMessage.show(context, e.message, type: ToastType.error);
     }
   }
 }

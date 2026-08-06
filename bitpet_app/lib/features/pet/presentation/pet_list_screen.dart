@@ -4,8 +4,10 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_chip.dart';
+import '../../../core/widgets/confirm_modal.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/skeleton_loader.dart';
+import '../../../core/widgets/toast_message.dart';
 import '../data/models/pet_models.dart';
 import '../providers/pet_provider.dart';
 import '../share/data/models/share_models.dart';
@@ -28,10 +30,51 @@ void _exitSelection(WidgetRef ref) {
   ref.read(selectedPetIdsProvider.notifier).state = {};
 }
 
-/// 롱프레스 등으로 선택 모드에 바로 진입하며 해당 개체를 선택
-void _enterSelectionWith(WidgetRef ref, int id) {
+/// 롱프레스 등으로 선택 모드에 바로 진입하며 해당 개체를 선택.
+///
+/// 공유받은 개체(KEEPER)는 공유·분양·삭제 어느 것도 소유자만 할 수 있어
+/// 선택 모드에서 아예 목록에 나오지 않는다. 그 개체를 길게 눌러 선택 모드로
+/// 들어가면 방금 누른 카드가 사라져 버리므로, 진입시키지 않고 이유만 알린다.
+void _enterSelectionWith(BuildContext context, WidgetRef ref, Pet pet) {
+  if (!pet.isOwner) {
+    showToast(context, '공유받은 개체는 분양·삭제할 수 없어요. 소유자만 가능합니다.',
+        type: ToastType.info);
+    return;
+  }
   ref.read(petSelectionModeProvider.notifier).state = true;
-  ref.read(selectedPetIdsProvider.notifier).state = {id};
+  ref.read(selectedPetIdsProvider.notifier).state = {pet.id};
+}
+
+/// 선택한 개체 일괄 삭제 — 확인 모달을 거쳐 `DELETE /api/v1/pets` 한 번으로 처리한다.
+///
+/// 서버가 전부 성공 아니면 전부 실패로 처리하므로, 실패하면 목록은 그대로 두고
+/// 선택 모드도 유지한다 — 사용자가 선택을 고쳐 다시 시도할 수 있어야 한다.
+Future<void> _confirmAndDelete(
+    BuildContext context, WidgetRef ref, int count) async {
+  final ids = ref.read(selectedPetIdsProvider).toList();
+  if (ids.isEmpty) return;
+
+  final ok = await ConfirmModal.show(
+    context,
+    title: '개체 삭제',
+    message: '정말로 $count마리의 개체 정보를 삭제하시겠습니까?\n'
+        '급여·체중 등 그동안의 기록도 함께 사라지며 복구할 수 없습니다.',
+    confirmLabel: '삭제',
+    isDangerous: true,
+  );
+  if (!ok) return;
+
+  try {
+    await ref.read(petListProvider.notifier).removeAll(ids);
+    _exitSelection(ref);
+    if (context.mounted) {
+      showToast(context, '${ids.length}마리를 삭제했습니다.', type: ToastType.info);
+    }
+  } catch (e) {
+    if (context.mounted) {
+      showToast(context, '삭제에 실패했습니다. $e', type: ToastType.error);
+    }
+  }
 }
 
 class PetListScreen extends ConsumerWidget {
@@ -118,6 +161,17 @@ class PetListScreen extends ConsumerWidget {
       ),
       title: Text(count == 0 ? '개체 선택' : '$count마리 선택됨'),
       titleSpacing: 0,
+      actions: [
+        IconButton(
+          onPressed:
+              count == 0 ? null : () => _confirmAndDelete(context, ref, count),
+          icon: const Icon(Icons.delete_outline, size: 21),
+          color: AppColors.error,
+          disabledColor: AppColors.textDisabled,
+          tooltip: '선택한 개체 삭제',
+        ),
+        const SizedBox(width: 4),
+      ],
       bottom: PreferredSize(
         preferredSize: const Size.fromHeight(28),
         child: Container(
@@ -125,7 +179,7 @@ class PetListScreen extends ConsumerWidget {
           alignment: Alignment.centerLeft,
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
           child: Text(
-            '함께 키우거나 분양 보낼 개체를 선택하세요',
+            '함께 키우거나 분양·삭제할 개체를 선택하세요',
             style: AppTextStyles.caption
                 .copyWith(color: AppColors.textSecondary),
           ),
@@ -164,39 +218,92 @@ class _ShareActionBar extends ConsumerWidget {
         child: Row(
           children: [
             Expanded(
-              child: OutlinedButton.icon(
-                onPressed: hasSelection
-                    ? () =>
-                        _startShare(context, ref, ShareInviteType.share)
-                    : null,
-                icon: const Icon(Icons.group_add, size: 18),
-                label: const Text('함께 키우기'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.primary,
-                  side: BorderSide(
-                      color: hasSelection
-                          ? AppColors.primary
-                          : AppColors.paleLine),
-                  minimumSize: const Size(0, 46),
-                ),
+              child: _SelectionAction(
+                icon: Icons.group_add_outlined,
+                label: '함께 키우기',
+                enabled: hasSelection,
+                onTap: () => _startShare(context, ref, ShareInviteType.share),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             Expanded(
-              child: FilledButton.icon(
-                onPressed: hasSelection
-                    ? () =>
-                        _startShare(context, ref, ShareInviteType.transfer)
-                    : null,
-                icon: const Icon(Icons.swap_horiz, size: 18),
-                label: const Text('분양 보내기'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.error,
-                  minimumSize: const Size(0, 46),
-                ),
+              child: _SelectionAction(
+                icon: Icons.swap_horiz,
+                label: '분양 보내기',
+                enabled: hasSelection,
+                // 분양은 '경고'가 아니라 소유권이 넘어가는 다른 성격의 동작이다.
+                // 기존의 채도 높은 error 레드는 앱 팔레트에서 혼자 튀었고,
+                // 삭제와 같은 위험 신호로도 읽혔다 → 팔레트 안의 코랄 톤으로.
+                bg: AppColors.petCoral,
+                fg: AppColors.petCoralInk,
+                onTap: () =>
+                    _startShare(context, ref, ShareInviteType.transfer),
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 선택 모드 하단 액션 버튼 — 앱 공통 톤(각진 모서리·팔레트 색·1px 라인)
+class _SelectionAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  /// 채움색. 없으면 카드색 + 프라이머리 테두리(보조 액션)
+  final Color? bg;
+  final Color? fg;
+
+  const _SelectionAction({
+    required this.icon,
+    required this.label,
+    required this.enabled,
+    required this.onTap,
+    this.bg,
+    this.fg,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final filled = bg != null;
+    final content = enabled
+        ? (fg ?? AppColors.primary)
+        : AppColors.textDisabled;
+
+    return GestureDetector(
+      onTap: enabled ? onTap : null,
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 150),
+        opacity: enabled ? 1 : 0.5,
+        child: Container(
+          height: 46,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: filled ? bg : AppColors.card,
+            border: Border.all(
+              color: filled
+                  ? (fg ?? AppColors.primary).withValues(alpha: 0.28)
+                  : (enabled ? AppColors.primary : AppColors.paleLine),
+            ),
+            borderRadius: BorderRadius.zero,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 17, color: content),
+              const SizedBox(width: 6),
+              Text(label,
+                  style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.2,
+                      color: content)),
+            ],
+          ),
         ),
       ),
     );
@@ -220,6 +327,7 @@ class _PetTabState extends ConsumerState<_PetTab> {
   @override
   Widget build(BuildContext context) {
     final petsAsync = ref.watch(petListProvider);
+    final selecting = ref.watch(petSelectionModeProvider);
 
     // 내 개체에 실제로 존재하는 종만 필터칩으로 노출 (등장 순서 유지, 중복 제거)
     final allPets = petsAsync.valueOrNull ?? const <Pet>[];
@@ -320,27 +428,83 @@ class _PetTabState extends ConsumerState<_PetTab> {
                         .contains(_query.toLowerCase());
                 final matchCategory = _selectedSpeciesId == null ||
                     p.speciesId == _selectedSpeciesId;
-                return matchQuery && matchCategory;
+                // 공유·분양·삭제는 전부 소유자(OWNER) 전용이다.
+                // 선택 모드에서는 어차피 아무것도 할 수 없는 개체를 띄워
+                // 고르게 한 뒤 403을 돌려주느니, 처음부터 빼고 보여준다.
+                final selectable = !selecting || p.isOwner;
+                return matchQuery && matchCategory && selectable;
               }).toList();
 
+              // 필터 때문이 아니라 '공유받아서' 사라진 개체는 이유를 알려준다
+              final hiddenShared = selecting
+                  ? allPets.where((p) => !p.isOwner).length
+                  : 0;
+
               if (pets.isEmpty) {
-                return EmptyState(
-                  message: '개체가 없어요',
-                  icon: Icons.pets,
-                  actionLabel: '개체 등록',
-                  onAction: () => context.push('/pets/new'),
-                );
+                return selecting
+                    ? const EmptyState(
+                        message: '분양·삭제할 수 있는 개체가 없어요',
+                        subMessage: '공유받은 개체는 소유자만 관리할 수 있습니다.',
+                        icon: Icons.group_outlined,
+                      )
+                    : EmptyState(
+                        message: '개체가 없어요',
+                        icon: Icons.pets,
+                        actionLabel: '개체 등록',
+                        onAction: () => context.push('/pets/new'),
+                      );
               }
               return RefreshIndicator(
                 onRefresh: () => ref.read(petListProvider.notifier).load(),
-                child: _isGridView
-                    ? _PetGrid(pets: pets)
-                    : _PetListView(pets: pets),
+                child: Column(
+                  children: [
+                    if (hiddenShared > 0) _SharedHiddenNotice(hiddenShared),
+                    Expanded(
+                      child: _isGridView
+                          ? _PetGrid(pets: pets)
+                          : _PetListView(pets: pets),
+                    ),
+                  ],
+                ),
               );
             },
           ),
         ),
       ],
+    );
+  }
+}
+
+/// 선택 모드에서 공유받은 개체가 목록에서 빠졌음을 알리는 한 줄 안내.
+/// 없으면 개체가 그냥 사라진 것처럼 보인다.
+class _SharedHiddenNotice extends StatelessWidget {
+  final int count;
+  const _SharedHiddenNotice(this.count);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: AppColors.paleBgAlt,
+        border: Border.all(color: AppColors.paleLineSoft),
+        borderRadius: BorderRadius.zero,
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline, size: 14, color: AppColors.paleInk3),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Text(
+              '공유받은 $count마리는 소유자만 관리할 수 있어 목록에서 뺐어요.',
+              style: AppTextStyles.caption
+                  .copyWith(color: AppColors.paleInk2, height: 1.3),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -400,7 +564,7 @@ class _PetCard extends ConsumerWidget {
           ? () => _togglePet(ref, pet.id)
           : () => context.push('/pets/${pet.id}'),
       onLongPress:
-          selecting ? null : () => _enterSelectionWith(ref, pet.id),
+          selecting ? null : () => _enterSelectionWith(context, ref, pet),
       child: Container(
         decoration: BoxDecoration(
           color: AppColors.surface,
@@ -542,7 +706,7 @@ class _PetListTile extends ConsumerWidget {
           ? () => _togglePet(ref, pet.id)
           : () => context.push('/pets/${pet.id}'),
       onLongPress:
-          selecting ? null : () => _enterSelectionWith(ref, pet.id),
+          selecting ? null : () => _enterSelectionWith(context, ref, pet),
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       shape: RoundedRectangleBorder(
           side: BorderSide(

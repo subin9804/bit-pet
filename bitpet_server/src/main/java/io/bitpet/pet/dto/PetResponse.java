@@ -37,6 +37,12 @@ public record PetResponse(
         Long motherId,
         String motherName,
         String profileImageUrl,
+        /**
+         * 요청자가 이 개체의 소유자(OWNER)인지. 공유받은 개체(KEEPER)면 false.
+         * 요청자를 특정할 수 없는 응답(일련번호 공개 조회 등)에서는 null이며,
+         * 클라이언트는 null을 "소유"로 간주한다 — 기존 동작 유지.
+         */
+        Boolean isOwner,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -54,6 +60,12 @@ public record PetResponse(
 
     public static PetResponse from(PetMst pet, Double latestWeightG,
                                    List<PetRelationRls> parentRelations, String profileImageUrl) {
+        return from(pet, latestWeightG, parentRelations, profileImageUrl, null);
+    }
+
+    public static PetResponse from(PetMst pet, Double latestWeightG,
+                                   List<PetRelationRls> parentRelations, String profileImageUrl,
+                                   Boolean isOwner) {
         Long fatherRelId = null; Long fatherId = null; String fatherName = null;
         Long motherRelId = null; Long motherId = null; String motherName = null;
         for (PetRelationRls r : parentRelations) {
@@ -95,6 +107,7 @@ public record PetResponse(
                 fatherRelId, fatherId, fatherName,
                 motherRelId, motherId, motherName,
                 profileImageUrl,
+                isOwner,
                 pet.getCreatedAt(),
                 pet.getUpdatedAt()
         );

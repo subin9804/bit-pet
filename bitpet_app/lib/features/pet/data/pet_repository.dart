@@ -123,6 +123,24 @@ class PetRepository {
     }
   }
 
+  /// 개체 일괄 삭제. 서버에서 **전부 성공 아니면 전부 실패**로 처리한다
+  /// (소유자가 아닌 개체가 하나라도 섞이면 아무것도 지워지지 않고 403).
+  /// 실제로 지워진 id 목록을 돌려준다 — 요청에 중복이 있었다면 더 짧을 수 있다.
+  Future<List<int>> deletePets(List<int> ids) async {
+    final res = await _dio.delete('/pets', data: {'petIds': ids});
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => ((d as Map<String, dynamic>)['deletedIds'] as List)
+          .cast<int>(),
+    );
+    if (!apiRes.success || apiRes.data == null) {
+      throw ApiException(
+          statusCode: res.statusCode ?? 0,
+          message: apiRes.message ?? '개체 삭제에 실패했습니다.');
+    }
+    return apiRes.data!;
+  }
+
   /// 갤러리 사진 하나를 대표(프로필) 사진으로 지정
   Future<Pet> setProfilePhoto(int petId, int photoId) async {
     final res = await _dio.put('/pets/$petId/profile-photo/$photoId');

@@ -5,6 +5,8 @@ import io.bitpet.common.exception.ErrorCode;
 import io.bitpet.common.response.ApiResponse;
 import io.bitpet.pet.domain.PetGender;
 import io.bitpet.pet.dto.GenealogyResponse;
+import io.bitpet.pet.dto.PetBulkDeleteRequest;
+import io.bitpet.pet.dto.PetBulkDeleteResponse;
 import io.bitpet.pet.dto.PetCreateRequest;
 import io.bitpet.pet.dto.PetRelationRequest;
 import io.bitpet.pet.dto.PetRelationResponse;
@@ -115,6 +117,14 @@ public class PetController {
             @PathVariable Long petId) {
         petService.delete(principal.userId(), petId);
         return ApiResponse.ok();
+    }
+
+    @Operation(summary = "개체 일괄 삭제 (Soft Delete) — 소유자가 아닌 개체가 하나라도 있으면 전체 실패")
+    @DeleteMapping
+    public ApiResponse<PetBulkDeleteResponse> deleteBulk(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @Valid @RequestBody PetBulkDeleteRequest request) {
+        return ApiResponse.ok(petService.deleteAll(principal.userId(), request.petIds()));
     }
 
     @Operation(summary = "이별하기 — 개체 폐사 처리 (기록 보존, deceasedAt 미지정 시 오늘)")

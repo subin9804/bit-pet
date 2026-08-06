@@ -86,6 +86,9 @@ class Pet {
   final int? motherRelationId;
   final int? motherId;
   final String? motherName;
+  // 내가 이 개체의 소유자(OWNER)인가. 공유받은 개체(KEEPER)면 false.
+  // 서버가 값을 안 실어주는 응답도 있어 기본은 true — 없으면 기존처럼 내 개체로 본다.
+  final bool isOwner;
 
   Pet({
     required this.id,
@@ -114,7 +117,11 @@ class Pet {
     this.motherRelationId,
     this.motherId,
     this.motherName,
+    this.isOwner = true,
   }) : morphs = morphs ?? const [];
+
+  /// 공유받아 함께 키우는 개체 — 기록·프로필 수정은 되지만 삭제·분양은 불가
+  bool get isSharedWithMe => !isOwner;
 
   bool get isPrivate => privateYn == 'Y';
 
@@ -163,6 +170,7 @@ class Pet {
         motherRelationId: (json['motherRelationId'] as num?)?.toInt(),
         motherId: (json['motherId'] as num?)?.toInt(),
         motherName: json['motherName'] as String?,
+        isOwner: json['isOwner'] as bool? ?? true,
       );
 }
 
