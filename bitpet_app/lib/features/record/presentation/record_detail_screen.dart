@@ -7,6 +7,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_buttons.dart';
 import '../../../core/widgets/app_chip.dart';
 import '../../../core/widgets/confirm_modal.dart';
+import '../../../core/widgets/month_grid_calendar.dart';
 import '../../../core/widgets/skeleton_loader.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../data/models/record_models.dart';
@@ -658,17 +659,9 @@ class _CalendarView extends ConsumerStatefulWidget {
 }
 
 class _CalendarViewState extends ConsumerState<_CalendarView> {
+  // 진입 시엔 항상 **이번 달 / 오늘** — 기록이 있는 마지막 달로 점프하지 않는다
   DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
-  String? _selDate;
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.entries.isNotEmpty) {
-      final d = widget.entries.first.dateStr;
-      _month = DateTime(int.parse(d.substring(0, 4)), int.parse(d.substring(5, 7)));
-    }
-  }
+  late String _selDate = todayIso();
 
   String get _ymStr =>
       '${_month.year}-${_month.month.toString().padLeft(2, '0')}';
@@ -683,22 +676,67 @@ class _CalendarViewState extends ConsumerState<_CalendarView> {
     return map;
   }
 
-  String get _selOrLatest {
-    if (_selDate != null && _selDate!.startsWith(_ymStr)) return _selDate!;
-    final dates = _byDate.keys.toList()..sort();
-    if (dates.isEmpty) return '$_ymStr-01';
-    return dates.last;
+  /// 셀 본문. 기록이 없으면 null.
+  ///
+  /// [catDays] 는 서버 월별 집계라 목록(entries)보다 넓을 수 있다.
+  /// 집계에는 있는데 목록에 없는 날은 내용 대신 점만 찍어 "뭔가 있음"을 알린다.
+  Widget? _cellContent(
+      Map<String, List<RecordEntry>> byDate, Set<String> catDays, String date) {
+    final recs = byDate[date];
+    if (recs == null || recs.isEmpty) {
+      if (!catDays.contains(date)) return null;
+      return Padding(
+        padding: const EdgeInsets.only(left: 2, top: 1),
+        child: Container(
+          width: 5, height: 5,
+          decoration: BoxDecoration(
+              color: widget.accentColor, shape: BoxShape.circle),
+        ),
+      );
+    }
+    const maxLines = 3;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final e in recs.take(maxLines))
+          CalendarCellLine(
+            dotColor: widget.accentColor,
+            label: e.summary.isEmpty ? e.timeStr : e.summary,
+          ),
+        if (recs.length > maxLines) CalendarCellMore(recs.length - maxLines),
+      ],
+    );
+  }
+
+  void _openDaySheet(String date, List<RecordEntry> recs) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => _DaySheet(
+        date: date,
+        entries: recs,
+        accentColor: widget.accentColor,
+        // 편집 오버레이는 이 화면(Stack) 소유라, 시트를 먼저 닫고 띄운다
+        onEdit: (e) {
+          Navigator.pop(sheetCtx);
+          widget.onEdit(e);
+        },
+        onAdd: () {
+          Navigator.pop(sheetCtx);
+          widget.onAdd(date);
+        },
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final calAsync = ref.watch(petCalendarProvider(PetYearMonth(widget.petId, _ymStr)));
     final byDate = _byDate;
-    final selDate = _selOrLatest;
-    final selRecs = byDate[selDate] ?? [];
     final monthCount = widget.entries.where((e) => e.dateStr.startsWith(_ymStr)).length;
-    final firstWD = DateTime(_month.year, _month.month, 1).weekday % 7;
-    final dim = DateTime(_month.year, _month.month + 1, 0).day;
 
     // calendar days with this category
     final catDays = <String>{};
@@ -708,180 +746,129 @@ class _CalendarViewState extends ConsumerState<_CalendarView> {
       }
     });
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(22, 4, 22, 110),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.card,
-              border: Border.all(color: AppColors.paleLine),
-              borderRadius: BorderRadius.zero,
+    return MonthGridCalendar(
+      month: _month,
+      selectedDate: _selDate,
+      monthSummary: '$monthCount건',
+      accent: widget.accentColor,
+      onMonthChanged: (m) => setState(() => _month = m),
+      onDayTap: (ds) {
+        setState(() => _selDate = ds);
+        _openDaySheet(ds, byDate[ds] ?? const []);
+      },
+      cellBuilder: (ds) => _cellContent(byDate, catDays, ds),
+    );
+  }
+}
+
+// ── 날짜별 상세 바텀시트 ─────────────────────────────────────
+class _DaySheet extends StatelessWidget {
+  final String date;
+  final List<RecordEntry> entries;
+  final Color accentColor;
+  final ValueChanged<RecordEntry> onEdit;
+  final VoidCallback onAdd;
+
+  const _DaySheet({
+    required this.date,
+    required this.entries,
+    required this.accentColor,
+    required this.onEdit,
+    required this.onAdd,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: entries.isEmpty ? 0.34 : 0.55,
+      minChildSize: 0.28,
+      maxChildSize: 0.9,
+      expand: false,
+      builder: (context, scrollCtrl) => Container(
+        decoration: const BoxDecoration(
+          color: AppColors.paleBg,
+          border: Border(top: BorderSide(color: AppColors.paleLine, width: 1.5)),
+        ),
+        child: Column(
+          children: [
+            Container(
+              width: 40, height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 10),
+              color: AppColors.paleLine,
             ),
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-            child: Column(children: [
-              // 월 이동
-              Row(children: [
-                AppNavButton(onTap: () => setState(() =>
-                    _month = DateTime(_month.year, _month.month - 1))),
-                const Spacer(),
-                Column(children: [
-                  Text('${_month.year}.${_month.month.toString().padLeft(2, '0')}',
-                      style: AppTextStyles.mono(15, FontWeight.w700)),
-                  Text('$monthCount건', style: AppTextStyles.monoXxs),
-                ]),
-                const Spacer(),
-                AppNavButton(forward: true, onTap: () => setState(() =>
-                    _month = DateTime(_month.year, _month.month + 1))),
-              ]),
-              const SizedBox(height: 10),
-              // 요일 헤더
-              Row(children: List.generate(7, (i) => Expanded(
-                child: Text(_weekKo[i],
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
-                        color: i == 0
-                            ? AppColors.petCoralInk
-                            : i == 6 ? AppColors.petSkyInk : AppColors.paleInk3)),
-              ))),
-              const SizedBox(height: 4),
-              // 날짜 그리드
-              ...() {
-                final cells = [
-                  ...List.generate(firstWD, (_) => null),
-                  ...List.generate(dim, (i) => i + 1),
-                ];
-                return List.generate((cells.length / 7).ceil(), (r) => Row(
-                  children: List.generate(7, (c) {
-                    final idx = r * 7 + c;
-                    if (idx >= cells.length || cells[idx] == null) {
-                      return const Expanded(child: SizedBox(height: 42));
-                    }
-                    final d = cells[idx]!;
-                    final ds = '$_ymStr-${d.toString().padLeft(2, '0')}';
-                    final sel = ds == selDate;
-                    final hasRec = catDays.contains(ds);
-                    return Expanded(
-                      child: GestureDetector(
-                        onTap: () => setState(() => _selDate = ds),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 2),
-                          child: Column(children: [
-                            Container(
-                              width: 30, height: 30,
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: sel
-                                    ? AppColors.primary
-                                    : hasRec ? AppColors.paleBgAlt : Colors.transparent,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Text('$d',
-                                  style: AppTextStyles.mono(
-                                      13, sel ? FontWeight.w700 : FontWeight.w600,
-                                      color: sel ? AppColors.paleBg : AppColors.primary)),
-                            ),
-                            const SizedBox(height: 3),
-                            SizedBox(
-                              height: 5,
-                              child: hasRec
-                                  ? Center(child: Container(
-                                      width: 4, height: 4,
-                                      decoration: BoxDecoration(
-                                          color: widget.accentColor,
-                                          shape: BoxShape.circle)))
-                                  : null,
-                            ),
-                          ]),
-                        ),
-                      ),
-                    );
-                  }),
-                ));
-              }(),
-            ]),
-          ),
-          const SizedBox(height: 20),
-
-          // 선택일 헤더
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              RichText(text: TextSpan(
-                style: AppTextStyles.paleSectionTitle,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(22, 0, 22, 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  TextSpan(text:
-                    '${int.parse(selDate.substring(5, 7))}.${int.parse(selDate.substring(8))} '),
-                  TextSpan(text: '(${_weekKo[DateTime.parse(selDate).weekday % 7]})',
-                      style: const TextStyle(fontWeight: FontWeight.w600,
-                          color: AppColors.paleInk2)),
+                  RichText(text: TextSpan(
+                    style: AppTextStyles.paleSectionTitle,
+                    children: [
+                      TextSpan(text:
+                        '${int.parse(date.substring(5, 7))}.${int.parse(date.substring(8))} '),
+                      TextSpan(text: '(${_weekKo[DateTime.parse(date).weekday % 7]})',
+                          style: const TextStyle(fontWeight: FontWeight.w600,
+                              color: AppColors.paleInk2)),
+                    ],
+                  )),
+                  Text('${entries.length}건', style: AppTextStyles.monoSm),
                 ],
-              )),
-              Text('${selRecs.length}건', style: AppTextStyles.monoSm),
-            ],
-          ),
-          const SizedBox(height: 10),
-
-          // 선택일 기록 목록
-          if (selRecs.isEmpty)
-            GestureDetector(
-              onTap: () => widget.onAdd(selDate),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 22),
-                decoration: BoxDecoration(
-                  border: Border.all(color: AppColors.paleLine, width: 1.5),
-                  borderRadius: BorderRadius.zero,
-                ),
-                child: Column(children: [
-                  Text('이 날의 기록이 없어요',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
-                          color: AppColors.paleInk3)),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                    decoration: BoxDecoration(
-                        color: AppColors.paleBgAlt,
-                        borderRadius: BorderRadius.zero),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      const Icon(Icons.add, size: 14, color: AppColors.primary),
-                      const SizedBox(width: 5),
-                      const Text('기록 추가',
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
-                              color: AppColors.primary)),
-                    ]),
-                  ),
-                ]),
               ),
-            )
-          else ...[
-            ...selRecs.map((e) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _RecordCard(entry: e, accentColor: widget.accentColor,
-                  onEdit: () => widget.onEdit(e), showDate: false),
-            )),
-            GestureDetector(
-              onTap: () => widget.onAdd(selDate),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  color: AppColors.card,
-                  border: Border.all(color: AppColors.paleLine),
-                  borderRadius: BorderRadius.zero,
-                ),
-                child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  const Icon(Icons.add, size: 16, color: AppColors.paleInk2),
-                  const SizedBox(width: 6),
-                  Text('이 날 기록 더 추가',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
-                          color: AppColors.paleInk2)),
-                ]),
+            ),
+            Expanded(
+              child: ListView(
+                controller: scrollCtrl,
+                padding: const EdgeInsets.fromLTRB(22, 0, 22, 24),
+                children: [
+                  if (entries.isEmpty)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 22),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: AppColors.paleLine, width: 1.5),
+                        borderRadius: BorderRadius.zero,
+                      ),
+                      child: const Text('이 날의 기록이 없어요',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.paleInk3)),
+                    )
+                  else
+                    ...entries.map((e) => Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: _RecordCard(entry: e, accentColor: accentColor,
+                              onEdit: () => onEdit(e), showDate: false),
+                        )),
+                  const SizedBox(height: 4),
+                  GestureDetector(
+                    onTap: onAdd,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      decoration: BoxDecoration(
+                        color: AppColors.card,
+                        border: Border.all(color: AppColors.paleLine),
+                        borderRadius: BorderRadius.zero,
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.add, size: 16, color: AppColors.primary),
+                          SizedBox(width: 6),
+                          Text('이 날 기록 추가',
+                              style: TextStyle(fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.primary)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
-        ],
+        ),
       ),
     );
   }

@@ -6,6 +6,7 @@ import '../../../core/theme/app_input_styles.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_buttons.dart';
 import '../../../core/widgets/confirm_modal.dart';
+import '../../../core/widgets/month_grid_calendar.dart';
 import '../../../core/widgets/skeleton_loader.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../data/models/feed_models.dart';
@@ -235,7 +236,7 @@ class _TopBar extends StatelessWidget {
           ),
           const Spacer(),
           Column(children: [
-            const Text('피딩 기록',
+            const Text('급여 기록',
                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700,
                     color: AppColors.primary, letterSpacing: -0.2)),
             if (petName.isNotEmpty)
@@ -449,18 +450,10 @@ class _CalendarView extends StatefulWidget {
 }
 
 class _CalendarViewState extends State<_CalendarView> {
+  // 진입 시엔 항상 **이번 달 / 오늘**. 기록이 있는 마지막 달로 점프하지 않는다
+  // — 대부분의 진입 목적이 "오늘 뭐 줬더라 / 오늘 기록 남기기" 이기 때문.
   DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
-  String? _selDate;
-
-  @override
-  void initState() {
-    super.initState();
-    // 가장 최근 달로 초기화
-    if (widget.sessions.isNotEmpty) {
-      final d = widget.sessions.first.date;
-      _month = DateTime(int.parse(d.substring(0,4)), int.parse(d.substring(5,7)));
-    }
-  }
+  late String _selDate = todayIso();
 
   List<FeedSession> get _monthSessions =>
       widget.sessions.where((s) => s.date.startsWith(_ymStr)).toList();
@@ -476,273 +469,222 @@ class _CalendarViewState extends State<_CalendarView> {
   String get _ymStr =>
       '${_month.year}-${_month.month.toString().padLeft(2,'0')}';
 
-  String get _selOrLatest {
-    if (_selDate != null && _selDate!.startsWith(_ymStr)) return _selDate!;
-    final dates = _byDate.keys.toList()..sort();
-    if (dates.isEmpty) return '$_ymStr-01';
-    return dates.last;
+  /// 셀 안에 들어갈 급여 요약. 기록이 없으면 null.
+  Widget? _cellContent(Map<String, List<FeedSession>> byDate, String date) {
+    final recs = byDate[date];
+    if (recs == null || recs.isEmpty) return null;
+    final items = recs.expand((s) => s.items).toList();
+    if (items.isEmpty) return null;
+    const maxLines = 3;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final it in items.take(maxLines))
+          CalendarCellLine(
+            dotColor: it.isRefused ? AppColors.paleInk3 : _dotColor(it.food),
+            label: it.isRefused
+                ? '거식'
+                : (it.amt > 1 ? '${it.food} ${it.amt}' : it.food),
+            muted: it.isRefused,
+          ),
+        if (items.length > maxLines) CalendarCellMore(items.length - maxLines),
+      ],
+    );
+  }
+
+  void _openDaySheet(String date, List<FeedSession> recs) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => _DaySheet(
+        date: date,
+        sessions: recs,
+        // 편집 오버레이는 이 화면(Stack) 소유라, 시트를 먼저 닫고 띄운다
+        onEdit: (s) {
+          Navigator.pop(sheetCtx);
+          widget.onEdit(s);
+        },
+        onAdd: () {
+          Navigator.pop(sheetCtx);
+          widget.onAdd(date);
+        },
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final byDate    = _byDate;
-    final selDate   = _selOrLatest;
-    final selRecs   = byDate[selDate] ?? [];
-    final monthCount = _monthSessions.length;
-    final firstWD   = DateTime(_month.year, _month.month, 1).weekday % 7;
-    final dim       = DateTime(_month.year, _month.month + 1, 0).day;
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(22, 4, 22, 110),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 캘린더 카드
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.card,
-              border: Border.all(color: AppColors.paleLine),
-              borderRadius: BorderRadius.zero,
-            ),
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-            child: Column(
-              children: [
-                // 월 이동
-                Row(
-                  children: [
-                    AppNavButton(
-                      onTap: () => setState(() =>
-                          _month = DateTime(_month.year, _month.month - 1)),
-                    ),
-                    const Spacer(),
-                    Column(children: [
-                      Text(
-                        '${_month.year}.${_month.month.toString().padLeft(2,'0')}',
-                        style: AppTextStyles.mono(15, FontWeight.w700),
-                      ),
-                      Text('$monthCount회 피딩', style: AppTextStyles.monoXxs),
-                    ]),
-                    const Spacer(),
-                    AppNavButton(
-                      forward: true,
-                      onTap: () => setState(() =>
-                          _month = DateTime(_month.year, _month.month + 1)),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                // 요일 헤더
-                Row(
-                  children: List.generate(7, (i) => Expanded(
-                    child: Text(
-                      _weekKo[i],
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 11, fontWeight: FontWeight.w700,
-                        color: i == 0
-                            ? AppColors.petCoralInk
-                            : i == 6 ? AppColors.petSkyInk : AppColors.paleInk3,
-                      ),
-                    ),
-                  )),
-                ),
-                const SizedBox(height: 4),
-                // 날짜 그리드
-                ...() {
-                  final cells = [
-                    ...List.generate(firstWD, (_) => null),
-                    ...List.generate(dim, (i) => i + 1),
-                  ];
-                  final rows = <Widget>[];
-                  for (int r = 0; r < (cells.length / 7).ceil(); r++) {
-                    rows.add(Row(
-                      children: List.generate(7, (c) {
-                        final idx = r * 7 + c;
-                        if (idx >= cells.length || cells[idx] == null) {
-                          return const Expanded(child: SizedBox(height: 42));
-                        }
-                        final d   = cells[idx]!;
-                        final ds  = '$_ymStr-${d.toString().padLeft(2,'0')}';
-                        final sel = ds == selDate;
-                        final recs = byDate[ds] ?? [];
-                        final foods = recs.expand((s) => s.items.map((i) => i.food))
-                            .toSet().take(3).toList();
-                        return Expanded(
-                          child: GestureDetector(
-                            onTap: () => setState(() => _selDate = ds),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 2),
-                              child: Column(
-                                children: [
-                                  Container(
-                                    width: 30, height: 30,
-                                    alignment: Alignment.center,
-                                    decoration: BoxDecoration(
-                                      color: sel
-                                          ? AppColors.primary
-                                          : recs.isNotEmpty
-                                              ? AppColors.paleBgAlt
-                                              : Colors.transparent,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Text(
-                                      '$d',
-                                      style: AppTextStyles.mono(
-                                        13, sel ? FontWeight.w700 : FontWeight.w600,
-                                        color: sel
-                                            ? AppColors.paleBg
-                                            : AppColors.primary,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 3),
-                                  SizedBox(
-                                    height: 5,
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: foods.map((f) => Container(
-                                        width: 4, height: 4,
-                                        margin: const EdgeInsets.symmetric(horizontal: 1),
-                                        decoration: BoxDecoration(
-                                          color: _dotColor(f),
-                                          borderRadius: BorderRadius.zero,
-                                        ),
-                                      )).toList(),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      }),
-                    ));
-                  }
-                  return rows;
-                }(),
-
-                // 범례
-                const SizedBox(height: 20),
-                Wrap(
-                  spacing: 12, runSpacing: 6,
-                  children: _foods.map((f) => Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 8, height: 8,
-                        decoration: BoxDecoration(
-                          color: _dotColor(f), shape: BoxShape.circle),
-                      ),
-                      const SizedBox(width: 5),
-                      Text(f, style: TextStyle(
-                          fontSize: 11, fontWeight: FontWeight.w600,
-                          color: AppColors.paleInk2)),
-                    ],
-                  )).toList(),
-                ),
-              ],
-            ),
+    final byDate = _byDate;
+    return Column(
+      children: [
+        Expanded(
+          child: MonthGridCalendar(
+            month: _month,
+            selectedDate: _selDate,
+            monthSummary: '${_monthSessions.length}회 급여',
+            accent: AppColors.petButter,
+            onMonthChanged: (m) => setState(() => _month = m),
+            onDayTap: (ds) {
+              setState(() => _selDate = ds);
+              _openDaySheet(ds, byDate[ds] ?? const []);
+            },
+            cellBuilder: (ds) => _cellContent(byDate, ds),
           ),
-          const SizedBox(height: 20),
-
-          // 선택일 헤더
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              RichText(
-                text: TextSpan(
-                  style: AppTextStyles.paleSectionTitle,
-                  children: [
-                    TextSpan(text:
-                      '${int.parse(selDate.substring(5,7))}.${int.parse(selDate.substring(8))} '),
-                    TextSpan(
-                      text: '(${_weekKo[DateTime.parse(selDate).weekday % 7]})',
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.paleInk2),
-                    ),
-                  ],
-                ),
-              ),
-              Text('${selRecs.length}회',
-                  style: AppTextStyles.monoSm),
-            ],
+        ),
+        // 범례 — 셀이 좁아 라벨이 잘릴 때 색으로 구분할 수 있게 남겨둔다
+        Container(
+          width: double.infinity,
+          decoration: const BoxDecoration(
+            color: AppColors.paleBgAlt,
+            border: Border(top: BorderSide(color: AppColors.paleLine)),
           ),
-          const SizedBox(height: 10),
-
-          // 선택일 세션 목록
-          if (selRecs.isEmpty)
-            GestureDetector(
-              onTap: () => widget.onAdd(selDate),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 22),
-                decoration: BoxDecoration(
-                  border: Border.all(color: AppColors.paleLine, width: 1.5,
-                      style: BorderStyle.solid),
-                  borderRadius: BorderRadius.zero,
-                ),
-                child: Column(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: _foods.map((f) => Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('이 날의 피딩 기록이 없어요',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
-                            color: AppColors.paleInk3)),
-                    const SizedBox(height: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 7),
+                      width: 8, height: 8,
                       decoration: BoxDecoration(
-                        color: AppColors.paleBgAlt,
+                        color: _dotColor(f), shape: BoxShape.circle),
+                    ),
+                    const SizedBox(width: 5),
+                    Text(f, style: const TextStyle(
+                        fontSize: 11, fontWeight: FontWeight.w600,
+                        color: AppColors.paleInk2)),
+                  ],
+                ),
+              )).toList(),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── 날짜별 상세 바텀시트 ─────────────────────────────────────
+class _DaySheet extends StatelessWidget {
+  final String date;
+  final List<FeedSession> sessions;
+  final ValueChanged<FeedSession> onEdit;
+  final VoidCallback onAdd;
+
+  const _DaySheet({
+    required this.date,
+    required this.sessions,
+    required this.onEdit,
+    required this.onAdd,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: sessions.isEmpty ? 0.34 : 0.55,
+      minChildSize: 0.28,
+      maxChildSize: 0.9,
+      expand: false,
+      builder: (context, scrollCtrl) => Container(
+        decoration: const BoxDecoration(
+          color: AppColors.paleBg,
+          border: Border(top: BorderSide(color: AppColors.paleLine, width: 1.5)),
+        ),
+        child: Column(
+          children: [
+            // 핸들
+            Container(
+              width: 40, height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 10),
+              color: AppColors.paleLine,
+            ),
+            // 헤더
+            Padding(
+              padding: const EdgeInsets.fromLTRB(22, 0, 22, 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  RichText(
+                    text: TextSpan(
+                      style: AppTextStyles.paleSectionTitle,
+                      children: [
+                        TextSpan(text:
+                          '${int.parse(date.substring(5,7))}.${int.parse(date.substring(8))} '),
+                        TextSpan(
+                          text: '(${_weekKo[DateTime.parse(date).weekday % 7]})',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.paleInk2),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text('${sessions.length}회', style: AppTextStyles.monoSm),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                controller: scrollCtrl,
+                padding: const EdgeInsets.fromLTRB(22, 0, 22, 24),
+                children: [
+                  if (sessions.isEmpty)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 22),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: AppColors.paleLine, width: 1.5),
                         borderRadius: BorderRadius.zero,
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
+                      child: const Text('이 날의 급여 기록이 없어요',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.paleInk3)),
+                    )
+                  else
+                    ...sessions.map((s) => Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: SessionCard(
+                              session: s,
+                              onEdit: () => onEdit(s),
+                              showDate: false),
+                        )),
+                  const SizedBox(height: 4),
+                  GestureDetector(
+                    onTap: onAdd,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      decoration: BoxDecoration(
+                        color: AppColors.card,
+                        border: Border.all(color: AppColors.paleLine),
+                        borderRadius: BorderRadius.zero,
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.add, size: 14, color: AppColors.primary),
-                          const SizedBox(width: 5),
-                          const Text('기록 추가',
+                          Icon(Icons.add, size: 16, color: AppColors.primary),
+                          SizedBox(width: 6),
+                          Text('이 날 기록 추가',
                               style: TextStyle(
                                   fontSize: 13, fontWeight: FontWeight.w700,
                                   color: AppColors.primary)),
                         ],
                       ),
                     ),
-                  ],
-                ),
-              ),
-            )
-          else ...[
-            ...selRecs.map((s) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: SessionCard(
-                session: s, onEdit: () => widget.onEdit(s), showDate: false),
-            )),
-            GestureDetector(
-              onTap: () => widget.onAdd(selDate),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  color: AppColors.card,
-                  border: Border.all(color: AppColors.paleLine,
-                      style: BorderStyle.solid),
-                  borderRadius: BorderRadius.zero,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.add, size: 16, color: AppColors.paleInk2),
-                    const SizedBox(width: 6),
-                    Text('이 날 기록 더 추가',
-                        style: TextStyle(
-                            fontSize: 13, fontWeight: FontWeight.w700,
-                            color: AppColors.paleInk2)),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ],
-        ],
+        ),
       ),
     );
   }
@@ -811,7 +753,7 @@ class _ListViewState extends State<_ListView> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('전체 피딩 기록',
+                Text('전체 급여 기록',
                     style: AppTextStyles.paleSectionTitle),
                 Text('${widget.sessions.length}회',
                     style: AppTextStyles.monoSm),
@@ -954,7 +896,7 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              e.isEdit ? '피딩 기록 수정' : '피딩 기록 추가',
+                              e.isEdit ? '급여 기록 수정' : '급여 기록 추가',
                               style: const TextStyle(
                                   fontSize: 20, fontWeight: FontWeight.w700,
                                   color: AppColors.primary, letterSpacing: -0.4),
