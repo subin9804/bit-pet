@@ -180,8 +180,11 @@ class _FeedingList extends ConsumerWidget {
               final u = r.unit == 'PIECE' ? '마리' : (r.unit ?? '');
               parts.add('${r.amount!.toStringAsFixed(r.amount! % 1 == 0 ? 0 : 1)}$u');
             }
-            final foodLabel = FoodType.labelForCode(r.foodType);
-            final subtitle = parts.isEmpty ? foodLabel : '$foodLabel · ${parts.join(' ')}';
+            final foodLabel =
+                r.foodType == null ? '거식' : FoodType.labelForCode(r.foodType!);
+            final subtitle = (r.refused || parts.isEmpty)
+                ? foodLabel
+                : '$foodLabel · ${parts.join(' ')}';
             return Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(

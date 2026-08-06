@@ -11,11 +11,12 @@ public record FeedItemResponse(
         BigDecimal amount,
         String unit,
         String sizeLabel,
-        FeedingSupplement supplement
+        FeedingSupplement supplement,
+        boolean refused
 ) {
     public static FeedItemResponse from(FeedingDtl d) {
         return new FeedItemResponse(
                 d.getFoodType(), d.getAmount(), d.getUnit(),
-                d.getSizeLabel(), d.getSupplement());
+                d.getSizeLabel(), d.getSupplement(), d.isRefused());
     }
 }

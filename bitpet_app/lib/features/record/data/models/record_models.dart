@@ -31,32 +31,37 @@ class FeedingRecord {
   final int id;
   final int petId;
   final int? routineId;
-  final String foodType;
+  /// 거식(refused=true)이면 서버가 먹이 종류를 주지 않는다 → null
+  final String? foodType;
   final double? amount;
   final String? unit;
   final String? sizeLabel;
   final FeedingSupplement? supplement;
   final DateTime fedAt;
   final String? memo;
+  /// 먹이를 거부한 기록
+  final bool refused;
 
   const FeedingRecord({
     required this.id,
     required this.petId,
     this.routineId,
-    required this.foodType,
+    this.foodType,
     this.amount,
     this.unit,
     this.sizeLabel,
     this.supplement,
     required this.fedAt,
     this.memo,
+    this.refused = false,
   });
 
   factory FeedingRecord.fromJson(Map<String, dynamic> json) => FeedingRecord(
         id: json['id'] as int,
         petId: json['petId'] as int,
         routineId: json['routineId'] as int?,
-        foodType: json['foodType'] as String,
+        foodType: json['foodType'] as String?,
+        refused: json['refused'] as bool? ?? false,
         amount: (json['amount'] as num?)?.toDouble(),
         unit: json['unit'] as String?,
         sizeLabel: json['sizeLabel'] as String?,

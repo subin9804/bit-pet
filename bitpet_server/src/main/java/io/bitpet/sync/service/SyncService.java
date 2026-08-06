@@ -334,10 +334,14 @@ public class SyncService {
         if (id == null) {
             Long petId = toLong(data.get("petId"));
             verifyPetOwner(petId, userId);
+            boolean refused = Boolean.TRUE.equals(data.get("refused"));
+            // 거식이 아닌데 먹이 종류가 비면 DB CHECK 에 걸린다 — 빈 문자열로 막아준다
+            String foodType = str(data.get("foodType"));
             FeedingDtl f = FeedingDtl.builder()
                     .petId(petId)
                     .createdByUserId(userId)
-                    .foodType(str(data.get("foodType")))
+                    .refused(refused)
+                    .foodType(!refused && foodType == null ? "" : foodType)
                     .amount(toBigDecimal(data.get("amount")))
                     .unit(str(data.get("unit")))
                     .fedAt(toInstant(data.get("fedAt")))
@@ -362,7 +366,8 @@ public class SyncService {
                 ? io.bitpet.record.domain.FeedingSupplement.valueOf(supplementStr) : null;
         f.update(str(data.get("foodType")), toBigDecimal(data.get("amount")),
                 str(data.get("unit")), str(data.get("sizeLabel")), supplement,
-                toInstant(data.get("fedAt")), str(data.get("memo")));
+                toInstant(data.get("fedAt")), str(data.get("memo")),
+                data.get("refused") instanceof Boolean b ? b : null);
         if (changeId != null) f.stampClientChange(clientId, changeId);
         feedingRepo.save(f);
         return PushResult.applied(changeId, f.getId(), f.getUpdatedAt(), f.getSyncVersion());

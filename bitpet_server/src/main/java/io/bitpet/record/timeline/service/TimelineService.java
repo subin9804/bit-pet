@@ -122,6 +122,7 @@ public class TimelineService {
             case FEEDING -> {
                 table = "feeding_dtl"; timeCol = "fed_at";
                 summaryExpr = """
+                        CASE WHEN refused_yn = 'Y' THEN '거식' ELSE
                         CONCAT(
                             CASE food_type
                                 WHEN 'CRICKET'      THEN '귀뚜라미'
@@ -151,7 +152,7 @@ public class TimelineService {
                                 WHEN 'OTHER'     THEN ' + 영양제'
                                 ELSE ''
                             END
-                        )""";
+                        ) END""";
             }
             case CLEANING -> {
                 table = "cleaning_dtl"; timeCol = "cleaned_at";

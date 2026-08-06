@@ -71,6 +71,7 @@ public enum ErrorCode {
     // --- Record ---
     WEIGHT_NOT_FOUND(HttpStatus.NOT_FOUND, "Weight record not found"),
     FEEDING_NOT_FOUND(HttpStatus.NOT_FOUND, "Feeding record not found"),
+    FEEDING_FOOD_TYPE_REQUIRED(HttpStatus.BAD_REQUEST, "거식이 아닌 급여 기록에는 먹이 종류가 필요합니다."),
     CLEANING_NOT_FOUND(HttpStatus.NOT_FOUND, "Cleaning record not found"),
     HEALTH_LOG_NOT_FOUND(HttpStatus.NOT_FOUND, "Health log not found"),
     RECORD_ACCESS_DENIED(HttpStatus.FORBIDDEN, "You do not own this record"),

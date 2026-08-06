@@ -17,6 +17,7 @@ public record FeedingResponse(
         FeedingSupplement supplement,
         Instant fedAt,
         String memo,
+        boolean refused,
         Instant createdAt
 ) {
     public static FeedingResponse from(FeedingDtl f) {
@@ -24,7 +25,7 @@ public record FeedingResponse(
                 f.getId(), f.getPetId(), f.getRoutineId(),
                 f.getFoodType(), f.getAmount(), f.getUnit(),
                 f.getSizeLabel(), f.getSupplement(),
-                f.getFedAt(), f.getMemo(), f.getCreatedAt()
+                f.getFedAt(), f.getMemo(), f.isRefused(), f.getCreatedAt()
         );
     }
 }

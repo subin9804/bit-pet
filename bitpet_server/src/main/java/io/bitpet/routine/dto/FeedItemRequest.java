@@ -10,5 +10,11 @@ public record FeedItemRequest(
         BigDecimal amount,
         @Size(max = 10) String unit,
         @Size(max = 10) String sizeLabel,
-        FeedingSupplement supplement
-) {}
+        FeedingSupplement supplement,
+        /** 거식 — 먹이 정보 없이 "거부했다"만 남긴다 */
+        Boolean refused
+) {
+    public boolean isRefused() {
+        return Boolean.TRUE.equals(refused);
+    }
+}

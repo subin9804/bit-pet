@@ -105,9 +105,14 @@ public class RecordService {
     @Transactional
     public FeedingResponse addFeeding(Long userId, Long petId, FeedingCreateRequest req) {
         verifyPetOwnership(userId, petId);
+        // 거식이면 먹이 정보 없이 메모만 남는다 (엔티티가 나머지를 비운다)
+        if (!req.isRefused() && (req.foodType() == null || req.foodType().isBlank())) {
+            throw new BusinessException(ErrorCode.FEEDING_FOOD_TYPE_REQUIRED);
+        }
         FeedingDtl saved = feedingRepository.save(FeedingDtl.builder()
                 .petId(petId)
                 .createdByUserId(userId)
+                .refused(req.isRefused())
                 .foodType(req.foodType())
                 .amount(req.amount())
                 .unit(req.unit())
@@ -124,7 +129,12 @@ public class RecordService {
         FeedingDtl feeding = feedingRepository.findById(feedingId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.FEEDING_NOT_FOUND));
         verifyPetOwnership(userId, feeding.getPetId());
-        feeding.update(req.foodType(), req.amount(), req.unit(), req.sizeLabel(), req.supplement(), req.fedAt(), req.memo());
+        // 급여로 되돌리는 수정이면 먹이 종류가 반드시 함께 와야 한다
+        if (Boolean.FALSE.equals(req.refused()) && (req.foodType() == null || req.foodType().isBlank())) {
+            throw new BusinessException(ErrorCode.FEEDING_FOOD_TYPE_REQUIRED);
+        }
+        feeding.update(req.foodType(), req.amount(), req.unit(), req.sizeLabel(),
+                req.supplement(), req.fedAt(), req.memo(), req.refused());
         return FeedingResponse.from(feeding);
     }
 
@@ -369,6 +379,7 @@ public class RecordService {
     }
 
     private String buildFeedingSummary(FeedingDtl f) {
+        if (f.isRefused()) return "거식";
         String typeKo = f.getFoodType() != null
                 ? FOOD_TYPE_KO.getOrDefault(f.getFoodType(), f.getFoodType())
                 : "급여";

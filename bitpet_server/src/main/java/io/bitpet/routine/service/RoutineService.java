@@ -467,6 +467,8 @@ public class RoutineService {
                             .routineId(routine.getId())
                             .routineLogId(logId)
                             .createdByUserId(userId)
+                            .refused(item.isRefused())
+                            // 거식이면 엔티티가 먹이 정보를 비운다 — 여기서 넘겨도 무시된다
                             .foodType(item.foodType() != null ? item.foodType() : "")
                             .amount(item.amount())
                             .unit(item.unit())

@@ -36,11 +36,53 @@ class FeedComposerFields extends StatelessWidget {
     ));
   }
 
+  /// 거식 전환 — 켜면 먹이 정보를 통째로 버리고 메모만 남긴다.
+  /// (서버도 거식 행에는 food_type 을 저장하지 않으므로 남겨둘 이유가 없다)
+  void _toggleRefused() {
+    onChanged(form.isRefused
+        ? FeedFormData(memo: form.memo)
+        : FeedFormData(isRefused: true, memo: form.memo));
+  }
+
   @override
   Widget build(BuildContext context) {
+    final refused = form.isRefused;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // ── 거식 ────────────────────────────────────────────
+        _RefusedToggle(active: refused, bandColor: bandColor, onTap: _toggleRefused),
+        const SizedBox(height: 14),
+
+        // 거식이면 종류·서브입력·영양제는 아예 사라지고 메모만 남는다
+        if (!refused) ..._feedFields(),
+
+        // ── 메모 ────────────────────────────────────────────
+        if (showMemo) ...[
+          if (!refused) const SizedBox(height: 14),
+          _Label('메모', optional: true),
+          const SizedBox(height: 8),
+          TextField(
+            onChanged: (v) => onChanged(form.copyWith(memo: v)),
+            maxLines: 2,
+            style: const TextStyle(fontSize: 13, color: AppColors.primary),
+            decoration: AppInputStyles.textarea(
+              hintText: refused ? '거부 상황·컨디션 등 (선택)' : '특이사항 (선택)',
+            ),
+          ),
+        ],
+
+        // ── 추가하기 버튼 ────────────────────────────────────
+        if (onAdd != null) ...[
+          const SizedBox(height: 16),
+          _AddButton(enabled: form.isValid, bandColor: bandColor, onTap: onAdd!),
+        ],
+      ],
+    );
+  }
+
+  List<Widget> _feedFields() {
+    return [
         // ── 피딩 종류 ─────────────────────────────────────────
         _Label('피딩 종류'),
         const SizedBox(height: 8),
@@ -109,53 +151,85 @@ class FeedComposerFields extends StatelessWidget {
             );
           }).toList(),
         ),
-
-        // ── 메모 ────────────────────────────────────────────
-        if (showMemo) ...[
-          const SizedBox(height: 14),
-          _Label('메모', optional: true),
-          const SizedBox(height: 8),
-          TextField(
-            onChanged: (v) => onChanged(form.copyWith(memo: v)),
-            maxLines: 2,
-            style: const TextStyle(fontSize: 13, color: AppColors.primary),
-            decoration: AppInputStyles.textarea(hintText: '특이사항 (선택)'),
-          ),
-        ],
-
-        // ── 추가하기 버튼 ────────────────────────────────────
-        if (onAdd != null) ...[
-          const SizedBox(height: 16),
-          GestureDetector(
-            onTap: form.foodType != null ? onAdd : null,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 140),
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: form.foodType != null ? bandColor : AppColors.paleBgAlt,
-                borderRadius: BorderRadius.zero,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.add, size: 15,
-                      color: form.foodType != null ? AppColors.primary : AppColors.paleInk3),
-                  const SizedBox(width: 6),
-                  Text('추가하기',
-                    style: TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w700,
-                      color: form.foodType != null ? AppColors.primary : AppColors.paleInk3,
-                    )),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ],
-    );
+    ];
   }
+}
+
+// ── 거식 토글 ──────────────────────────────────────────────────────────────────
+/// 폼 최상단. 켜면 아래 입력이 전부 사라지고 메모만 남는다.
+class _RefusedToggle extends StatelessWidget {
+  final bool active;
+  final Color bandColor;
+  final VoidCallback onTap;
+  const _RefusedToggle({required this.active, required this.bandColor, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 140),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+      decoration: BoxDecoration(
+        color: active ? bandColor : AppColors.card,
+        border: Border.all(color: active ? Colors.transparent : AppColors.paleLine),
+        borderRadius: BorderRadius.zero,
+      ),
+      child: Row(children: [
+        Icon(active ? Icons.check_box : Icons.check_box_outline_blank,
+            size: 17, color: active ? AppColors.primary : AppColors.paleInk3),
+        const SizedBox(width: 8),
+        Text('거식',
+            style: TextStyle(
+              fontSize: 13, fontWeight: FontWeight.w700,
+              color: active ? AppColors.primary : AppColors.paleInk2,
+            )),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text('먹이를 거부함 · 메모만 기록',
+              style: TextStyle(
+                fontSize: 11, fontWeight: FontWeight.w500,
+                color: active ? AppColors.primary.withValues(alpha: 0.7) : AppColors.paleInk3,
+              )),
+        ),
+      ]),
+    ),
+  );
+}
+
+// ── 추가하기 버튼 ──────────────────────────────────────────────────────────────
+class _AddButton extends StatelessWidget {
+  final bool enabled;
+  final Color bandColor;
+  final VoidCallback onTap;
+  const _AddButton({required this.enabled, required this.bandColor, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: enabled ? onTap : null,
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 140),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: enabled ? bandColor : AppColors.paleBgAlt,
+        borderRadius: BorderRadius.zero,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.add, size: 15, color: enabled ? AppColors.primary : AppColors.paleInk3),
+          const SizedBox(width: 6),
+          Text('추가하기',
+            style: TextStyle(
+              fontSize: 13, fontWeight: FontWeight.w700,
+              color: enabled ? AppColors.primary : AppColors.paleInk3,
+            )),
+        ],
+      ),
+    ),
+  );
 }
 
 // ── 레이블 ─────────────────────────────────────────────────────────────────────
@@ -188,7 +262,7 @@ class _SubInput extends StatelessWidget {
       FoodInputMode.sizeCount   => _SizeCountInput(form: form, onChanged: onChanged, bandColor: bandColor),
       FoodInputMode.mlOrVolume  => _MlOrVolumeInput(form: form, onChanged: onChanged, bandColor: bandColor),
       FoodInputMode.volume      => _VolumeInput(form: form, onChanged: onChanged, bandColor: bandColor),
-      FoodInputMode.custom      => _CustomTextInput(form: form, onChanged: onChanged),
+      FoodInputMode.custom      => _CustomTextInput(form: form, onChanged: onChanged, bandColor: bandColor),
     };
   }
 }
@@ -280,29 +354,108 @@ class _VolumeInput extends StatelessWidget {
     children: [
       _Label('용량', optional: true),
       const SizedBox(height: 8),
-      _VolumeChips(
-        options: form.foodType!.volumeOptions ?? [],
-        selected: form.sizeLabel,
-        color: bandColor,
-        onSelect: (v) => onChanged(form.copyWith(sizeLabel: form.sizeLabel == v ? null : v)),
-      ),
+      Row(children: [
+        _ModeToggle(label: '용량 선택', active: !form.useCustomAmount, color: bandColor,
+            onTap: () => onChanged(form.copyWith(useCustomAmount: false, sizeLabel: null))),
+        const SizedBox(width: 8),
+        _ModeToggle(label: '직접입력', active: form.useCustomAmount, color: bandColor,
+            onTap: () => onChanged(form.copyWith(useCustomAmount: true, sizeLabel: null))),
+      ]),
+      const SizedBox(height: 10),
+      if (form.useCustomAmount)
+        _AmountTextInput(
+          // 칩↔직접입력을 오갈 때 이전 글자가 남지 않도록 모드를 키에 넣는다
+          key: ValueKey('amt-${form.foodType!.code}'),
+          initial: form.sizeLabel,
+          hintText: '예: 반 스푼, 3알',
+          onChanged: (v) => onChanged(form.copyWith(sizeLabel: v.isEmpty ? null : v)),
+        )
+      else
+        _VolumeChips(
+          options: form.foodType!.volumeOptions ?? [],
+          selected: form.sizeLabel,
+          color: bandColor,
+          onSelect: (v) => onChanged(form.copyWith(sizeLabel: form.sizeLabel == v ? null : v)),
+        ),
     ],
   );
 }
 
-// ── 직접입력 텍스트 ────────────────────────────────────────────────────────────
+// ── 직접입력 (이름 + 사이즈 + 마릿수) ──────────────────────────────────────────
+/// 카탈로그에 없는 먹이. 이름만 직접 적을 뿐 사이즈·마릿수는 다른 먹이와 똑같이 받는다.
 class _CustomTextInput extends StatelessWidget {
   final FeedFormData form;
   final ValueChanged<FeedFormData> onChanged;
-  const _CustomTextInput({required this.form, required this.onChanged});
+  final Color bandColor;
+  const _CustomTextInput({required this.form, required this.onChanged, required this.bandColor});
 
   @override
-  Widget build(BuildContext context) => TextField(
-    onChanged: (v) => onChanged(form.copyWith(customText: v)),
-    autofocus: true,
+  Widget build(BuildContext context) {
+    final sizes = form.foodType!.sizeOptions ?? [];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _Label('먹이 이름'),
+        const SizedBox(height: 8),
+        TextFormField(
+          initialValue: form.customText,
+          onChanged: (v) => onChanged(form.copyWith(customText: v)),
+          autofocus: form.customText == null,
+          maxLength: 50,
+          style: const TextStyle(fontSize: 14, color: AppColors.primary),
+          decoration: InputDecoration(
+            hintText: '이름 직접 입력',
+            counterText: '',
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+            border: UnderlineInputBorder(borderRadius: BorderRadius.zero,
+                borderSide: const BorderSide(color: AppColors.paleLine)),
+            enabledBorder: UnderlineInputBorder(borderRadius: BorderRadius.zero,
+                borderSide: const BorderSide(color: AppColors.paleLine)),
+          ),
+        ),
+        const SizedBox(height: 12),
+        _Label('사이즈', optional: true),
+        const SizedBox(height: 8),
+        Wrap(spacing: 7, children: sizes.map((s) {
+          final sel = form.sizeLabel == s;
+          return GestureDetector(
+            onTap: () => onChanged(form.copyWith(sizeLabel: sel ? null : s)),
+            child: AppChip(
+                label: s,
+                selected: sel,
+                selectedColor: bandColor,
+                selectedTextColor: AppColors.primary),
+          );
+        }).toList()),
+        const SizedBox(height: 12),
+        _Label('마릿수', optional: true),
+        const SizedBox(height: 8),
+        _CountStepper(
+          count: form.count ?? 0,
+          bandColor: bandColor,
+          onChanged: (v) => onChanged(form.copyWith(count: v == 0 ? null : v)),
+        ),
+      ],
+    );
+  }
+}
+
+// ── 급여량 자유 입력 ───────────────────────────────────────────────────────────
+class _AmountTextInput extends StatelessWidget {
+  final String? initial;
+  final String hintText;
+  final ValueChanged<String> onChanged;
+  const _AmountTextInput({super.key, required this.initial, required this.hintText, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) => TextFormField(
+    initialValue: initial,
+    onChanged: onChanged,
+    maxLength: kAmountTextMaxLength,
     style: const TextStyle(fontSize: 14, color: AppColors.primary),
     decoration: InputDecoration(
-      hintText: '이름 직접 입력',
+      hintText: hintText,
+      counterText: '',
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
       border: UnderlineInputBorder(borderRadius: BorderRadius.zero,
           borderSide: const BorderSide(color: AppColors.paleLine)),

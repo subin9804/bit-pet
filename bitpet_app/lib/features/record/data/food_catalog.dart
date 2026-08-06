@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 // ── 입력 모드 ────────────────────────────────────────────────────────────────
+// custom = 이름을 직접 적는 먹이. 이름만 다를 뿐 사이즈·마릿수는 sizeCount 와 똑같이 받는다.
 enum FoodInputMode { sizeCount, mlOrVolume, volume, custom }
 
 // ── 먹이 종류 ────────────────────────────────────────────────────────────────
@@ -35,7 +36,7 @@ class FoodType {
   static const frozenVege  = FoodType._(code:'FROZEN_VEGE',  label:'냉짱',      inputMode:FoodInputMode.volume,     volumeOptions:_volLabels);
   static const frozenMouse = FoodType._(code:'FROZEN_MOUSE', label:'마우스',    inputMode:FoodInputMode.sizeCount,  sizeOptions:_mouseSizes);
   static const frozenRat   = FoodType._(code:'FROZEN_RAT',   label:'래트',      inputMode:FoodInputMode.sizeCount,  sizeOptions:_mouseSizes);
-  static const custom      = FoodType._(code:'CUSTOM',       label:'직접입력',  inputMode:FoodInputMode.custom);
+  static const custom      = FoodType._(code:'CUSTOM',       label:'직접입력',  inputMode:FoodInputMode.custom,     sizeOptions:_insectSizes);
 
   static const all = [cricket,mealworm,fruitFly,superfood,pellet,vegetables,frozenVege,frozenMouse,frozenRat,custom];
 
@@ -72,30 +73,44 @@ enum FeedingSupplement {
 // ── 폼 상태 ──────────────────────────────────────────────────────────────────
 const _nil = Object();
 
+/// 급여량 자유 입력 최대 길이 — 서버 `feeding_dtl.size_label` 이 VARCHAR(10) 이다.
+const int kAmountTextMaxLength = 10;
+
 @immutable
 class FeedFormData {
   final FoodType? foodType;
-  final int?    count;       // sizeCount: 마릿수
-  final String? sizeLabel;   // sizeCount / volume / mlOrVolume(volume sub)
+  final int?    count;       // sizeCount / custom: 마릿수
+  final String? sizeLabel;   // sizeCount / volume / mlOrVolume(volume sub) / 자유 입력 급여량
   final double? mlAmount;    // mlOrVolume (ml sub)
   final bool    useMl;       // mlOrVolume 모드 전환 플래그
-  final String? customText;  // custom
+  final bool    useCustomAmount; // volume: 칩 대신 급여량을 직접 적는 모드
+  final String? customText;  // custom: 먹이 이름
   final FeedingSupplement? supplement;
   final String  memo;
 
+  /// 거식 — 먹이를 거부한 기록. 켜지면 먹이 정보는 전부 무시되고 메모만 남는다.
+  final bool isRefused;
+
   const FeedFormData({
     this.foodType, this.count, this.sizeLabel,
-    this.mlAmount, this.useMl=false,
+    this.mlAmount, this.useMl=false, this.useCustomAmount=false,
     this.customText, this.supplement, this.memo='',
+    this.isRefused=false,
   });
 
-  bool get isValid => foodType != null &&
-      (foodType!.isCustom ? (customText?.trim().isNotEmpty ?? false) : true);
+  bool get isValid {
+    if (isRefused) return true; // 메모조차 선택 — 거식했다는 사실만으로 기록이 된다
+    return foodType != null &&
+        (foodType!.isCustom ? (customText?.trim().isNotEmpty ?? false) : true);
+  }
 
   String get summary {
+    if (isRefused) return '거식';
     if (foodType == null) return '';
-    if (foodType!.isCustom) return customText?.trim() ?? '';
-    final p = <String>[foodType!.label];
+    // 직접입력도 이름만 다를 뿐 사이즈·마릿수는 똑같이 붙는다
+    final head = foodType!.isCustom ? (customText?.trim() ?? '') : foodType!.label;
+    if (head.isEmpty) return '';
+    final p = <String>[head];
     if (sizeLabel != null) p.add(sizeLabel!);
     if (count != null && count! > 0) p.add('${count}마리');
     if (mlAmount != null && mlAmount! > 0) {
@@ -109,35 +124,48 @@ class FeedFormData {
   FeedFormData copyWith({
     FoodType? foodType,
     Object? count=_nil, Object? sizeLabel=_nil, Object? mlAmount=_nil,
-    bool? useMl,
+    bool? useMl, bool? useCustomAmount,
     Object? customText=_nil, Object? supplement=_nil,
-    String? memo,
+    String? memo, bool? isRefused,
   }) => FeedFormData(
     foodType:    foodType   ?? this.foodType,
     count:       count      == _nil ? this.count      : count      as int?,
     sizeLabel:   sizeLabel  == _nil ? this.sizeLabel  : sizeLabel  as String?,
     mlAmount:    mlAmount   == _nil ? this.mlAmount   : mlAmount   as double?,
     useMl:       useMl      ?? this.useMl,
+    useCustomAmount: useCustomAmount ?? this.useCustomAmount,
     customText:  customText == _nil ? this.customText : customText as String?,
     supplement:  supplement == _nil ? this.supplement : supplement as FeedingSupplement?,
     memo:        memo       ?? this.memo,
+    isRefused:   isRefused  ?? this.isRefused,
   );
 
-  /// 서버 급여 항목({foodType, amount, unit, sizeLabel, supplement}) → 폼 데이터 복원
+  /// 서버 급여 항목({foodType, amount, unit, sizeLabel, supplement, refused}) → 폼 데이터 복원
   factory FeedFormData.fromApiMap(Map<String, dynamic> m) {
+    // 거식이면 서버가 먹이 정보를 아예 안 준다 — 메모만 살린다
+    if (m['refused'] == true) {
+      return FeedFormData(isRefused: true, memo: (m['memo'] as String?) ?? '');
+    }
     final code   = m['foodType'] as String?;
     final ft     = code == null ? null : FoodType.byCodeOrCustom(code);
     final unit   = m['unit'] as String?;
     final amount = (m['amount'] as num?)?.toDouble();
     final isMl   = unit == 'ML';
+    final size   = m['sizeLabel'] as String?;
     final supRaw = m['supplement'] as String?;
     return FeedFormData(
       foodType:   ft,
       count:      (!isMl && amount != null) ? amount.toInt() : null,
-      sizeLabel:  m['sizeLabel'] as String?,
+      sizeLabel:  size,
       mlAmount:   isMl ? amount : null,
       useMl:      isMl,
+      // 저장된 급여량이 칩 목록에 없으면 직접 적은 값이다 → 직접입력 모드로 되살린다
+      useCustomAmount: size != null &&
+          ft != null &&
+          ft.inputMode == FoodInputMode.volume &&
+          !(ft.volumeOptions ?? const []).contains(size),
       customText: (ft != null && ft.isCustom) ? code : null,
+      memo:       (m['memo'] as String?) ?? '',
       supplement: supRaw == null
           ? null
           : FeedingSupplement.values.firstWhere(
@@ -147,21 +175,30 @@ class FeedFormData {
   }
 
   Map<String, dynamic> toApiMap({DateTime? fedAt}) {
-    if (foodType == null) return {};
     final m = <String, dynamic>{};
+    // 거식은 먹이 정보 없이 메모만 — 서버도 food_type 이 NULL 인 행만 받는다
+    if (isRefused) {
+      m['refused'] = true;
+      if (memo.trim().isNotEmpty) m['memo'] = memo.trim();
+      if (fedAt != null) m['fedAt'] = fedAt.toUtc().toIso8601String();
+      return m;
+    }
+    if (foodType == null) return {};
+    m['refused']  = false;
     m['foodType'] = foodType!.isCustom ? (customText?.trim() ?? '') : foodType!.code;
 
     switch (foodType!.inputMode) {
+      // 직접입력도 사이즈·마릿수를 그대로 받는다 (이름만 사용자가 적는 것)
       case FoodInputMode.sizeCount:
+      case FoodInputMode.custom:
         if (count != null && count! > 0) { m['amount'] = count!.toDouble(); m['unit'] = 'PIECE'; }
         if (sizeLabel != null) m['sizeLabel'] = sizeLabel;
       case FoodInputMode.mlOrVolume:
         if (useMl && mlAmount != null && mlAmount! > 0) { m['amount'] = mlAmount; m['unit'] = 'ML'; }
         else if (!useMl && sizeLabel != null) m['sizeLabel'] = sizeLabel;
       case FoodInputMode.volume:
-        if (sizeLabel != null) m['sizeLabel'] = sizeLabel;
-      case FoodInputMode.custom:
-        break;
+        // 칩이든 직접 적은 값이든 저장 위치는 같다
+        if (sizeLabel != null && sizeLabel!.trim().isNotEmpty) m['sizeLabel'] = sizeLabel!.trim();
     }
     if (supplement != null) m['supplement'] = supplement!.name;
     if (memo.trim().isNotEmpty) m['memo'] = memo.trim();

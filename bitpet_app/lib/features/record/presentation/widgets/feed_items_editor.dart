@@ -26,9 +26,13 @@ class FeedItemsEditor extends StatefulWidget {
 class _FeedItemsEditorState extends State<FeedItemsEditor> {
   FeedFormData _current = const FeedFormData();
 
+  /// 거식은 단독 기록 — 목록에 이 항목이 있으면 다른 먹이를 함께 담을 수 없다
+  bool get _hasRefused => widget.items.any((i) => i.isRefused);
+
   void _add() {
-    if (_current.foodType == null) return;
-    widget.onChanged([...widget.items, _current]);
+    if (!_current.isValid) return;
+    // 거식을 추가하면 앞서 담은 먹이는 의미가 없어지므로 목록을 비운다
+    widget.onChanged(_current.isRefused ? [_current] : [...widget.items, _current]);
     setState(() => _current = const FeedFormData());
   }
 
@@ -44,17 +48,19 @@ class _FeedItemsEditorState extends State<FeedItemsEditor> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // ── 컴포저 ──────────────────────────────────────────
-        FeedComposerFields(
-          form: _current,
-          bandColor: widget.bandColor,
-          showMemo: false,
-          onChanged: (f) => setState(() => _current = f),
-          onAdd: _add,
-        ),
+        // 거식이 담겨 있으면 입력창 자체를 감춘다 (지우면 다시 나온다)
+        if (!_hasRefused)
+          FeedComposerFields(
+            form: _current,
+            bandColor: widget.bandColor,
+            showMemo: false,
+            onChanged: (f) => setState(() => _current = f),
+            onAdd: _add,
+          ),
         // ── 추가된 아이템 목록 ─────────────────────────────
         if (widget.items.isNotEmpty) ...[
-          const SizedBox(height: 20),
-          _SectionLabel('추가된 피딩'),
+          SizedBox(height: _hasRefused ? 0 : 20),
+          _SectionLabel(_hasRefused ? '거식 기록' : '추가된 피딩'),
           const SizedBox(height: 8),
           ...widget.items.asMap().entries.map((e) => Padding(
             padding: const EdgeInsets.only(bottom: 6),

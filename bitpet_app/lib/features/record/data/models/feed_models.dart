@@ -10,6 +10,7 @@ class FeedItem {
   final String? sizeLabel;              // 크기/용량 라벨 (소/중/대, 소량 등)
   final double? mlAmount;               // ml 모드 급여량
   final FeedingSupplement? supplement;  // 영양제
+  final bool isRefused;                 // 거식 — 먹이 정보 없이 "거부함"만 남는 기록
 
   const FeedItem({
     required this.food,
@@ -18,7 +19,11 @@ class FeedItem {
     this.sizeLabel,
     this.mlAmount,
     this.supplement,
+    this.isRefused = false,
   });
+
+  /// 거식 기록 1건
+  factory FeedItem.refused() => const FeedItem(food: '거식', amt: 0, isRefused: true);
 
   /// API 코드 (foodCode 우선, 없으면 라벨→코드 역산)
   String get code => foodCode ?? FoodType.codeForLabel(food);
@@ -29,6 +34,7 @@ class FeedItem {
 
   /// 공용 리치 폼 → FeedItem
   factory FeedItem.fromForm(FeedFormData f) {
+    if (f.isRefused) return FeedItem.refused();
     final ft = f.foodType;
     final isCustom = ft?.isCustom ?? false;
     final label = isCustom ? (f.customText?.trim() ?? '직접입력') : (ft?.label ?? '');
@@ -44,6 +50,7 @@ class FeedItem {
 
   /// FeedItem → 공용 리치 폼
   FeedFormData toForm() {
+    if (isRefused) return const FeedFormData(isRefused: true);
     final ft = FoodType.byCodeOrCustom(code);
     final isCustom = ft.isCustom;
     return FeedFormData(
@@ -52,6 +59,10 @@ class FeedItem {
       sizeLabel: sizeLabel,
       mlAmount: mlAmount,
       useMl: mlAmount != null,
+      // 저장된 급여량이 칩 목록에 없으면 직접 적은 값 → 직접입력 모드로 되살린다
+      useCustomAmount: sizeLabel != null &&
+          ft.inputMode == FoodInputMode.volume &&
+          !(ft.volumeOptions ?? const []).contains(sizeLabel),
       customText: isCustom ? food : null,
       supplement: supplement,
     );
@@ -59,6 +70,7 @@ class FeedItem {
 
   /// 표시용 상세 문자열 (라벨 · 크기 · 마릿수 · ml · 영양제)
   String get detail {
+    if (isRefused) return '거식';
     final s = toForm().summary;
     return s.isNotEmpty ? s : food;
   }
@@ -69,6 +81,7 @@ class FeedItem {
         foodCode: json['foodCode'] as String?,
         sizeLabel: json['sizeLabel'] as String?,
         mlAmount: (json['mlAmount'] as num?)?.toDouble(),
+        isRefused: json['refused'] as bool? ?? false,
         supplement: json['supplement'] != null
             ? FeedingSupplement.values.firstWhere(
                 (e) => e.name == json['supplement'],
@@ -83,6 +96,7 @@ class FeedItem {
         if (sizeLabel != null) 'sizeLabel': sizeLabel,
         if (mlAmount != null) 'mlAmount': mlAmount,
         if (supplement != null) 'supplement': supplement!.name,
+        if (isRefused) 'refused': true,
       };
 
   FeedItem copyWith({
@@ -92,6 +106,7 @@ class FeedItem {
     String? sizeLabel,
     double? mlAmount,
     FeedingSupplement? supplement,
+    bool? isRefused,
   }) =>
       FeedItem(
         food: food ?? this.food,
@@ -100,6 +115,7 @@ class FeedItem {
         sizeLabel: sizeLabel ?? this.sizeLabel,
         mlAmount: mlAmount ?? this.mlAmount,
         supplement: supplement ?? this.supplement,
+        isRefused: isRefused ?? this.isRefused,
       );
 }
 
