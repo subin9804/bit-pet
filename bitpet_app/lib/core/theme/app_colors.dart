@@ -61,7 +61,7 @@ abstract final class AppColors {
     petColorRose,
   ];
 
-  // ── 급여(피딩) 전용 토큰 ───────────────────────────────────────
+  // ── 급여 전용 토큰 ───────────────────────────────────────
   static const feedBand = petPeach;
   static const feedDot  = Color(0xFFC16E2D);
 

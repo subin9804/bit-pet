@@ -17,7 +17,7 @@ class _CatMeta {
 
 const _catMeta = {
   'WEIGHT':  _CatMeta('체중',   Icons.monitor_weight_outlined),
-  'FEEDING': _CatMeta('먹이',   Icons.restaurant_outlined),
+  'FEEDING': _CatMeta('급여',   Icons.restaurant_outlined),
   'CLEANING':_CatMeta('청소',   Icons.cleaning_services_outlined),
   'MEMO':    _CatMeta('메모',   Icons.note_alt_outlined),
   'MATING':  _CatMeta('메이팅', Icons.favorite_outline),

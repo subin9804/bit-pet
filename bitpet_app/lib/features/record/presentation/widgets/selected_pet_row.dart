@@ -5,7 +5,7 @@ import '../../../../core/theme/pale_palette.dart';
 import '../../../pet/data/models/pet_models.dart';
 
 /// 선택된 개체 요약 행.
-/// 피딩 밴드색 배경, 겹침 아바타(최대 5개) + "SELECTED·N" + 이름 join.
+/// 급여 밴드색 배경, 겹침 아바타(최대 5개) + "SELECTED·N" + 이름 join.
 class SelectedPetRow extends StatelessWidget {
   final List<Pet> pets;
   final Color? bg; // 기본값: AppColors.feedBand

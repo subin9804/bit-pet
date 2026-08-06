@@ -100,7 +100,7 @@ final _mockPets = [
 final _mockTodayRoutines = [
   TodayRoutine(
     id: 1,
-    title: '주 2회 피딩',
+    title: '주 2회 급여',
     routineType: RoutineType.FEEDING,
     alarmTime: '09:00',
     isAlarmEnabled: true,
@@ -180,7 +180,7 @@ final _mockRoutines = [
     id: 1,
     userId: 1,
     routineType: RoutineType.FEEDING,
-    title: '주 2회 피딩',
+    title: '주 2회 급여',
     cycleDays: 3,
     alarmTime: '09:00',
     isAlarmEnabled: true,
@@ -690,7 +690,7 @@ class MockRoutineRepository extends RoutineRepository {
 
     // 루틴 id별 현실감 있는 mock 로그 (최신순)
     final logs = <int, List<RoutineLog>>{
-      1: [ // 주 2회 피딩
+      1: [ // 주 2회 급여
         RoutineLog(id:11, routineId:1, petId:1, status:RoutineLogStatus.COMPLETED, executedAt:ago(2,9,32), memo:'귀뚜라미 5마리 · 완식', createdAt:ago(2,9,32)),
         RoutineLog(id:12, routineId:1, petId:1, status:RoutineLogStatus.COMPLETED, executedAt:ago(5,9,28), memo:'귀뚜라미 5마리 · 1마리 남김', createdAt:ago(5,9,28)),
         RoutineLog(id:13, routineId:1, petId:1, status:RoutineLogStatus.REFUSED,   executedAt:ago(8,9,15), memo:'거부 · 다음날 재시도', createdAt:ago(8,9,15)),

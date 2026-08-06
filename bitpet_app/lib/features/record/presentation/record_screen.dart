@@ -518,7 +518,7 @@ class _InputSheetState extends ConsumerState<_InputSheet> {
           await repo.addWeight(widget.petId, w, DateTime.now(),
               _memoCtrl.text.isEmpty ? null : _memoCtrl.text);
         case 'feeding':
-          if (!_feedForm.isValid) throw Exception('먹이 종류를 선택하세요');
+          if (!_feedForm.isValid) throw Exception('급여 종류를 선택하세요');
           await repo.addFeeding(widget.petId, _feedForm.toApiMap(fedAt: DateTime.now()));
         case 'cleaning':
           await repo.addCleaning(

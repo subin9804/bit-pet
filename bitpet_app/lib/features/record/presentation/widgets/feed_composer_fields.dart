@@ -83,8 +83,8 @@ class FeedComposerFields extends StatelessWidget {
 
   List<Widget> _feedFields() {
     return [
-        // ── 피딩 종류 ─────────────────────────────────────────
-        _Label('피딩 종류'),
+        // ── 급여 종류 ─────────────────────────────────────────
+        _Label('급여 종류'),
         const SizedBox(height: 8),
         DropdownButtonFormField<FoodType>(
           value: form.foodType,

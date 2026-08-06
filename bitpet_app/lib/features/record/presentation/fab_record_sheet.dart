@@ -1,4 +1,4 @@
-// FAB 기록 바텀시트 — 피딩 플로우 06 → 06b → 06c → 06d / 06e
+// FAB 기록 바텀시트 — 급여 플로우 06 → 06b → 06c → 06d / 06e
 // 단일 모달 시트 안에서 단계를 전환해 슬라이드업 애니메이션을 1회만 발생.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -52,7 +52,7 @@ class _RecordType {
 }
 
 const _recordTypes = [
-  _RecordType('feed',  '피딩',   'FEEDING', '먹이·시간·양',     Icons.restaurant_outlined,       AppColors.feedBand),
+  _RecordType('feed',  '급여',   'FEEDING', '종류·시간·양',     Icons.restaurant_outlined,       AppColors.feedBand),
   _RecordType('scale', '몸무게', 'WEIGHT',  '측정 기록',        Icons.monitor_weight_outlined,   AppColors.petSage),
   _RecordType('clean', '청소',   'CLEAN',   '바닥재·환기',       Icons.cleaning_services_outlined, AppColors.petSky),
   _RecordType('note',  '메모',   'NOTE',    '병원·관찰·증상',    Icons.note_alt_outlined,          AppColors.petLilac),
@@ -93,7 +93,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
     final type = widget.initialTypeId;
     if (type == null || !_recordTypes.any((t) => t.id == type)) return;
     _typeId = type;
-    // 종류까지 정해졌으면 폼으로 직행 (개체 1마리 = 피딩은 06d, 나머지는 단일 폼)
+    // 종류까지 정해졌으면 폼으로 직행 (개체 1마리 = 급여는 06d, 나머지는 단일 폼)
     _step = petId == null
         ? _FabStep.pickPets
         : (type == 'feed' ? _FabStep.feedBulk : _FabStep.simpleForm);
@@ -202,7 +202,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
       return;
     }
     if (_bulkItems.isEmpty) {
-      showToast(context, '피딩을 목록에 추가해 주세요', type: ToastType.warning);
+      showToast(context, '급여를 목록에 추가해 주세요', type: ToastType.warning);
       return;
     }
     setState(() => _saving = true);
@@ -565,7 +565,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                 const StepDots(step: 3),
               ]),
               const SizedBox(height: 6),
-              const Text('피딩 기록',
+              const Text('급여 기록',
                   style: TextStyle(
                       fontSize: 20, fontWeight: FontWeight.w700,
                       color: AppColors.primary, letterSpacing: -0.4)),
@@ -580,7 +580,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
           Padding(
             padding: const EdgeInsets.fromLTRB(22, 4, 22, 0),
             child: Text(
-              '아래 피딩 목록을 모든 개체에 동일하게 기록해요',
+              '아래 급여 목록을 모든 개체에 동일하게 기록해요',
               textAlign: TextAlign.right,
               style: TextStyle(fontSize: 11, color: AppColors.paleInk2),
             ),
@@ -660,7 +660,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                       const StepDots(step: 3),
                     ]),
                     const SizedBox(height: 6),
-                    const Text('피딩 기록',
+                    const Text('급여 기록',
                         style: TextStyle(
                             fontSize: 20, fontWeight: FontWeight.w700,
                             color: AppColors.primary, letterSpacing: -0.4)),

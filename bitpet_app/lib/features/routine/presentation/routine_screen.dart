@@ -40,7 +40,7 @@ IconData _rtypeIcon(RoutineType t) => switch (t) {
     };
 
 String _rtypeLabel(RoutineType t) => switch (t) {
-      RoutineType.FEEDING  => '피딩',
+      RoutineType.FEEDING  => '급여',
       RoutineType.CLEANING => '청소',
       RoutineType.WEIGHT   => '체중',
       RoutineType.CUSTOM   => '사용자 정의',
@@ -57,7 +57,7 @@ String _cycleLabel(Routine r) {
 
 const _kFilters = [
   (null,               '전체'),
-  (RoutineType.FEEDING,  '피딩'),
+  (RoutineType.FEEDING,  '급여'),
   (RoutineType.CLEANING, '청소'),
   (RoutineType.WEIGHT,   '체중'),
   (RoutineType.CUSTOM,   '사용자 정의'),

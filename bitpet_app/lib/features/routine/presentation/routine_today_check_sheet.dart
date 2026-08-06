@@ -61,7 +61,7 @@ class _RoutineTodayCheckSheetState
 
   void _togglePet(int petId) {
     if (widget.routine.routineType == RoutineType.FEEDING) {
-      // FEEDING → 피딩 기록 바텀시트로 이동
+      // FEEDING → 급여 기록 바텀시트로 이동
       final pet = _statuses.firstWhere((s) => s.petId == petId);
       showModalBottomSheet(
         context: context,
@@ -91,7 +91,7 @@ class _RoutineTodayCheckSheetState
       });
       return;
     }
-    // 피딩 외: 직접 토글
+    // 급여 외: 직접 토글
     setState(() {
       final idx = _statuses.indexWhere((s) => s.petId == petId);
       if (idx >= 0) {

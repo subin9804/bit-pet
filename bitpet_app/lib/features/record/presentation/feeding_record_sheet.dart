@@ -1,4 +1,4 @@
-// Screen 06e: 피딩 기록 바텀시트 (per-pet navigation)
+// Screen 06e: 급여 기록 바텀시트 (per-pet navigation)
 // - 상단 개체 탭 칩
 // - 현재 개체 카드 (컬러 bg, 이름, 종)
 // - FeedComposerFields (먹이 종류/사이즈/수량/ml/용량/직접입력/영양제/메모)
@@ -79,7 +79,7 @@ class _FeedingRecordSheetState extends ConsumerState<FeedingRecordSheet> {
       return;
     }
     final items = _currentItems;
-    if (items.isEmpty) { showToast(context, '먹이를 목록에 추가해 주세요'); return; }
+    if (items.isEmpty) { showToast(context, '급여를 목록에 추가해 주세요'); return; }
     setState(() => _saving = true);
     try {
       final now = DateTime.now();
@@ -154,7 +154,7 @@ class _FeedingRecordSheetState extends ConsumerState<FeedingRecordSheet> {
                         style: AppTextStyles.label
                             .copyWith(color: AppColors.textDisabled),
                       ),
-                      Text('피딩 기록', style: AppTextStyles.title),
+                      Text('급여 기록', style: AppTextStyles.title),
                     ],
                   ),
                   const Spacer(),

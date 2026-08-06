@@ -1,6 +1,6 @@
 // 01d · 루틴 개별 완료 — peek 캐러셀
 // 저장 트리거: 1) 이 개체 완료 버튼  2) 다음 버튼/슬라이드  3) 종료 버튼
-//   단, 2·3번은 추가 데이터(피딩 항목 또는 메모)가 있을 때만 저장
+//   단, 2·3번은 추가 데이터(급여 항목 또는 메모)가 있을 때만 저장
 //   마지막 개체에서 종료 버튼은 루틴 완료를 의미하지 않음 (메모 있으면 저장만)
 // 이전 버튼: 저장 없이 이동, 입력 상태 유지
 // 완료됨 버튼: 클릭 시 로그 삭제 후 미완료 상태로 복귀
@@ -102,7 +102,7 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
     super.dispose();
   }
 
-  // ── 저장된 오늘 로그 복원 (메모·피딩 항목·체중, 완료/미완료 무관) ─────
+  // ── 저장된 오늘 로그 복원 (메모·급여 항목·체중, 완료/미완료 무관) ─────
   Future<void> _loadSavedLogs() async {
     if (!mounted) return;
     try {
@@ -161,7 +161,7 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
 
   // ── 실제 저장 (신규 생성 또는 기존 로그 갈아끼우기) ─────────────────
   // completed=true  → 완료(COMPLETED), false → 미완료(REFUSED).
-  // 완료 여부와 무관하게 유저가 입력한 내용(피딩·체중·메모)은 모두 저장한다.
+  // 완료 여부와 무관하게 유저가 입력한 내용(급여·체중·메모)은 모두 저장한다.
   // 기존 로그가 있으면 삭제 후 재생성 → 완료↔미완료 전환·수정 반영.
   // (백엔드 deleteLog가 짝 급여·체중·청소·메모 기록까지 함께 정리)
   Future<void> _persist(TodayPetStatus pet, {required bool completed}) async {
@@ -215,7 +215,7 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
     }
   }
 
-  // ── 입력한 내용 존재 여부 (메모·피딩 항목·체중) ─────────────────────
+  // ── 입력한 내용 존재 여부 (메모·급여 항목·체중) ─────────────────────
   bool _hasEnteredData(_PerPetRec rec) =>
       rec.memo.trim().isNotEmpty ||
       (_isFeed && rec.feedItems.isNotEmpty) ||
@@ -223,7 +223,7 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
 
   // ── 저장이 필요할 때만 저장 (다음/종료/슬라이드 트리거) ──────────
   //  · 완료됨(버튼 누름): 이후 수정(dirty)이 있으면 완료 상태로 재저장
-  //  · 미완료: '이 개체 완료'를 안 눌렀어도, 입력한 내용(피딩·체중·메모)이
+  //  · 미완료: '이 개체 완료'를 안 눌렀어도, 입력한 내용(급여·체중·메모)이
   //           있으면 미완료(REFUSED)로 저장해 내용을 보존하고 나중에 다시 볼 수 있게 함.
   Future<void> _saveIfNeeded(TodayPetStatus pet) async {
     final rec = _rec[pet.petId]!;
@@ -602,10 +602,10 @@ class _PetPage extends StatelessWidget {
               ),
             ],
 
-            // 피딩 내용 아코디언 (feed 타입만)
+            // 급여 내용 아코디언 (feed 타입만)
             if (isFeed)
               ConfirmAccordion(
-                label: '피딩 내용',
+                label: '급여 내용',
                 optional: true,
                 summary: null,
                 summaryActive: false,

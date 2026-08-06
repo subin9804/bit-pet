@@ -1011,7 +1011,7 @@ class _AddPetToRoutinesSheetState
                           final cnt =
                               allRoutines.where((r) => r.routineType == t).length;
                           final label = switch (t) {
-                            RoutineType.FEEDING  => '피딩',
+                            RoutineType.FEEDING  => '급여',
                             RoutineType.CLEANING => '청소',
                             RoutineType.WEIGHT   => '체중',
                             RoutineType.CUSTOM   => '사용자',

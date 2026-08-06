@@ -60,7 +60,7 @@ class _FeedItemsEditorState extends State<FeedItemsEditor> {
         // ── 추가된 아이템 목록 ─────────────────────────────
         if (widget.items.isNotEmpty) ...[
           SizedBox(height: _hasRefused ? 0 : 20),
-          _SectionLabel(_hasRefused ? '거식 기록' : '추가된 피딩'),
+          _SectionLabel(_hasRefused ? '거식 기록' : '추가된 급여'),
           const SizedBox(height: 8),
           ...widget.items.asMap().entries.map((e) => Padding(
             padding: const EdgeInsets.only(bottom: 6),
