@@ -265,6 +265,23 @@ class _Header extends StatelessWidget {
 }
 
 // ── TODAY 덱 ──────────────────────────────────────────────────
+
+/// 루틴 카드 기준 높이. PageView 는 자식 높이를 스스로 못 정하므로 고정값이 필요하다.
+const _kCardHeight = 200.0;
+
+/// 카드 높이. 기본은 [_kCardHeight] 이고, **넘칠 때만** 그만큼 키운다.
+///
+/// 카드 안에서 글꼴 배율을 타는 건 텍스트 줄들(≈84px)뿐이다.
+/// 아이콘 40px·패딩/간격 62px 등 고정 요소는 배율과 무관하므로,
+/// 카드 전체를 배율만큼 곱하면 늘어난 몫이 전부 아래쪽 빈 공간으로 남는다.
+/// 그래서 내용 높이를 따로 추정해 200px를 넘어설 때만 그 값을 쓴다
+/// — 일반적인 글꼴 크기(배율 ~1.27까지)에서는 200px 그대로다.
+double _cardHeight(BuildContext context) {
+  final scale = MediaQuery.textScalerOf(context).scale(14) / 14;
+  final content = 92 + 84 * scale.clamp(1.0, 2.5);
+  return content <= _kCardHeight ? _kCardHeight : content + 6;
+}
+
 class _TodayDeck extends StatelessWidget {
   final AsyncValue<List<TodayRoutine>> todayAsync;
   final int currentPage;
@@ -280,16 +297,17 @@ class _TodayDeck extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cardHeight = _cardHeight(context);
     return todayAsync.when(
-      loading: () => const SizedBox(
-        height: 200,
-        child: Center(
+      loading: () => SizedBox(
+        height: cardHeight,
+        child: const Center(
             child: CircularProgressIndicator(
                 strokeWidth: 2, color: AppColors.primary)),
       ),
-      error: (_, __) => const SizedBox(
-        height: 200,
-        child: Center(child: Text('루틴을 불러올 수 없어요')),
+      error: (_, __) => SizedBox(
+        height: cardHeight,
+        child: const Center(child: Text('루틴을 불러올 수 없어요')),
       ),
       data: (allRoutines) {
         final routines = [...allRoutines]..sort((a, b) {
@@ -313,7 +331,7 @@ class _TodayDeck extends StatelessWidget {
         return Column(
           children: [
             SizedBox(
-              height: 200,
+              height: cardHeight,
               child: PageView.builder(
                 controller: pageController,
                 onPageChanged: onPageChanged,
@@ -469,6 +487,10 @@ class _TodayRoutineCard extends StatelessWidget {
                               : TextDecoration.none,
                           decorationColor: AppColors.textSecondary,
                         ),
+                        // maxLines 없이 ellipsis만 주면 줄바꿈은 그대로 일어난다.
+                        // 카드 높이가 고정(_kCardHeight)이라 긴 제목이 두 줄이 되는 순간
+                        // 바닥이 넘쳤다 — 한 줄로 못박는다.
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
@@ -514,9 +536,14 @@ class _TodayRoutineCard extends StatelessWidget {
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
                         color: allDone ? Colors.transparent : AppColors.primary,
-                        border: allDone
-                            ? Border.all(color: AppColors.textSecondary, width: 1)
-                            : null,
+                        // 완료 상태에만 테두리를 주면 그 카드만 2px 더 높아져
+                        // 완료된 카드부터 바닥이 넘친다. 두께는 항상 1px로 두고 색만 바꾼다.
+                        border: Border.all(
+                          color: allDone
+                              ? AppColors.textSecondary
+                              : Colors.transparent,
+                          width: 1,
+                        ),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -547,7 +574,11 @@ class _TodayRoutineCard extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 10),
                       alignment: Alignment.center,
-                      color: Colors.white.withValues(alpha: 0.65),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.65),
+                        // 왼쪽 버튼과 높이를 맞추기 위한 투명 테두리
+                        border: Border.all(color: Colors.transparent, width: 1),
+                      ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -905,7 +936,7 @@ class _DayRecordSection extends StatelessWidget {
 
   static const _catOrder = ['FEEDING', 'WEIGHT', 'CLEANING', 'MEMO', 'MATING', 'LAYING'];
   static const _catLabel = {
-    'FEEDING': '피딩', 'WEIGHT': '몸무게', 'CLEANING': '청소',
+    'FEEDING': '급여', 'WEIGHT': '몸무게', 'CLEANING': '청소',
     'MEMO': '메모', 'MATING': '메이팅', 'LAYING': '산란',
   };
   static const _catIcon = {
