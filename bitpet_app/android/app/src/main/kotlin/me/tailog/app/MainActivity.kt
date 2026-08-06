@@ -1,4 +1,4 @@
-package io.bitpet.bitpet_app
+package me.tailog.app
 
 import io.flutter.embedding.android.FlutterActivity
 

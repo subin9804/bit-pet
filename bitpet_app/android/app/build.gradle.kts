@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "io.bitpet.bitpet_app"
+    namespace = "me.tailog.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -19,8 +19,9 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "io.bitpet.bitpet_app"
+        // tailog.me 를 뒤집은 값. Play 업로드 후에는 영구 고정이라 변경 금지.
+        // iOS 번들 ID(ios/Runner.xcodeproj)도 같은 값으로 맞춰져 있다.
+        applicationId = "me.tailog.app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion // flutter_secure_storage + sqlite3_flutter_libs 요구사항

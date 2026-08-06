@@ -55,7 +55,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     },
     refreshListenable: _AuthListenable(ref),
     routes: [
-      // NFC 태그 이름표 딥링크 — https://bitpet.kr/t/{tagCd}
+      // NFC 태그 이름표 딥링크 — https://tailog.me/t/{tagCd}
       // 앱은 NFC를 직접 읽지 않는다. OS가 URL을 열어주고 이 경유 화면이 서버에 물어본 뒤
       // status에 따라 개체 상세 / 연결 모달 / 안내로 분기한다.
       GoRoute(

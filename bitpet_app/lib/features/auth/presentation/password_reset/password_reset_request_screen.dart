@@ -68,7 +68,7 @@ class _PasswordResetRequestScreenState
               const SizedBox(height: 28),
               ResetInputField(
                 controller: _emailCtrl,
-                hintText: 'example@bit-pet.com',
+                hintText: 'example@tailog.me',
                 keyboardType: TextInputType.emailAddress,
                 autofocus: true,
                 enabled: !isLoading,

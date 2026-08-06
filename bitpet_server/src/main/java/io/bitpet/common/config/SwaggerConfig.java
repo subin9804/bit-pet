@@ -17,8 +17,8 @@ public class SwaggerConfig {
     public OpenAPI bitPetOpenAPI() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("Bit-Pet API")
-                        .description("Bit-Pet 백엔드 REST API")
+                        .title("Tailog API")
+                        .description("Tailog 백엔드 REST API")
                         .version("v0.0.1"))
                 .addSecurityItem(new SecurityRequirement().addList(BEARER_SCHEME))
                 .components(new Components()

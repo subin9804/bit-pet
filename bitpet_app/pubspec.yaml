@@ -1,5 +1,5 @@
 name: bitpet_app
-description: "bit-pet — 반려 파충류 사육자를 위한 개체 관리 및 커뮤니티 앱"
+description: "tailog — 반려 파충류 사육자를 위한 개체 관리 및 커뮤니티 앱"
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -41,7 +41,7 @@ dependencies:
   # 폰트
   google_fonts: ^6.2.1
 
-  # FCM 푸시 (Firebase 프로젝트: bit-pet)
+  # FCM 푸시 (Firebase 프로젝트 ID: tailog-bba42)
   # 상한 없이 하한만 지정 — AGP 9 대응 최신 버전을 받도록. `flutter pub get` 후
   # pubspec.lock 에 잡힌 버전으로 캐럿(^) 고정해도 된다.
   firebase_core: '>=3.6.0'

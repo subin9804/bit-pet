@@ -79,7 +79,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                   // ── 로고 ────────────────────────────────────────────
                   Text(
-                    'bit-pet',
+                    'tailog',
                     style: GoogleFonts.vt323(
                       fontSize: 36,
                       color: AppColors.textPrimary,
@@ -309,7 +309,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                   // ── 버전 푸터 ────────────────────────────────────────
                   Text(
-                    '▼ bit-pet v0.2 ▼',
+                    '▼ tailog v0.2 ▼',
                     style: GoogleFonts.vt323(
                       fontSize: 12,
                       color: AppColors.textDisabled,

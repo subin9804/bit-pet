@@ -15,7 +15,7 @@ bitpet:
     secret: "test-environment-secret-please-change-only-test-32b"
     access-token-validity: PT30M
     refresh-token-validity: P14D
-    issuer: bit-pet-test
+    issuer: tailog-test
   token-enc-key: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
   oauth2:
     success-redirect-uri: http://localhost:3000/oauth/callback

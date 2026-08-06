@@ -1,11 +1,11 @@
 {
-    "name": "bitpet_app",
-    "short_name": "bitpet_app",
+    "name": "tailog",
+    "short_name": "tailog",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "tailog — 반려 파충류 사육자를 위한 개체 관리 앱",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

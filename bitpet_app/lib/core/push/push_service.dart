@@ -13,8 +13,8 @@ import 'device_token_repository.dart';
 
 /// AndroidManifest 의 default_notification_channel_id, 서버 FcmProperties.androidChannelId 와 동일해야 함
 const String kDefaultChannelId = 'bitpet_default_channel';
-const String _kChannelName = '비트펫 알림';
-const String _kChannelDescription = '루틴 알람, 댓글·좋아요 등 비트펫 알림';
+const String _kChannelName = '테일로그 알림';
+const String _kChannelDescription = '루틴 알람, 댓글·좋아요 등 테일로그 알림';
 
 final _localNotifications = FlutterLocalNotificationsPlugin();
 

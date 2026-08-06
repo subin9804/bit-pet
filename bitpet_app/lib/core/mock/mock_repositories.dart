@@ -25,7 +25,7 @@ import '../auth/token_storage.dart';
 
 const _mockUser = UserProfile(
   id: 1,
-  email: 'mock@bitpet.io',
+  email: 'mock@tailog.me',
   name: '테스트',
   userType: 'GENERAL',
 );

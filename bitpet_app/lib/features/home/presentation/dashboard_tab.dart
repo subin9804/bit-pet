@@ -197,7 +197,7 @@ class _Header extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'bit-pet',
+                  'tailog',
                   style: TextStyle(
                     fontFamily: 'Courier New',
                     fontSize: 11,

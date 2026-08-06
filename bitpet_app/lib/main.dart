@@ -32,19 +32,19 @@ void main() async {
         dbProvider.overrideWithValue(db),
         if (kMockMode) ...buildMockOverrides(),
       ],
-      child: const BitPetApp(),
+      child: const TailogApp(),
     ),
   );
 }
 
-class BitPetApp extends ConsumerWidget {
-  const BitPetApp({super.key});
+class TailogApp extends ConsumerWidget {
+  const TailogApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
     return MaterialApp.router(
-      title: 'bit-pet',
+      title: 'tailog',
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.light,

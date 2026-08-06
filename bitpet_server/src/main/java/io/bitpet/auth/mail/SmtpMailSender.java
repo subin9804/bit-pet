@@ -13,9 +13,9 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class SmtpMailSender implements MailSender {
 
-    private static final String RESET_CODE_SUBJECT = "[Bit-Pet] 비밀번호 재설정 인증 코드";
+    private static final String RESET_CODE_SUBJECT = "[tailog] 비밀번호 재설정 인증 코드";
     private static final String RESET_CODE_BODY = """
-            안녕하세요, Bit-Pet입니다.
+            안녕하세요, 테일로그입니다.
 
             비밀번호 재설정 인증 코드를 알려드립니다.
 

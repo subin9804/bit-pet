@@ -21,7 +21,7 @@ public record DeeplinkProperties(
         String playStoreUrl
 ) {
     public DeeplinkProperties {
-        if (host == null || host.isBlank()) host = "bitpet.kr";
+        if (host == null || host.isBlank()) host = "tailog.me";
         if (androidPackageName == null || androidPackageName.isBlank()) {
             androidPackageName = "io.bitpet.app";
         }

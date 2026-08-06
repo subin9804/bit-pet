@@ -1,7 +1,38 @@
-# Bit-Pet 프로젝트 가이드
+# tailog(테일로그) 프로젝트 가이드
 
 반려 파충류 사육자를 위한 개체 관리 + 커뮤니티 크로스플랫폼 앱.
 모노레포: `bitpet_server` (Java 백엔드) + `bitpet_app` (Flutter 프론트엔드)
+
+---
+
+## 🏷️ 네이밍 규칙 (2026-08-02 개명)
+
+`bit-pet` → **`tailog`** (한글 **테일로그**). tail + log. 도메인 `tailog.me` 보유.
+
+**사용자 눈에 닿는 곳은 무조건 `tailog` / `테일로그`.** 새 UI 문자열·메일·랜딩·스토어 문구를
+작성할 때 `bit-pet`, `비트펫`을 절대 쓰지 말 것.
+
+내부 식별자는 **의도적으로 옛 이름을 유지**한다 (바꿀 실익이 없고 깨질 곳만 늘어남).
+아래 값들을 발견해도 "고쳐야 할 잔재"가 아니므로 건드리지 말 것:
+
+| 유지 (사용자 비노출) | 값 |
+|---|---|
+| 서버 Java 패키지 | `io.bitpet.**`, `BitPetApplication` |
+| 디렉토리·Flutter 패키지명 | `bitpet_app/`, `bitpet_server/`, pubspec `name: bitpet_app` |
+| DB명·계정 | `bitpet` |
+| 환경변수 접두사 | `BITPET_*` (~25개) |
+| 알림 채널 ID | `bitpet_default_channel` (3곳 일치 필요) |
+| 로컬 캐시 파일 | `bitpet.sqlite` |
+| GitHub 레포 | `github.com/subin9804/bit-pet` |
+
+| 변경됨 (사용자 노출) | 값 |
+|---|---|
+| Android applicationId / iOS 번들 ID | **`me.tailog.app`** (양 플랫폼 동일. Play 업로드 후 영구 고정) |
+| 앱 표시 이름 | `tailog` (AndroidManifest label, iOS CFBundleDisplayName/Name) |
+| 딥링크·NFC 도메인 | **`tailog.me`** (구 `bitpet.kr`) |
+| 메일 발신 | `noreply@tailog.me`, 제목 `[tailog]` |
+| JWT issuer | `tailog` / 테스트 `tailog-test` (검증 시 issuer를 대조하지 않아 무해한 변경) |
+| Firebase 프로젝트 ID | **`tailog-bba42`** (구 `bit-pet` 폐기. `tailog` 선점으로 접미사 자동 부여) |
 
 ---
 
@@ -155,8 +186,9 @@ features/
 | V35 | routine_mst.start_date 추가 — 루틴 시작일 고정 보존(캘린더 표시 하한), created_at 기준 백필 |
 | V36~V48 | (표 미반영 — 실제 파일 기준: cleaning/memo routine_id, pet_deceased_at, memo_tag POOP, routine soft delete, pet_keeper_rls, user_share_code, pet_share_invitation 3종, breeding_group 제거, record_created_by_user, routine_log_link_dtl, post_pinned) |
 | V49 | nfc_tag_mst 신설 — NFC 태그 이름표 (tag_cd PK, pet_id/user_id nullable, default_action_cd, scan_cnt) |
+| V50 | feeding_dtl.refused_yn 추가 (거식) — food_type NOT NULL 해제 + CHECK로 둘을 묶음(Y면 food_type NULL / N이면 NOT NULL), 거식 부분 인덱스 |
 
-> **다음 마이그레이션은 V50부터 작성.**
+> **다음 마이그레이션은 V51부터 작성.**
 
 ---
 
@@ -194,6 +226,16 @@ features/
 - `laying_hatch_dtl.status`: PENDING / HATCHED / FAILED / SLUG
 - `POST /api/v1/layings/{layingId}/hatches/{hatchId}/register-pet` → 새 개체 + 계보 자동 생성
 
+### 급여 거식 (V50)
+- `feeding_dtl.refused_yn = 'Y'` → **먹이 정보 없이 메모만** 남는 기록. `food_type`은 NULL
+- 불변식을 **DB CHECK + 엔티티 양쪽**에서 강제 (`ck_feeding_dtl_food_type_by_refused`, `FeedingDtl.applyRefused`)
+  → REST·루틴 완료·오프라인 sync 어느 경로로 저장해도 "거식인데 먹이가 남은" 행이 생기지 않는다
+- 요청 DTO의 `refused`는 **부분 수정 시 모드 전환 신호** — null이면 그대로, 값이 오면 먹이 필드를 통째로 갈아끼운다
+- 앱: `FeedFormData.isRefused` (폼 최상단 토글). 켜면 종류·사이즈·마릿수·영양제가 사라지고 메모만 남으며,
+  `FeedItemsEditor`에서 거식은 **단독 항목** — 추가 시 기존 목록을 비우고 컴포저를 감춘다
+- 먹이 종류 `직접입력`(`FoodType.custom`)도 사이즈·마릿수를 그대로 받는다 (이름만 사용자가 적는 것)
+- 급여량 자유 입력은 `size_label`(VARCHAR 10)에 저장 — 재로딩 시 값이 칩 목록에 없으면 직접입력 모드로 복원
+
 ### Photo 도메인 (v5)
 - `photo_dtl` 폴리모픽: entity_type IN (PET/MEMO/MATING/LAYING) + entity_id
 - 신규 통합 API: `/api/v1/photos/**`
@@ -221,7 +263,9 @@ private Map<String, Object> extraData;
 - `SYSTEM` — 공지·점검
 
 ### FCM 푸시 알림
-- Firebase 프로젝트: `bit-pet` (project_number `531955989389`), Android 패키지 `io.bitpet.bitpet_app`
+- Firebase 프로젝트: `tailog-bba42` (project_number `326050818454`), Android 패키지 `me.tailog.app`
+  - `tailog` 는 전역 선점되어 있어 콘솔이 접미사를 붙였다. 사용자 비노출 값이라 그대로 쓴다.
+  - 구 프로젝트 `bit-pet`(`531955989389`)은 개명과 함께 폐기 — 기기 토큰이 프로젝트 스코프라 전부 재등록된다.
 - **클라이언트 설정**: `bitpet_app/android/app/google-services.json` + `lib/firebase_options.dart` (둘 다 같은 값 — 하나 바뀌면 같이 갱신)
   - **둘 다 gitignore 됨** (레포가 public이라 API 키 노출 방지) → 새 PC에서 클론하면 이 두 파일이 없어 **빌드 실패**함
   - Firebase Console > 프로젝트 설정 > 내 앱 > `google-services.json` 다운로드 → `bitpet_app/android/app/`에 배치
@@ -241,7 +285,7 @@ private Map<String, Object> extraData;
 - **iOS 미구현**: Apple 개발자 계정 + APNs 인증 키 + `GoogleService-Info.plist` 필요. 현재 iOS는 `firebase_options.dart`에서 `UnsupportedError` → main에서 catch되어 푸시 없이 실행
 
 ### NFC 태그 이름표 (v1)
-- **핵심 원칙**: 태그에는 `https://bitpet.kr/t/{tagCd}` **URL만** 굽혀 있고, 태그↔개체 연결은 **서버 DB에만** 존재
+- **핵심 원칙**: 태그에는 `https://tailog.me/t/{tagCd}` **URL만** 굽혀 있고, 태그↔개체 연결은 **서버 DB에만** 존재
   - 앱은 NFC를 **읽지도 쓰지도 않는다** — OS가 URL을 열고 앱은 딥링크만 받는다 → `nfc_manager` 류 패키지 불필요
 - `tag_cd` = `BP` + 32자 풀 랜덤 4자 (`TagCodeGenerator`). **일련번호와 완전히 다른 체계, 절대 순차 금지** (순차면 남의 태그 주소를 추측 가능)
 - **테이블 분리**: `pet_mst`의 컬럼이 아니라 `nfc_tag_mst` 별도 테이블 — 재사용·해제·분실 처리가 깔끔
@@ -257,7 +301,7 @@ private Map<String, Object> extraData;
   **Play 앱 서명 키 지문**(Play Console > 설정 > 앱 서명, 업로드 후에만 보임)이 필요. 로컬 빌드 테스트를 위해 **둘 다** 넣을 것
   - 설정: `bitpet.deeplink.*` (`BITPET_ANDROID_SHA256` 등 환경변수)
 - **앱 측**: `features/nfc/`
-  - AndroidManifest — `autoVerify="true"` intent-filter (`https` / `bitpet.kr` / pathPrefix `/t/`) + `flutter_deeplinking_enabled` 메타데이터
+  - AndroidManifest — `autoVerify="true"` intent-filter (`https` / `tailog.me` / pathPrefix `/t/`) + `flutter_deeplinking_enabled` 메타데이터
     - ⚠️ 콜드 스타트: 앱이 꺼진 상태의 첫 링크는 go_router 초기화보다 먼저 도착 → 위 메타데이터 없으면 **홈으로 빠진다**. 반드시 앱 완전 종료 상태로 실기기 테스트
   - `/t/:tagCd` → `TagResolverScreen` (경유 화면, ShellRoute 바깥). status로 분기, 로그아웃 상태면 `PendingTagLink`에 담아두고 로그인 후 복귀
   - 개체 진입은 `context.go('/home')` → `context.push('/pets/:id')` — 홈을 스택 하단에 깔지 않으면 뒤로가기 한 번에 앱이 종료됨

@@ -43,7 +43,7 @@ public class TagLandingController {
 
         String headline = petName
                 .map(n -> escape(n) + " 의 이름표")
-                .orElse("비트펫 이름표");
+                .orElse("테일로그 이름표");
         String subline = petName.isPresent()
                 ? "앱에서 이 태그를 스캔하면 개체 상세로 바로 들어갑니다."
                 : "아직 개체와 연결되지 않은 태그입니다. 앱에서 스캔해 연결해 주세요.";
@@ -70,7 +70,7 @@ public class TagLandingController {
                   <meta charset="utf-8">
                   <meta name="viewport" content="width=device-width,initial-scale=1">
                   <meta name="robots" content="noindex">
-                  <title>%s · bit-pet</title>
+                  <title>%s · tailog</title>
                   <style>
                     :root { color-scheme: light; }
                     body { margin:0; min-height:100vh; display:flex; align-items:center;
@@ -93,8 +93,8 @@ public class TagLandingController {
                     <h1>%s</h1>
                     <p>%s</p>
                     %s
-                    <a class="cta" href="%s">비트펫 앱 설치하기</a>
-                    <p class="brand">BIT-PET</p>
+                    <a class="cta" href="%s">테일로그 앱 설치하기</a>
+                    <p class="brand">TAILOG</p>
                   </main>
                 </body>
                 </html>
