@@ -80,7 +80,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       ShellRoute(
         builder: (context, state, child) => HomeScreen(
           child: child,
-          location: state.matchedLocation,
+          // ⚠️ matchedLocation 을 쓰면 안 된다. ShellRoute 안에서 context.push 를 하면
+          //    ShellRouteMatch 는 copyWith 로 재사용되면서 **처음 매칭된 위치를 그대로 유지**한다.
+          //    (/pets 에서 /pets/12 로 push 해도 matchedLocation 은 계속 '/pets')
+          //    uri 는 push 된 위치로 갱신되므로 uri.path 를 봐야 실제 현재 화면을 알 수 있다.
+          location: state.uri.path,
         ),
         routes: [
           GoRoute(path: '/home', builder: (_, __) => const DashboardTab()),
