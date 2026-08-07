@@ -125,13 +125,20 @@ class _OwnerLine extends StatelessWidget {
     const style = TextStyle(fontSize: 12, color: AppColors.textSecondary);
 
     // 탈퇴 익명화 — 갈 곳이 없으니 탭 불가. 개체명은 2줄에 그대로 남는다
-    if (owner.isOrphaned || owner.userId == null) {
+    if (owner.isOrphaned) {
       return const Text('정보 없음',
           style: TextStyle(
             fontSize: 12,
             color: AppColors.textSecondary,
             fontStyle: FontStyle.italic,
           ));
+    }
+
+    // 닉네임 비공개 — 주인은 있지만 서버가 userId를 내리지 않는다(프로필 이동 불가).
+    // '정보 없음'(주인 없음)과는 다른 상태라 표시도 구분한다.
+    if (owner.userId == null) {
+      return Text(owner.nickname ?? '비공개',
+          style: style, overflow: TextOverflow.ellipsis);
     }
 
     return GestureDetector(

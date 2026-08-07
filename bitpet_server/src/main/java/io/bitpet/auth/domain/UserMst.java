@@ -57,6 +57,13 @@ public class UserMst extends BaseTimeEntity {
     @Column(name = "share_code", length = 8)
     private String shareCode;
 
+    /**
+     * 가계도·개체 카드에 닉네임을 노출할지(V54).
+     * false 면 '비공개'로 치환하고 userId 도 내리지 않는다 — 프로필로 이동할 수 없다.
+     */
+    @Column(name = "show_nickname_in_pedigree", nullable = false)
+    private boolean showNicknameInPedigree = true;
+
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
@@ -103,6 +110,10 @@ public class UserMst extends BaseTimeEntity {
 
     public void markLoggedIn() {
         this.lastLoginAt = Instant.now();
+    }
+
+    public void changeShowNicknameInPedigree(boolean show) {
+        this.showNicknameInPedigree = show;
     }
 
     public void assignShareCode(String shareCode) {

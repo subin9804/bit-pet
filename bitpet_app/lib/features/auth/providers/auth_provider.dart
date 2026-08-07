@@ -83,4 +83,24 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
     final updated = await _repo.uploadProfileImage(image);
     state = AsyncValue.data(updated);
   }
+
+  /// 가계도 닉네임 공개 설정 변경. 서버가 돌려준 값으로 상태를 덮어써
+  /// 화면 토글과 실제 설정이 갈라지지 않게 한다
+  Future<void> setShowNicknameInPedigree(bool value) async {
+    final updated = await _repo.updateMe(showNicknameInPedigree: value);
+    state = AsyncValue.data(updated);
+  }
+
+  /// 회원 탈퇴 — 서버가 개체 처리(삭제/익명화)까지 한 트랜잭션으로 끝낸 뒤
+  /// 로컬 토큰을 지운다. 순서를 바꾸면 인증이 빠져 탈퇴 요청 자체가 401이 된다
+  Future<void> withdraw() async {
+    try {
+      await _ref.read(pushServiceProvider).unregisterToken();
+    } catch (e) {
+      debugPrint('[FCM] 푸시 토큰 해제 실패: $e');
+    }
+    await _repo.withdraw();
+    await _repo.logout();
+    state = const AsyncValue.data(null);
+  }
 }

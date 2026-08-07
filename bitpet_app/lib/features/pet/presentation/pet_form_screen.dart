@@ -1114,9 +1114,11 @@ class _ParentTile extends StatelessWidget {
                 // 남의 개체를 부모로 걸 수 있으므로, 내 개체가 아니면 소유자를 드러낸다
                 if (!pet!.owner.isMe)
                   Text(
-                    pet!.owner.isOrphaned || pet!.owner.nickname == null
+                    pet!.owner.isOrphaned
                         ? '정보 없음'
-                        : '@${pet!.owner.nickname}',
+                        : pet!.owner.userId == null
+                            ? (pet!.owner.nickname ?? '비공개')
+                            : '@${pet!.owner.nickname}',
                     style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
                     overflow: TextOverflow.ellipsis,
                   ),

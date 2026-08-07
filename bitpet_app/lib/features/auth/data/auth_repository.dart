@@ -64,11 +64,18 @@ class AuthRepository {
     return UserProfile.fromJson(apiRes.data!);
   }
 
-  // ── 내 프로필 수정 (닉네임/프로필 이미지) ──────────────────
-  Future<UserProfile> updateMe({String? nickname, String? profileImageKey}) async {
+  // ── 내 프로필 수정 (닉네임/프로필 이미지/공개 설정) ─────────
+  // 부분 수정이라 null인 필드는 아예 보내지 않는다 (서버도 전달된 것만 반영)
+  Future<UserProfile> updateMe({
+    String? nickname,
+    String? profileImageKey,
+    bool? showNicknameInPedigree,
+  }) async {
     final res = await _dio.patch('/auth/me', data: {
       if (nickname != null) 'nickname': nickname,
       if (profileImageKey != null) 'profileImageKey': profileImageKey,
+      if (showNicknameInPedigree != null)
+        'showNicknameInPedigree': showNicknameInPedigree,
     });
     final apiRes = ApiResponse.fromJson(
       res.data as Map<String, dynamic>,

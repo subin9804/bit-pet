@@ -70,6 +70,10 @@ class MyScreen extends ConsumerWidget {
               label: '이름표 관리',
               onTap: () => context.push('/my/tags'),
             ),
+            // 가계도 닉네임 공개 — 남의 가계도에 부모로 걸렸을 때 내가 드러날지
+            _PedigreeNicknameToggle(
+              value: user?.showNicknameInPedigree ?? true,
+            ),
             _MenuItem(
               icon: Icons.notifications_outlined,
               label: '알림 설정',
@@ -112,12 +116,21 @@ class MyScreen extends ConsumerWidget {
                 final ok = await ConfirmModal.show(
                   context,
                   title: '회원 탈퇴',
-                  message: '탈퇴 시 30일 이후 모든 데이터가 삭제됩니다. 정말 탈퇴하시겠어요?',
+                  // 즉시 삭제된다. 다만 남의 가계도에 부모로 걸린 개체는
+                  // 이름만 남기고 익명화되므로 "전부 사라진다"고 쓰면 사실과 다르다
+                  message: '탈퇴하면 개체와 사육 기록이 즉시 삭제됩니다.\n'
+                      '다른 사육자의 가계도에 부모로 등록된 개체는 이름만 남고 '
+                      '기록·사진은 지워집니다. 정말 탈퇴하시겠어요?',
                   confirmLabel: '탈퇴',
                   isDangerous: true,
                 );
-                if (ok && context.mounted) {
-                  ToastMessage.show(context, '탈퇴 처리 중...');
+                if (!ok || !context.mounted) return;
+                try {
+                  await ref.read(authStateProvider.notifier).withdraw();
+                } catch (_) {
+                  if (context.mounted) {
+                    ToastMessage.show(context, '탈퇴에 실패했어요. 잠시 후 다시 시도해주세요.');
+                  }
                 }
               },
             ),
@@ -236,6 +249,66 @@ class _ProfileAvatarState extends ConsumerState<_ProfileAvatar> {
                     )
                   : const Icon(Icons.camera_alt, size: 10, color: Colors.white),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 가계도 닉네임 공개 토글.
+///
+/// 끄면 남의 가계도에서 내 자리가 '비공개'로 보이고, 서버가 userId 자체를 내려주지
+/// 않아 프로필로도 들어올 수 없다. **개체명은 혈통 식별 정보라 이 설정과 무관하게 노출된다** —
+/// 그래서 "개체를 숨긴다"가 아니라 "나를 숨긴다"로 설명한다.
+class _PedigreeNicknameToggle extends ConsumerStatefulWidget {
+  final bool value;
+  const _PedigreeNicknameToggle({required this.value});
+
+  @override
+  ConsumerState<_PedigreeNicknameToggle> createState() =>
+      _PedigreeNicknameToggleState();
+}
+
+class _PedigreeNicknameToggleState
+    extends ConsumerState<_PedigreeNicknameToggle> {
+  bool _saving = false;
+
+  Future<void> _toggle(bool next) async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      await ref.read(authStateProvider.notifier).setShowNicknameInPedigree(next);
+    } catch (_) {
+      if (mounted) ToastMessage.show(context, '설정 변경에 실패했어요.');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      child: Row(
+        children: [
+          const Icon(Icons.account_tree_outlined,
+              size: 20, color: AppColors.textSecondary),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('가계도에 닉네임 공개', style: AppTextStyles.body),
+                const SizedBox(height: 2),
+                Text('끄면 남의 가계도에서 내 닉네임이 “비공개”로 표시돼요',
+                    style: AppTextStyles.caption),
+              ],
+            ),
+          ),
+          Switch(
+            value: widget.value,
+            onChanged: _saving ? null : _toggle,
           ),
         ],
       ),

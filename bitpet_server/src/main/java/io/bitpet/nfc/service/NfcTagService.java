@@ -63,9 +63,10 @@ public class NfcTagService {
         if (!petKeeperService.isKeeper(userId, tag.getPetId())) {
             return TagResolveResponse.ownedByOther(tag.getTagCd());
         }
-        // 개체가 소프트 삭제됐으면 미연결로 보여준다. 실제 연결 정리는 쓰기 경로(link)에서 한다
+        // 개체가 소프트 삭제됐으면 미연결로 보여준다. 실제 연결 정리는 쓰기 경로(link)에서 한다.
+        // 고아 개체(주인 탈퇴)도 같다 — 스캔 결과는 신규 참조의 입구라 고아를 노출하지 않는다.
         Optional<PetMst> pet = petRepository.findById(tag.getPetId());
-        if (pet.isEmpty()) {
+        if (pet.isEmpty() || pet.get().isOrphaned()) {
             return TagResolveResponse.unlinked(tag.getTagCd());
         }
         return TagResolveResponse.linked(tag.getTagCd(), pet.get().getId(), pet.get().getName());
@@ -77,6 +78,7 @@ public class NfcTagService {
                 .filter(tag -> !tag.isRevoked())
                 .map(NfcTagMst::getPetId)
                 .flatMap(petRepository::findById)
+                .filter(pet -> !pet.isOrphaned())
                 .map(PetMst::getName);
     }
 

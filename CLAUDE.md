@@ -190,8 +190,9 @@ features/
 | V51 | nfc_tag_mst 보완 — chip_type/batch_no/status 추가(+상태 백필), tag_cd 대문자 CHECK, scan_cnt·last_scan_at 제거 |
 | V52 | nfc_tag_mst 정정 — default_action_cd 제거(축이 잘못된 설계), tag_cd 포맷을 Crockford Base32 6자 `^[0-9A-HJKMNP-TV-Z]{6}$` 로 확정 |
 | V53 | pet_mst.user_id NOT NULL 해제 — 탈퇴 익명화 개체(가계도에서 '정보 없음') 지원. 권한 판정은 계속 pet_keeper_rls |
+| V54 | 탈퇴 개체 처리 — pet_mst.is_orphaned, user_mst.show_nickname_in_pedigree, s3_delete_queue_dtl(커밋 후 S3 삭제 재시도 큐) 신설 |
 
-> **다음 마이그레이션은 V54부터 작성.**
+> **다음 마이그레이션은 V55부터 작성.**
 
 ---
 
@@ -344,6 +345,43 @@ private Map<String, Object> extraData;
   화면 `/pets/:id/public`·`/users/:userId`
   - 소유자 줄은 `isMe`면 **아예 렌더링하지 않는다**. 유저명이 보인다 = 남의 개체라는 신호
 
+### 회원 탈퇴 개체 처리 (V54)
+
+`AuthService.withdraw` → `PetWithdrawalService.process(userId)` → 계정 소프트 삭제까지 **한 트랜잭션**.
+
+- **순서가 핵심**: ① 탈퇴자 개체끼리의 상호 참조(`pet_relation_rls` 부모·자식이 **둘 다** 탈퇴자 개체인 행)와
+  탈퇴자 소유 `mating_dtl` 을 **먼저** 지운다 → ② 그래야 남는 게 '남이 거는 참조'뿐이라 판정이 정확해진다
+  - 이 선행 처리가 없으면 "가입 → 자기 개체끼리 연결 → 바로 탈퇴" 계정의 개체가 전부 보존돼 쓰레기가 된다
+  - ⚠️ **자식 쪽 행까지 참조로 세지 말 것.** 참조는 `parent_pet_id = 내 개체` 인 행만 센다.
+    양방향으로 세면 참조가 절대 0이 되지 않아 정리 배치가 영원히 동작하지 않는다
+- **분기** — (A) 참조 0건 → `pet_mst` + 기록·사진·루틴 전부 물리 삭제 /
+  (B) 참조 1건 이상 → `user_id = NULL, is_orphaned = true` 로 **익명화 보존**
+  - (B) 유지 항목: **개체명**(혈통 식별의 핵심), species, morph, sex, hatched_at, 부모 참조.
+    사육 기록 전부 삭제, 사진은 **대표 1장만** 남기고 나머지 삭제
+  - 양쪽 다 `nfc_tag_mst` 는 `releaseOnOwnerWithdrawal()` 로 pet_id/user_id 비우고 **`STOCK`** 으로.
+    (`unlink()`가 `SOLD` 로 되돌리는 것과 다르다 — 소유자가 사라져 회수된 태그라 재고로 본다)
+  - **공유 개체(KEEPER)가 있으면 삭제·익명화 전에 최초 합류 KEEPER 에게 소유권을 넘긴다**
+    (`promoteToOwner`). 안 그러면 탈퇴 한 번에 제3자의 기록이 날아간다
+- **고아 개체 신규 참조 차단은 API 레벨에서**: `PetService.addRelation`(→ `PET_ORPHANED` 409),
+  `findCardBySerial`/`findBySerial`(→ 404), `MatingService.create/update`, `NfcTagService.resolve/peekPetName`.
+  기존 참조는 유지되므로 가계도에는 계속 보인다 → 참조 수가 **단조 감소**해 자연 소멸한다
+- **정리 배치** `OrphanPetCleanupScheduler` — 매일 03:10 KST. `pet_relation_rls`·`mating_dtl` 어디서도
+  참조되지 않는 고아를 물리 삭제하고, 연쇄 삭제가 생기므로 **더 지울 게 없을 때까지 라운드를 반복**한다
+- **S3 는 커밋 후 비동기**: 트랜잭션 안에서는 `s3_delete_queue_dtl` 에 키를 적재만 하고
+  (`S3DeleteQueueService.enqueue`, `Propagation.MANDATORY`), 5분 주기 배치가 실제 삭제·재시도(최대 10회).
+  외부 호출 실패로 탈퇴가 롤백되거나, 반대로 파일만 지워지고 DB 가 롤백되는 일을 둘 다 막는다
+- ⚠️ **`photo_dtl` 은 폴리모픽이라 FK 가 없다** — CASCADE 가 안 걸리므로 개체의 PET/MEMO/MATING/LAYING
+  사진을 서브쿼리로 긁어 수동 삭제해야 한다 (`PetPurgeRepository.PHOTO_SCOPE`)
+- ⚠️ 물리 삭제는 **네이티브 쿼리로** 한다. `@SQLRestriction("deleted_at IS NULL")` 때문에 JPQL·파생 쿼리는
+  소프트 삭제된 행에 닿지 못한다
+
+### 가계도 닉네임 공개 설정 (V54)
+- `user_mst.show_nickname_in_pedigree` (기본 true). `PATCH /api/v1/auth/me` 의 `showNicknameInPedigree`
+- false면 응답의 nickname 을 **'비공개'로 치환하고 `userId` 를 아예 내리지 않는다**(프로필 이동 불가).
+  `GET /users/{userId}/profile` 도 `USER_PROFILE_HIDDEN` 403. 단 **본인에게는 그대로 노출**한다
+- **'정보 없음'(isOrphaned=주인 없음)과 '비공개'(주인은 있으나 숨김)는 다른 상태다.** 앱도 구분해 표시:
+  `PedigreeParentCard`, `parent_pet_bottom_sheet`, `pet_form_screen`, `public_pet_screen` 네 곳이 같은 분기를 쓴다
+
 ### 개체 일련번호
 VARCHAR(8) 고정, 32자 풀(0/O/I/1 제외), 6자리 시작, 풀 80% 시 7자리 확장.
 
@@ -404,3 +442,7 @@ Base URL: `/api/v1`
 - `pet_photo_dtl` 테이블은 V20에서 `photo_dtl`로 이전됨 — `PetPhotoDtl.java` 삭제됨
 - `health_memo_dtl` 테이블은 V15에서 `memo_dtl`로 리네임됨 — `HealthMemoDtl.java` 삭제됨
 - Sync push에서 `health_memo` 리소스명 → `memo`로 변경됨 (Flutter 클라이언트 업데이트 필요)
+- **`IntegrationTestBase` 에 `@Testcontainers`/`@Container` 를 붙이지 말 것.** 그 조합은 컨테이너 수명을
+  테스트 클래스 단위로 관리해서, 첫 클래스가 끝나면 static 컨테이너를 멈춰버린다 → 두 번째 클래스부터
+  전부 `CannotCreateTransactionException(ConnectException)`. static 블록에서 직접 `start()` 하는
+  싱글턴 방식이 정답 (테스트 클래스가 하나뿐이면 드러나지 않는 함정)

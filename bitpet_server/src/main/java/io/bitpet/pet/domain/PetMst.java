@@ -54,6 +54,14 @@ public class PetMst extends BaseSyncEntity {
     @Column(name = "user_id")
     private Long userId;
 
+    /**
+     * 탈퇴 익명화 개체(V54). 남의 가계도·메이팅이 참조 중이라 지우지 못하고 남긴 개체다.
+     * <b>신규 참조 대상에서 제외된다</b> — 부모로 새로 걸 수도, 메이팅 상대로 지정할 수도 없다.
+     * 기존 참조는 그대로 두므로 참조 수는 단조 감소하고, 0이 되면 정리 배치가 물리 삭제한다.
+     */
+    @Column(name = "is_orphaned", nullable = false)
+    private boolean orphaned = false;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "species_id",
             foreignKey = @jakarta.persistence.ForeignKey(name = "fk_pet_mst_species"))
@@ -162,5 +170,16 @@ public class PetMst extends BaseSyncEntity {
 
     public void softDelete() {
         this.deletedAt = Instant.now();
+    }
+
+    /**
+     * 탈퇴 익명화 — 소유자만 떼어내고 개체는 남긴다.
+     *
+     * <p>개체명은 지우지 않는다. 가계도에서 부모를 식별하는 건 결국 이름이고,
+     * 이름이 사라지면 남겨둔 의미가 없다. 대신 사육 기록은 전부 지운다(호출부 책임).
+     */
+    public void anonymizeOnWithdrawal() {
+        this.userId = null;
+        this.orphaned = true;
     }
 }

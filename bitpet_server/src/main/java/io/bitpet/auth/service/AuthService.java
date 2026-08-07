@@ -13,6 +13,7 @@ import io.bitpet.auth.repository.UserMstRepository;
 import io.bitpet.common.dto.PresignResponse;
 import io.bitpet.common.exception.BusinessException;
 import io.bitpet.common.exception.ErrorCode;
+import io.bitpet.pet.service.PetWithdrawalService;
 import io.bitpet.storage.S3Service;
 import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,7 @@ public class AuthService {
     private final JwtTokenProvider tokenProvider;
     private final RefreshTokenStore refreshTokenStore;
     private final S3Service s3Service;
+    private final PetWithdrawalService petWithdrawalService;
 
     public EmailCheckResponse checkEmail(String email) {
         return new EmailCheckResponse(!userRepository.existsByEmail(email));
@@ -109,6 +111,9 @@ public class AuthService {
         if (req.profileImageKey() != null) {
             user.changeProfileImageUrl(req.profileImageKey().isBlank() ? null : req.profileImageKey());
         }
+        if (req.showNicknameInPedigree() != null) {
+            user.changeShowNicknameInPedigree(req.showNicknameInPedigree());
+        }
         return UserResponse.from(user, s3Service.resolveUrl(user.getProfileImageUrl()));
     }
 
@@ -131,13 +136,23 @@ public class AuthService {
         refreshTokenStore.delete(userId);
     }
 
+    /**
+     * 회원 탈퇴 — 계정 소프트 삭제 + 개체 처리를 <b>한 트랜잭션</b>으로 끝낸다.
+     *
+     * <p>개체 처리는 {@link PetWithdrawalService}가 맡는다. 참조가 걸린 개체는 익명화해 남고
+     * 나머지는 물리 삭제된다. S3 오브젝트 삭제만 커밋 뒤 배치로 미룬다 —
+     * 외부 호출이 실패했다고 탈퇴를 롤백할 수는 없다.
+     */
     @Transactional
     public void withdraw(Long userId) {
         UserMst user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AUTH_USER_NOT_FOUND));
+
+        PetWithdrawalService.Result petResult = petWithdrawalService.process(userId);
+
         user.softDelete();
         refreshTokenStore.delete(userId);
-        log.info("User withdrew: id={}, deletedAt={}", userId, user.getDeletedAt());
+        log.info("User withdrew: id={}, deletedAt={}, pets={}", userId, user.getDeletedAt(), petResult);
     }
 
     private TokenResponse issueTokens(UserMst user) {

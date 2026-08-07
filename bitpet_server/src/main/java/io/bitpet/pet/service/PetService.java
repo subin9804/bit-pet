@@ -160,8 +160,8 @@ public class PetService {
     public PetResponse findBySerial(String serialNo) {
         PetMst pet = petRepository.findBySerialNo(serialNo.toUpperCase())
                 .orElseThrow(() -> new BusinessException(ErrorCode.PET_NOT_FOUND));
-        if (!"N".equals(pet.getPrivateYn())) {
-            throw new BusinessException(ErrorCode.PET_NOT_FOUND); // 비공개는 404로 동일 처리
+        if (!"N".equals(pet.getPrivateYn()) || pet.isOrphaned()) {
+            throw new BusinessException(ErrorCode.PET_NOT_FOUND); // 비공개·고아는 404로 동일 처리
         }
         return PetResponse.from(pet);
     }
@@ -288,6 +288,13 @@ public class PetService {
         PetMst parent = petRepository.findById(req.parentPetId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.PET_NOT_FOUND));
 
+        // 주인이 탈퇴해 익명화된 개체는 새로 걸 수 없다. 기존 참조는 그대로 두므로
+        // 고아 개체의 참조 수는 단조 감소하고, 0이 되면 정리 배치가 지워 자연 소멸한다.
+        // 클라이언트 필터링만으로는 부족해 여기서 막는다.
+        if (parent.isOrphaned()) {
+            throw new BusinessException(ErrorCode.PET_ORPHANED);
+        }
+
         if (relationRepository.existsByParentPetIdAndChildPetIdAndRelationType(
                 req.parentPetId(), req.childPetId(), req.relationType())) {
             throw new BusinessException(ErrorCode.PET_RELATION_DUPLICATE);
@@ -389,13 +396,26 @@ public class PetService {
         if (!"N".equals(pet.getPrivateYn()) && !petKeeper.isKeeper(userId, pet.getId())) {
             throw new BusinessException(ErrorCode.PET_NOT_FOUND); // 비공개는 404로 동일 처리
         }
+        // 이 API 는 부모 선택 화면의 검색 입구다 — 고아 개체는 선택 대상에서 빠져야 한다.
+        // (이미 가계도에 걸린 고아는 카드에서 바로 열리므로 조회 자체가 막히지는 않는다)
+        if (pet.isOrphaned()) {
+            throw new BusinessException(ErrorCode.PET_NOT_FOUND);
+        }
         return toCard(userId, pet, null, null, resolveOwners(userId, List.of(pet)));
     }
 
-    /** 공개 프로필 — 가계도 카드의 '@닉네임' 탭. 공개 개체만 싣는다. */
+    /**
+     * 공개 프로필 — 가계도 카드의 '@닉네임' 탭. 공개 개체만 싣는다.
+     *
+     * <p>닉네임을 비공개로 둔 사용자는 애초에 응답에 userId 가 실리지 않아 이 화면에 닿을 수
+     * 없지만, 아이디를 직접 찍어 넣는 우회를 막으려면 여기서도 한 번 더 잘라야 한다.
+     */
     public UserProfileResponse getUserProfile(Long requesterId, Long userId) {
         UserMst user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AUTH_USER_NOT_FOUND));
+        if (!user.isShowNicknameInPedigree() && !user.getId().equals(requesterId)) {
+            throw new BusinessException(ErrorCode.USER_PROFILE_HIDDEN);
+        }
         List<PetMst> publicPets = petRepository.findAllByUserIdAndPrivateYn(userId, "N");
         Map<Long, PetOwnerResponse> owners = resolveOwners(requesterId, publicPets);
         return new UserProfileResponse(
@@ -415,20 +435,27 @@ public class PetService {
      * <p>소유자 없음(isOrphaned)은 두 가지를 같이 덮는다 — {@code user_id IS NULL}(탈퇴 익명화)과
      * 탈퇴로 소프트 삭제된 계정(UserMst의 {@code @SQLRestriction}에 걸려 조회되지 않는다).
      * 화면에서는 둘 다 '정보 없음'이라 구분할 이유가 없다.
+     *
+     * <p>소유자가 닉네임 비공개({@code show_nickname_in_pedigree = false})면 '비공개'로 치환하고
+     * userId 도 내리지 않는다 — 소유자 없음('정보 없음')과는 다른 상태다.
      */
     private Map<Long, PetOwnerResponse> resolveOwners(Long requesterId, List<PetMst> pets) {
         Set<Long> ownerIds = pets.stream()
                 .map(PetMst::getUserId)
                 .filter(java.util.Objects::nonNull)
                 .collect(Collectors.toSet());
-        Map<Long, String> nicknames = userRepository.findAllById(ownerIds).stream()
-                .collect(Collectors.toMap(UserMst::getId, UserMst::getName));
+        Map<Long, UserMst> owners = userRepository.findAllById(ownerIds).stream()
+                .collect(Collectors.toMap(UserMst::getId, u -> u));
 
         Map<Long, PetOwnerResponse> byPetId = new java.util.HashMap<>();
         for (PetMst p : pets) {
             Long ownerId = p.getUserId();
+            UserMst owner = ownerId == null ? null : owners.get(ownerId);
             byPetId.put(p.getId(), PetOwnerResponse.of(
-                    ownerId, ownerId == null ? null : nicknames.get(ownerId), requesterId));
+                    ownerId,
+                    owner == null ? null : owner.getName(),
+                    requesterId,
+                    owner != null && owner.isShowNicknameInPedigree()));
         }
         return byPetId;
     }

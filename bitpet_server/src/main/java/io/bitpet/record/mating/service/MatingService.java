@@ -40,6 +40,7 @@ public class MatingService {
 
         validateOwnership(userId, petId, req.petIdMale(), req.petIdFemale());
         validateGenders(malePet, femalePet);
+        validateNotOrphaned(malePet, femalePet);
 
         String seasonLabel = resolveSeasonLabel(req.seasonLabel(), req.triedAt().getYear());
 
@@ -95,6 +96,10 @@ public class MatingService {
         PetMst malePet   = resolvePet(req.petIdMale());
         PetMst femalePet = resolvePet(req.petIdFemale());
         validateGenders(malePet, femalePet);
+        // 이미 걸려 있던 고아는 그대로 둔다 — 차단하는 건 '신규' 참조뿐이다
+        validateNotOrphaned(
+                java.util.Objects.equals(mating.getMalePetId(),   req.petIdMale())   ? null : malePet,
+                java.util.Objects.equals(mating.getFemalePetId(), req.petIdFemale()) ? null : femalePet);
 
         String seasonLabel = resolveSeasonLabel(req.seasonLabel(), req.triedAt().getYear());
 
@@ -156,6 +161,18 @@ public class MatingService {
         }
         if (femalePet != null && femalePet.getGender() != PetGender.FEMALE) {
             throw new BusinessException(ErrorCode.MATING_PET_NOT_FEMALE);
+        }
+    }
+
+    /**
+     * 주인이 탈퇴해 익명화된 개체는 메이팅 상대로 새로 지정할 수 없다(고아 신규 참조 차단).
+     * 클라이언트 필터링만으로는 부족해 API 레벨에서 막는다.
+     */
+    private void validateNotOrphaned(PetMst... pets) {
+        for (PetMst pet : pets) {
+            if (pet != null && pet.isOrphaned()) {
+                throw new BusinessException(ErrorCode.PET_ORPHANED);
+            }
         }
     }
 

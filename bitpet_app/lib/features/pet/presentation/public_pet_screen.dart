@@ -99,22 +99,27 @@ class _Body extends StatelessWidget {
         const SizedBox(height: 4),
         // 소유자 — 본인 개체면 줄 자체를 없앤다 (가계도 카드와 같은 규칙)
         if (!owner.isMe)
-          owner.isOrphaned || owner.userId == null
+          owner.isOrphaned
               ? const Text('정보 없음',
                   style: TextStyle(
                       fontSize: 12,
                       color: AppColors.textSecondary,
                       fontStyle: FontStyle.italic))
-              : GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => context.push('/users/${owner.userId}'),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2),
-                    child: Text('@${owner.nickname ?? ''}',
-                        style: const TextStyle(
-                            fontSize: 12, color: AppColors.textSecondary)),
-                  ),
-                ),
+              // 닉네임 비공개 — 주인은 있지만 userId를 안 내리므로 프로필로 못 간다
+              : owner.userId == null
+                  ? Text(owner.nickname ?? '비공개',
+                      style: const TextStyle(
+                          fontSize: 12, color: AppColors.textSecondary))
+                  : GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => context.push('/users/${owner.userId}'),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Text('@${owner.nickname ?? ''}',
+                            style: const TextStyle(
+                                fontSize: 12, color: AppColors.textSecondary)),
+                      ),
+                    ),
         const SizedBox(height: 18),
         _Row(label: '일련번호', value: card.serialNo.isEmpty ? '-' : card.serialNo),
         _Row(label: '종', value: card.speciesName.isEmpty ? '-' : card.speciesName),

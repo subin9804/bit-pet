@@ -444,12 +444,15 @@ class _PetListCard extends StatelessWidget {
                     style: AppTextStyles.caption,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  // 남의 개체일 때만 소유자를 붙인다 (가계도 카드와 같은 규칙)
+                  // 남의 개체일 때만 소유자를 붙인다 (가계도 카드와 같은 규칙).
+                  // 주인 없음('정보 없음')과 닉네임 비공개('비공개')는 다른 상태다
                   if (!owner.isMe)
                     Text(
-                      owner.isOrphaned || owner.nickname == null
+                      owner.isOrphaned
                           ? '정보 없음'
-                          : '@${owner.nickname}',
+                          : owner.userId == null
+                              ? (owner.nickname ?? '비공개')
+                              : '@${owner.nickname}',
                       style: AppTextStyles.caption
                           .copyWith(color: AppColors.textSecondary),
                       overflow: TextOverflow.ellipsis,

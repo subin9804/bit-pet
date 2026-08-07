@@ -10,6 +10,8 @@ public record UserResponse(
         String nickname,
         String userType,
         String profileImageUrl,
+        /** 가계도에 닉네임을 노출할지 (마이페이지 설정 토글) */
+        boolean showNicknameInPedigree,
         Instant createdAt
 ) {
     public static UserResponse from(UserMst user) {
@@ -24,6 +26,7 @@ public record UserResponse(
                 user.getName(),
                 user.getUserType().name(),
                 resolvedImageUrl,
+                user.isShowNicknameInPedigree(),
                 user.getCreatedAt()
         );
     }
