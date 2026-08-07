@@ -368,9 +368,16 @@ private Map<String, Object> extraData;
   기존 참조는 유지되므로 가계도에는 계속 보인다 → 참조 수가 **단조 감소**해 자연 소멸한다
 - **정리 배치** `OrphanPetCleanupScheduler` — 매일 03:10 KST. `pet_relation_rls`·`mating_dtl` 어디서도
   참조되지 않는 고아를 물리 삭제하고, 연쇄 삭제가 생기므로 **더 지울 게 없을 때까지 라운드를 반복**한다
-- **S3 는 커밋 후 비동기**: 트랜잭션 안에서는 `s3_delete_queue_dtl` 에 키를 적재만 하고
-  (`S3DeleteQueueService.enqueue`, `Propagation.MANDATORY`), 5분 주기 배치가 실제 삭제·재시도(최대 10회).
-  외부 호출 실패로 탈퇴가 롤백되거나, 반대로 파일만 지워지고 DB 가 롤백되는 일을 둘 다 막는다
+- **S3 는 커밋 직후 비동기**: 트랜잭션 안에서는 `s3_delete_queue_dtl` 에 키를 적재만 하고
+  (`S3DeleteQueueService.enqueue`, `Propagation.MANDATORY`), `S3DeleteQueueDrainer`가
+  `@TransactionalEventListener` + `@Async` 로 **커밋된 직후 바로** 지운다
+  - 큐 테이블의 목적은 "나중에 몰아 지우기"가 **아니라** S3 호출을 트랜잭션 밖으로 빼는 것이다 —
+    안에서 지우면 이후 롤백 시 파일만 사라지고, 반대로 S3 장애가 탈퇴를 롤백시킨다
+  - ⛔ **`@Scheduled` 는 정상 경로가 아니라 재시도 그물이다** (1시간 주기, 최대 10회).
+    S3 일시 장애로 실패했거나 커밋~삭제 사이에 서버가 죽어 남은 행만 줍는다.
+    주기를 분 단위로 조이지 말 것 — 평소엔 빈 큐를 확인하는 쿼리만 반복된다
+  - 배치 루프를 `S3DeleteQueueService` 밖(`Drainer`)에 둔 건 프록시 경유로 **배치마다 독립 트랜잭션**을
+    만들기 위해서다. 한 트랜잭션으로 묶으면 중간에 터질 때 성공 기록까지 날아가 같은 키를 또 지운다
 - ⚠️ **`photo_dtl` 은 폴리모픽이라 FK 가 없다** — CASCADE 가 안 걸리므로 개체의 PET/MEMO/MATING/LAYING
   사진을 서브쿼리로 긁어 수동 삭제해야 한다 (`PetPurgeRepository.PHOTO_SCOPE`)
 - ⚠️ 물리 삭제는 **네이티브 쿼리로** 한다. `@SQLRestriction("deleted_at IS NULL")` 때문에 JPQL·파생 쿼리는

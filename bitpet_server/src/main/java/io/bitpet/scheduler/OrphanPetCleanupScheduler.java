@@ -1,7 +1,7 @@
 package io.bitpet.scheduler;
 
 import io.bitpet.pet.service.PetWithdrawalService;
-import io.bitpet.storage.service.S3DeleteQueueService;
+import io.bitpet.storage.service.S3DeleteQueueDrainer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -25,7 +25,7 @@ public class OrphanPetCleanupScheduler {
     private static final int MAX_ROUNDS = 50;
 
     private final PetWithdrawalService withdrawalService;
-    private final S3DeleteQueueService s3DeleteQueue;
+    private final S3DeleteQueueDrainer s3DeleteQueue;
 
     /**
      * 매일 Seoul 03:10. 지운 개체가 부모로 걸고 있던 행도 함께 사라지면서
@@ -45,11 +45,13 @@ public class OrphanPetCleanupScheduler {
     }
 
     /**
-     * S3 삭제 큐 소진. 탈퇴·정리 트랜잭션은 삭제할 키를 적재만 하고 끝난다 —
-     * 외부 호출 실패로 DB 를 롤백할 수는 없기 때문이다. 실제 삭제는 여기서 재시도한다.
+     * S3 삭제 큐 <b>재시도</b>. 정상 경로는 커밋 직후 {@link S3DeleteQueueDrainer}가 이미 끝낸다 —
+     * 여기는 S3 일시 장애로 실패했거나 커밋과 삭제 사이에 서버가 죽어 남은 행만 줍는다.
+     *
+     * <p>그래서 주기가 짧을 이유가 없다. 짧게 잡으면 평소엔 빈 큐를 확인하는 쿼리만 반복된다.
      */
-    @Scheduled(fixedDelay = 300_000, initialDelay = 60_000)
-    public void drainS3DeleteQueue() {
-        s3DeleteQueue.drain();
+    @Scheduled(fixedDelay = 3_600_000, initialDelay = 120_000)
+    public void retryFailedS3Deletes() {
+        s3DeleteQueue.drainAll();
     }
 }
