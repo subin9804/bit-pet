@@ -7,6 +7,7 @@ import io.bitpet.common.exception.ErrorCode;
 import io.bitpet.nfc.domain.NfcTagBindHst;
 import io.bitpet.nfc.domain.TagBindAction;
 import io.bitpet.nfc.domain.TagStatus;
+import io.bitpet.nfc.dto.MyTagResponse;
 import io.bitpet.nfc.dto.NfcScanResponse;
 import io.bitpet.nfc.service.NfcTagService;
 import io.bitpet.pet.domain.PetGender;
@@ -33,8 +34,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * <ul>
  *   <li><b>필드 축소를 서버가 하는가</b> — 남의 개체를 스캔했을 때 소유자 정보가
  *       응답에 담기지 않아야 한다. "앱이 안 그리면 된다"로는 지킬 수 없는 약속이다</li>
- *   <li><b>소유권 판정 근거가 pet_keeper_rls 인가</b> — 공동 사육자(KEEPER)는
- *       개체를 볼 수는 있어도 태그를 붙일 수는 없다</li>
+ *   <li><b>권한 판정 근거가 pet_keeper_rls 인가</b> — 사육자(OWNER/KEEPER)는 붙일 수 있고
+ *       사육자가 아니면 못 붙인다. {@code pet_mst.user_id} 로는 이 구분이 안 나온다</li>
  * </ul>
  */
 class NfcScanBindIntegrationTest extends IntegrationTestBase {
@@ -83,20 +84,57 @@ class NfcScanBindIntegrationTest extends IntegrationTestBase {
     }
 
     @Test
-    void 공동사육자는_태그를_붙일_수_없다() {
+    void 공동사육자도_이름표를_붙일_수_있다() {
         Long owner  = signup();
         Long keeper = signup();
-        Long petId  = createPet(owner, "같이보던개체", PetGender.MALE);
+        Long petId  = createPet(owner, "같이키우는개체", PetGender.MALE);
         keeperRepository.save(PetKeeperRls.of(petId, keeper, PetKeeperRole.KEEPER));
         String tagCd = issueTag();
 
-        // 볼 수는 있다
-        assertThat(nfcTagService.scan(keeper, tagCd).status()).isEqualTo(TagStatus.UNLINKED);
-        // 붙이는 건 OWNER 만 — pet_mst.user_id 가 아니라 pet_keeper_rls 로 판정한다
-        assertThatThrownBy(() -> nfcTagService.bind(keeper, tagCd, petId, false))
+        // 이름표는 개체 이름이 새겨진 채로 팔린다 — 어느 개체용인지가 실물에 이미 박혀 있어서
+        // 붙이는 데 소유권 판단이 필요 없다. 같이 키우는 사람이 샀는데 못 붙이면 곤란하다
+        nfcTagService.bind(keeper, tagCd, petId, false);
+        assertThat(nfcTagService.scan(keeper, tagCd).status()).isEqualTo(TagStatus.LINKED);
+
+        // 공동사육자가 붙였어도 소유자가 떼어낼 수 있어야 한다 (태그를 붙인 본인만 보면 막힌다)
+        nfcTagService.unlink(owner, tagCd);
+        assertThat(nfcTagService.scan(owner, tagCd).status()).isEqualTo(TagStatus.UNLINKED);
+    }
+
+    @Test
+    void 사육자가_아니면_이름표를_붙일_수_없다() {
+        Long owner    = signup();
+        Long stranger = signup();
+        Long petId    = createPet(owner, "남의개체", PetGender.MALE);
+        String tagCd  = issueTag();
+
+        assertThatThrownBy(() -> nfcTagService.bind(stranger, tagCd, petId, false))
                 .isInstanceOf(BusinessException.class)
                 .extracting(e -> ((BusinessException) e).getErrorCode())
                 .isEqualTo(ErrorCode.PET_ACCESS_DENIED);
+    }
+
+    @Test
+    void 어드민은_출고_전에_붙여두고_태그는_고객_것이_된다() {
+        Long owner = signup();
+        Long admin = signup();
+        Long petId = createPet(owner, "각인된레오", PetGender.MALE);
+        String tagCd = issueTag();
+
+        nfcTagService.bindByAdmin(admin, tagCd, petId);
+
+        // 고객은 받아서 찍기만 하면 이미 연결돼 있다
+        assertThat(nfcTagService.scan(owner, tagCd).status()).isEqualTo(TagStatus.LINKED);
+        // 태그 소유자는 어드민이 아니라 고객이다 — 어드민 목록에 쌓이면 안 된다
+        assertThat(nfcTagService.listMyTags(owner)).extracting(MyTagResponse::tagCd).contains(tagCd);
+        assertThat(nfcTagService.listMyTags(admin)).isEmpty();
+        // 다만 붙인 사람은 이력에 어드민으로 남는다 (문의 대응)
+        assertThat(nfcTagService.bindHistory(owner, tagCd))
+                .singleElement()
+                .satisfies(h -> {
+                    assertThat(h.getAction()).isEqualTo(TagBindAction.BIND);
+                    assertThat(h.getActorId()).isEqualTo(admin);
+                });
     }
 
     @Test

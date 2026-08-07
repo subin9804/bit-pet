@@ -29,9 +29,13 @@ import java.util.stream.Collectors;
  * <p>권한 규칙
  * <ul>
  *   <li>조회 : 연결된 개체의 <b>사육자</b>(OWNER/KEEPER)면 LINKED, 아니면 OWNED_BY_OTHER</li>
- *   <li>연결 : 개체의 <b>소유자</b>(OWNER)만. 이미 남이 쓰는 태그면 409</li>
- *   <li>해제 : 태그 소유자만</li>
+ *   <li>연결·이전·해제 : 개체의 <b>사육자</b>(OWNER/KEEPER). 이미 남이 쓰는 태그면 409</li>
  * </ul>
+ *
+ * <p><b>왜 연결이 OWNER 전용이 아닌가.</b> 이름표는 개체 이름이 새겨진 채로 팔린다.
+ * 어느 개체용인지가 실물에 이미 박혀 있어서 붙이는 쪽에 판단의 여지가 없다 —
+ * 소유권을 옮기는 동작이 아니라 이미 정해진 사실을 입력하는 동작이다.
+ * 같이 키우는 사람이 이름표를 샀는데 못 붙이는 쪽이 더 이상하다.
  */
 @Service
 @RequiredArgsConstructor
@@ -155,15 +159,17 @@ public class NfcTagService {
     /**
      * 태그 바인딩 (POST /api/v1/nfc/bindings).
      *
-     * <p>소유권 검증은 {@code pet_mst.user_id} 가 아니라 <b>pet_keeper_rls 의 OWNER</b> 기준이다.
-     * {@code user_id} 는 표시용 비정규화 값이라 그걸로 판정하면 서버가 실제로 거는 검사와 어긋난다.
+     * <p>권한 검증은 {@code pet_mst.user_id} 가 아니라 <b>pet_keeper_rls</b> 기준이다.
+     * {@code user_id} 는 표시용 비정규화 값이고 고아 개체에서는 null 이 된다.
      * 이 검증이 없으면 남의 개체에 내 태그를 붙일 수 있다.
      *
      * <p>이미 붙어 있는 태그의 처리는 세 갈래다.
      * <ul>
-     *   <li>남의 개체 → 409 {@code TAG_ALREADY_LINKED}. 원 소유자가 먼저 해제해야 한다</li>
+     *   <li>남의 개체 → 409 {@code TAG_ALREADY_LINKED}. 원 사육자가 먼저 해제해야 한다</li>
      *   <li>내 다른 개체 → {@code rebind=false} 면 409 {@code TAG_REBIND_CONFIRM_REQUIRED}.
-     *       그냥 옮기면 사용자는 어느 개체의 이름표가 끊겼는지 모른 채 태그를 잃는다</li>
+     *       이름이 새겨진 이름표를 실제로 옮길 일은 없으므로 이 갈래는 사실상
+     *       <b>잘못 붙인 걸 되돌리는 경로</b>다. 그래서 막지 않고 확인만 받는다 —
+     *       대신 어느 개체에 붙어 있었는지를 메시지에 담아 실수를 알아채게 한다</li>
      *   <li>붙어 있던 개체가 이미 삭제됨 → 붙잡아 둘 이유가 없다. 확인 없이 푼다</li>
      * </ul>
      *
@@ -180,7 +186,7 @@ public class NfcTagService {
         if (prevPetId != null && !prevPetId.equals(petId)) {
             assertRebindAllowed(userId, tag, rebind);
         }
-        PetMst pet = petKeeperService.assertOwner(userId, petId);
+        PetMst pet = petKeeperService.assertKeeper(userId, petId);
 
         tag.linkTo(pet.getId(), userId);
         // 같은 개체에 다시 붙인 건 이력이 아니다 (스캔 후 무심코 재연결)
@@ -197,7 +203,9 @@ public class NfcTagService {
         if (current.isEmpty()) {
             return; // 붙어 있던 개체가 사라졌다 — 확인을 물을 대상 자체가 없다
         }
-        if (!tag.isOwnedBy(userId)) {
+        // 지금 붙어 있는 개체를 같이 키우는 사람인지로 판단한다.
+        // tag.userId(붙인 본인)로 보면, 공동사육자가 붙인 이름표를 정작 소유자가 못 고친다
+        if (!petKeeperService.isKeeper(userId, tag.getPetId())) {
             throw new BusinessException(ErrorCode.TAG_ALREADY_LINKED);
         }
         if (!rebind) {
@@ -210,9 +218,7 @@ public class NfcTagService {
     @Transactional
     public void unlink(Long userId, String tagCd) {
         NfcTagMst tag = findTag(tagCd);
-        if (!tag.isOwnedBy(userId)) {
-            throw new BusinessException(ErrorCode.TAG_ACCESS_DENIED);
-        }
+        assertCanManage(userId, tag);
         Long prevPetId = tag.getPetId();
         tag.unlink();
         if (prevPetId != null) {
@@ -220,13 +226,23 @@ public class NfcTagService {
         }
     }
 
-    /** 태그 한 장의 연결 내역 (최신순) — 태그 소유자만. 분쟁 확인용 */
+    /** 태그 한 장의 연결 내역 (최신순) — 그 태그를 다룰 수 있는 사람만. 분쟁 확인용 */
     public List<NfcTagBindHst> bindHistory(Long userId, String tagCd) {
         NfcTagMst tag = findTag(tagCd);
-        if (!tag.isOwnedBy(userId)) {
-            throw new BusinessException(ErrorCode.TAG_ACCESS_DENIED);
-        }
+        assertCanManage(userId, tag);
         return bindHistoryRepository.findAllByTagCdOrderByIdDesc(tag.getTagCd());
+    }
+
+    /**
+     * 태그를 다룰 수 있는 사람 — 붙인 본인이거나, 지금 붙어 있는 개체의 사육자.
+     *
+     * <p>둘을 모두 봐야 한다. 붙인 사람만 보면 공동사육자가 붙인 이름표를 소유자가 떼지 못하고,
+     * 개체 사육자만 보면 미연결 재고 태그(개체가 없다)를 산 본인이 손대지 못한다.
+     */
+    private void assertCanManage(Long userId, NfcTagMst tag) {
+        if (tag.isOwnedBy(userId)) return;
+        if (tag.getPetId() != null && petKeeperService.isKeeper(userId, tag.getPetId())) return;
+        throw new BusinessException(ErrorCode.TAG_ACCESS_DENIED);
     }
 
     // -------------------------------------------------------------------------
@@ -246,6 +262,36 @@ public class NfcTagService {
                 .toList();
         tagRepository.saveAll(tags);
         return tags.stream().map(NfcTagMst::getTagCd).sorted().toList();
+    }
+
+    /**
+     * 주문 건 사전 연결 — 각인할 이름을 정하는 시점에 이미 어느 개체인지 알기 때문에
+     * 출고 전에 서버가 붙여 둔다. 고객은 받아서 찍기만 하면 된다.
+     *
+     * <p>사육자 검증을 하지 않는다. 어드민은 그 개체의 사육자가 아니므로 검증을 걸면
+     * 이 동작 자체가 불가능하다. 대신 <b>태그 소유자는 어드민이 아니라 개체의 소유자로 단다</b> —
+     * 어드민으로 달면 고객 마이페이지의 태그 목록에 안 뜨고 어드민 목록에 쌓인다.
+     *
+     * <p>이력의 actor 는 어드민이다. 나중에 "내가 붙인 적 없는데 연결돼 있다"는 문의가 오면
+     * 누가 붙였는지가 여기 남아 있어야 한다.
+     */
+    @Transactional
+    public PetMst bindByAdmin(Long adminUserId, String tagCd, Long petId) {
+        NfcTagMst tag = findTag(tagCd);
+        if (tag.isRevoked()) {
+            throw new BusinessException(ErrorCode.TAG_REVOKED);
+        }
+        PetMst pet = petRepository.findById(petId)
+                .filter(p -> !p.isOrphaned())
+                .orElseThrow(() -> new BusinessException(ErrorCode.PET_NOT_FOUND));
+
+        Long prevPetId = tag.getPetId();
+        tag.linkTo(pet.getId(), petKeeperService.ownerIdOf(pet.getId()).orElse(null));
+        if (!pet.getId().equals(prevPetId)) {
+            bindHistoryRepository.save(
+                    NfcTagBindHst.bound(tag.getTagCd(), pet.getId(), prevPetId, adminUserId));
+        }
+        return pet;
     }
 
     /**

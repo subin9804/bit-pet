@@ -324,17 +324,28 @@ private Map<String, Object> extraData;
 - **API** (`io.bitpet.nfc`) — 스캔·바인딩은 `/api/v1/nfc`, 태그 관리는 구 `/api/v1/tags`:
   - `GET /api/v1/nfc/tags/{tagCd}/resolve` → `NfcScanResponse{status, tagCd, pet}`. 상태 + **개체 카드**(`PetCardResponse`)를 한 번에.
     개체 상세를 다시 부르면 남의 개체에서 403 이 나기 때문에 카드를 여기서 같이 내린다
-  - `POST /api/v1/nfc/bindings {tagCd, petId, rebind}` — 소유권은 `PetKeeperService.assertOwner`(`pet_keeper_rls`) 기준.
-    ⛔ `pet_mst.user_id` 로 판정하지 말 것 (표시용 비정규화 값이라 서버가 실제로 거는 검사와 어긋난다)
+  - `POST /api/v1/nfc/bindings {tagCd, petId, rebind}` — **사육자(OWNER/KEEPER)면 붙일 수 있다** (`assertKeeper`).
+    이름표는 개체 이름이 새겨진 채 팔려서 어느 개체용인지가 실물에 이미 박혀 있다 → 붙이는 데 소유권 판단이 필요 없고,
+    같이 키우는 사람이 이름표를 샀는데 못 붙이는 쪽이 이상하다. 해제·이력 조회도 같은 기준
+    ⛔ `pet_mst.user_id` 로 판정하지 말 것 (표시용 비정규화 값이고 고아 개체에선 null 이 된다)
+    ⛔ 태그 권한을 `tag.user_id`(붙인 본인)만으로 보지 말 것 — 공동사육자가 붙인 이름표를 소유자가 못 떼게 된다.
+    `assertCanManage` 는 "붙인 본인 **또는** 현재 붙어 있는 개체의 사육자"를 본다 (미연결 재고 태그는 개체가 없으므로 전자가 필요)
   - 구 경로는 태그 관리 화면이 계속 쓴다: `GET /api/v1/tags/{tagCd}`, `POST /{tagCd}/link`(**deprecated** — `bind`로 위임), `DELETE /{tagCd}/link`, `GET /tags/my`
 - **남의 개체 스캔 시 필드 축소는 서버가 한다.** `PetCardResponse` 자체가 "남에게 보여도 되는 전부"(이름·종·모프·성별·해칭일)라
   사육기록·체중·커뮤니티 활동은 애초에 담기지 않고, `owner` 는 OWNED_BY_OTHER 에서 **null 로 비워 내보낸다**.
   ⛔ 클라이언트 숨김 처리로 대체하지 말 것 — 숨김은 응답을 까 보면 무너진다 (`NfcScanBindIntegrationTest` 가 이걸 검증한다)
 - **재연결(rebind)은 확인을 강제한다**: 내 다른 개체에 붙어 있는 태그면 409 `TAG_REBIND_CONFIRM_REQUIRED`(어느 개체인지 메시지에 담김)
   → 앱이 확인 다이얼로그를 띄우고 `rebind=true` 로 재요청. 남의 개체에 붙은 태그는 409 `TAG_ALREADY_LINKED` — 확인으로 넘길 수 없다
+  - ℹ️ **rebind 는 "이름표를 다른 개체로 옮기는 기능"이 아니다.** 이름이 각인돼 있어 실제 이동은 성립하지 않는다.
+    실사용은 **잘못 붙인 걸 되돌리는 것**(각인은 '레오'인데 목록에서 옆 개체를 눌러버림) 하나뿐이므로, 막지 말고 확인만 받는다
 - **연결 이력** `nfc_tag_bind_hst` (V55, append-only): BIND/REBIND/UNBIND/REVOKE. 실물 태그는 손을 옮겨 다니고
   "내 태그를 가로챘다"는 신고는 현재 상태만으로 판정할 수 없다. 개체 물리 삭제·차단으로 끊긴 것도 `actor_id = NULL` 로 남긴다
-  - 어드민: `POST /api/v1/admin/tags/issue?count=&chipType=&batchNo=` (재고 발급), `GET /api/v1/admin/tags/stats` (unsold/linked/released/revoked)
+  - 어드민: `POST /api/v1/admin/tags/issue?count=&chipType=&batchNo=` (재고 발급), `GET /api/v1/admin/tags/stats` (unsold/linked/released/revoked),
+    `POST /api/v1/admin/tags/bindings?tagCd=&petId=` (**출고 전 사전 연결** — 사육자 검증 없음. 태그 소유자는 어드민이 아니라 **개체의 소유자**로 달고, 이력 `actor_id` 에 어드민을 남긴다)
+- 🚨 **`/api/v1/admin/**` 은 URL 로 보호되지 않는다.** `SecurityConfig` 는 `publicPaths` 외 전부 `anyRequest().authenticated()` 뿐이라
+  **로그인만 하면 아무나 도달한다.** 어드민 컨트롤러는 메서드마다 `AdminGuard.assertAdmin(principal.userId())` 를 직접 호출할 것
+  (`admin_role_rls` 조회. JWT role 클레임은 발급 시점 스냅샷이라 권한 회수가 즉시 반영되지 않으므로 쓰지 않는다).
+  ⛔ 새 어드민 엔드포인트를 추가하면서 가드를 빠뜨리지 말 것 — 태그 영구 차단처럼 되돌릴 수 없는 동작이 열려 있다
 - **딥링크 공개 경로** (`public-paths`): `/.well-known/**`, `/t/**`
   - `AssetLinksController` — 지문 미설정 시 **404 반환** (지문 없는 파일은 autoVerify를 조용히 실패시켜 링크가 브라우저로 샌다)
   - `TagLandingController` — 미설치·비로그인용 랜딩. **개체 이름만** 노출, 체중·급여 기록 절대 금지. 모르는 코드도 404 대신 일반 랜딩
@@ -348,7 +359,10 @@ private Map<String, Object> extraData;
   - 개체 진입은 `context.go('/home')` → `context.push('/pets/:id')` — 홈을 스택 하단에 깔지 않으면 뒤로가기 한 번에 앱이 종료됨
   - 태그 스캔은 **기록 시트를 자동으로 열지 않는다** (V52). `?openRecord=feed|scale` 자동 오픈 자체는 `PetDetailScreen`에 남아 있지만 태그 경로에서는 쓰지 않는다
   - 마이페이지 > 이름표 관리(`/my/tags`) — 연결 해제만 (양도 시 원 소유자가 해제 → 새 주인이 재연결). 목록 캡션에 `사용 중지됨`/`chip_type` 표시
-- **제작**: 랜덤 코드 100개 발급(`/admin/tags/issue`, 배치번호 함께) → 칩(현재 입고분 **NTAG203**)에 URL 굽기 → 재고. 주문 시 각인 이름만 받아 **PETG**(PLA는 사육장 열·습도에 변형) 3D 프린팅 후 아무 태그나 부착 — 어느 태그가 어느 개체인지 알 필요 없음
+- **제작·출고**: 랜덤 코드 100개 발급(`/admin/tags/issue`, 배치번호 함께) → 칩(현재 입고분 **NTAG203**)에 URL 굽기 → 재고.
+  주문이 들어오면 각인 이름을 받아 **PETG**(PLA는 사육장 열·습도에 변형) 3D 프린팅 → 재고 태그 하나를 부착.
+  **이때 어느 개체용인지가 이미 정해지므로**(각인 이름 = 그 개체) `POST /admin/tags/bindings` 로 **출고 전에 붙여서 내보낸다**. 고객은 받아서 찍기만 하면 된다
+  - 앱에서 고객이 직접 붙이는 경로(`POST /api/v1/nfc/bindings`)도 계속 유지한다 — 미연결로 나간 재고와 사전 연결 실패분 대비
 - **v1.1+**: 양도 플로우, 사육장 단위 태그, iOS Universal Links (제품 라인업은 각인·외형으로만 구분 — 태그 데이터는 1종)
 
 ### 가계도 부모 등록 (V53)

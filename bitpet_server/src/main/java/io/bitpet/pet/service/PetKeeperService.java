@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -52,6 +53,16 @@ public class PetKeeperService {
 
     public boolean isKeeper(Long userId, Long petId) {
         return keeperRepository.existsByIdPetIdAndIdUserId(petId, userId);
+    }
+
+    /**
+     * 개체의 소유자 id. 고아 개체(주인 탈퇴)는 OWNER 행이 없어 empty 다.
+     *
+     * <p>권한 검사가 아니라 <b>대신 처리해 줄 대상을 찾는 용도</b>다 — 어드민이 주문 건으로
+     * 태그를 미리 붙일 때 태그 소유자를 어드민이 아니라 고객으로 달아야 한다.
+     */
+    public Optional<Long> ownerIdOf(Long petId) {
+        return keeperRepository.findOwner(petId).map(PetKeeperRls::getUserId);
     }
 
     /**
