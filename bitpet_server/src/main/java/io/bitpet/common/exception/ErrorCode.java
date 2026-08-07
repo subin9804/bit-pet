@@ -108,6 +108,9 @@ public enum ErrorCode {
     // --- NFC Tag ---
     TAG_NOT_FOUND(HttpStatus.NOT_FOUND, "유효하지 않은 태그입니다."),
     TAG_ALREADY_LINKED(HttpStatus.CONFLICT, "이미 다른 개체에 등록된 태그입니다."),
+    // 내 태그가 내 다른 개체에 붙어 있는 경우. TAG_ALREADY_LINKED(남의 태그, 되돌릴 수 없음)와
+    // 달리 사용자가 확인만 하면 옮길 수 있다 — 앱이 확인 다이얼로그를 띄우고 rebind=true 로 재요청한다
+    TAG_REBIND_CONFIRM_REQUIRED(HttpStatus.CONFLICT, "이 태그는 다른 개체에 연결되어 있습니다."),
     TAG_ACCESS_DENIED(HttpStatus.FORBIDDEN, "이 태그에 대한 권한이 없습니다."),
     TAG_REVOKED(HttpStatus.GONE, "사용이 중지된 태그입니다."),
 

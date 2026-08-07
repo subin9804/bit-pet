@@ -460,6 +460,20 @@ public class PetService {
         return byPetId;
     }
 
+    /**
+     * 개체를 "한 장 카드"로. NFC 스캔처럼 개체를 그 자리에서 확인시켜야 하는 자리를 위한 것이다.
+     *
+     * <p>{@code includeOwner = false} 면 소유자 정보를 <b>아예 담지 않는다</b>(null).
+     * 남의 개체를 스캔했을 때 쓴다 — 개체가 실재한다는 것까지는 알려주되 누구 것인지는 밝히지 않는다.
+     */
+    public PetCardResponse cardOf(Long requesterId, PetMst pet, boolean includeOwner) {
+        PetOwnerResponse owner = includeOwner
+                ? resolveOwners(requesterId, List.of(pet)).get(pet.getId())
+                : null;
+        return PetCardResponse.of(pet, null, null, resolveProfileImageUrl(pet),
+                petKeeper.isKeeper(requesterId, pet.getId()), owner);
+    }
+
     private PetCardResponse toCard(Long userId, PetMst pet, Long relationId,
                                    RelationType relationType,
                                    Map<Long, PetOwnerResponse> owners) {

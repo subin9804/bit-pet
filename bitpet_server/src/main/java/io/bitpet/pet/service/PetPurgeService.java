@@ -1,6 +1,8 @@
 package io.bitpet.pet.service;
 
+import io.bitpet.nfc.domain.NfcTagBindHst;
 import io.bitpet.nfc.domain.NfcTagMst;
+import io.bitpet.nfc.repository.NfcTagBindHstRepository;
 import io.bitpet.nfc.repository.NfcTagMstRepository;
 import io.bitpet.pet.domain.PetMst;
 import io.bitpet.pet.repository.PetMstRepository;
@@ -33,6 +35,7 @@ public class PetPurgeService {
     private final PetMstRepository petRepository;
     private final PetPurgeRepository purgeRepository;
     private final NfcTagMstRepository tagRepository;
+    private final NfcTagBindHstRepository bindHistoryRepository;
     private final RoutineMaintenanceService routineMaintenance;
     private final S3DeleteQueueService s3DeleteQueue;
 
@@ -107,7 +110,11 @@ public class PetPurgeService {
      */
     private void releaseTags(Long petId) {
         List<NfcTagMst> tags = tagRepository.findAllByPetId(petId);
-        tags.forEach(NfcTagMst::unlink);
+        for (NfcTagMst tag : tags) {
+            tag.unlink();
+            // actor 는 null — 사용자가 태그를 뗀 게 아니라 개체가 사라져서 끊긴 것이다
+            bindHistoryRepository.save(NfcTagBindHst.unbound(tag.getTagCd(), petId, null));
+        }
     }
 
     /** 사진 행 삭제 + S3 키를 삭제 큐에 적재. keepPhotoId 는 남길 대표 사진(없으면 null) */

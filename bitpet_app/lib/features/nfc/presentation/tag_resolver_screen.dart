@@ -4,19 +4,21 @@ import 'package:go_router/go_router.dart';
 import '../../../core/api/api_response.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../pet/data/models/pet_models.dart';
 import '../data/models/tag_models.dart';
 import '../data/tag_repository.dart';
 import 'tag_link_sheet.dart';
 
-/// NFC 태그 스캔의 경유 화면.
+/// NFC 태그 딥링크의 경유 화면.
 ///
-/// OS가 `https://{host}/t/{tagCd}` 를 열어주면 go_router가 여기로 보낸다.
-/// 앱은 NFC를 직접 읽지 않는다 — 이 화면은 딥링크로 받은 코드를 서버에 물어보고
-/// status에 따라 라우팅만 한다.
+/// OS가 `https://tailog.me/t/{tagCd}` 를 열어주면 go_router가 여기로 보낸다.
+/// 이 화면은 **앱이 꺼져 있거나 배경일 때의 경로**다. 앱이 떠 있는 상태에서 스캔 시트로
+/// 읽는 경로는 `core/nfc/NfcPetScanSheet` 쪽이고, 그쪽이 리더 모드로 NFC를 선점하는 동안은
+/// 이 딥링크가 발동하지 않는다 (개체를 고르던 화면이 상세로 갈아엎히지 않게).
 ///
 /// * LINKED         → 개체 상세
 /// * UNLINKED       → 개체 선택 모달 → 연결 → 개체 상세
-/// * OWNED_BY_OTHER → 안내
+/// * OWNED_BY_OTHER → 안내 + 서버가 내려준 만큼의 개체 정보(이름·종·모프·성별·해칭일)
 /// * REVOKED        → "사용 중지된 태그" 안내 (실재하는 코드라 404와 구분한다)
 /// * 404            → "유효하지 않은 태그"
 class TagResolverScreen extends ConsumerStatefulWidget {
@@ -33,6 +35,9 @@ class _TagResolverScreenState extends ConsumerState<TagResolverScreen> {
   String? _errorMessage;
   TagStatus? _blockedStatus;
 
+  /// 남의 개체일 때 서버가 내려준 카드. 소유자 정보는 애초에 담겨 오지 않는다.
+  PetCard? _otherPet;
+
   @override
   void initState() {
     super.initState();
@@ -41,14 +46,18 @@ class _TagResolverScreenState extends ConsumerState<TagResolverScreen> {
 
   Future<void> _resolve() async {
     try {
-      final result = await ref.read(tagRepositoryProvider).resolve(widget.tagCd);
+      final result = await ref.read(tagRepositoryProvider).scan(widget.tagCd);
       if (!mounted) return;
       switch (result.status) {
         case TagStatus.linked:
-          _enterPet(result.petId!);
+          _enterPet(result.pet!.petId);
         case TagStatus.unlinked:
           await _promptLink();
         case TagStatus.ownedByOther:
+          setState(() {
+            _blockedStatus = result.status;
+            _otherPet = result.pet;
+          });
         case TagStatus.revoked:
           setState(() => _blockedStatus = result.status);
       }
@@ -109,12 +118,15 @@ class _TagResolverScreenState extends ConsumerState<TagResolverScreen> {
       );
     }
     if (_blockedStatus == TagStatus.ownedByOther) {
+      final pet = _otherPet;
       return _TagMessage(
         icon: Icons.lock_outline,
-        title: '이미 등록된 태그입니다',
+        title: '이미 등록된 이름표입니다',
         message: '다른 사육자의 개체에 연결되어 있어요.\n'
-            '양도받은 태그라면 이전 소유자가 먼저 연결을 해제해야 합니다.',
+            '양도받은 이름표라면 이전 소유자가 먼저 연결을 해제해야 합니다.',
         tagCd: widget.tagCd,
+        // 서버가 내려준 만큼만 보여준다. 사육기록·체중·소유자는 응답에 담겨 오지도 않는다
+        detail: pet == null ? null : _publicPetLine(pet),
       );
     }
     return const Scaffold(
@@ -124,17 +136,33 @@ class _TagResolverScreenState extends ConsumerState<TagResolverScreen> {
   }
 }
 
+/// 남의 개체 카드에서 보여줄 수 있는 전부를 한 줄로.
+/// 여기에 없는 필드는 앱이 감춘 게 아니라 서버가 응답에 담지 않은 것이다.
+String _publicPetLine(PetCard pet) {
+  final parts = <String>[
+    pet.name,
+    if (pet.speciesName.isNotEmpty) pet.speciesName,
+    if (pet.morphLabel.isNotEmpty) pet.morphLabel,
+    switch (pet.gender) { 'MALE' => '♂', 'FEMALE' => '♀', _ => '' },
+    if (pet.hatchingDate != null)
+      '${pet.hatchingDate!.year}.${pet.hatchingDate!.month.toString().padLeft(2, '0')} 해칭',
+  ]..removeWhere((s) => s.isEmpty);
+  return parts.join(' · ');
+}
+
 class _TagMessage extends StatelessWidget {
   final IconData icon;
   final String title;
   final String message;
   final String tagCd;
+  final String? detail;
 
   const _TagMessage({
     required this.icon,
     required this.title,
     required this.message,
     required this.tagCd,
+    this.detail,
   });
 
   @override
@@ -156,6 +184,19 @@ class _TagMessage extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: AppTextStyles.caption,
               ),
+              if (detail != null) ...[
+                const SizedBox(height: 14),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  color: AppColors.bg2,
+                  child: Text(
+                    detail!,
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.caption,
+                  ),
+                ),
+              ],
               const SizedBox(height: 14),
               Text(
                 tagCd,

@@ -111,7 +111,7 @@ record/
 routine/      루틴 도메인 (user 소유, routine_pet_rls, routine_log_dtl)
 notification/ 알림 로그 + NotificationType enum
 scheduler/    RoutineScheduler (@Scheduled 루틴 알람)
-nfc/          NFC 태그 이름표 (nfc_tag_mst, 태그 조회·연결·해제, assetlinks.json, /t/{tagCd} 랜딩)
+nfc/          NFC 태그 이름표 (nfc_tag_mst + nfc_tag_bind_hst, 스캔·바인딩·해제, assetlinks.json, /t/{tagCd} 랜딩)
 community/    게시글·댓글·좋아요
 photo/        폴리모픽 사진 (photo_dtl: PET/MEMO/MATING/LAYING)
               PhotoController (/api/v1/photos/**)
@@ -119,6 +119,8 @@ photo/        폴리모픽 사진 (photo_dtl: PET/MEMO/MATING/LAYING)
 storage/      S3Service (presignPut/presignGet/delete)
 sync/         오프라인 동기화 API (resources: pet/weight/feeding/cleaning/memo/mating/laying/laying_hatch)
 common/       공통 (exception, entity, config, api 응답 포맷)
+              entitlement/ 유료 티어 권한 판정 자리 — 현재 StubEntitlementService 가 항상 true.
+                           ⚠️ 아직 **어떤 기능에도 적용되어 있지 않다**. 결제 연동 시 구현체만 교체
 ```
 
 ### 프론트엔드 (`lib/`)
@@ -127,6 +129,7 @@ core/
   api/          DioProvider, ApiResponse, AuthInterceptor
   auth/         TokenStorage
   db/           AppDatabase (Drift) + tables/
+  nfc/          NfcPetScanSheet (개체 선택 자리의 '태그로 찾기'), NfcReader(NDEF 읽기+리더모드 선점), tag_url 파서
   router/       AppRouter (go_router)
   theme/        AppColors, AppTextStyles, AppTheme
   widgets/      공통 위젯 (EmptyState, SkeletonLoader, Toast, ConfirmModal)
@@ -191,8 +194,9 @@ features/
 | V52 | nfc_tag_mst 정정 — default_action_cd 제거(축이 잘못된 설계), tag_cd 포맷을 Crockford Base32 6자 `^[0-9A-HJKMNP-TV-Z]{6}$` 로 확정 |
 | V53 | pet_mst.user_id NOT NULL 해제 — 탈퇴 익명화 개체(가계도에서 '정보 없음') 지원. 권한 판정은 계속 pet_keeper_rls |
 | V54 | 탈퇴 개체 처리 — pet_mst.is_orphaned, user_mst.show_nickname_in_pedigree, s3_delete_queue_dtl(커밋 후 S3 삭제 재시도 큐) 신설 |
+| V55 | nfc_tag_bind_hst 신설 — 태그 연결 이력(append-only, BIND/REBIND/UNBIND/REVOKE). 태그 소유권 분쟁 판정 근거. FK 없음(개체·유저가 사라져도 이력은 남아야 함) |
 
-> **다음 마이그레이션은 V55부터 작성.**
+> **다음 마이그레이션은 V56부터 작성.**
 
 ---
 
@@ -288,9 +292,18 @@ private Map<String, Object> extraData;
   - 포그라운드 알림은 OS가 안 띄우므로 `flutter_local_notifications`로 직접 표시
 - **iOS 미구현**: Apple 개발자 계정 + APNs 인증 키 + `GoogleService-Info.plist` 필요. 현재 iOS는 `firebase_options.dart`에서 `UnsupportedError` → main에서 catch되어 푸시 없이 실행
 
-### NFC 태그 이름표 (v1)
+### NFC 태그 이름표 (v2)
 - **핵심 원칙**: 태그에는 `https://tailog.me/t/{tagCd}` **URL만** 굽혀 있고, 태그↔개체 연결은 **서버 DB에만** 존재
-  - 앱은 NFC를 **읽지도 쓰지도 않는다** — OS가 URL을 열고 앱은 딥링크만 받는다 → `nfc_manager` 류 패키지 불필요
+  - 앱은 태그에 **쓰지 않는다**(굽는 건 생산 공정). 읽기는 두 경로다:
+    1. **딥링크** — 앱이 꺼져 있거나 배경일 때. OS가 URL을 열고 `TagResolverScreen` 이 받는다
+    2. **앱 내 스캔** — `core/nfc/NfcPetScanSheet`. `nfc_manager`(3.x) 로 NDEF(URL)만 읽는다. **UID는 쓰지 않는다**
+  - ⚠️ **v1의 "앱은 NFC를 읽지 않는다 → `nfc_manager` 불필요"는 폐기됐다.** 뒤집은 이유는 읽기가 아니라 **선점**이다.
+    앱이 떠 있는 상태에서 태그를 탭하면 App Link 인텐트가 발동해 현재 화면이 개체 상세로 갈아엎힌다
+    (부모 개체를 고르던 중에 그 개체 상세로 튕겨나간다). `NfcManager.startSession` 은 Android 에서
+    `enableReaderMode` 를 켜므로 그동안 인텐트가 우리 콜백으로 대신 들어온다.
+    **시트를 닫을 때 `stop()` 을 빠뜨리면 리더 모드가 살아남아 딥링크가 통째로 죽는다** — `dispose` 에서 반드시 해제
+  - URL 파싱은 관대하게: `core/nfc/tag_url.dart`. 호스트 접미 일치(`www.`·서브도메인) + `/t/{code}` 세그먼트에서 코드만 뽑아 **대문자 정규화**.
+    우리 호스트가 아니면 '**tailog 이름표가 아닙니다**' 안내
 - `tag_cd` = **Crockford Base32 랜덤 6자** (`TagCodeGenerator`, `0123456789ABCDEFGHJKMNPQRSTVWXYZ` — I/L/O/U 제외).
   **일련번호와 완전히 다른 체계, 절대 순차 금지** (순차면 남의 태그 주소를 추측 가능)
   - V52 이전은 `BP` + 랜덤 4자였다. 고정 접두사가 경우의 수를 32⁴(105만)로 묶어버려 접두사를 떼고 6자 전부 랜덤(32⁶ ≈ 10.7억)으로 넓혔다
@@ -308,8 +321,19 @@ private Map<String, Object> extraData;
 - **테이블 분리**: `pet_mst`의 컬럼이 아니라 `nfc_tag_mst` 별도 테이블 — 재사용·해제·분실 처리가 깔끔
   - `unlink()`는 `pet_id`/`user_id`만 비우고 **`linked_at`은 남긴다** → "판매됐지만 미연결(온보딩 이탈)" 재고 쿼리가 가능해짐
   - 재고 쿼리: 미판매 = `pet_id IS NULL AND linked_at IS NULL` / 판매·미연결 = `pet_id IS NULL AND linked_at IS NOT NULL`
-- **API** (`io.bitpet.nfc`): `GET /api/v1/tags/{tagCd}` (UNLINKED / LINKED / OWNED_BY_OTHER / REVOKED, 없는 코드는 404 = 위조 차단) — **완전한 read-only**,
-  `POST /{tagCd}/link` (개체 **소유자만** — `PetKeeperService.assertOwner`, 즉 `pet_keeper_rls` 기준. 남이 쓰는 태그면 409), `DELETE /{tagCd}/link` (태그 소유자만), `GET /tags/my`
+- **API** (`io.bitpet.nfc`) — 스캔·바인딩은 `/api/v1/nfc`, 태그 관리는 구 `/api/v1/tags`:
+  - `GET /api/v1/nfc/tags/{tagCd}/resolve` → `NfcScanResponse{status, tagCd, pet}`. 상태 + **개체 카드**(`PetCardResponse`)를 한 번에.
+    개체 상세를 다시 부르면 남의 개체에서 403 이 나기 때문에 카드를 여기서 같이 내린다
+  - `POST /api/v1/nfc/bindings {tagCd, petId, rebind}` — 소유권은 `PetKeeperService.assertOwner`(`pet_keeper_rls`) 기준.
+    ⛔ `pet_mst.user_id` 로 판정하지 말 것 (표시용 비정규화 값이라 서버가 실제로 거는 검사와 어긋난다)
+  - 구 경로는 태그 관리 화면이 계속 쓴다: `GET /api/v1/tags/{tagCd}`, `POST /{tagCd}/link`(**deprecated** — `bind`로 위임), `DELETE /{tagCd}/link`, `GET /tags/my`
+- **남의 개체 스캔 시 필드 축소는 서버가 한다.** `PetCardResponse` 자체가 "남에게 보여도 되는 전부"(이름·종·모프·성별·해칭일)라
+  사육기록·체중·커뮤니티 활동은 애초에 담기지 않고, `owner` 는 OWNED_BY_OTHER 에서 **null 로 비워 내보낸다**.
+  ⛔ 클라이언트 숨김 처리로 대체하지 말 것 — 숨김은 응답을 까 보면 무너진다 (`NfcScanBindIntegrationTest` 가 이걸 검증한다)
+- **재연결(rebind)은 확인을 강제한다**: 내 다른 개체에 붙어 있는 태그면 409 `TAG_REBIND_CONFIRM_REQUIRED`(어느 개체인지 메시지에 담김)
+  → 앱이 확인 다이얼로그를 띄우고 `rebind=true` 로 재요청. 남의 개체에 붙은 태그는 409 `TAG_ALREADY_LINKED` — 확인으로 넘길 수 없다
+- **연결 이력** `nfc_tag_bind_hst` (V55, append-only): BIND/REBIND/UNBIND/REVOKE. 실물 태그는 손을 옮겨 다니고
+  "내 태그를 가로챘다"는 신고는 현재 상태만으로 판정할 수 없다. 개체 물리 삭제·차단으로 끊긴 것도 `actor_id = NULL` 로 남긴다
   - 어드민: `POST /api/v1/admin/tags/issue?count=&chipType=&batchNo=` (재고 발급), `GET /api/v1/admin/tags/stats` (unsold/linked/released/revoked)
 - **딥링크 공개 경로** (`public-paths`): `/.well-known/**`, `/t/**`
   - `AssetLinksController` — 지문 미설정 시 **404 반환** (지문 없는 파일은 autoVerify를 조용히 실패시켜 링크가 브라우저로 샌다)

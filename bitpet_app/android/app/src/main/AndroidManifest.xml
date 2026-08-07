@@ -2,6 +2,13 @@
     <!-- FCM: Android 13+ 알림 권한 -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
+    <!-- 앱 내 스캔 시트(core/nfc/NfcReader)가 리더 모드로 태그를 직접 읽는다.
+         딥링크만 받을 때는 필요 없던 권한이다. -->
+    <uses-permission android:name="android.permission.NFC"/>
+    <!-- NFC 미탑재 기기도 설치는 되게 둔다. 개체 관리·기록은 태그 없이도 전부 쓸 수 있고,
+         required="true" 로 두면 스토어에서 그런 기기를 아예 걸러낸다. -->
+    <uses-feature android:name="android.hardware.nfc" android:required="false"/>
+
     <application
         android:label="tailog"
         android:name="${applicationName}"

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/nfc/nfc_pet_scan_sheet.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../data/models/pet_models.dart';
@@ -109,6 +110,7 @@ class _ParentPetBottomSheetState
           _buildHandle(),
           _buildHeader(),
           _buildSearchField(),
+          _buildScanRow(),
           const SizedBox(height: 12),
           Expanded(
             child: petsAsync.when(
@@ -177,6 +179,53 @@ class _ParentPetBottomSheetState
         ),
       );
 
+  /// '목록에서 선택'의 짝 — 개체에 달린 NFC 이름표를 찍어서 고른다.
+  /// 케이지 앞에서 개체를 고를 때 이름·일련번호를 기억해 낼 필요가 없어진다.
+  Widget _buildScanRow() => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+        child: GestureDetector(
+          onTap: _scanTag,
+          behavior: HitTestBehavior.opaque,
+          child: Row(
+            children: [
+              const Icon(Icons.nfc, size: 18, color: AppColors.primary),
+              const SizedBox(width: 8),
+              Text('이름표로 찾기',
+                  style: AppTextStyles.body.copyWith(
+                      fontWeight: FontWeight.w600, color: AppColors.primary)),
+            ],
+          ),
+        ),
+      );
+
+  /// 스캔으로 고른 개체도 일련번호 검색과 같은 검증을 통과해야 한다 —
+  /// 태그가 붙어 있다고 해서 성별·종이 맞는 건 아니다.
+  Future<void> _scanTag() async {
+    final picked = await showNfcPetScanSheet(
+      context,
+      title: '이름표로 $_genderLabel 찾기',
+      subtitle: '개체에 달린 이름표에 휴대폰 뒷면을 가까이 대주세요.',
+    );
+    if (!mounted || picked == null) return;
+
+    final card = picked.card;
+    String? err;
+    if (card.petId == widget.excludePetId) {
+      err = '자기 자신은 부모로 등록할 수 없어요';
+    } else if (card.gender != _genderCode) {
+      err = '$_genderKo 개체가 아니에요';
+    } else if (widget.filterSpeciesId != null &&
+        card.speciesId != widget.filterSpeciesId) {
+      err = '종이 달라요 (${card.speciesName})';
+    }
+
+    setState(() {
+      _searchError = err;
+      _remoteFound = err == null ? card : null;
+      if (err == null) _selectedPet = card;
+    });
+  }
+
   Widget _buildBody(List<Pet> allPets) {
     final q = _query.trim().toLowerCase();
     final filtered = allPets.where((p) {
@@ -196,7 +245,7 @@ class _ParentPetBottomSheetState
       children: [
         // 일련번호 검색 결과 / 검색 유도 — 내 목록에 없을 때가 정확히 남의 개체를 거는 상황이다
         if (_remoteFound != null) ...[
-          Text('일련번호 검색 결과', style: AppTextStyles.caption),
+          Text('찾은 개체', style: AppTextStyles.caption),
           const SizedBox(height: 6),
           _PetListCard(
             card: _remoteFound!,

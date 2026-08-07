@@ -49,6 +49,16 @@ dependencies:
   # 포그라운드에서 알림을 직접 띄우기 위해 필요 (OS가 자동으로 띄워주지 않음)
   flutter_local_notifications: '>=18.0.0'
 
+  # NFC — NDEF(URL) 읽기 전용. UID는 쓰지 않는다.
+  # 앱 내 스캔 시트가 필요한 진짜 이유는 '읽기'가 아니라 '선점'이다. 앱이 떠 있는 상태에서
+  # 태그를 탭하면 OS가 App Link 인텐트를 쏴서 현재 화면을 개체 상세로 갈아엎는다
+  # (부모 개체를 고르던 중에 그 개체 상세로 튕겨나간다). 리더 모드를 켜두면 그 인텐트가
+  # 우리 콜백으로 대신 들어온다 — core/nfc/NfcReader 참고.
+  #
+  # 4.x는 API가 갈아엎어졌다(NfcManager.instance.startSession 시그니처 변경).
+  # 3.x API로 작성했으므로 상한을 막아둔다.
+  nfc_manager: '>=3.5.0 <4.0.0'
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

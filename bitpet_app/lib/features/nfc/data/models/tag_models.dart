@@ -1,8 +1,14 @@
 /// NFC 태그 이름표 모델.
 ///
 /// 태그는 자기 코드만 가지고 출고되고, 개체와의 연결은 서버 DB에만 존재한다.
-/// 앱은 NFC를 읽지도 쓰지도 않는다 — OS가 URL을 열어주고 앱은 딥링크만 받는다.
+///
+/// 태그를 읽는 경로는 둘이다.
+///  1. **딥링크** — 앱이 꺼져 있거나 배경일 때. OS가 `https://tailog.me/t/{tagCd}` 를 열어준다
+///  2. **앱 내 스캔** — `core/nfc/NfcPetScanSheet`. 개체를 고르는 자리에서 직접 NDEF를 읽는다.
+///     시트가 떠 있는 동안은 리더 모드로 NFC를 선점해 1번 경로(딥링크)가 화면을 갈아엎지 못하게 한다
 library;
+
+import '../../../pet/data/models/pet_models.dart';
 
 /// 태그 스캔 결과 상태. 이 값으로만 분기한다.
 enum TagStatus {
@@ -64,6 +70,35 @@ class TagResolveResult {
       petNm: json['petNm'] as String?,
     );
   }
+}
+
+/// GET /api/v1/nfc/tags/{tagCd}/resolve 응답.
+///
+/// [TagResolveResult]와 달리 개체 정보를 카드로 함께 받는다 — 스캔 시트가 "이 개체가 맞나요?"를
+/// 그 자리에서 보여줘야 하는데, 개체 상세를 다시 부르면 남의 개체에서 403이 난다.
+///
+/// **남의 개체일 때 필드를 잘라내는 건 서버다.** 소유자 정보([PetCard.owner])는 응답에
+/// 아예 담겨 오지 않고, 사육기록·체중·커뮤니티 활동은 [PetCard] 자체에 없다.
+/// 여기서 추가로 숨길 것도 없고, 숨겨서도 안 된다 — 숨김은 응답을 까 보면 무너진다.
+class NfcScanResult {
+  final TagStatus status;
+  final String tagCd;
+
+  /// LINKED / OWNED_BY_OTHER 일 때만. UNLINKED·REVOKED 면 null
+  final PetCard? pet;
+
+  const NfcScanResult({required this.status, required this.tagCd, this.pet});
+
+  /// 내가 사육하는 개체에 붙은 태그인지
+  bool get isMine => status == TagStatus.linked;
+
+  factory NfcScanResult.fromJson(Map<String, dynamic> json) => NfcScanResult(
+        status: TagStatus.fromServer(json['status'] as String?),
+        tagCd: json['tagCd'] as String? ?? '',
+        pet: json['pet'] == null
+            ? null
+            : PetCard.fromJson(json['pet'] as Map<String, dynamic>),
+      );
 }
 
 /// GET /api/v1/tags/my 응답 — 마이페이지 태그 관리용
