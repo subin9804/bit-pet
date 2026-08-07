@@ -25,16 +25,33 @@ import java.time.Instant;
 @Table(
         name = "nfc_tag_mst",
         indexes = {
-                @Index(name = "idx_nfc_tag_mst_pet",  columnList = "pet_id"),
-                @Index(name = "idx_nfc_tag_mst_user", columnList = "user_id")
+                @Index(name = "idx_nfc_tag_mst_pet",    columnList = "pet_id"),
+                @Index(name = "idx_nfc_tag_mst_user",   columnList = "user_id"),
+                @Index(name = "idx_nfc_tag_mst_status", columnList = "status")
         }
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class NfcTagMst extends BaseTimeEntity {
 
+    /** 현재 입고분. 세대가 바뀌면 발급 시점에 넘겨서 덮어쓴다 */
+    public static final String DEFAULT_CHIP_TYPE = "NTAG203";
+
     @Id
     @Column(name = "tag_cd", length = 10, updatable = false)
     private String tagCd;
+
+    /** 칩 세대. NTAG203 은 패스워드 보호가 불가능해 락 미적용으로 출고된다 */
+    @Column(name = "chip_type", nullable = false, length = 20)
+    private String chipType = DEFAULT_CHIP_TYPE;
+
+    /** 생산 배치. 불량 회수 단위 — 구재고는 NULL */
+    @Column(name = "batch_no", length = 20)
+    private String batchNo;
+
+    /** 태그 자체의 생애주기. 스캔한 사람 기준 판정과는 별개다 */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 20)
+    private TagStockStatus status = TagStockStatus.STOCK;
 
     /** NULL = 미판매 재고 또는 연결 해제 상태 */
     @Column(name = "pet_id")
@@ -44,25 +61,17 @@ public class NfcTagMst extends BaseTimeEntity {
     @Column(name = "user_id")
     private Long userId;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "default_action_cd", nullable = false, length = 20)
-    private TagActionCd defaultActionCd = TagActionCd.PET_DETAIL;
-
     /** 연결 시각. 해제해도 남겨 "한 번은 연결됐던 태그"를 구분한다. */
     @Column(name = "linked_at")
     private Instant linkedAt;
 
-    @Column(name = "scan_cnt", nullable = false)
-    private int scanCnt = 0;
-
-    @Column(name = "last_scan_at")
-    private Instant lastScanAt;
-
     /** 재고용 — 개체 연결 없이 태그 코드만 발급 */
-    public static NfcTagMst stock(String tagCd) {
+    public static NfcTagMst stock(String tagCd, String chipType, String batchNo) {
         NfcTagMst tag = new NfcTagMst();
         tag.tagCd = tagCd;
-        tag.defaultActionCd = TagActionCd.PET_DETAIL;
+        tag.chipType = (chipType == null || chipType.isBlank()) ? DEFAULT_CHIP_TYPE : chipType;
+        tag.batchNo = (batchNo == null || batchNo.isBlank()) ? null : batchNo;
+        tag.status = TagStockStatus.STOCK;
         return tag;
     }
 
@@ -70,30 +79,36 @@ public class NfcTagMst extends BaseTimeEntity {
         return petId != null;
     }
 
+    /** 차단된 태그 — 연결도 조회도 되살아나지 않는다 */
+    public boolean isRevoked() {
+        return status == TagStockStatus.REVOKED;
+    }
+
     public boolean isOwnedBy(Long userId) {
         return this.userId != null && this.userId.equals(userId);
     }
 
-    public void linkTo(Long petId, Long userId, TagActionCd actionCd) {
+    public void linkTo(Long petId, Long userId) {
         this.petId = petId;
         this.userId = userId;
-        this.defaultActionCd = actionCd != null ? actionCd : TagActionCd.PET_DETAIL;
         this.linkedAt = Instant.now();
+        this.status = TagStockStatus.BOUND;
     }
 
-    /** 연결 해제 — 레코드는 남기고 연결만 끊는다 (태그 재사용 가능) */
+    /**
+     * 연결 해제 — 레코드는 남기고 연결만 끊는다 (태그 재사용 가능).
+     * 재고(STOCK)로 되돌리지 않는다. 이미 유저 손에 넘어간 태그다.
+     */
     public void unlink() {
         this.petId = null;
         this.userId = null;
-        this.defaultActionCd = TagActionCd.PET_DETAIL;
+        this.status = TagStockStatus.SOLD;
     }
 
-    public void updateAction(TagActionCd actionCd) {
-        if (actionCd != null) this.defaultActionCd = actionCd;
-    }
-
-    public void markScanned() {
-        this.scanCnt++;
-        this.lastScanAt = Instant.now();
+    /** 분실·복제 사고 — 되돌리는 경로는 두지 않는다 */
+    public void revoke() {
+        this.petId = null;
+        this.userId = null;
+        this.status = TagStockStatus.REVOKED;
     }
 }

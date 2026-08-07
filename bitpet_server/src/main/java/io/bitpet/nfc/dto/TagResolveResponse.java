@@ -1,7 +1,6 @@
 package io.bitpet.nfc.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import io.bitpet.nfc.domain.TagActionCd;
 import io.bitpet.nfc.domain.TagStatus;
 
 /**
@@ -14,18 +13,22 @@ public record TagResolveResponse(
         TagStatus status,
         String tagCd,
         Long petId,
-        String petNm,
-        TagActionCd defaultActionCd
+        String petNm
 ) {
     public static TagResolveResponse unlinked(String tagCd) {
-        return new TagResolveResponse(TagStatus.UNLINKED, tagCd, null, null, null);
+        return new TagResolveResponse(TagStatus.UNLINKED, tagCd, null, null);
     }
 
-    public static TagResolveResponse linked(String tagCd, Long petId, String petNm, TagActionCd action) {
-        return new TagResolveResponse(TagStatus.LINKED, tagCd, petId, petNm, action);
+    public static TagResolveResponse linked(String tagCd, Long petId, String petNm) {
+        return new TagResolveResponse(TagStatus.LINKED, tagCd, petId, petNm);
     }
 
     public static TagResolveResponse ownedByOther(String tagCd) {
-        return new TagResolveResponse(TagStatus.OWNED_BY_OTHER, tagCd, null, null, null);
+        return new TagResolveResponse(TagStatus.OWNED_BY_OTHER, tagCd, null, null);
+    }
+
+    /** 차단된 태그 — 404 로 뭉개지 않고 이유를 알려준다 */
+    public static TagResolveResponse revoked(String tagCd) {
+        return new TagResolveResponse(TagStatus.REVOKED, tagCd, null, null);
     }
 }

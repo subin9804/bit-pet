@@ -37,7 +37,6 @@ class TagLinkSheet extends ConsumerStatefulWidget {
 
 class _TagLinkSheetState extends ConsumerState<TagLinkSheet> {
   int? _petId;
-  TagAction _action = TagAction.petDetail;
   bool _saving = false;
 
   @override
@@ -51,11 +50,9 @@ class _TagLinkSheetState extends ConsumerState<TagLinkSheet> {
     if (petId == null || _saving) return;
     setState(() => _saving = true);
     try {
-      final result = await ref.read(tagRepositoryProvider).link(
-            tagCd: widget.tagCd,
-            petId: petId,
-            action: _action,
-          );
+      final result = await ref
+          .read(tagRepositoryProvider)
+          .link(tagCd: widget.tagCd, petId: petId);
       ref.invalidate(myTagsProvider);
       ref.invalidate(tagResolveProvider(widget.tagCd));
       if (mounted) Navigator.of(context).pop(result);
@@ -160,42 +157,6 @@ class _TagLinkSheetState extends ConsumerState<TagLinkSheet> {
             ),
 
             const Divider(height: 1, color: AppColors.paleLine),
-
-            // ── 기본 동작 ─────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(22, 16, 22, 8),
-              child: Text('태그를 찍었을 때', style: AppTextStyles.bodyBold),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 22),
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: TagAction.values.map((a) {
-                  final on = a == _action;
-                  return GestureDetector(
-                    onTap: () => setState(() => _action = a),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: on ? AppColors.primary : AppColors.card,
-                        border: Border.all(
-                            color: on ? AppColors.primary : AppColors.paleLine),
-                      ),
-                      child: Text(
-                        a.label,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: on ? AppColors.paleBg : AppColors.primary,
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
 
             // ── 액션 ─────────────────────────────────────────
             Padding(

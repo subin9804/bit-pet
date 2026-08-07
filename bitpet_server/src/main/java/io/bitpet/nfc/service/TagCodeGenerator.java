@@ -9,19 +9,25 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * NFC 태그 코드 발급기 — {@code BP} + 랜덤 4자 (예: BP7K3M).
+ * NFC 태그 코드 발급기 — Crockford Base32 랜덤 6자 (예: 7K3MPQ).
  *
  * <p>순차 번호를 쓰면 남의 태그 주소를 추측할 수 있으므로 반드시 랜덤으로 생성한다.
- * 개체 일련번호(pet_mst.serial_no)와는 완전히 다른 체계다 — 접두사 BP 로 육안 구분.
+ *
+ * <p>구버전은 {@code BP} 접두사 + 랜덤 4자였다. 접두사는 고정값이라 실효 경우의 수를
+ * 32<sup>4</sup>(약 105만)로 묶어버리는데, URL 을 그대로 노출하는 태그에서는 너무 좁다.
+ * 접두사를 떼고 6자 전부를 랜덤으로 돌려 32<sup>6</sup>(약 10.7억)으로 넓혔다.
  */
 @Component
 @RequiredArgsConstructor
 public class TagCodeGenerator {
 
-    /** 혼동 문자(0/O/I/1) 제외 — 손으로 옮겨 적을 수 있어야 함 */
-    private static final char[] POOL = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ".toCharArray();
-    private static final String PREFIX = "BP";
-    private static final int RANDOM_LENGTH = 4;
+    /**
+     * Crockford Base32 — 0-9 + A-Z 에서 I/L/O/U 를 뺀 32자.
+     * I/L/O 는 1/0 과 헷갈려서, U 는 욕설 조합을 피하려고 뺀다 (손으로 옮겨 적을 수 있어야 함).
+     * DB 의 {@code ck_nfc_tag_mst_cd_format} 과 같은 집합이어야 한다.
+     */
+    private static final char[] POOL = "0123456789ABCDEFGHJKMNPQRSTVWXYZ".toCharArray();
+    private static final int CODE_LENGTH = 6;
     private static final int MAX_ATTEMPTS = 32;
 
     private final NfcTagMstRepository tagRepository;
@@ -59,9 +65,8 @@ public class TagCodeGenerator {
     }
 
     private String randomCode() {
-        StringBuilder sb = new StringBuilder(PREFIX.length() + RANDOM_LENGTH);
-        sb.append(PREFIX);
-        for (int i = 0; i < RANDOM_LENGTH; i++) {
+        StringBuilder sb = new StringBuilder(CODE_LENGTH);
+        for (int i = 0; i < CODE_LENGTH; i++) {
             sb.append(POOL[random.nextInt(POOL.length)]);
         }
         return sb.toString();

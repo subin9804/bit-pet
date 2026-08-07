@@ -94,8 +94,8 @@ class _TagRow extends ConsumerWidget {
                   const SizedBox(height: 4),
                   Text(
                     [
-                      tag.defaultAction.label,
-                      '스캔 ${tag.scanCnt}회',
+                      if (tag.status == TagStockStatus.revoked) '사용 중지됨',
+                      if (tag.chipType != null) tag.chipType!,
                       if (tag.linkedAt != null) '연결 ${fmt.format(tag.linkedAt!)}',
                     ].join(' · '),
                     style: AppTextStyles.caption,
@@ -122,22 +122,6 @@ class _TagRow extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            for (final a in TagAction.values)
-              ListTile(
-                dense: true,
-                leading: Icon(
-                  a == tag.defaultAction
-                      ? Icons.radio_button_checked
-                      : Icons.radio_button_unchecked,
-                  size: 18,
-                  color: a == tag.defaultAction
-                      ? AppColors.primary
-                      : AppColors.textDisabled,
-                ),
-                title: Text(a.label, style: AppTextStyles.body),
-                onTap: () => Navigator.of(context).pop('action:${a.name}'),
-              ),
-            const Divider(height: 1, color: AppColors.paleLine),
             ListTile(
               dense: true,
               leading: const Icon(Icons.link_off, size: 18, color: AppColors.error),
@@ -151,31 +135,22 @@ class _TagRow extends ConsumerWidget {
     );
     if (action == null || !context.mounted) return;
 
+    if (action != 'unlink') return;
+
     final repo = ref.read(tagRepositoryProvider);
     try {
-      if (action == 'unlink') {
-        final ok = await ConfirmModal.show(
-          context,
-          title: '연결 해제',
-          message: '${tag.tagCd} 이름표의 연결을 해제할까요?\n'
-              '태그는 그대로 두고 다른 개체에 다시 연결할 수 있어요.',
-          confirmLabel: '해제',
-          isDangerous: true,
-        );
-        if (!ok) return;
-        await repo.unlink(tag.tagCd);
-        if (context.mounted) {
-          showToast(context, '연결을 해제했어요.', type: ToastType.success);
-        }
-      } else {
-        final name = action.substring('action:'.length);
-        final next = TagAction.values.firstWhere((a) => a.name == name);
-        if (next == tag.defaultAction) return;
-        await repo.updateAction(tag.tagCd, next);
-        if (context.mounted) {
-          showToast(context, '기본 동작을 "${next.label}"로 바꿨어요.',
-              type: ToastType.success);
-        }
+      final ok = await ConfirmModal.show(
+        context,
+        title: '연결 해제',
+        message: '${tag.tagCd} 이름표의 연결을 해제할까요?\n'
+            '태그는 그대로 두고 다른 개체에 다시 연결할 수 있어요.',
+        confirmLabel: '해제',
+        isDangerous: true,
+      );
+      if (!ok) return;
+      await repo.unlink(tag.tagCd);
+      if (context.mounted) {
+        showToast(context, '연결을 해제했어요.', type: ToastType.success);
       }
       ref.invalidate(myTagsProvider);
     } on ApiException catch (e) {

@@ -45,13 +45,9 @@ class TagRepository {
   Future<TagResolveResult> link({
     required String tagCd,
     required int petId,
-    TagAction action = TagAction.petDetail,
   }) async {
     try {
-      final res = await _dio.post('/tags/$tagCd/link', data: {
-        'petId': petId,
-        'defaultActionCd': action.serverValue,
-      });
+      final res = await _dio.post('/tags/$tagCd/link', data: {'petId': petId});
       final apiRes = ApiResponse.fromJson(
         res.data as Map<String, dynamic>,
         (d) => TagResolveResult.fromJson(d as Map<String, dynamic>),
@@ -72,25 +68,6 @@ class TagRepository {
       await _dio.delete('/tags/$tagCd/link');
     } on DioException catch (e) {
       _mapDioError(e, '태그 연결 해제에 실패했습니다.');
-    }
-  }
-
-  /// 기본 동작만 변경 (개체는 그대로)
-  Future<MyTag> updateAction(String tagCd, TagAction action) async {
-    try {
-      final res = await _dio.patch('/tags/$tagCd/action',
-          data: {'defaultActionCd': action.serverValue});
-      final apiRes = ApiResponse.fromJson(
-        res.data as Map<String, dynamic>,
-        (d) => MyTag.fromJson(d as Map<String, dynamic>),
-      );
-      if (!apiRes.success || apiRes.data == null) {
-        throw ApiException(
-            statusCode: res.statusCode ?? 0, message: '태그 설정 변경에 실패했습니다.');
-      }
-      return apiRes.data!;
-    } on DioException catch (e) {
-      _mapDioError(e, '태그 설정 변경에 실패했습니다.');
     }
   }
 

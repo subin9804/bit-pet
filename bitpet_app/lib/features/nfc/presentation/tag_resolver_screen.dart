@@ -14,9 +14,10 @@ import 'tag_link_sheet.dart';
 /// 앱은 NFC를 직접 읽지 않는다 — 이 화면은 딥링크로 받은 코드를 서버에 물어보고
 /// status에 따라 라우팅만 한다.
 ///
-/// * LINKED         → 개체 상세(+ 기본 동작에 따라 기록 시트)
+/// * LINKED         → 개체 상세
 /// * UNLINKED       → 개체 선택 모달 → 연결 → 개체 상세
 /// * OWNED_BY_OTHER → 안내
+/// * REVOKED        → "사용 중지된 태그" 안내 (실재하는 코드라 404와 구분한다)
 /// * 404            → "유효하지 않은 태그"
 class TagResolverScreen extends ConsumerStatefulWidget {
   final String tagCd;
@@ -44,11 +45,12 @@ class _TagResolverScreenState extends ConsumerState<TagResolverScreen> {
       if (!mounted) return;
       switch (result.status) {
         case TagStatus.linked:
-          _enterPet(result.petId!, result.defaultAction);
+          _enterPet(result.petId!);
         case TagStatus.unlinked:
           await _promptLink();
         case TagStatus.ownedByOther:
-          setState(() => _blockedStatus = TagStatus.ownedByOther);
+        case TagStatus.revoked:
+          setState(() => _blockedStatus = result.status);
       }
     } on ApiException catch (e) {
       if (mounted) {
@@ -70,20 +72,21 @@ class _TagResolverScreenState extends ConsumerState<TagResolverScreen> {
       context.go('/home');
       return;
     }
-    _enterPet(linked.petId!, linked.defaultAction);
+    _enterPet(linked.petId!);
   }
 
   /// 개체 상세로 이동.
   ///
   /// 홈을 스택 하단에 깔고 그 위에 상세를 얹는다. 그러지 않으면 뒤로가기 한 번에
   /// 앱이 그대로 종료된다.
-  void _enterPet(int petId, TagAction action) {
+  ///
+  /// 기록 시트를 자동으로 열지는 않는다 — 무슨 기록을 할지는 태그가 아니라
+  /// 그날의 작업에 달렸다 (급여일엔 전부 급여, 체중 재는 날엔 전부 체중).
+  void _enterPet(int petId) {
     if (_handled) return;
     _handled = true;
-    final recordType = action.recordTypeId;
-    final query = recordType == null ? '' : '?openRecord=$recordType';
     context.go('/home');
-    context.push('/pets/$petId$query');
+    context.push('/pets/$petId');
   }
 
   @override
@@ -93,6 +96,15 @@ class _TagResolverScreenState extends ConsumerState<TagResolverScreen> {
         icon: Icons.link_off,
         title: '태그를 열 수 없어요',
         message: _errorMessage!,
+        tagCd: widget.tagCd,
+      );
+    }
+    if (_blockedStatus == TagStatus.revoked) {
+      return _TagMessage(
+        icon: Icons.block,
+        title: '사용 중지된 태그입니다',
+        message: '분실·복제 신고로 차단된 태그예요.\n'
+            '다시 사용할 수 없으니 새 이름표로 교체해 주세요.',
         tagCd: widget.tagCd,
       );
     }

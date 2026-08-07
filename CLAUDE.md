@@ -185,10 +185,12 @@ features/
 | V34 | routine_mst.group_id 추가 — 루틴 소속 user → breeding_group 전환, 소유자 현재 그룹으로 백필 |
 | V35 | routine_mst.start_date 추가 — 루틴 시작일 고정 보존(캘린더 표시 하한), created_at 기준 백필 |
 | V36~V48 | (표 미반영 — 실제 파일 기준: cleaning/memo routine_id, pet_deceased_at, memo_tag POOP, routine soft delete, pet_keeper_rls, user_share_code, pet_share_invitation 3종, breeding_group 제거, record_created_by_user, routine_log_link_dtl, post_pinned) |
-| V49 | nfc_tag_mst 신설 — NFC 태그 이름표 (tag_cd PK, pet_id/user_id nullable, default_action_cd, scan_cnt) |
+| V49 | nfc_tag_mst 신설 — NFC 태그 이름표 (tag_cd PK, pet_id/user_id nullable, default_action_cd) |
 | V50 | feeding_dtl.refused_yn 추가 (거식) — food_type NOT NULL 해제 + CHECK로 둘을 묶음(Y면 food_type NULL / N이면 NOT NULL), 거식 부분 인덱스 |
+| V51 | nfc_tag_mst 보완 — chip_type/batch_no/status 추가(+상태 백필), tag_cd 대문자 CHECK, scan_cnt·last_scan_at 제거 |
+| V52 | nfc_tag_mst 정정 — default_action_cd 제거(축이 잘못된 설계), tag_cd 포맷을 Crockford Base32 6자 `^[0-9A-HJKMNP-TV-Z]{6}$` 로 확정 |
 
-> **다음 마이그레이션은 V51부터 작성.**
+> **다음 마이그레이션은 V53부터 작성.**
 
 ---
 
@@ -287,13 +289,26 @@ private Map<String, Object> extraData;
 ### NFC 태그 이름표 (v1)
 - **핵심 원칙**: 태그에는 `https://tailog.me/t/{tagCd}` **URL만** 굽혀 있고, 태그↔개체 연결은 **서버 DB에만** 존재
   - 앱은 NFC를 **읽지도 쓰지도 않는다** — OS가 URL을 열고 앱은 딥링크만 받는다 → `nfc_manager` 류 패키지 불필요
-- `tag_cd` = `BP` + 32자 풀 랜덤 4자 (`TagCodeGenerator`). **일련번호와 완전히 다른 체계, 절대 순차 금지** (순차면 남의 태그 주소를 추측 가능)
+- `tag_cd` = **Crockford Base32 랜덤 6자** (`TagCodeGenerator`, `0123456789ABCDEFGHJKMNPQRSTVWXYZ` — I/L/O/U 제외).
+  **일련번호와 완전히 다른 체계, 절대 순차 금지** (순차면 남의 태그 주소를 추측 가능)
+  - V52 이전은 `BP` + 랜덤 4자였다. 고정 접두사가 경우의 수를 32⁴(105만)로 묶어버려 접두사를 떼고 6자 전부 랜덤(32⁶ ≈ 10.7억)으로 넓혔다
+  - **생성기 POOL 과 DB `ck_nfc_tag_mst_cd_format` 은 같은 집합이어야 한다.** 구 POOL 은 L/U 를 허용했으므로 V52 는 위반 행이 있으면 코드를 찍어주고 멈춘다
+  - 조회 시 서버가 `toUpperCase()` 정규화 후 처리하고, DB 도 `ck_nfc_tag_mst_cd_upper` 로 소문자 행을 막는다 (정규화가 빠지면 PK 가 갈라져 같은 태그가 두 행이 됨)
+- ⛔ **태그별 기본 동작(`default_action_cd`)은 V52에서 제거됐다 — 되살리지 말 것.**
+  축이 잘못된 설계였다. 작업 종류는 태그가 아니라 **그날의 작업**에 종속된다 (급여일엔 전부 급여, 체중 재는 날엔 전부 체중).
+  태그마다 동작을 고정해두면 오히려 방해가 된다. 스캔하면 개체 상세로만 들어간다
+- **태그 생애주기** `nfc_tag_mst.status` (V51): `STOCK`(미판매) → `SOLD`(판매·미연결) → `BOUND`(연결됨) / `REVOKED`(분실·복제로 영구 차단)
+  - `unlink()` 는 `STOCK` 이 아니라 **`SOLD`** 로 되돌린다 — 이미 유저 손에 넘어간 태그다
+  - `chip_type` 기본 `NTAG203` — **패스워드 보호 불가 세대라 락 미적용 출고**. `batch_no` 는 불량 회수 단위
+  - **REVOKED 는 404 가 아니라 `TagStatus.REVOKED`** 로 내려 "사용 중지된 태그" 안내를 띄운다 (실재하는 코드와 위조 코드를 구분). 연결 시도는 `TAG_REVOKED` 410
+  - 어드민 회수: `POST /admin/tags/revoke?tagCds=`, `POST /admin/tags/revoke-batch?batchNo=` (되살리는 API 는 없음)
+- **스캔 횟수는 서버에 쌓지 않는다** (V51에서 `scan_cnt`/`last_scan_at` 제거) — 스캔마다 UPDATE 가 도는 구조였다. 사용률은 클라이언트 애널리틱스 이벤트로 본다
 - **테이블 분리**: `pet_mst`의 컬럼이 아니라 `nfc_tag_mst` 별도 테이블 — 재사용·해제·분실 처리가 깔끔
   - `unlink()`는 `pet_id`/`user_id`만 비우고 **`linked_at`은 남긴다** → "판매됐지만 미연결(온보딩 이탈)" 재고 쿼리가 가능해짐
   - 재고 쿼리: 미판매 = `pet_id IS NULL AND linked_at IS NULL` / 판매·미연결 = `pet_id IS NULL AND linked_at IS NOT NULL`
-- **API** (`io.bitpet.nfc`): `GET /api/v1/tags/{tagCd}` (UNLINKED / LINKED / OWNED_BY_OTHER, 없는 코드는 404 = 위조 차단),
-  `POST /{tagCd}/link` (개체 **소유자만**, 남이 쓰는 태그면 409), `DELETE /{tagCd}/link` (태그 소유자만), `GET /tags/my`, `PATCH /{tagCd}/action`
-  - 어드민: `POST /api/v1/admin/tags/issue?count=` (재고 발급), `GET /api/v1/admin/tags/stats`
+- **API** (`io.bitpet.nfc`): `GET /api/v1/tags/{tagCd}` (UNLINKED / LINKED / OWNED_BY_OTHER / REVOKED, 없는 코드는 404 = 위조 차단) — **완전한 read-only**,
+  `POST /{tagCd}/link` (개체 **소유자만** — `PetKeeperService.assertOwner`, 즉 `pet_keeper_rls` 기준. 남이 쓰는 태그면 409), `DELETE /{tagCd}/link` (태그 소유자만), `GET /tags/my`
+  - 어드민: `POST /api/v1/admin/tags/issue?count=&chipType=&batchNo=` (재고 발급), `GET /api/v1/admin/tags/stats` (unsold/linked/released/revoked)
 - **딥링크 공개 경로** (`public-paths`): `/.well-known/**`, `/t/**`
   - `AssetLinksController` — 지문 미설정 시 **404 반환** (지문 없는 파일은 autoVerify를 조용히 실패시켜 링크가 브라우저로 샌다)
   - `TagLandingController` — 미설치·비로그인용 랜딩. **개체 이름만** 노출, 체중·급여 기록 절대 금지. 모르는 코드도 404 대신 일반 랜딩
@@ -305,10 +320,10 @@ private Map<String, Object> extraData;
     - ⚠️ 콜드 스타트: 앱이 꺼진 상태의 첫 링크는 go_router 초기화보다 먼저 도착 → 위 메타데이터 없으면 **홈으로 빠진다**. 반드시 앱 완전 종료 상태로 실기기 테스트
   - `/t/:tagCd` → `TagResolverScreen` (경유 화면, ShellRoute 바깥). status로 분기, 로그아웃 상태면 `PendingTagLink`에 담아두고 로그인 후 복귀
   - 개체 진입은 `context.go('/home')` → `context.push('/pets/:id')` — 홈을 스택 하단에 깔지 않으면 뒤로가기 한 번에 앱이 종료됨
-  - `?openRecord=feed|scale` → `PetDetailScreen`이 `addPostFrameCallback`으로 `FabRecordSheet(initialTypeId, initialPetId)` 자동 오픈, 닫아도 상세에 잔류
-  - 마이페이지 > 이름표 관리(`/my/tags`) — 기본 동작 변경·연결 해제 (양도 시 원 소유자가 해제 → 새 주인이 재연결)
-- **제작**: 랜덤 코드 100개 INSERT(`pet_id NULL`) → NTAG213에 URL 굽기 → 재고. 주문 시 각인 이름만 받아 **PETG**(PLA는 사육장 열·습도에 변형) 3D 프린팅 후 아무 태그나 부착 — 어느 태그가 어느 개체인지 알 필요 없음
-- **v1.1+**: `default_action_cd`만으로 제품 라인업 구분(URL 동일 → 재고 1종), 양도 플로우, 사육장 단위 태그, iOS Universal Links
+  - 태그 스캔은 **기록 시트를 자동으로 열지 않는다** (V52). `?openRecord=feed|scale` 자동 오픈 자체는 `PetDetailScreen`에 남아 있지만 태그 경로에서는 쓰지 않는다
+  - 마이페이지 > 이름표 관리(`/my/tags`) — 연결 해제만 (양도 시 원 소유자가 해제 → 새 주인이 재연결). 목록 캡션에 `사용 중지됨`/`chip_type` 표시
+- **제작**: 랜덤 코드 100개 발급(`/admin/tags/issue`, 배치번호 함께) → 칩(현재 입고분 **NTAG203**)에 URL 굽기 → 재고. 주문 시 각인 이름만 받아 **PETG**(PLA는 사육장 열·습도에 변형) 3D 프린팅 후 아무 태그나 부착 — 어느 태그가 어느 개체인지 알 필요 없음
+- **v1.1+**: 양도 플로우, 사육장 단위 태그, iOS Universal Links (제품 라인업은 각인·외형으로만 구분 — 태그 데이터는 1종)
 
 ### 개체 일련번호
 VARCHAR(8) 고정, 32자 풀(0/O/I/1 제외), 6자리 시작, 풀 80% 시 7자리 확장.

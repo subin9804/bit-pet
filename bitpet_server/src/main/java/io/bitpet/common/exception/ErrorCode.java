@@ -105,6 +105,7 @@ public enum ErrorCode {
     TAG_NOT_FOUND(HttpStatus.NOT_FOUND, "유효하지 않은 태그입니다."),
     TAG_ALREADY_LINKED(HttpStatus.CONFLICT, "이미 다른 개체에 등록된 태그입니다."),
     TAG_ACCESS_DENIED(HttpStatus.FORBIDDEN, "이 태그에 대한 권한이 없습니다."),
+    TAG_REVOKED(HttpStatus.GONE, "사용이 중지된 태그입니다."),
 
     // --- Community ---
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "Post not found"),

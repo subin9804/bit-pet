@@ -13,37 +13,32 @@ enum TagStatus {
   linked,
 
   /// 남의 개체와 연결됨 → 안내만
-  ownedByOther;
+  ownedByOther,
+
+  /// 분실·복제로 차단된 태그 → "사용 중지된 태그" 안내.
+  /// 없는 코드(404)와 다르다 — 실재하지만 서비스가 막은 것이다.
+  revoked;
 
   static TagStatus fromServer(String? value) => switch (value) {
         'LINKED' => TagStatus.linked,
         'OWNED_BY_OTHER' => TagStatus.ownedByOther,
+        'REVOKED' => TagStatus.revoked,
         _ => TagStatus.unlinked,
       };
 }
 
-/// 태그를 스캔했을 때 앱이 수행할 기본 동작.
-/// 제품 라인업(기본형/급여용/체중용)은 이 값으로만 구분한다 — 굽는 URL은 동일.
-enum TagAction {
-  petDetail('PET_DETAIL', '개체 상세만'),
-  recordFeeding('RECORD_FEEDING', '급여 기록 바로 열기'),
-  recordWeight('RECORD_WEIGHT', '체중 기록 바로 열기');
+/// 태그 한 장의 유통 상태 (서버 nfc_tag_mst.status).
+enum TagStockStatus {
+  stock,
+  sold,
+  bound,
+  revoked;
 
-  final String serverValue;
-  final String label;
-  const TagAction(this.serverValue, this.label);
-
-  static TagAction fromServer(String? value) => TagAction.values.firstWhere(
-        (a) => a.serverValue == value,
-        orElse: () => TagAction.petDetail,
-      );
-
-  /// 개체 상세로 이동할 때 자동으로 열 기록 종류 (FabRecordSheet의 typeId).
-  /// null이면 시트를 열지 않는다.
-  String? get recordTypeId => switch (this) {
-        TagAction.recordFeeding => 'feed',
-        TagAction.recordWeight => 'scale',
-        TagAction.petDetail => null,
+  static TagStockStatus fromServer(String? value) => switch (value) {
+        'STOCK' => TagStockStatus.stock,
+        'SOLD' => TagStockStatus.sold,
+        'REVOKED' => TagStockStatus.revoked,
+        _ => TagStockStatus.bound,
       };
 }
 
@@ -53,14 +48,12 @@ class TagResolveResult {
   final String tagCd;
   final int? petId;
   final String? petNm;
-  final TagAction defaultAction;
 
   const TagResolveResult({
     required this.status,
     required this.tagCd,
     this.petId,
     this.petNm,
-    this.defaultAction = TagAction.petDetail,
   });
 
   factory TagResolveResult.fromJson(Map<String, dynamic> json) {
@@ -69,7 +62,6 @@ class TagResolveResult {
       tagCd: json['tagCd'] as String? ?? '',
       petId: json['petId'] as int?,
       petNm: json['petNm'] as String?,
-      defaultAction: TagAction.fromServer(json['defaultActionCd'] as String?),
     );
   }
 }
@@ -79,19 +71,19 @@ class MyTag {
   final String tagCd;
   final int? petId;
   final String? petNm;
-  final TagAction defaultAction;
   final DateTime? linkedAt;
-  final int scanCnt;
-  final DateTime? lastScanAt;
+  final TagStockStatus status;
+
+  /// 칩 세대. NTAG203은 패스워드 보호가 불가능해 락 없이 출고된다
+  final String? chipType;
 
   const MyTag({
     required this.tagCd,
     this.petId,
     this.petNm,
-    this.defaultAction = TagAction.petDetail,
     this.linkedAt,
-    this.scanCnt = 0,
-    this.lastScanAt,
+    this.status = TagStockStatus.bound,
+    this.chipType,
   });
 
   factory MyTag.fromJson(Map<String, dynamic> json) {
@@ -100,10 +92,9 @@ class MyTag {
       tagCd: json['tagCd'] as String? ?? '',
       petId: json['petId'] as int?,
       petNm: json['petNm'] as String?,
-      defaultAction: TagAction.fromServer(json['defaultActionCd'] as String?),
       linkedAt: parse(json['linkedAt'] as String?),
-      scanCnt: json['scanCnt'] as int? ?? 0,
-      lastScanAt: parse(json['lastScanAt'] as String?),
+      status: TagStockStatus.fromServer(json['status'] as String?),
+      chipType: json['chipType'] as String?,
     );
   }
 }

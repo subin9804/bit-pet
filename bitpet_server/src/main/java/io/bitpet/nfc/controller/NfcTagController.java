@@ -2,7 +2,6 @@ package io.bitpet.nfc.controller;
 
 import io.bitpet.auth.jwt.AuthPrincipal;
 import io.bitpet.common.response.ApiResponse;
-import io.bitpet.nfc.domain.TagActionCd;
 import io.bitpet.nfc.dto.MyTagResponse;
 import io.bitpet.nfc.dto.TagLinkRequest;
 import io.bitpet.nfc.dto.TagResolveResponse;
@@ -14,7 +13,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -53,7 +51,7 @@ public class NfcTagController {
             @PathVariable String tagCd,
             @Valid @RequestBody TagLinkRequest request) {
         return ApiResponse.ok(nfcTagService.link(
-                principal.userId(), tagCd, request.petId(), request.defaultActionCd()));
+                principal.userId(), tagCd, request.petId()));
     }
 
     @Operation(summary = "태그 연결 해제 (태그 소유자만). 레코드는 남고 연결만 끊긴다")
@@ -65,15 +63,4 @@ public class NfcTagController {
         return ApiResponse.ok();
     }
 
-    @Operation(summary = "태그 기본 동작 변경 (PET_DETAIL / RECORD_FEEDING / RECORD_WEIGHT)")
-    @PatchMapping("/{tagCd}/action")
-    public ApiResponse<MyTagResponse> updateAction(
-            @AuthenticationPrincipal AuthPrincipal principal,
-            @PathVariable String tagCd,
-            @RequestBody TagActionRequest request) {
-        return ApiResponse.ok(nfcTagService.updateAction(
-                principal.userId(), tagCd, request.defaultActionCd()));
-    }
-
-    public record TagActionRequest(TagActionCd defaultActionCd) {}
 }

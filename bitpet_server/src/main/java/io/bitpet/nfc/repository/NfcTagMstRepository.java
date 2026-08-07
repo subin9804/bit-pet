@@ -1,8 +1,8 @@
 package io.bitpet.nfc.repository;
 
 import io.bitpet.nfc.domain.NfcTagMst;
+import io.bitpet.nfc.domain.TagStockStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
 
@@ -12,14 +12,12 @@ public interface NfcTagMstRepository extends JpaRepository<NfcTagMst, String> {
 
     List<NfcTagMst> findAllByPetId(Long petId);
 
-    /** 미판매 재고 수 */
-    @Query("SELECT COUNT(t) FROM NfcTagMst t WHERE t.petId IS NULL AND t.linkedAt IS NULL")
-    long countUnsoldStock();
+    /** 불량 회수 단위 조회 */
+    List<NfcTagMst> findAllByBatchNo(String batchNo);
 
-    /** 한 번 연결됐다가 지금은 해제된 태그 수 — 온보딩·양도 이탈 모니터링 */
-    @Query("SELECT COUNT(t) FROM NfcTagMst t WHERE t.petId IS NULL AND t.linkedAt IS NOT NULL")
-    long countReleased();
-
-    @Query("SELECT COUNT(t) FROM NfcTagMst t WHERE t.petId IS NOT NULL")
-    long countLinked();
+    /**
+     * 재고 통계 — pet_id/linked_at 조합을 뒤지지 않고 status 하나로 센다.
+     * STOCK=미판매 / SOLD=판매됐으나 미연결 / BOUND=연결됨 / REVOKED=차단
+     */
+    long countByStatus(TagStockStatus status);
 }

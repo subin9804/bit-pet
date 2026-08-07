@@ -30,14 +30,29 @@ public class NfcTagAdminController {
 
     private final NfcTagService nfcTagService;
 
-    @Operation(summary = "재고 태그 코드 발급 — 반환된 코드를 태그에 굽는다")
+    @Operation(summary = "재고 태그 코드 발급 — 반환된 코드를 태그에 굽는다",
+            description = "batchNo 는 불량 회수 단위. 한 번에 굽는 묶음마다 다른 값을 주면 배치 통째로 차단할 수 있다.")
     @PostMapping("/issue")
     public List<String> issue(
-            @RequestParam @Min(1) @Max(1000) int count) {
-        return nfcTagService.issueStock(count);
+            @RequestParam @Min(1) @Max(1000) int count,
+            @RequestParam(required = false) String chipType,
+            @RequestParam(required = false) String batchNo) {
+        return nfcTagService.issueStock(count, chipType, batchNo);
     }
 
-    @Operation(summary = "재고 통계 — unsold(미판매) / linked(연결됨) / released(해제됨)")
+    @Operation(summary = "태그 영구 차단 — 분실·복제 사고. 되돌릴 수 없다")
+    @PostMapping("/revoke")
+    public Map<String, Integer> revoke(@RequestParam List<String> tagCds) {
+        return Map.of("revokedCount", nfcTagService.revoke(tagCds));
+    }
+
+    @Operation(summary = "배치 단위 회수 — 불량 생산분 통째로 차단")
+    @PostMapping("/revoke-batch")
+    public Map<String, Integer> revokeBatch(@RequestParam String batchNo) {
+        return Map.of("revokedCount", nfcTagService.revokeBatch(batchNo));
+    }
+
+    @Operation(summary = "재고 통계 — unsold(미판매) / linked(연결됨) / released(해제됨) / revoked(차단됨)")
     @GetMapping("/stats")
     public Map<String, Long> stats() {
         return nfcTagService.stockStats();

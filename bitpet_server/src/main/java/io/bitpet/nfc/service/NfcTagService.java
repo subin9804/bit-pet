@@ -3,7 +3,7 @@ package io.bitpet.nfc.service;
 import io.bitpet.common.exception.BusinessException;
 import io.bitpet.common.exception.ErrorCode;
 import io.bitpet.nfc.domain.NfcTagMst;
-import io.bitpet.nfc.domain.TagActionCd;
+import io.bitpet.nfc.domain.TagStockStatus;
 import io.bitpet.nfc.dto.MyTagResponse;
 import io.bitpet.nfc.dto.TagResolveResponse;
 import io.bitpet.nfc.repository.NfcTagMstRepository;
@@ -44,38 +44,38 @@ public class NfcTagService {
     // -------------------------------------------------------------------------
 
     /**
-     * 태그 스캔 — 스캔 카운트를 올리고 상태를 판정한다.
-     * 존재하지 않는 코드는 404 (위조 태그 차단).
+     * 태그 스캔 — 상태를 판정한다.
+     * 존재하지 않는 코드는 404 (위조 태그 차단), 차단된 코드는 REVOKED 안내.
+     *
+     * <p><b>완전한 read-only 다.</b> 스캔 횟수도 세지 않고(V51), 연결 정리도 여기서 하지 않는다.
+     * 조회 경로에 쓰기가 섞이면 스캔 한 번마다 UPDATE 가 돈다.
      */
-    @Transactional
     public TagResolveResponse resolve(Long userId, String tagCd) {
         NfcTagMst tag = findTag(tagCd);
-        tag.markScanned();
 
+        // 실재하지만 차단된 코드다. 404 로 뭉개면 "위조 태그"로 오인시킨다
+        if (tag.isRevoked()) {
+            return TagResolveResponse.revoked(tag.getTagCd());
+        }
         if (!tag.isLinked()) {
             return TagResolveResponse.unlinked(tag.getTagCd());
         }
         if (!petKeeperService.isKeeper(userId, tag.getPetId())) {
             return TagResolveResponse.ownedByOther(tag.getTagCd());
         }
-        // 개체가 소프트 삭제됐으면 태그는 미연결로 되돌려 재사용할 수 있게 한다
+        // 개체가 소프트 삭제됐으면 미연결로 보여준다. 실제 연결 정리는 쓰기 경로(link)에서 한다
         Optional<PetMst> pet = petRepository.findById(tag.getPetId());
         if (pet.isEmpty()) {
-            tag.unlink();
             return TagResolveResponse.unlinked(tag.getTagCd());
         }
-        return TagResolveResponse.linked(
-                tag.getTagCd(), pet.get().getId(), pet.get().getName(), tag.getDefaultActionCd());
+        return TagResolveResponse.linked(tag.getTagCd(), pet.get().getId(), pet.get().getName());
     }
 
-    /** 미설치자 랜딩 페이지용 — 개체 이름만. 없거나 미연결이면 empty */
-    @Transactional
+    /** 미설치자 랜딩 페이지용 — 개체 이름만. 없거나 미연결이거나 차단됐으면 empty */
     public Optional<String> peekPetName(String tagCd) {
         return tagRepository.findById(normalize(tagCd))
-                .map(tag -> {
-                    tag.markScanned();
-                    return tag.getPetId();
-                })
+                .filter(tag -> !tag.isRevoked())
+                .map(NfcTagMst::getPetId)
                 .flatMap(petRepository::findById)
                 .map(PetMst::getName);
     }
@@ -93,10 +93,9 @@ public class NfcTagService {
                         t.getTagCd(),
                         t.getPetId(),
                         petNames.get(t.getPetId()),
-                        t.getDefaultActionCd(),
                         t.getLinkedAt(),
-                        t.getScanCnt(),
-                        t.getLastScanAt()))
+                        t.getStatus(),
+                        t.getChipType()))
                 .toList();
     }
 
@@ -105,18 +104,26 @@ public class NfcTagService {
     // -------------------------------------------------------------------------
 
     @Transactional
-    public TagResolveResponse link(Long userId, String tagCd, Long petId, TagActionCd actionCd) {
+    public TagResolveResponse link(Long userId, String tagCd, Long petId) {
         NfcTagMst tag = findTag(tagCd);
 
-        // 남이 쓰고 있는 태그는 가져올 수 없다 (원 소유자가 먼저 해제해야 함)
-        if (tag.isLinked() && !tag.isOwnedBy(userId)) {
-            throw new BusinessException(ErrorCode.TAG_ALREADY_LINKED);
+        if (tag.isRevoked()) {
+            throw new BusinessException(ErrorCode.TAG_REVOKED);
         }
+        // 남이 쓰고 있는 태그는 가져올 수 없다 (원 소유자가 먼저 해제해야 함).
+        // 단, 붙어 있던 개체가 이미 삭제됐다면 붙잡아 둘 이유가 없다 — 재사용 가능하게 푼다.
+        if (tag.isLinked() && !tag.isOwnedBy(userId)) {
+            if (petRepository.findById(tag.getPetId()).isPresent()) {
+                throw new BusinessException(ErrorCode.TAG_ALREADY_LINKED);
+            }
+            tag.unlink();
+        }
+        // 개체 소유권 검증 — pet_mst.user_id 가 아니라 pet_keeper_rls 기준(OWNER만).
+        // 이게 없으면 남의 개체에 내 태그를 붙일 수 있다.
         PetMst pet = petKeeperService.assertOwner(userId, petId);
 
-        tag.linkTo(pet.getId(), userId, actionCd);
-        return TagResolveResponse.linked(
-                tag.getTagCd(), pet.getId(), pet.getName(), tag.getDefaultActionCd());
+        tag.linkTo(pet.getId(), userId);
+        return TagResolveResponse.linked(tag.getTagCd(), pet.getId(), pet.getName());
     }
 
     @Transactional
@@ -128,38 +135,51 @@ public class NfcTagService {
         tag.unlink();
     }
 
-    /** 기본 동작만 변경 (개체는 그대로) */
-    @Transactional
-    public MyTagResponse updateAction(Long userId, String tagCd, TagActionCd actionCd) {
-        NfcTagMst tag = findTag(tagCd);
-        if (!tag.isOwnedBy(userId)) {
-            throw new BusinessException(ErrorCode.TAG_ACCESS_DENIED);
-        }
-        tag.updateAction(actionCd);
-        String petNm = petRepository.findById(tag.getPetId()).map(PetMst::getName).orElse(null);
-        return new MyTagResponse(tag.getTagCd(), tag.getPetId(), petNm,
-                tag.getDefaultActionCd(), tag.getLinkedAt(), tag.getScanCnt(), tag.getLastScanAt());
-    }
-
     // -------------------------------------------------------------------------
     // 재고 생산 (어드민)
     // -------------------------------------------------------------------------
 
-    /** 미연결 재고 태그 {@code count} 개 발급. 반환된 코드를 NTAG213 에 굽는다. */
+    /**
+     * 미연결 재고 태그 {@code count} 개 발급. 반환된 코드를 실물 칩에 굽는다.
+     *
+     * <p>{@code batchNo} 는 불량 회수 단위다. 한 번에 굽는 묶음마다 다른 값을 주면
+     * 나중에 배치 단위로 통째로 차단할 수 있다.
+     */
     @Transactional
-    public List<String> issueStock(int count) {
+    public List<String> issueStock(int count, String chipType, String batchNo) {
         List<NfcTagMst> tags = tagCodeGenerator.generateUnique(count).stream()
-                .map(NfcTagMst::stock)
+                .map(cd -> NfcTagMst.stock(cd, chipType, batchNo))
                 .toList();
         tagRepository.saveAll(tags);
         return tags.stream().map(NfcTagMst::getTagCd).sorted().toList();
     }
 
+    /**
+     * 분실·복제 사고 태그 영구 차단. 연결도 함께 끊는다.
+     * 되돌리는 API 는 두지 않는다 — 차단된 코드가 되살아나면 차단의 의미가 없다.
+     */
+    @Transactional
+    public int revoke(List<String> tagCds) {
+        List<NfcTagMst> tags = tagRepository.findAllById(
+                tagCds.stream().map(NfcTagService::normalize).distinct().toList());
+        tags.forEach(NfcTagMst::revoke);
+        return tags.size();
+    }
+
+    /** 배치 단위 회수 — 불량 생산분을 통째로 차단 */
+    @Transactional
+    public int revokeBatch(String batchNo) {
+        List<NfcTagMst> tags = tagRepository.findAllByBatchNo(batchNo);
+        tags.forEach(NfcTagMst::revoke);
+        return tags.size();
+    }
+
     public Map<String, Long> stockStats() {
         return Map.of(
-                "unsold",   tagRepository.countUnsoldStock(),
-                "linked",   tagRepository.countLinked(),
-                "released", tagRepository.countReleased());
+                "unsold",   tagRepository.countByStatus(TagStockStatus.STOCK),
+                "linked",   tagRepository.countByStatus(TagStockStatus.BOUND),
+                "released", tagRepository.countByStatus(TagStockStatus.SOLD),
+                "revoked",  tagRepository.countByStatus(TagStockStatus.REVOKED));
     }
 
     // -------------------------------------------------------------------------
