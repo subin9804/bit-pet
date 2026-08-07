@@ -100,12 +100,14 @@ public class PetPurgeService {
     }
 
     /**
-     * NFC 태그 연결 해제 — 개체 연결과 소유권을 끊고 재고(STOCK)로 되돌린다.
-     * 계정이 사라진 이상 태그를 붙잡아 둘 주인이 없다.
+     * NFC 태그 연결 해제 — 개체 연결과 소유권을 끊되 상태는 SOLD 로 둔다.
+     *
+     * <p>재고(STOCK)로 되돌리지 않는다. 계정이 사라져도 태그 실물은 그 사람 손에 있고
+     * 굽힌 URL 은 락이 걸려 바꿀 수 없다 — 회수해 되팔 수 있는 물건이 아니다.
      */
     private void releaseTags(Long petId) {
         List<NfcTagMst> tags = tagRepository.findAllByPetId(petId);
-        tags.forEach(NfcTagMst::releaseOnOwnerWithdrawal);
+        tags.forEach(NfcTagMst::unlink);
     }
 
     /** 사진 행 삭제 + S3 키를 삭제 큐에 적재. keepPhotoId 는 남길 대표 사진(없으면 null) */

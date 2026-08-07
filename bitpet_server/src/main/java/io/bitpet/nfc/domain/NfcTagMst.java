@@ -98,24 +98,15 @@ public class NfcTagMst extends BaseTimeEntity {
     /**
      * 연결 해제 — 레코드는 남기고 연결만 끊는다 (태그 재사용 가능).
      * 재고(STOCK)로 되돌리지 않는다. 이미 유저 손에 넘어간 태그다.
+     *
+     * <p>소유자 탈퇴로 개체가 통째로 사라지는 경우도 <b>같은 SOLD</b>다. 계정이 없어져도
+     * 태그 실물은 그 사람 손에 그대로 있고, 굽힌 URL은 락이 걸려 있어 바꿀 수도 없다
+     * — 우리가 회수해 다시 팔 수 있는 물건이 아니므로 STOCK 으로 되돌리면 재고 수치만 거짓이 된다.
      */
     public void unlink() {
         this.petId = null;
         this.userId = null;
         this.status = TagStockStatus.SOLD;
-    }
-
-    /**
-     * 소유자 탈퇴로 개체가 사라짐 — 연결과 소유권을 모두 끊고 재고로 되돌린다.
-     *
-     * <p>{@link #unlink()}가 SOLD 로 두는 것과 다르다. 저쪽은 "쓰던 사람이 개체만 바꾸는" 상황이고,
-     * 여기는 계정 자체가 없어져 태그를 붙잡아 둘 주인이 없는 상황이다.
-     * (탈퇴 정책이 명시적으로 STOCK 을 지정한다.)
-     */
-    public void releaseOnOwnerWithdrawal() {
-        this.petId = null;
-        this.userId = null;
-        this.status = TagStockStatus.STOCK;
     }
 
     /** 분실·복제 사고 — 되돌리는 경로는 두지 않는다 */

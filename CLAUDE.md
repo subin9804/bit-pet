@@ -358,8 +358,9 @@ private Map<String, Object> extraData;
   (B) 참조 1건 이상 → `user_id = NULL, is_orphaned = true` 로 **익명화 보존**
   - (B) 유지 항목: **개체명**(혈통 식별의 핵심), species, morph, sex, hatched_at, 부모 참조.
     사육 기록 전부 삭제, 사진은 **대표 1장만** 남기고 나머지 삭제
-  - 양쪽 다 `nfc_tag_mst` 는 `releaseOnOwnerWithdrawal()` 로 pet_id/user_id 비우고 **`STOCK`** 으로.
-    (`unlink()`가 `SOLD` 로 되돌리는 것과 다르다 — 소유자가 사라져 회수된 태그라 재고로 본다)
+  - 양쪽 다 `nfc_tag_mst` 는 `unlink()` 로 pet_id/user_id 만 비우고 상태는 **`SOLD` 유지**.
+    ⛔ **STOCK 으로 되돌리지 말 것** — 계정이 사라져도 태그 실물은 그 사람 손에 있고 굽힌 URL 은
+    락이 걸려 바꿀 수 없다. 회수해 되팔 수 있는 물건이 아니라서 STOCK 으로 세면 재고 수치만 거짓이 된다
   - **공유 개체(KEEPER)가 있으면 삭제·익명화 전에 최초 합류 KEEPER 에게 소유권을 넘긴다**
     (`promoteToOwner`). 안 그러면 탈퇴 한 번에 제3자의 기록이 날아간다
 - **고아 개체 신규 참조 차단은 API 레벨에서**: `PetService.addRelation`(→ `PET_ORPHANED` 409),
