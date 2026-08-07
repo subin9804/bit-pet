@@ -21,6 +21,9 @@ public interface PetMstRepository extends JpaRepository<PetMst, Long> {
 
     List<PetMst> findAllByUserId(Long userId);
 
+    /** 공개 프로필용 — private_yn = 'N' 인 개체만 */
+    List<PetMst> findAllByUserIdAndPrivateYn(Long userId, String privateYn);
+
     List<PetMst> findAllByUserIdAndSpeciesId(Long userId, Long speciesId);
 
     List<PetMst> findAllByUserIdAndGender(Long userId, PetGender gender);

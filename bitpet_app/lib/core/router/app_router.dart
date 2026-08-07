@@ -13,6 +13,8 @@ import '../../features/pet/presentation/pet_list_screen.dart';
 import '../../features/pet/presentation/pet_detail_screen.dart';
 import '../../features/pet/presentation/pet_form_screen.dart';
 import '../../features/pet/presentation/pet_bulk_form_screen.dart';
+import '../../features/pet/presentation/public_pet_screen.dart';
+import '../../features/pet/presentation/user_profile_screen.dart';
 import '../../features/record/presentation/record_screen.dart';
 import '../../features/record/presentation/record_detail_screen.dart';
 import '../../features/community/presentation/community_feed_screen.dart';
@@ -98,6 +100,18 @@ final routerProvider = Provider<GoRouter>((ref) {
               petId: int.parse(state.pathParameters['id']!),
               openRecordType: state.uri.queryParameters['openRecord'],
             ),
+          ),
+          // 남의 공개 개체 / 공개 프로필 — 가계도 부모 카드에서만 들어온다.
+          // 사육 기록이 없는 화면이라 /pets/:id 와 별도 라우트로 둔다.
+          GoRoute(
+            path: '/pets/:id/public',
+            builder: (_, state) =>
+                PublicPetScreen(petId: int.parse(state.pathParameters['id']!)),
+          ),
+          GoRoute(
+            path: '/users/:userId',
+            builder: (_, state) => UserProfileScreen(
+                userId: int.parse(state.pathParameters['userId']!)),
           ),
           GoRoute(
             path: '/pets/:id/edit',

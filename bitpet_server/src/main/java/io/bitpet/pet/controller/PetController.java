@@ -7,6 +7,7 @@ import io.bitpet.pet.domain.PetGender;
 import io.bitpet.pet.dto.GenealogyResponse;
 import io.bitpet.pet.dto.PetBulkDeleteRequest;
 import io.bitpet.pet.dto.PetBulkDeleteResponse;
+import io.bitpet.pet.dto.PetCardResponse;
 import io.bitpet.pet.dto.PetCreateRequest;
 import io.bitpet.pet.dto.PetRelationRequest;
 import io.bitpet.pet.dto.PetRelationResponse;
@@ -84,12 +85,28 @@ public class PetController {
         return ApiResponse.ok(petService.findBySerial(serialNo));
     }
 
+    @Operation(summary = "일련번호로 개체 카드 조회 (가계도 부모 선택용). 정확 일치만, 비공개는 404")
+    @GetMapping("/by-serial/card")
+    public ApiResponse<PetCardResponse> findCardBySerial(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @RequestParam String serialNo) {
+        return ApiResponse.ok(petService.findCardBySerial(principal.userId(), serialNo));
+    }
+
     @Operation(summary = "개체 단건 조회")
     @GetMapping("/{petId}")
     public ApiResponse<PetResponse> get(
             @AuthenticationPrincipal AuthPrincipal principal,
             @PathVariable Long petId) {
         return ApiResponse.ok(petService.get(principal.userId(), petId));
+    }
+
+    @Operation(summary = "남의 개체 공개 조회 (가계도 카드 → 개체 상세). 비공개 개체는 404")
+    @GetMapping("/{petId}/public")
+    public ApiResponse<PetCardResponse> getPublic(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @PathVariable Long petId) {
+        return ApiResponse.ok(petService.getPublicCard(principal.userId(), petId));
     }
 
     @Operation(summary = "개체 정보 수정 (부분 수정)")

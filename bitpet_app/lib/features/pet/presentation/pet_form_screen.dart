@@ -58,8 +58,8 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
   DateTime? _adoptDate;
   bool _adoptUnknown = false;
   String _weightUnit = 'g';
-  Pet? _fatherPet;
-  Pet? _motherPet;
+  PetCard? _fatherPet;
+  PetCard? _motherPet;
   bool _isPublic = false; // 검색 허용 여부 (기본 비공개)
   PickedImage? _pickedProfile; // 선택한 프로필 사진 (저장 시 업로드)
 
@@ -173,7 +173,7 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
   }
 
   Future<void> _openParentSheet({required bool isFather}) async {
-    final result = await showModalBottomSheet<Pet>(
+    final result = await showModalBottomSheet<PetCard>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -321,8 +321,8 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
           hatchingDateApproximate: _hatchApproximate,
           adoptionDate: _adoptUnknown ? null : fmt(_adoptDate),
           currentWeightG: weightG,
-          fatherPetId: _fatherPet?.id,
-          motherPetId: _motherPet?.id,
+          fatherPetId: _fatherPet?.petId,
+          motherPetId: _motherPet?.petId,
           description: _memoCtrl.text.trim().isEmpty ? null : _memoCtrl.text.trim(),
           privateYn: _isPublic ? 'N' : 'Y',
         ),
@@ -1013,7 +1013,7 @@ class _WeightUnitToggle extends StatelessWidget {
 
 class _ParentTile extends StatelessWidget {
   final bool isFather;
-  final Pet? pet;
+  final PetCard? pet;
   final VoidCallback onTap;
   final VoidCallback onClear;
 
@@ -1024,7 +1024,7 @@ class _ParentTile extends StatelessWidget {
     required this.onClear,
   });
 
-  Color _bgOf(Pet p) {
+  Color _bgOf(PetCard p) {
     if (p.colorCode == null) return AppColors.paleBgAlt;
     try { return Color(int.parse(p.colorCode!.replaceFirst('#', '0xFF'))); }
     catch (_) { return AppColors.paleBgAlt; }
@@ -1111,6 +1111,15 @@ class _ParentTile extends StatelessWidget {
                   style: const TextStyle(fontSize: 11, color: AppColors.paleInk3),
                   overflow: TextOverflow.ellipsis,
                 ),
+                // 남의 개체를 부모로 걸 수 있으므로, 내 개체가 아니면 소유자를 드러낸다
+                if (!pet!.owner.isMe)
+                  Text(
+                    pet!.owner.isOrphaned || pet!.owner.nickname == null
+                        ? '정보 없음'
+                        : '@${pet!.owner.nickname}',
+                    style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                    overflow: TextOverflow.ellipsis,
+                  ),
               ],
             ),
           ),

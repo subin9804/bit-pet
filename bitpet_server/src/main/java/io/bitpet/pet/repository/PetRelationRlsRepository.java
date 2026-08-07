@@ -21,6 +21,9 @@ public interface PetRelationRlsRepository extends JpaRepository<PetRelationRls, 
     boolean existsByParentPetIdAndChildPetIdAndRelationType(
             Long parentPetId, Long childPetId, RelationType relationType);
 
+    /** 역방향 존재 여부 — 바로 되짚는 순환(A→B 인데 B→A) 차단용 */
+    boolean existsByParentPetIdAndChildPetId(Long parentPetId, Long childPetId);
+
     @Query("SELECT r.childPet FROM PetRelationRls r WHERE r.parentPet.id = :petId")
     List<io.bitpet.pet.domain.PetMst> findChildrenOf(@Param("petId") Long petId);
 

@@ -46,7 +46,12 @@ public class PetMst extends BaseSyncEntity {
     @Column(name = "serial_no", nullable = false, length = 8, updatable = false)
     private String serialNo;
 
-    @Column(name = "user_id", nullable = false)
+    /**
+     * 소유자 — <b>표시용 비정규화 값</b>이고, 권한 판정은 pet_keeper_rls(PetKeeperService)가 한다.
+     * NULL 은 탈퇴 익명화 개체다(V53). 남의 가계도에 부모로 박혀 있는 개체는 주인이 탈퇴해도
+     * 지울 수 없어서(자식 쪽 가계도가 끊긴다) 소유자만 떼어내고 개체는 남긴다.
+     */
+    @Column(name = "user_id")
     private Long userId;
 
     @ManyToOne(fetch = FetchType.LAZY)

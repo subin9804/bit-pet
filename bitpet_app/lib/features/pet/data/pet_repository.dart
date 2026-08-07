@@ -171,6 +171,67 @@ class PetRepository {
     return apiRes.data ?? [];
   }
 
+  /// 가계도 — 부모·자식 카드에는 남의 개체가 섞일 수 있고, 각 카드에 소유자 정보가 붙는다
+  Future<Genealogy> getGenealogy(int petId) async {
+    final res = await _dio.get('/pets/$petId/genealogy');
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => Genealogy.fromJson(d as Map<String, dynamic>),
+    );
+    if (!apiRes.success || apiRes.data == null) {
+      throw ApiException(
+          statusCode: res.statusCode ?? 0,
+          message: apiRes.message ?? '가계도를 불러오지 못했습니다.');
+    }
+    return apiRes.data!;
+  }
+
+  /// 남의 공개 개체 조회 — 비공개면 서버가 404로 뭉갠다
+  Future<PetCard> getPublicPet(int petId) async {
+    final res = await _dio.get('/pets/$petId/public');
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => PetCard.fromJson(d as Map<String, dynamic>),
+    );
+    if (!apiRes.success || apiRes.data == null) {
+      throw ApiException(
+          statusCode: res.statusCode ?? 0,
+          message: apiRes.message ?? '개체 정보를 불러오지 못했습니다.');
+    }
+    return apiRes.data!;
+  }
+
+  /// 일련번호로 개체 카드 찾기 — 부모 선택에서 **남의 개체**를 거는 유일한 경로.
+  /// 정확히 일치해야 하고, 비공개거나 없는 번호면 서버가 404 → null 로 돌려준다.
+  Future<PetCard?> findCardBySerial(String serialNo) async {
+    try {
+      final res = await _dio.get('/pets/by-serial/card',
+          queryParameters: {'serialNo': serialNo.toUpperCase()});
+      final apiRes = ApiResponse.fromJson(
+        res.data as Map<String, dynamic>,
+        (d) => PetCard.fromJson(d as Map<String, dynamic>),
+      );
+      return apiRes.success ? apiRes.data : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// 공개 프로필 (닉네임 + 공개 개체 목록)
+  Future<UserProfile> getUserProfile(int userId) async {
+    final res = await _dio.get('/users/$userId/profile');
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => UserProfile.fromJson(d as Map<String, dynamic>),
+    );
+    if (!apiRes.success || apiRes.data == null) {
+      throw ApiException(
+          statusCode: res.statusCode ?? 0,
+          message: apiRes.message ?? '프로필을 불러오지 못했습니다.');
+    }
+    return apiRes.data!;
+  }
+
   Future<void> addRelation(int childPetId, int parentPetId, String relationType) async {
     await _dio.post('/pets/relations', data: {
       'parentPetId': parentPetId,

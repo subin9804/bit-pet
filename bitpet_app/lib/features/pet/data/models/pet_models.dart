@@ -174,6 +174,202 @@ class Pet {
       );
 }
 
+/// 개체 소유자 표시 정보 (가계도 카드 1줄).
+///
+/// [isMe] / [isOrphaned] 는 **서버가 판정해서 내려준다**. 앱에서 현재 로그인 유저와
+/// 비교하지 말 것 — 같은 분기가 화면마다 흩어지고, 화면마다 다르게 틀린다.
+class PetOwner {
+  final int? userId;
+  final String? nickname;
+  final bool isMe;
+  /// 소유자 없음 (탈퇴 익명화). 표시는 '정보 없음', 탭 불가
+  final bool isOrphaned;
+
+  const PetOwner({
+    this.userId,
+    this.nickname,
+    this.isMe = false,
+    this.isOrphaned = false,
+  });
+
+  factory PetOwner.fromJson(Map<String, dynamic> json) => PetOwner(
+        userId: (json['userId'] as num?)?.toInt(),
+        nickname: json['nickname'] as String?,
+        isMe: json['isMe'] as bool? ?? false,
+        isOrphaned: json['isOrphaned'] as bool? ?? false,
+      );
+}
+
+/// 가계도 노드 / 남의 개체 공개 조회 카드.
+///
+/// 남의 개체가 섞이는 자리라 서버가 사육 기록(메모·체중·입양일)을 빼고 내려준다.
+/// 여기 있는 필드가 남에게 보여도 되는 전부다.
+class PetCard {
+  final int? relationId;      // 가계도 노드일 때만
+  final String? relationType; // FATHER / MOTHER
+  final int petId;
+  final String name;
+  final String serialNo;
+  final String gender;
+  final int? speciesId;
+  final String speciesName;
+  final List<Morph> morphs;
+  final DateTime? hatchingDate;
+  final String hatchingDatePrecision;
+  final bool hatchingDateApproximate;
+  final DateTime? deceasedAt;
+  final String? colorCode;
+  final String? profileImageUrl;
+  final String privateYn;
+  /// 내가 사육하는 개체(OWNER/KEEPER)인지 → 전체 상세 `/pets/:id` 로 간다.
+  /// false인데 [canOpenDetail]이 true면 남의 공개 개체이므로 공개 화면으로 보내야 한다.
+  final bool isKeeper;
+  /// 개체 상세로 들어갈 수 있는지 (내가 사육하는 개체이거나 공개 개체).
+  /// false면 카드에 담긴 정보만으로 바텀시트를 띄운다.
+  final bool canOpenDetail;
+  final PetOwner owner;
+
+  const PetCard({
+    this.relationId,
+    this.relationType,
+    required this.petId,
+    required this.name,
+    this.serialNo = '',
+    this.gender = 'UNKNOWN',
+    this.speciesId,
+    this.speciesName = '',
+    this.morphs = const [],
+    this.hatchingDate,
+    this.hatchingDatePrecision = 'DAY',
+    this.hatchingDateApproximate = false,
+    this.deceasedAt,
+    this.colorCode,
+    this.profileImageUrl,
+    this.privateYn = 'Y',
+    this.isKeeper = false,
+    this.canOpenDetail = false,
+    this.owner = const PetOwner(),
+  });
+
+  bool get isPrivate => privateYn == 'Y';
+  bool get isDeceased => deceasedAt != null;
+  bool get isFather => relationType == 'FATHER';
+
+  /// 내 개체([Pet])를 카드로 — 부모 선택 시트가 "내 목록"과 "일련번호로 찾은 남의 개체"를
+  /// 같은 타입으로 다루기 위한 변환. 소유자는 당연히 나이므로 [PetOwner.isMe] = true.
+  factory PetCard.fromPet(Pet pet) => PetCard(
+        petId: pet.id,
+        name: pet.name,
+        serialNo: pet.serialNo,
+        gender: pet.gender,
+        speciesId: pet.speciesId,
+        speciesName: pet.speciesName,
+        morphs: pet.morphs,
+        hatchingDate: pet.hatchingDate,
+        hatchingDatePrecision: pet.hatchingDatePrecision,
+        hatchingDateApproximate: pet.hatchingDateApproximate,
+        deceasedAt: pet.deceasedAt,
+        colorCode: pet.colorCode,
+        profileImageUrl: pet.profileImageUrl,
+        privateYn: pet.privateYn,
+        isKeeper: true,
+        canOpenDetail: true,
+        owner: const PetOwner(isMe: true),
+      );
+
+  String get morphLabel => morphs.map((m) => m.label).join(' · ');
+
+  factory PetCard.fromJson(Map<String, dynamic> json) => PetCard(
+        relationId: (json['relationId'] as num?)?.toInt(),
+        relationType: json['relationType'] as String?,
+        petId: (json['petId'] as num).toInt(),
+        name: json['name'] as String? ?? '',
+        serialNo: json['serialNo'] as String? ?? '',
+        gender: json['gender'] as String? ?? 'UNKNOWN',
+        speciesId: (json['speciesId'] as num?)?.toInt(),
+        speciesName: json['speciesNameKo'] as String? ?? '',
+        morphs: (json['morphs'] as List<dynamic>? ?? [])
+            .map((e) => Morph.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        hatchingDate: json['hatchingDate'] != null
+            ? DateTime.tryParse(json['hatchingDate'] as String)
+            : null,
+        hatchingDatePrecision: json['hatchingDatePrecision'] as String? ?? 'DAY',
+        hatchingDateApproximate: json['hatchingDateApproximate'] as bool? ?? false,
+        deceasedAt: json['deceasedAt'] != null
+            ? DateTime.tryParse(json['deceasedAt'] as String)
+            : null,
+        colorCode: json['colorCode'] as String?,
+        profileImageUrl: json['profileImageUrl'] as String?,
+        privateYn: json['privateYn'] as String? ?? 'Y',
+        isKeeper: json['isKeeper'] as bool? ?? false,
+        canOpenDetail: json['canOpenDetail'] as bool? ?? false,
+        owner: json['owner'] != null
+            ? PetOwner.fromJson(json['owner'] as Map<String, dynamic>)
+            : const PetOwner(),
+      );
+}
+
+/// 가계도 — 가운데 개체 + 부모 + 자식
+class Genealogy {
+  final Pet pet;
+  final List<PetCard> parents;
+  final List<PetCard> children;
+
+  const Genealogy({
+    required this.pet,
+    this.parents = const [],
+    this.children = const [],
+  });
+
+  PetCard? get father => _parentOf('FATHER');
+  PetCard? get mother => _parentOf('MOTHER');
+
+  PetCard? _parentOf(String relationType) {
+    for (final p in parents) {
+      if (p.relationType == relationType) return p;
+    }
+    return null;
+  }
+
+  factory Genealogy.fromJson(Map<String, dynamic> json) => Genealogy(
+        pet: Pet.fromJson(json['pet'] as Map<String, dynamic>),
+        parents: (json['parents'] as List<dynamic>? ?? [])
+            .map((e) => PetCard.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        children: (json['children'] as List<dynamic>? ?? [])
+            .map((e) => PetCard.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
+/// 공개 프로필 — 가계도 카드의 '@닉네임' 탭
+class UserProfile {
+  final int userId;
+  final String nickname;
+  final String? profileImageUrl;
+  final bool isMe;
+  final List<PetCard> publicPets;
+
+  const UserProfile({
+    required this.userId,
+    required this.nickname,
+    this.profileImageUrl,
+    this.isMe = false,
+    this.publicPets = const [],
+  });
+
+  factory UserProfile.fromJson(Map<String, dynamic> json) => UserProfile(
+        userId: (json['userId'] as num).toInt(),
+        nickname: json['nickname'] as String? ?? '',
+        profileImageUrl: json['profileImageUrl'] as String?,
+        isMe: json['isMe'] as bool? ?? false,
+        publicPets: (json['publicPets'] as List<dynamic>? ?? [])
+            .map((e) => PetCard.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
 class CreatePetRequest {
   final int speciesId;
   final String name;

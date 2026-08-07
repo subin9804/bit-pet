@@ -20,5 +20,9 @@ public record PetCreateRequest(
         String hatchingDatePrecision,
         Boolean hatchingDateApproximate,
         LocalDate adoptionDate,
-        Double currentWeightG
+        Double currentWeightG,
+        /** 부(♂) 개체 id — 실존 개체면 소유자와 무관하게 걸 수 있다 (가계도 부모 등록 정책) */
+        Long fatherPetId,
+        /** 모(♀) 개체 id */
+        Long motherPetId
 ) {}

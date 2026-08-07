@@ -7,6 +7,7 @@ import '../../data/models/pet_models.dart';
 import '../../data/pet_repository.dart';
 import '../../providers/pet_provider.dart';
 import 'parent_pet_bottom_sheet.dart';
+import 'pedigree_parent_card.dart';
 
 class PetInfoGrid extends ConsumerStatefulWidget {
   final Pet pet;
@@ -43,6 +44,7 @@ class _PetInfoGridState extends ConsumerState<PetInfoGrid> {
     ).then((_) {
       // 시트가 닫히면 상세 데이터 새로 불러옴 (저장 여부 무관)
       ref.invalidate(petDetailProvider(widget.petId));
+      ref.invalidate(genealogyProvider(widget.petId));
     });
   }
 
@@ -55,9 +57,12 @@ class _PetInfoGridState extends ConsumerState<PetInfoGrid> {
     final adopt = pet.adoptionDate;
     final age   = _ageString(hatch, precision, approx);
 
-    final fatherLabel = pet.fatherName ?? '미등록';
-    final motherLabel = pet.motherName ?? '미등록';
-    final hasParents = pet.fatherId != null || pet.motherId != null;
+    // 부모 카드는 소유자 정보(@닉네임 / 정보 없음)까지 같이 그려야 해서 가계도를 따로 읽는다.
+    // Pet 안의 fatherName/motherName 은 이름뿐이라 남의 개체인지 알 수 없다.
+    final genealogy = ref.watch(genealogyProvider(widget.petId));
+    final father = genealogy.valueOrNull?.father;
+    final mother = genealogy.valueOrNull?.mother;
+    final hasParents = father != null || mother != null;
 
     return Container(
       decoration: BoxDecoration(
@@ -122,18 +127,16 @@ class _PetInfoGridState extends ConsumerState<PetInfoGrid> {
               const SizedBox(height: 5),
               if (!hasParents)
                 Text(
-                  '등록된 부모 개체 없음',
+                  // 로딩 중에 '없음'을 띄우면 부모가 있는 개체도 잠깐 미등록처럼 보인다
+                  genealogy.isLoading ? '불러오는 중…' : '등록된 부모 개체 없음',
                   style: AppTextStyles.paleGridValue.copyWith(
                       color: AppColors.paleInk2, fontStyle: FontStyle.italic),
                 )
-              else
-                Row(
-                  children: [
-                    _ParentChip(label: '♂ $fatherLabel', active: pet.fatherId != null),
-                    const SizedBox(width: 8),
-                    _ParentChip(label: '♀ $motherLabel', active: pet.motherId != null),
-                  ],
-                ),
+              else ...[
+                if (father != null) PedigreeParentCard(card: father),
+                if (father != null && mother != null) const SizedBox(height: 8),
+                if (mother != null) PedigreeParentCard(card: mother),
+              ],
             ],
           ),
         ],
@@ -160,34 +163,6 @@ class _PetInfoGridState extends ConsumerState<PetInfoGrid> {
     final m = months % 12;
     final base = y == 0 ? '$m개월' : m == 0 ? '$y년' : '$y년 $m개월';
     return approx ? '약 $base' : base;
-  }
-}
-
-class _ParentChip extends StatelessWidget {
-  final String label;
-  final bool active;
-  const _ParentChip({required this.label, required this.active});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-      decoration: BoxDecoration(
-        color: active ? AppColors.paleBgAlt : Colors.transparent,
-        border: Border.all(
-          color: active ? AppColors.paleLine : AppColors.paleLine.withValues(alpha: 0.5),
-        ),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: active ? AppColors.primary : AppColors.paleInk3,
-          fontStyle: active ? FontStyle.normal : FontStyle.italic,
-        ),
-      ),
-    );
   }
 }
 
@@ -272,13 +247,13 @@ class _ParentEditSheet extends ConsumerStatefulWidget {
 
 class _ParentEditSheetState extends ConsumerState<_ParentEditSheet> {
   bool _saving = false;
-  Pet? _newFather;
+  PetCard? _newFather;
   bool _clearFather = false;
-  Pet? _newMother;
+  PetCard? _newMother;
   bool _clearMother = false;
 
   Future<void> _pickParent({required bool isFather}) async {
-    final result = await showModalBottomSheet<Pet>(
+    final result = await showModalBottomSheet<PetCard>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -308,7 +283,7 @@ class _ParentEditSheetState extends ConsumerState<_ParentEditSheet> {
         if (widget.initialFather != null) {
           await repo.deleteRelation(widget.initialFather!.relationId);
         }
-        await repo.addRelation(widget.petId, _newFather!.id, 'FATHER');
+        await repo.addRelation(widget.petId, _newFather!.petId, 'FATHER');
       }
       // 모 처리
       if (_clearMother && widget.initialMother != null) {
@@ -317,7 +292,7 @@ class _ParentEditSheetState extends ConsumerState<_ParentEditSheet> {
         if (widget.initialMother != null) {
           await repo.deleteRelation(widget.initialMother!.relationId);
         }
-        await repo.addRelation(widget.petId, _newMother!.id, 'MOTHER');
+        await repo.addRelation(widget.petId, _newMother!.petId, 'MOTHER');
       }
       if (mounted) Navigator.pop(context);
     } catch (e) {

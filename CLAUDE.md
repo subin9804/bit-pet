@@ -189,8 +189,9 @@ features/
 | V50 | feeding_dtl.refused_yn 추가 (거식) — food_type NOT NULL 해제 + CHECK로 둘을 묶음(Y면 food_type NULL / N이면 NOT NULL), 거식 부분 인덱스 |
 | V51 | nfc_tag_mst 보완 — chip_type/batch_no/status 추가(+상태 백필), tag_cd 대문자 CHECK, scan_cnt·last_scan_at 제거 |
 | V52 | nfc_tag_mst 정정 — default_action_cd 제거(축이 잘못된 설계), tag_cd 포맷을 Crockford Base32 6자 `^[0-9A-HJKMNP-TV-Z]{6}$` 로 확정 |
+| V53 | pet_mst.user_id NOT NULL 해제 — 탈퇴 익명화 개체(가계도에서 '정보 없음') 지원. 권한 판정은 계속 pet_keeper_rls |
 
-> **다음 마이그레이션은 V53부터 작성.**
+> **다음 마이그레이션은 V54부터 작성.**
 
 ---
 
@@ -324,6 +325,24 @@ private Map<String, Object> extraData;
   - 마이페이지 > 이름표 관리(`/my/tags`) — 연결 해제만 (양도 시 원 소유자가 해제 → 새 주인이 재연결). 목록 캡션에 `사용 중지됨`/`chip_type` 표시
 - **제작**: 랜덤 코드 100개 발급(`/admin/tags/issue`, 배치번호 함께) → 칩(현재 입고분 **NTAG203**)에 URL 굽기 → 재고. 주문 시 각인 이름만 받아 **PETG**(PLA는 사육장 열·습도에 변형) 3D 프린팅 후 아무 태그나 부착 — 어느 태그가 어느 개체인지 알 필요 없음
 - **v1.1+**: 양도 플로우, 사육장 단위 태그, iOS Universal Links (제품 라인업은 각인·외형으로만 구분 — 태그 데이터는 1종)
+
+### 가계도 부모 등록 (V53)
+- **부모는 항상 실존 개체(`pet_mst`) 참조.** 텍스트 직접 입력 없음. 폐사(DECEASED) 개체도 부모로 등록 가능
+- **소유자와 무관하게 등록 가능. 승인·차단 절차 없음** — 남의 개체를 내 가계도에 부모로 걸 수 있다
+  - `addRelation`은 **자식만** 소유 검증(`assertOwner`), 부모는 실존 여부만 본다
+  - `deleteRelation`도 **자식 소유자만**. 부모 소유자에게 삭제권을 주면 그게 곧 차단 절차가 되어 "승인 없음" 원칙이 깨진다
+  - 자기 자신(`PET_RELATION_SELF`)·역방향 중복(`PET_RELATION_CYCLE`)만 막는다
+- ⛔ **검증/승인 도메인은 만들지 않는다** (`pedigree_verify_req`, `verify_status`, `verify_source` 등). 사칭 억제는 아래 소유자 노출로 대신한다
+- **소유자 노출**: 가계도 노드에 `owner { userId, nickname, isMe, isOrphaned }`.
+  `isMe`/`isOrphaned`는 **서버가 판정해서 내린다** — 앱이 currentUserId와 비교하게 두면 같은 분기가 화면마다 흩어진다
+  - `isOrphaned` = `user_id IS NULL`(V53 익명화) **또는 탈퇴로 소프트 삭제된 계정**. 화면에선 둘 다 '정보 없음'
+- **가계도 노드는 `PetResponse`가 아니라 `PetCardResponse`** — 남의 개체가 섞이는 자리라 메모·입양일·최근 체중이 따라 나가면 안 된다
+  - `isKeeper`(전체 상세 가능) / `canOpenDetail`(= isKeeper || 공개)을 서버가 파생시켜 내린다
+- API: `GET /pets/{petId}/genealogy`, `GET /pets/{petId}/public`(비공개는 404), `GET /users/{userId}/profile`,
+  `GET /pets/by-serial/card`(부모 선택용 — **정확 일치**로만 남의 개체를 연다. 목록 열람은 없음)
+- 앱: `PedigreeParentCard`(썸네일 + 소유자 12sp / 개체명 15sp, **탭 타겟 분리**), 비공개 개체는 최소 정보 바텀시트,
+  화면 `/pets/:id/public`·`/users/:userId`
+  - 소유자 줄은 `isMe`면 **아예 렌더링하지 않는다**. 유저명이 보인다 = 남의 개체라는 신호
 
 ### 개체 일련번호
 VARCHAR(8) 고정, 32자 풀(0/O/I/1 제외), 6자리 시작, 풀 80% 시 7자리 확장.

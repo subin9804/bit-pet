@@ -1,5 +1,7 @@
 package io.bitpet.pet.service;
 
+import io.bitpet.auth.domain.UserMst;
+import io.bitpet.auth.repository.UserMstRepository;
 import io.bitpet.common.exception.BusinessException;
 import io.bitpet.common.exception.ErrorCode;
 import io.bitpet.pet.domain.MorphCd;
@@ -7,14 +9,18 @@ import io.bitpet.pet.domain.PetGender;
 import io.bitpet.pet.domain.PetMorphRls;
 import io.bitpet.pet.domain.PetMst;
 import io.bitpet.pet.domain.PetRelationRls;
+import io.bitpet.pet.domain.RelationType;
 import io.bitpet.pet.domain.SpeciesCd;
 import io.bitpet.pet.dto.GenealogyResponse;
 import io.bitpet.pet.dto.PetBulkDeleteResponse;
+import io.bitpet.pet.dto.PetCardResponse;
 import io.bitpet.pet.dto.PetCreateRequest;
+import io.bitpet.pet.dto.PetOwnerResponse;
 import io.bitpet.pet.dto.PetRelationRequest;
 import io.bitpet.pet.dto.PetRelationResponse;
 import io.bitpet.pet.dto.PetResponse;
 import io.bitpet.pet.dto.PetUpdateRequest;
+import io.bitpet.pet.dto.UserProfileResponse;
 import io.bitpet.pet.repository.MorphCdRepository;
 import io.bitpet.pet.repository.PetMstRepository;
 import io.bitpet.pet.repository.PetRelationRlsRepository;
@@ -35,6 +41,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -47,6 +54,7 @@ public class PetService {
     private final SpeciesCdRepository speciesRepository;
     private final MorphCdRepository morphRepository;
     private final PetRelationRlsRepository relationRepository;
+    private final UserMstRepository userRepository;
     private final SerialNumberGenerator serialNumberGenerator;
     private final PetKeeperService petKeeper;
     private final io.bitpet.routine.service.RoutineMaintenanceService routineMaintenance;
@@ -92,6 +100,11 @@ public class PetService {
         petKeeper.registerOwner(pet.getId(), userId);
 
         attachMorphs(pet, req.morphIds(), species);
+
+        // 등록 화면에서 고른 부모를 여기서 함께 걸어준다. 앱은 예전부터 fatherPetId/motherPetId를
+        // 보내고 있었는데 서버가 조용히 버리고 있었다 — 저장된 줄 알고 넘어가면 가계도가 빈다.
+        linkParentAtCreate(userId, pet.getId(), req.fatherPetId(), RelationType.FATHER);
+        linkParentAtCreate(userId, pet.getId(), req.motherPetId(), RelationType.MOTHER);
 
         if (req.currentWeightG() != null && req.currentWeightG() > 0) {
             weightRepository.save(WeightDtl.builder()
@@ -253,14 +266,37 @@ public class PetService {
     // D3: 부모-자식 관계
     // -------------------------------------------------------------------------
 
+    /**
+     * 부모 등록.
+     *
+     * <p><b>자식은 내 개체여야 하고, 부모는 실존 개체이기만 하면 된다.</b>
+     * 부모 쪽 소유자는 묻지 않는다 — 남의 개체도, 폐사한 개체도, 주인이 탈퇴한 개체도 걸 수 있다.
+     * 승인·차단 절차는 두지 않았다(검증 도메인 미구현). 실제로 브리딩 라인은 분양을 타고
+     * 사람을 건너다니는데, 부모 쪽 주인의 승인을 받아야 등록된다면 대부분의 가계도가
+     * 미완성으로 남는다. 사칭은 조회 응답에 소유자를 실어 보내는 것으로 억제한다
+     * ({@link io.bitpet.pet.dto.PetOwnerResponse}).
+     *
+     * <p>부모를 텍스트로 적을 수는 없다 — 항상 pet_mst 참조다. 실존하지 않는 개체를
+     * 부모로 적어두면 그 뒤로 이어지는 라인 전체가 검증 불가능한 문자열이 된다.
+     */
     @Transactional
     public PetRelationResponse addRelation(Long userId, PetRelationRequest req) {
-        PetMst parent = loadOwnedPet(userId, req.parentPetId());
-        PetMst child  = loadOwnedPet(userId, req.childPetId());
+        if (req.parentPetId().equals(req.childPetId())) {
+            throw new BusinessException(ErrorCode.PET_RELATION_SELF);
+        }
+        PetMst child = loadOwnedPet(userId, req.childPetId());
+        PetMst parent = petRepository.findById(req.parentPetId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.PET_NOT_FOUND));
 
         if (relationRepository.existsByParentPetIdAndChildPetIdAndRelationType(
                 req.parentPetId(), req.childPetId(), req.relationType())) {
             throw new BusinessException(ErrorCode.PET_RELATION_DUPLICATE);
+        }
+        // A가 B의 부모인데 B를 A의 부모로 다시 거는 경우. 깊은 순환까지 막지는 않지만,
+        // 남의 개체를 자유롭게 걸 수 있게 된 이상 최소한 바로 되짚는 건 막는다.
+        if (relationRepository.existsByParentPetIdAndChildPetId(
+                req.childPetId(), req.parentPetId())) {
+            throw new BusinessException(ErrorCode.PET_RELATION_CYCLE);
         }
         PetRelationRls relation = PetRelationRls.builder()
                 .parentPet(parent)
@@ -279,28 +315,143 @@ public class PetService {
                 .toList();
     }
 
+    /**
+     * 부모 등록 해제 — <b>자식 쪽 소유자만</b> 할 수 있다.
+     *
+     * <p>부모로 걸린 개체의 주인에게 삭제 권한을 주면 그게 곧 차단 절차가 된다.
+     * 이번 정책에는 승인도 차단도 없으므로, 자기 개체의 가계도를 고칠 수 있는 사람만
+     * 관계를 지운다. (등록할 때 자식이 내 개체여야 했던 것과 같은 축이다.)
+     */
     @Transactional
     public void deleteRelation(Long userId, Long relationId) {
         PetRelationRls relation = relationRepository.findById(relationId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PET_RELATION_NOT_FOUND));
-        loadOwnedPet(userId, relation.getParentPet().getId());
+        loadOwnedPet(userId, relation.getChildPet().getId());
         relationRepository.delete(relation);
     }
 
+    /**
+     * 가계도 조회.
+     *
+     * <p>부모·자식에는 남의 개체가 섞인다(부모 등록에 승인이 없으므로). 그래서 노드는
+     * 사육 기록이 빠진 {@link PetCardResponse}로 내리고, 소유자 표시 정보를 함께 싣는다.
+     * {@code isMe}/{@code isOrphaned}는 여기서 판정한다 — 앱이 currentUserId와 비교하게 두면
+     * 같은 분기가 화면마다 흩어진다.
+     */
     public GenealogyResponse getGenealogy(Long userId, Long petId) {
         PetMst pet = petKeeper.assertKeeper(userId, petId);
-        List<PetMst> parents  = relationRepository.findParentsOf(petId);
-        List<PetMst> children = relationRepository.findChildrenOf(petId);
+        List<PetRelationRls> parentRels = relationRepository.findAllByChildPetId(petId);
+        List<PetRelationRls> childRels  = relationRepository.findAllByParentPetId(petId);
+
+        List<PetMst> nodes = new ArrayList<>();
+        parentRels.forEach(r -> nodes.add(r.getParentPet()));
+        childRels.forEach(r -> nodes.add(r.getChildPet()));
+        Map<Long, PetOwnerResponse> owners = resolveOwners(userId, nodes);
+
         return new GenealogyResponse(
-                PetResponse.from(pet),
-                parents.stream().map(PetResponse::from).toList(),
-                children.stream().map(PetResponse::from).toList()
+                PetResponse.from(pet, null, parentRels, resolveProfileImageUrl(pet),
+                        petKeeper.isOwner(userId, petId)),
+                parentRels.stream()
+                        .map(r -> toCard(userId, r.getParentPet(), r.getId(), r.getRelationType(), owners))
+                        .toList(),
+                childRels.stream()
+                        .map(r -> toCard(userId, r.getChildPet(), r.getId(), r.getRelationType(), owners))
+                        .toList()
         );
+    }
+
+    /**
+     * 남의 개체 공개 조회 — 가계도 카드에서 공개 개체를 눌렀을 때.
+     * 비공개 개체는 404로 뭉갠다({@code findBySerial}와 같은 규약).
+     */
+    public PetCardResponse getPublicCard(Long userId, Long petId) {
+        PetMst pet = petRepository.findById(petId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PET_NOT_FOUND));
+        if (!"N".equals(pet.getPrivateYn()) && !petKeeper.isKeeper(userId, petId)) {
+            throw new BusinessException(ErrorCode.PET_NOT_FOUND);
+        }
+        return toCard(userId, pet, null, null, resolveOwners(userId, List.of(pet)));
+    }
+
+    /**
+     * 일련번호로 개체 카드 조회 — 부모 선택 화면에서 <b>남의 개체를 걸기 위한</b> 유일한 입구다.
+     *
+     * <p>부모는 소유자와 무관하게 등록할 수 있지만, 그렇다고 남의 개체 목록을 훑게 해줄 수는 없다.
+     * 일련번호를 알고 있다는 것 자체가 "실물 개체를 넘겨받았거나 분양자에게 들었다"는 최소한의
+     * 근거라서, 검색은 정확한 일련번호 일치로만 연다.
+     *
+     * <p>{@code findBySerial}과 달리 {@link PetCardResponse}로 내린다 — 저쪽은 사육 기록이
+     * 딸린 PetResponse라 남의 개체에 그대로 쓰면 메모·입양일까지 새어 나간다.
+     */
+    public PetCardResponse findCardBySerial(Long userId, String serialNo) {
+        PetMst pet = petRepository.findBySerialNo(serialNo.toUpperCase())
+                .orElseThrow(() -> new BusinessException(ErrorCode.PET_NOT_FOUND));
+        if (!"N".equals(pet.getPrivateYn()) && !petKeeper.isKeeper(userId, pet.getId())) {
+            throw new BusinessException(ErrorCode.PET_NOT_FOUND); // 비공개는 404로 동일 처리
+        }
+        return toCard(userId, pet, null, null, resolveOwners(userId, List.of(pet)));
+    }
+
+    /** 공개 프로필 — 가계도 카드의 '@닉네임' 탭. 공개 개체만 싣는다. */
+    public UserProfileResponse getUserProfile(Long requesterId, Long userId) {
+        UserMst user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.AUTH_USER_NOT_FOUND));
+        List<PetMst> publicPets = petRepository.findAllByUserIdAndPrivateYn(userId, "N");
+        Map<Long, PetOwnerResponse> owners = resolveOwners(requesterId, publicPets);
+        return new UserProfileResponse(
+                user.getId(),
+                user.getName(),
+                user.getProfileImageUrl(),
+                user.getId().equals(requesterId),
+                publicPets.stream()
+                        .map(p -> toCard(requesterId, p, null, null, owners))
+                        .toList()
+        );
+    }
+
+    /**
+     * 개체별 소유자 표시 정보.
+     *
+     * <p>소유자 없음(isOrphaned)은 두 가지를 같이 덮는다 — {@code user_id IS NULL}(탈퇴 익명화)과
+     * 탈퇴로 소프트 삭제된 계정(UserMst의 {@code @SQLRestriction}에 걸려 조회되지 않는다).
+     * 화면에서는 둘 다 '정보 없음'이라 구분할 이유가 없다.
+     */
+    private Map<Long, PetOwnerResponse> resolveOwners(Long requesterId, List<PetMst> pets) {
+        Set<Long> ownerIds = pets.stream()
+                .map(PetMst::getUserId)
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<Long, String> nicknames = userRepository.findAllById(ownerIds).stream()
+                .collect(Collectors.toMap(UserMst::getId, UserMst::getName));
+
+        Map<Long, PetOwnerResponse> byPetId = new java.util.HashMap<>();
+        for (PetMst p : pets) {
+            Long ownerId = p.getUserId();
+            byPetId.put(p.getId(), PetOwnerResponse.of(
+                    ownerId, ownerId == null ? null : nicknames.get(ownerId), requesterId));
+        }
+        return byPetId;
+    }
+
+    private PetCardResponse toCard(Long userId, PetMst pet, Long relationId,
+                                   RelationType relationType,
+                                   Map<Long, PetOwnerResponse> owners) {
+        // 사육자면 전체 상세로, 사육자가 아니어도 공개 개체면 공개 조회로 들어갈 수 있다.
+        // 둘 다 아니면 앱이 이 카드에 담긴 정보(이름·종·모프·성별·해칭일)만으로 바텀시트를 띄운다.
+        return PetCardResponse.of(pet, relationId, relationType,
+                resolveProfileImageUrl(pet), petKeeper.isKeeper(userId, pet.getId()),
+                owners.getOrDefault(pet.getId(), PetOwnerResponse.orphaned()));
     }
 
     // -------------------------------------------------------------------------
     // 내부 헬퍼
     // -------------------------------------------------------------------------
+
+    /** 개체 등록 시 부모 연결 — 등록 후 addRelation과 같은 정책(부모는 실존 개체이기만 하면 된다) */
+    private void linkParentAtCreate(Long userId, Long childPetId, Long parentPetId, RelationType type) {
+        if (parentPetId == null) return;
+        addRelation(userId, new PetRelationRequest(parentPetId, childPetId, type));
+    }
 
     /** 소유자 전용 작업 검증 (프로필 수정·삭제·관계 편집) */
     private PetMst loadOwnedPet(Long userId, Long petId) {

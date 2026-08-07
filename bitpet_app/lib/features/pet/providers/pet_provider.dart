@@ -81,6 +81,24 @@ final petDetailProvider =
   return ref.watch(petRepositoryProvider).getPet(id);
 });
 
+/// 가계도 (부모·자식 + 각 노드의 소유자 정보)
+final genealogyProvider =
+    FutureProvider.family<Genealogy, int>((ref, petId) {
+  return ref.watch(petRepositoryProvider).getGenealogy(petId);
+});
+
+/// 남의 공개 개체 — 가계도 카드에서 공개 개체를 눌렀을 때
+final publicPetProvider =
+    FutureProvider.family<PetCard, int>((ref, petId) {
+  return ref.watch(petRepositoryProvider).getPublicPet(petId);
+});
+
+/// 공개 프로필 — 가계도 카드의 '@닉네임' 탭
+final userProfileProvider =
+    FutureProvider.family<UserProfile, int>((ref, userId) {
+  return ref.watch(petRepositoryProvider).getUserProfile(userId);
+});
+
 // 전체 종 목록 (SpeciesBottomSheet 초기 로드 및 검색용)
 final speciesListProvider = FutureProvider<List<Species>>((ref) {
   return ref.watch(petRepositoryProvider).getSpecies();

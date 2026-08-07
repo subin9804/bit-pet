@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -33,8 +33,8 @@ class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
   String _gender = 'UNKNOWN';
   DateTime? _hatchDate;
   DateTime? _adoptDate;
-  Pet? _fatherPet;
-  Pet? _motherPet;
+  PetCard? _fatherPet;
+  PetCard? _motherPet;
 
   bool _submitting = false;
 
@@ -84,7 +84,7 @@ class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
   }
 
   Future<void> _openParentSheet({required bool isFather}) async {
-    final result = await showModalBottomSheet<Pet>(
+    final result = await showModalBottomSheet<PetCard>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -122,8 +122,8 @@ class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
           hatchingDate: _hatchDate != null ? _isoDate(_hatchDate!) : null,
           hatchingDatePrecision: _hatchDate != null ? 'DAY' : null,
           adoptionDate: _adoptDate != null ? _isoDate(_adoptDate!) : null,
-          fatherPetId: _fatherPet?.id,
-          motherPetId: _motherPet?.id,
+          fatherPetId: _fatherPet?.petId,
+          motherPetId: _motherPet?.petId,
         ));
         successCount++;
       }

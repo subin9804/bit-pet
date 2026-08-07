@@ -45,6 +45,8 @@ public enum ErrorCode {
     // --- Pet Relation ---
     PET_RELATION_NOT_FOUND(HttpStatus.NOT_FOUND, "Pet relation not found"),
     PET_RELATION_DUPLICATE(HttpStatus.CONFLICT, "Pet relation already exists"),
+    PET_RELATION_SELF(HttpStatus.BAD_REQUEST, "자기 자신을 부모로 등록할 수 없습니다."),
+    PET_RELATION_CYCLE(HttpStatus.CONFLICT, "이미 반대 방향으로 연결된 개체입니다."),
 
     // --- Mating ---
     MATING_NOT_FOUND(HttpStatus.NOT_FOUND, "Mating record not found"),
