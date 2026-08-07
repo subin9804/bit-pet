@@ -7,6 +7,7 @@ import io.bitpet.auth.dto.SignupRequest;
 import io.bitpet.auth.dto.TokenResponse;
 import io.bitpet.auth.dto.UpdateMeRequest;
 import io.bitpet.auth.dto.UserResponse;
+import io.bitpet.auth.dto.WithdrawPreviewResponse;
 import io.bitpet.auth.jwt.AuthPrincipal;
 import io.bitpet.auth.service.AuthService;
 import io.bitpet.common.dto.PresignResponse;
@@ -89,10 +90,24 @@ public class AuthController {
         return ApiResponse.ok(authService.presignProfileImage(principal.userId(), filename));
     }
 
-    @Operation(summary = "회원탈퇴 (Soft Delete + 30일 유예)")
+    @Operation(summary = "탈퇴 전 미리보기 — 공동 사육자가 있는 개체 목록",
+            description = "목록이 비어 있으면 선택지 없이 일반 탈퇴 확인만 띄우면 된다.")
+    @GetMapping("/withdraw/preview")
+    public ApiResponse<WithdrawPreviewResponse> previewWithdraw(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return ApiResponse.ok(authService.previewWithdraw(principal.userId()));
+    }
+
+    @Operation(summary = "회원탈퇴 — 계정 소프트 삭제 + 개체 즉시 처리",
+            description = """
+                    handOverSharedPets: 공동 사육자가 있는 개체를 그 사람에게 넘길지.
+                    false 면 다른 개체와 똑같이 삭제/익명화되고 공동 사육자는 접근권을 잃는다.
+                    기본값 true — 값이 안 오면 남기는 쪽이 안전하다 (지운 건 되돌릴 수 없다).""")
     @DeleteMapping("/withdraw")
-    public ApiResponse<Void> withdraw(@AuthenticationPrincipal AuthPrincipal principal) {
-        authService.withdraw(principal.userId());
+    public ApiResponse<Void> withdraw(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @RequestParam(defaultValue = "true") boolean handOverSharedPets) {
+        authService.withdraw(principal.userId(), handOverSharedPets);
         return ApiResponse.ok();
     }
 }

@@ -361,8 +361,15 @@ private Map<String, Object> extraData;
   - 양쪽 다 `nfc_tag_mst` 는 `unlink()` 로 pet_id/user_id 만 비우고 상태는 **`SOLD` 유지**.
     ⛔ **STOCK 으로 되돌리지 말 것** — 계정이 사라져도 태그 실물은 그 사람 손에 있고 굽힌 URL 은
     락이 걸려 바꿀 수 없다. 회수해 되팔 수 있는 물건이 아니라서 STOCK 으로 세면 재고 수치만 거짓이 된다
-  - **공유 개체(KEEPER)가 있으면 삭제·익명화 전에 최초 합류 KEEPER 에게 소유권을 넘긴다**
-    (`promoteToOwner`). 안 그러면 탈퇴 한 번에 제3자의 기록이 날아간다
+  - **공유 개체(KEEPER)는 사용자가 탈퇴 화면에서 고른다** — `DELETE /auth/withdraw?handOverSharedPets=`
+    - `true`(기본) → 최초 합류 KEEPER 에게 **기록·사진째** 소유권 이전(`promoteToOwner`).
+      `false` → 다른 개체와 똑같이 삭제/익명화, 공동 사육자는 접근권을 잃는다
+    - 자동으로 정하지 않는 이유: "내 기록을 남의 계정에 남기고 싶지 않다"와 "함께 보던 사람에게
+      남겨주고 싶다"는 둘 다 정당하다. 값이 안 오면 **넘기는 쪽이 기본** — 지운 건 되돌릴 수 없다
+    - 선택 단위는 **개체별이 아니라 일괄**. 대신 `GET /auth/withdraw/preview` 로 개체명과
+      받게 될 사람을 미리 보여줘 결과를 감추지 않는다 (목록이 비면 앱은 선택지를 띄우지 않는다)
+    - ⚠️ 이전 순서: **탈퇴자 OWNER 행을 지우고 flush 한 뒤** 승격해야 한다. 반대로 하면 OWNER 가
+      잠시 둘이 되어 `idx_pet_keeper_owner` 유니크 제약에 걸린다
 - **고아 개체 신규 참조 차단은 API 레벨에서**: `PetService.addRelation`(→ `PET_ORPHANED` 409),
   `findCardBySerial`/`findBySerial`(→ 404), `MatingService.create/update`, `NfcTagService.resolve/peekPetName`.
   기존 참조는 유지되므로 가계도에는 계속 보인다 → 참조 수가 **단조 감소**해 자연 소멸한다

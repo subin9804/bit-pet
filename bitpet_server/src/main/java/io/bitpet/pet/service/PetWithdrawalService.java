@@ -1,6 +1,7 @@
 package io.bitpet.pet.service;
 
 import io.bitpet.pet.domain.PetKeeperRls;
+import io.bitpet.pet.domain.PetMst;
 import io.bitpet.pet.repository.PetKeeperRlsRepository;
 import io.bitpet.pet.repository.PetMstRepository;
 import io.bitpet.pet.repository.PetPurgeRepository;
@@ -15,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.stream.Stream;
 
 /**
  * 회원 탈퇴 시 개체 처리.
@@ -48,8 +50,41 @@ public class PetWithdrawalService {
     /** 탈퇴 처리 결과 — 로그·운영 확인용 */
     public record Result(int purged, int anonymized, int handedOver, int keeperReleased) {}
 
+    /**
+     * 탈퇴 전 미리보기 — 공동 사육자가 있는 개체와, 넘길 경우 받게 될 사람.
+     * 탈퇴 화면에서 "함께 보는 개체가 N마리 있어요"를 띄우는 데 쓴다.
+     */
+    public record SharedPet(Long petId, String petName, Long recipientUserId) {}
+
+    /**
+     * 소유 개체 중 공동 사육자가 있는 것만 추린다. 목록 순서 = 개체 id 순.
+     *
+     * <p>recipient 는 <b>가장 먼저 합류한 KEEPER</b> — 실제 이전 로직과 같은 기준이라야
+     * 미리보기와 결과가 어긋나지 않는다.
+     */
+    @Transactional(readOnly = true)
+    public List<SharedPet> findSharedPets(Long userId) {
+        return keeperRepository.findOwnedByUser(userId).stream()
+                .map(PetKeeperRls::getPetId)
+                .sorted()
+                .flatMap(petId -> {
+                    List<PetKeeperRls> keepers = keeperRepository.findKeepers(petId);
+                    if (keepers.isEmpty()) return Stream.empty();
+                    String name = petRepository.findById(petId)
+                            .map(PetMst::getName)
+                            .orElse(null);
+                    return Stream.of(new SharedPet(petId, name, keepers.get(0).getUserId()));
+                })
+                .toList();
+    }
+
+    /**
+     * @param handOverSharedPets 공동 사육자가 있는 개체를 넘길지. false 면 <b>넘기지 않고</b>
+     *                           다른 개체와 똑같이 참조 여부로 삭제/익명화한다 (공동 사육자는
+     *                           접근권을 잃는다). 사용자가 탈퇴 화면에서 고른다.
+     */
     @Transactional(propagation = Propagation.MANDATORY)
-    public Result process(Long userId) {
+    public Result process(Long userId, boolean handOverSharedPets) {
         List<Long> ownedPetIds = keeperRepository.findOwnedByUser(userId).stream()
                 .map(PetKeeperRls::getPetId)
                 .toList();
@@ -61,13 +96,17 @@ public class PetWithdrawalService {
 
         int purged = 0, anonymized = 0, handedOver = 0;
         for (Long petId : ownedPetIds) {
-            // 공동 사육자가 있으면 개체를 지우지도 익명화하지도 않는다 — 넘긴다.
-            // 남의 기록이 얹혀 있는 개체를 탈퇴 한 번으로 날려버릴 수는 없다.
-            List<PetKeeperRls> keepers = keeperRepository.findKeepers(petId);
-            if (!keepers.isEmpty()) {
-                handOver(userId, petId, keepers.get(0));
-                handedOver++;
-                continue;
+            // 공동 사육자가 있는 개체는 사용자가 고른 대로 — 넘기거나(기록·사진째),
+            // 넘기지 않으면 아래 일반 경로를 타 삭제/익명화된다.
+            // 자동으로 정하지 않는 이유: '내 기록을 남의 계정에 남기고 싶지 않다'와
+            // '함께 보던 사람에게 개체를 남겨주고 싶다'는 둘 다 정당한 요구다.
+            if (handOverSharedPets) {
+                List<PetKeeperRls> keepers = keeperRepository.findKeepers(petId);
+                if (!keepers.isEmpty()) {
+                    handOver(userId, petId, keepers.get(0));
+                    handedOver++;
+                    continue;
+                }
             }
 
             // ② 잔여 참조 검사 — ① 이후라 여기 걸리는 건 전부 타 사용자 데이터다
@@ -101,10 +140,15 @@ public class PetWithdrawalService {
     /**
      * 소유권 이전 — 가장 먼저 합류한 공동 사육자를 소유자로 승격시킨다.
      * 개체·기록·사진은 그대로 두고, 탈퇴 회원의 사육자 행과 루틴 연결만 걷어낸다.
+     *
+     * <p>⚠️ <b>순서 주의.</b> 탈퇴자의 OWNER 행을 먼저 지우고 flush 한 뒤에 승격해야 한다.
+     * 반대로 하면 한 개체에 OWNER 가 잠시 둘이 되어 {@code idx_pet_keeper_owner}
+     * (개체당 OWNER 1명) 유니크 제약에 걸린다.
      */
     private void handOver(Long userId, Long petId, PetKeeperRls newOwner) {
-        newOwner.promoteToOwner();
         keeperRepository.deleteByIdPetIdAndIdUserId(petId, userId);
+        keeperRepository.flush();
+        newOwner.promoteToOwner();
         petRepository.findById(petId).ifPresent(p -> p.transferOwnerTo(newOwner.getUserId()));
         routineMaintenance.onKeeperAccessLost(userId, petId);
         log.info("Pet handed over on withdrawal: petId={}, from={}, to={}",

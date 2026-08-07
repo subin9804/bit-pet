@@ -37,6 +37,32 @@ class AuthTokens {
       );
 }
 
+/// 탈퇴 전 미리보기 — 공동 사육자가 있는 내 개체 한 마리.
+/// 이 목록이 비어 있으면 탈퇴 화면에서 넘김/삭제 선택지를 띄우지 않는다.
+class SharedPetPreview {
+  final int petId;
+  final String petName;
+
+  /// 넘기기를 고르면 소유자가 될 사람 (가장 먼저 합류한 공동 사육자)
+  final int recipientUserId;
+  final String? recipientNickname;
+
+  const SharedPetPreview({
+    required this.petId,
+    required this.petName,
+    required this.recipientUserId,
+    this.recipientNickname,
+  });
+
+  factory SharedPetPreview.fromJson(Map<String, dynamic> json) =>
+      SharedPetPreview(
+        petId: json['petId'] as int,
+        petName: json['petName'] as String? ?? '이름 없음',
+        recipientUserId: json['recipientUserId'] as int,
+        recipientNickname: json['recipientNickname'] as String?,
+      );
+}
+
 class UserProfile {
   final int id;
   final String email;

@@ -6,6 +6,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/upload/image_upload.dart';
 import '../../../core/widgets/confirm_modal.dart';
 import '../../../core/widgets/toast_message.dart';
+import '../../auth/data/models/auth_models.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../pet/share/providers/share_provider.dart';
 
@@ -112,27 +113,7 @@ class MyScreen extends ConsumerWidget {
               icon: Icons.person_remove_outlined,
               label: '회원 탈퇴',
               labelColor: AppColors.error,
-              onTap: () async {
-                final ok = await ConfirmModal.show(
-                  context,
-                  title: '회원 탈퇴',
-                  // 즉시 삭제된다. 다만 남의 가계도에 부모로 걸린 개체는
-                  // 이름만 남기고 익명화되므로 "전부 사라진다"고 쓰면 사실과 다르다
-                  message: '탈퇴하면 개체와 사육 기록이 즉시 삭제됩니다.\n'
-                      '다른 사육자의 가계도에 부모로 등록된 개체는 이름만 남고 '
-                      '기록·사진은 지워집니다. 정말 탈퇴하시겠어요?',
-                  confirmLabel: '탈퇴',
-                  isDangerous: true,
-                );
-                if (!ok || !context.mounted) return;
-                try {
-                  await ref.read(authStateProvider.notifier).withdraw();
-                } catch (_) {
-                  if (context.mounted) {
-                    ToastMessage.show(context, '탈퇴에 실패했어요. 잠시 후 다시 시도해주세요.');
-                  }
-                }
-              },
+              onTap: () => _startWithdraw(context, ref),
             ),
             const SizedBox(height: 12),
           ],
@@ -251,6 +232,234 @@ class _ProfileAvatarState extends ConsumerState<_ProfileAvatar> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── 회원 탈퇴 ────────────────────────────────────────────────────────────────
+
+/// 탈퇴 시작. 공동 사육자가 있는 개체가 있으면 **넘길지 지울지 먼저 묻는다**.
+///
+/// 없으면 굳이 선택지를 띄우지 않고 기존 확인 모달로 끝낸다 — 대부분의 유저는
+/// 공유 개체가 없어서, 항상 물으면 이해할 필요 없는 질문만 하나 늘어난다.
+Future<void> _startWithdraw(BuildContext context, WidgetRef ref) async {
+  final notifier = ref.read(authStateProvider.notifier);
+
+  List<SharedPetPreview> shared;
+  try {
+    shared = await notifier.withdrawPreview();
+  } catch (_) {
+    // 미리보기 실패로 탈퇴 자체를 막지는 않는다. 다만 선택지를 못 보여주므로
+    // 안전한 쪽(넘기기)으로 진행한다 — 지운 건 되돌릴 수 없다
+    shared = const [];
+  }
+  if (!context.mounted) return;
+
+  bool handOver = true;
+  if (shared.isNotEmpty) {
+    final choice = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => _SharedPetChoiceSheet(sharedPets: shared),
+    );
+    if (choice == null || !context.mounted) return; // 취소
+    handOver = choice;
+  }
+
+  final ok = await ConfirmModal.show(
+    context,
+    title: '회원 탈퇴',
+    // 즉시 삭제된다. 다만 남의 가계도에 부모로 걸린 개체는 이름만 남기고
+    // 익명화되므로 "전부 사라진다"고 쓰면 사실과 다르다
+    message: '탈퇴하면 개체와 사육 기록이 즉시 삭제됩니다.\n'
+        '다른 사육자의 가계도에 부모로 등록된 개체는 이름만 남고 '
+        '기록·사진은 지워집니다. 정말 탈퇴하시겠어요?',
+    confirmLabel: '탈퇴',
+    isDangerous: true,
+  );
+  if (!ok || !context.mounted) return;
+
+  try {
+    await notifier.withdraw(handOverSharedPets: handOver);
+  } catch (_) {
+    if (context.mounted) {
+      ToastMessage.show(context, '탈퇴에 실패했어요. 잠시 후 다시 시도해주세요.');
+    }
+  }
+}
+
+/// 공유 개체 처리 선택 — 넘기기(true) / 모두 삭제(false). 닫으면 null(취소).
+///
+/// 개체별이 아니라 **일괄 선택**이다. 넘길 대상은 서버가 정한다(가장 먼저 합류한
+/// 공동 사육자) — 목록에 누가 받는지 미리 보여줘서 선택의 결과를 감추지 않는다.
+class _SharedPetChoiceSheet extends StatefulWidget {
+  final List<SharedPetPreview> sharedPets;
+  const _SharedPetChoiceSheet({required this.sharedPets});
+
+  @override
+  State<_SharedPetChoiceSheet> createState() => _SharedPetChoiceSheetState();
+}
+
+class _SharedPetChoiceSheetState extends State<_SharedPetChoiceSheet> {
+  bool _handOver = true;
+
+  @override
+  Widget build(BuildContext context) {
+    final pets = widget.sharedPets;
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.paleBg,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(top: 10, bottom: 16),
+                decoration: BoxDecoration(
+                    color: AppColors.paleLine,
+                    borderRadius: BorderRadius.circular(2)),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(22, 0, 22, 4),
+              child: Text('함께 보는 개체가 ${pets.length}마리 있어요',
+                  style: AppTextStyles.h3),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(22, 0, 22, 14),
+              child: Text('탈퇴하면 이 개체들은 어떻게 할까요?',
+                  style: AppTextStyles.caption),
+            ),
+            Flexible(
+              child: ListView.builder(
+                shrinkWrap: true,
+                padding: const EdgeInsets.symmetric(horizontal: 22),
+                itemCount: pets.length,
+                itemBuilder: (_, i) {
+                  final p = pets[i];
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 5),
+                    child: Row(
+                      children: [
+                        const Text('🦎', style: TextStyle(fontSize: 15)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(p.petName,
+                              style: AppTextStyles.body,
+                              overflow: TextOverflow.ellipsis),
+                        ),
+                        Text(
+                          _handOver
+                              ? '→ ${p.recipientNickname ?? '함께 보던 사육자'}'
+                              : '삭제',
+                          style: AppTextStyles.caption.copyWith(
+                              color: _handOver
+                                  ? AppColors.textSecondary
+                                  : AppColors.error),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 14),
+            _ChoiceRow(
+              selected: _handOver,
+              label: '함께 보던 사육자에게 넘기기',
+              caption: '사육 기록과 사진도 함께 넘어가요',
+              onTap: () => setState(() => _handOver = true),
+            ),
+            _ChoiceRow(
+              selected: !_handOver,
+              label: '넘기지 않고 모두 삭제',
+              caption: '함께 보던 사람도 더 이상 볼 수 없어요',
+              danger: true,
+              onTap: () => setState(() => _handOver = false),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(22, 16, 22, 20),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('취소'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () => Navigator.pop(context, _handOver),
+                      child: const Text('다음'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ChoiceRow extends StatelessWidget {
+  final bool selected;
+  final String label;
+  final String caption;
+  final bool danger;
+  final VoidCallback onTap;
+
+  const _ChoiceRow({
+    required this.selected,
+    required this.label,
+    required this.caption,
+    required this.onTap,
+    this.danger = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              selected ? Icons.radio_button_checked : Icons.radio_button_off,
+              size: 20,
+              color: selected
+                  ? (danger ? AppColors.error : AppColors.primary)
+                  : AppColors.textDisabled,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label,
+                      style: AppTextStyles.body.copyWith(
+                          fontWeight:
+                              selected ? FontWeight.w700 : FontWeight.w400)),
+                  const SizedBox(height: 2),
+                  Text(caption, style: AppTextStyles.caption),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

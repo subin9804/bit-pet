@@ -91,15 +91,18 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
     state = AsyncValue.data(updated);
   }
 
+  /// 탈퇴 전 미리보기 — 공동 사육자가 있는 개체 목록 (비면 선택지 없이 진행)
+  Future<List<SharedPetPreview>> withdrawPreview() => _repo.getWithdrawPreview();
+
   /// 회원 탈퇴 — 서버가 개체 처리(삭제/익명화)까지 한 트랜잭션으로 끝낸 뒤
   /// 로컬 토큰을 지운다. 순서를 바꾸면 인증이 빠져 탈퇴 요청 자체가 401이 된다
-  Future<void> withdraw() async {
+  Future<void> withdraw({bool handOverSharedPets = true}) async {
     try {
       await _ref.read(pushServiceProvider).unregisterToken();
     } catch (e) {
       debugPrint('[FCM] 푸시 토큰 해제 실패: $e');
     }
-    await _repo.withdraw();
+    await _repo.withdraw(handOverSharedPets: handOverSharedPets);
     await _repo.logout();
     state = const AsyncValue.data(null);
   }

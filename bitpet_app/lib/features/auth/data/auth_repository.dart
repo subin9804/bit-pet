@@ -201,9 +201,25 @@ class AuthRepository {
     }
   }
 
+  // ── 탈퇴 전 미리보기 (공동 사육자가 있는 개체) ──────────────
+  Future<List<SharedPetPreview>> getWithdrawPreview() async {
+    final res = await _dio.get('/auth/withdraw/preview');
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => d as Map<String, dynamic>,
+    );
+    final list = (apiRes.data?['sharedPets'] as List?) ?? const [];
+    return list
+        .map((e) => SharedPetPreview.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   // ── 회원탈퇴 ──────────────────────────────────────────────
-  Future<void> withdraw() async {
-    await _dio.delete('/auth/withdraw');
+  /// [handOverSharedPets] 공동 사육자가 있는 개체를 그 사람에게 넘길지.
+  /// false면 다른 개체와 똑같이 삭제된다. 기본 true — 지운 건 되돌릴 수 없다
+  Future<void> withdraw({bool handOverSharedPets = true}) async {
+    await _dio.delete('/auth/withdraw',
+        queryParameters: {'handOverSharedPets': handOverSharedPets});
     await _tokenStorage.clearTokens();
   }
 

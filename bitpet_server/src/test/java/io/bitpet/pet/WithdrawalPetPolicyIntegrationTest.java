@@ -6,12 +6,15 @@ import io.bitpet.auth.service.AuthService;
 import io.bitpet.common.exception.BusinessException;
 import io.bitpet.common.exception.ErrorCode;
 import io.bitpet.pet.domain.PetGender;
+import io.bitpet.pet.domain.PetKeeperRls;
+import io.bitpet.pet.domain.PetKeeperRole;
 import io.bitpet.pet.domain.PetMst;
 import io.bitpet.pet.domain.RelationType;
 import io.bitpet.pet.dto.GenealogyResponse;
 import io.bitpet.pet.dto.PetCreateRequest;
 import io.bitpet.pet.dto.PetRelationRequest;
 import io.bitpet.pet.dto.PetResponse;
+import io.bitpet.pet.repository.PetKeeperRlsRepository;
 import io.bitpet.pet.repository.PetMstRepository;
 import io.bitpet.pet.service.PetService;
 import io.bitpet.pet.service.PetWithdrawalService;
@@ -39,6 +42,7 @@ class WithdrawalPetPolicyIntegrationTest extends IntegrationTestBase {
     @Autowired private PetService petService;
     @Autowired private PetWithdrawalService withdrawalService;
     @Autowired private PetMstRepository petRepository;
+    @Autowired private PetKeeperRlsRepository keeperRepository;
     @Autowired private JdbcTemplate jdbc;
 
     // -------------------------------------------------------------------------
@@ -51,7 +55,7 @@ class WithdrawalPetPolicyIntegrationTest extends IntegrationTestBase {
         // 자기 개체끼리 연결 — 이걸 참조로 세면 개체가 통째로 남아 쓰레기가 된다
         petService.addRelation(owner, new PetRelationRequest(father, child, RelationType.FATHER));
 
-        authService.withdraw(owner);
+        authService.withdraw(owner, true);
 
         assertThat(petRowCount(father)).isZero();
         assertThat(petRowCount(child)).isZero();
@@ -68,7 +72,7 @@ class WithdrawalPetPolicyIntegrationTest extends IntegrationTestBase {
         Long child   = createPet(breeder, "남의새끼", PetGender.UNKNOWN);
         petService.addRelation(breeder, new PetRelationRequest(father, child, RelationType.FATHER));
 
-        authService.withdraw(owner);
+        authService.withdraw(owner, true);
 
         PetMst orphan = petRepository.findById(father).orElseThrow();
         assertThat(orphan.getName()).isEqualTo("아빠");      // 혈통 식별의 핵심 — 반드시 남는다
@@ -93,7 +97,7 @@ class WithdrawalPetPolicyIntegrationTest extends IntegrationTestBase {
         Long father  = createPet(owner, "아빠", PetGender.MALE);
         Long child   = createPet(breeder, "남의새끼", PetGender.UNKNOWN);
         petService.addRelation(breeder, new PetRelationRequest(father, child, RelationType.FATHER));
-        authService.withdraw(owner);
+        authService.withdraw(owner, true);
 
         // 신규 참조 차단 — API 레벨에서 막아야 한다
         Long another = createPet(breeder, "다른새끼", PetGender.UNKNOWN);
@@ -142,7 +146,52 @@ class WithdrawalPetPolicyIntegrationTest extends IntegrationTestBase {
                 .extracting("errorCode").isEqualTo(ErrorCode.USER_PROFILE_HIDDEN);
     }
 
+    @Test
+    void 공유_개체는_넘기기를_고르면_기록째_공동사육자에게_간다() {
+        Long owner  = signup();
+        Long keeper = signup();
+        Long petId  = createPet(owner, "같이보던개체", PetGender.MALE);
+        share(petId, keeper);
+
+        // 미리보기가 실제 이전 대상과 같은 사람을 가리켜야 한다
+        var preview = authService.previewWithdraw(owner);
+        assertThat(preview.sharedPets()).hasSize(1);
+        assertThat(preview.sharedPets().get(0).petName()).isEqualTo("같이보던개체");
+        assertThat(preview.sharedPets().get(0).recipientUserId()).isEqualTo(keeper);
+
+        authService.withdraw(owner, true);
+
+        assertThat(petRowCount(petId)).isEqualTo(1);
+        assertThat(petRepository.findById(petId).orElseThrow().getUserId()).isEqualTo(keeper);
+        assertThat(count("SELECT COUNT(*) FROM pet_keeper_rls WHERE pet_id = ? AND role = 'OWNER'"
+                + " AND user_id = " + keeper, petId)).isEqualTo(1);
+        // 탈퇴자 사육자 행만 빠진다
+        assertThat(count("SELECT COUNT(*) FROM pet_keeper_rls WHERE pet_id = ? AND user_id = "
+                + owner, petId)).isZero();
+        // 기록은 그대로 따라간다 — 기록 없는 개체를 넘기는 건 넘기는 의미가 없다
+        assertThat(count("SELECT COUNT(*) FROM weight_dtl WHERE pet_id = ?", petId)).isEqualTo(1);
+    }
+
+    @Test
+    void 공유_개체도_넘기지_않기를_고르면_삭제된다() {
+        Long owner  = signup();
+        Long keeper = signup();
+        Long petId  = createPet(owner, "같이보던개체", PetGender.MALE);
+        share(petId, keeper);
+
+        authService.withdraw(owner, false);
+
+        assertThat(petRowCount(petId)).isZero();
+        assertThat(count("SELECT COUNT(*) FROM pet_keeper_rls WHERE pet_id = ?", petId)).isZero();
+        assertThat(count("SELECT COUNT(*) FROM weight_dtl WHERE pet_id = ?", petId)).isZero();
+    }
+
     // -------------------------------------------------------------------------
+
+    /** 공동 사육자 추가 — 초대 플로우를 거치지 않고 결과 상태만 만든다 */
+    private void share(Long petId, Long keeperUserId) {
+        keeperRepository.save(PetKeeperRls.of(petId, keeperUserId, PetKeeperRole.KEEPER));
+    }
 
     private Long signup() {
         int n = SEQ.incrementAndGet();

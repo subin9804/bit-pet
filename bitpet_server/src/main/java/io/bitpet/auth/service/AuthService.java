@@ -7,6 +7,7 @@ import io.bitpet.auth.dto.SignupRequest;
 import io.bitpet.auth.dto.TokenResponse;
 import io.bitpet.auth.dto.UpdateMeRequest;
 import io.bitpet.auth.dto.UserResponse;
+import io.bitpet.auth.dto.WithdrawPreviewResponse;
 import io.bitpet.auth.jwt.JwtTokenProvider;
 import io.bitpet.auth.jwt.RefreshTokenStore;
 import io.bitpet.auth.repository.UserMstRepository;
@@ -22,7 +23,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -137,18 +141,43 @@ public class AuthService {
     }
 
     /**
+     * 탈퇴 전 미리보기 — 공동 사육자가 있는 개체 목록. 탈퇴 화면에서 "넘길지 지울지"를 묻는 근거다.
+     * 목록이 비면 앱은 선택지 없이 일반 확인만 띄운다.
+     */
+    @Transactional(readOnly = true)
+    public WithdrawPreviewResponse previewWithdraw(Long userId) {
+        List<PetWithdrawalService.SharedPet> shared = petWithdrawalService.findSharedPets(userId);
+        if (shared.isEmpty()) return new WithdrawPreviewResponse(List.of());
+
+        Map<Long, String> nicknames = userRepository
+                .findAllById(shared.stream().map(PetWithdrawalService.SharedPet::recipientUserId).toList())
+                .stream()
+                .collect(Collectors.toMap(UserMst::getId, UserMst::getName));
+
+        return new WithdrawPreviewResponse(shared.stream()
+                .map(s -> new WithdrawPreviewResponse.SharedPet(
+                        s.petId(), s.petName(), s.recipientUserId(),
+                        nicknames.get(s.recipientUserId())))
+                .toList());
+    }
+
+    /**
      * 회원 탈퇴 — 계정 소프트 삭제 + 개체 처리를 <b>한 트랜잭션</b>으로 끝낸다.
      *
      * <p>개체 처리는 {@link PetWithdrawalService}가 맡는다. 참조가 걸린 개체는 익명화해 남고
-     * 나머지는 물리 삭제된다. S3 오브젝트 삭제만 커밋 뒤 배치로 미룬다 —
+     * 나머지는 물리 삭제된다. S3 오브젝트 삭제만 커밋 뒤로 미룬다 —
      * 외부 호출이 실패했다고 탈퇴를 롤백할 수는 없다.
+     *
+     * @param handOverSharedPets 공동 사육자가 있는 개체를 그 사람에게 넘길지. 사용자가 고른다.
+     *                           false 면 다른 개체와 똑같이 삭제/익명화된다
      */
     @Transactional
-    public void withdraw(Long userId) {
+    public void withdraw(Long userId, boolean handOverSharedPets) {
         UserMst user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AUTH_USER_NOT_FOUND));
 
-        PetWithdrawalService.Result petResult = petWithdrawalService.process(userId);
+        PetWithdrawalService.Result petResult =
+                petWithdrawalService.process(userId, handOverSharedPets);
 
         user.softDelete();
         refreshTokenStore.delete(userId);

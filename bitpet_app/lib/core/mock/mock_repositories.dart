@@ -325,7 +325,10 @@ class MockAuthRepository extends AuthRepository {
   Future<void> logout() async {}
 
   @override
-  Future<void> withdraw() async {}
+  Future<void> withdraw({bool handOverSharedPets = true}) async {}
+
+  @override
+  Future<List<SharedPetPreview>> getWithdrawPreview() async => const [];
 }
 
 // AuthNotifier를 상속해 곧바로 로그인 상태로 시작
