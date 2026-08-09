@@ -228,7 +228,7 @@ public class SyncService {
 
         PetMst pet = petRepo.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PET_NOT_FOUND));
-        petKeeper.assertOwner(userId, id); // 개체 프로필 수정은 소유자만
+        petKeeper.assertKeeper(userId, id); // 프로필 수정은 사육자면 가능 — REST PetService.update와 같은 경계
 
         Instant localUpdatedAt = toInstant(data.get("localUpdatedAt"));
         if (localUpdatedAt != null && !pet.getUpdatedAt().isBefore(localUpdatedAt)) {

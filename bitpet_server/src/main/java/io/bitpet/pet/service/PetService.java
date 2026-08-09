@@ -246,18 +246,25 @@ public class PetService {
         return PetBulkDeleteResponse.of(ids);
     }
 
-    /** 이별하기 — 폐사 처리 (기록은 그대로 보존) */
+    /**
+     * 이별하기 — 폐사 처리 (기록은 그대로 보존).
+     *
+     * <p><b>사육자면 할 수 있다.</b> 폐사는 소유권 판단이 아니라 <b>일어난 사실의 기록</b>이고,
+     * 그 사실을 가장 먼저 아는 사람이 소유자라는 보장이 없다. 함께 키우는 사람이 발견하고도
+     * 소유자 계정을 기다려야 한다면 기록 시점이 어긋난다.
+     * 되돌리는 {@link #revertDeceased}가 있어 잘못 눌러도 복구된다.
+     */
     @Transactional
     public PetResponse markDeceased(Long userId, Long petId, java.time.LocalDate deceasedAt) {
-        PetMst pet = loadOwnedPet(userId, petId);
+        PetMst pet = petKeeper.assertKeeper(userId, petId);
         pet.markDeceased(deceasedAt);
         return PetResponse.from(pet);
     }
 
-    /** 이별 취소 — 폐사 표시 해제 */
+    /** 이별 취소 — 폐사 표시 해제. 표시할 수 있는 사람이 되돌릴 수도 있어야 한다 */
     @Transactional
     public PetResponse revertDeceased(Long userId, Long petId) {
-        PetMst pet = loadOwnedPet(userId, petId);
+        PetMst pet = petKeeper.assertKeeper(userId, petId);
         pet.revertDeceased();
         return PetResponse.from(pet);
     }
@@ -269,7 +276,7 @@ public class PetService {
     /**
      * 부모 등록.
      *
-     * <p><b>자식은 내 개체여야 하고, 부모는 실존 개체이기만 하면 된다.</b>
+     * <p><b>자식은 내가 사육하는 개체여야 하고(OWNER/KEEPER), 부모는 실존 개체이기만 하면 된다.</b>
      * 부모 쪽 소유자는 묻지 않는다 — 남의 개체도, 폐사한 개체도, 주인이 탈퇴한 개체도 걸 수 있다.
      * 승인·차단 절차는 두지 않았다(검증 도메인 미구현). 실제로 브리딩 라인은 분양을 타고
      * 사람을 건너다니는데, 부모 쪽 주인의 승인을 받아야 등록된다면 대부분의 가계도가
@@ -284,7 +291,7 @@ public class PetService {
         if (req.parentPetId().equals(req.childPetId())) {
             throw new BusinessException(ErrorCode.PET_RELATION_SELF);
         }
-        PetMst child = loadOwnedPet(userId, req.childPetId());
+        PetMst child = petKeeper.assertKeeper(userId, req.childPetId());
         PetMst parent = petRepository.findById(req.parentPetId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.PET_NOT_FOUND));
 
@@ -323,17 +330,18 @@ public class PetService {
     }
 
     /**
-     * 부모 등록 해제 — <b>자식 쪽 소유자만</b> 할 수 있다.
+     * 부모 등록 해제 — <b>자식 쪽 사육자만</b> 할 수 있다.
      *
      * <p>부모로 걸린 개체의 주인에게 삭제 권한을 주면 그게 곧 차단 절차가 된다.
-     * 이번 정책에는 승인도 차단도 없으므로, 자기 개체의 가계도를 고칠 수 있는 사람만
-     * 관계를 지운다. (등록할 때 자식이 내 개체여야 했던 것과 같은 축이다.)
+     * 이번 정책에는 승인도 차단도 없으므로, 자기 가계도를 고칠 수 있는 사람만 관계를 지운다.
+     * <b>판정 축이 '자식 쪽'이라는 게 핵심이고 OWNER냐 KEEPER냐는 아니다</b> —
+     * 등록을 사육자에게 열었으므로 해제도 같은 범위여야 자기가 건 걸 되돌릴 수 있다.
      */
     @Transactional
     public void deleteRelation(Long userId, Long relationId) {
         PetRelationRls relation = relationRepository.findById(relationId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PET_RELATION_NOT_FOUND));
-        loadOwnedPet(userId, relation.getChildPet().getId());
+        petKeeper.assertKeeper(userId, relation.getChildPet().getId());
         relationRepository.delete(relation);
     }
 
@@ -494,7 +502,7 @@ public class PetService {
         addRelation(userId, new PetRelationRequest(parentPetId, childPetId, type));
     }
 
-    /** 소유자 전용 작업 검증 (프로필 수정·삭제·관계 편집) */
+    /** 소유자 전용 작업 검증 — 개체를 없애는 동작(삭제·벌크 삭제)에만 쓴다 */
     private PetMst loadOwnedPet(Long userId, Long petId) {
         return petKeeper.assertOwner(userId, petId);
     }

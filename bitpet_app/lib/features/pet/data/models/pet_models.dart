@@ -120,7 +120,8 @@ class Pet {
     this.isOwner = true,
   }) : morphs = morphs ?? const [];
 
-  /// 공유받아 함께 키우는 개체 — 기록·프로필 수정은 되지만 삭제·분양은 불가
+  /// 공유받아 함께 키우는 개체 — 기록·프로필 수정·이별·가계도 편집은 되지만
+  /// 삭제·분양·공유 관리(개체가 사라지거나 남에게 넘어가는 동작)는 소유자만
   bool get isSharedWithMe => !isOwner;
 
   bool get isPrivate => privateYn == 'Y';

@@ -217,7 +217,7 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
         borderRadius: BorderRadius.zero,
         side: BorderSide(color: AppColors.paleLine),
       ),
-      items: pet.isOwner ? _ownerMenuItems(pet) : _keeperMenuItems(),
+      items: pet.isOwner ? _ownerMenuItems(pet) : _keeperMenuItems(pet),
     );
     if (!mounted) return;
 
@@ -230,24 +230,28 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
     }
   }
 
-  List<PopupMenuEntry<String>> _ownerMenuItems(Pet pet) => [
-        PopupMenuItem(
-          value: pet.isDeceased ? 'revert' : 'farewell',
-          height: 44,
-          child: Row(
-            children: [
-              const Text('🌈', style: TextStyle(fontSize: 14)),
-              const SizedBox(width: 8),
-              Text(
-                pet.isDeceased ? '이별 취소' : '이별하기',
-                style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primary),
-              ),
-            ],
-          ),
+  /// 이별하기 — 사육자면 누구나. 폐사는 소유권 판단이 아니라 일어난 사실의 기록이고,
+  /// 되돌리는 '이별 취소'가 있어 함께 키우는 쪽에 열어도 복구된다.
+  PopupMenuEntry<String> _farewellMenuItem(Pet pet) => PopupMenuItem(
+        value: pet.isDeceased ? 'revert' : 'farewell',
+        height: 44,
+        child: Row(
+          children: [
+            const Text('🌈', style: TextStyle(fontSize: 14)),
+            const SizedBox(width: 8),
+            Text(
+              pet.isDeceased ? '이별 취소' : '이별하기',
+              style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary),
+            ),
+          ],
         ),
+      );
+
+  List<PopupMenuEntry<String>> _ownerMenuItems(Pet pet) => [
+        _farewellMenuItem(pet),
         PopupMenuItem(
           value: 'share',
           height: 44,
@@ -280,8 +284,9 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
         ),
       ];
 
-  /// 공유받은 개체 — 소유자가 아니므로 나가기만 가능
-  List<PopupMenuEntry<String>> _keeperMenuItems() => [
+  /// 공유받은 개체 — 되돌릴 수 있는 동작(이별)은 그대로 쓰고,
+  /// 개체가 사라지거나 남에게 넘어가는 동작(삭제·공유 관리)만 빠진다.
+  List<PopupMenuEntry<String>> _keeperMenuItems(Pet pet) => [
         const PopupMenuItem(
           enabled: false,
           height: 34,
@@ -294,6 +299,8 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
             ],
           ),
         ),
+        const PopupMenuDivider(height: 1),
+        _farewellMenuItem(pet),
         const PopupMenuDivider(height: 1),
         const PopupMenuItem(
           value: 'leave',
