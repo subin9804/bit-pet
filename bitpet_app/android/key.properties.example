@@ -1,0 +1,19 @@
+# 릴리즈 서명 설정 템플릿.
+#
+# 이 파일을 같은 폴더에 `key.properties` 로 복사하고 값을 채운다.
+# `key.properties` 는 gitignore 되어 있다 (레포가 public — 비밀번호가 평문으로 들어간다).
+#
+# 키스토어 생성:
+#   keytool -genkeypair -v -keystore C:\Users\<사용자>\keystores\tailog-upload.jks \
+#           -storetype PKCS12 -keyalg RSA -keysize 2048 -validity 10000 \
+#           -alias tailog-upload
+#
+# ⚠️ 키스토어 파일과 비밀번호를 잃어버리면 **앱 업데이트를 영구히 올릴 수 없다.**
+#    레포 밖(예: C:\Users\<사용자>\keystores\)에 두고 별도로 백업할 것.
+
+# 키스토어 파일 경로. 절대경로 권장 (상대경로의 기준은 android/app/).
+# Windows 경로의 역슬래시는 \\ 로 이스케이프하거나 / 를 쓴다.
+storeFile=C:/Users/<사용자>/keystores/tailog-upload.jks
+storePassword=<키스토어 비밀번호>
+keyAlias=tailog-upload
+keyPassword=<키 비밀번호 — keytool 에서 그냥 엔터쳤다면 storePassword 와 같다>

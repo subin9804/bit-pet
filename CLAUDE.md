@@ -87,8 +87,48 @@ docker compose up -d        # PostgreSQL + Redis + LocalStack
 # Flutter
 cd bitpet_app
 flutter pub get
+adb reverse tcp:8080 tcp:8080   # 실기기 연결 시 (10.0.2.2는 Windows 방화벽에 막히는 경우 있음)
 flutter run
 ```
+
+### 앱 빌드 — 서버 주소 주입
+
+`kBaseUrl`(`lib/core/api/api_client.dart`)은 `String.fromEnvironment('API_BASE_URL')`이고,
+값을 안 주면 `http://localhost:8080/api/v1`로 떨어진다.
+
+```bash
+flutter run                       # 기본값(localhost) — 개발
+flutter run --release             # 릴리즈 모드도 localhost + adb reverse 로 실기기 검증 가능
+flutter build appbundle --dart-define=API_BASE_URL=https://tailog.me/api/v1   # Play 업로드
+flutter build apk      --dart-define=API_BASE_URL=https://tailog.me/api/v1   # 사이드로딩
+```
+
+⚠️ **배포 빌드에 `--dart-define`을 빠뜨리면** 앱이 폰 자기 자신을 찾다가 모든 요청이 실패한다.
+증상이 "네트워크 에러"라 원인이 안 보인다.
+
+ℹ️ `kReleaseMode`로 분기하지 않는 건 의도적이다 — 그러면 실기기 릴리즈 빌드 테스트가 막힌다.
+주소는 빌드 **환경**의 문제이지 빌드 **모드**의 문제가 아니다.
+
+### 릴리즈 서명 (2026-08-11)
+
+- 서명 정보는 **`android/key.properties`** (gitignore). 템플릿은 `android/key.properties.example`.
+- 키스토어(`.jks`)는 **레포 밖**에 둔다. 잃어버리면 앱 업데이트를 영구히 못 올린다.
+- `key.properties` 가 없으면 `build.gradle.kts` 가 **디버그 키로 폴백**한다 — 키스토어 없는
+  환경에서도 `flutter run --release` 실기기 검증이 되게 하기 위한 것. 대신 빌드 로그에
+  경고를 찍는다. 디버그 키로 서명된 AAB 는 Play 가 거부한다.
+
+### 안드로이드 네트워크 설정 (2026-08-11)
+
+- `INTERNET` 권한은 **`src/main/AndroidManifest.xml`** 에 있다. Flutter 템플릿은 이걸
+  `debug`/`profile` 매니페스트에만 넣어주기 때문에, 옮기지 않으면 **릴리즈 빌드만 통신이
+  전부 막힌다** — 개발 중에는 절대 안 드러나는 종류의 사고다. 지우지 말 것.
+- `res/xml/network_security_config.xml` 은 평문(http)을 **`localhost` / `10.0.2.2` 에만**
+  허용한다. Android 9+ 는 평문이 기본 차단이라, 이게 없으면 `flutter run --release` +
+  `adb reverse` 로 실기기 검증을 할 수 없다. 나머지는 전부 https 강제 그대로다
+  (`usesCleartextTraffic="true"` 로 전체를 열지 않는 이유).
+
+ℹ️ Play는 AAB를 받아 **자기 앱 서명 키로 재서명**한다. 그래서 최종 앱의 지문이 업로드 키
+지문과 다르고, `assetlinks.json`에는 **둘 다** 넣어야 한다 (NFC 딥링크 항목 참고).
 
 ---
 

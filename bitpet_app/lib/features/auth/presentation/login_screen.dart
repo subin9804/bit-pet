@@ -7,6 +7,16 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../providers/auth_provider.dart';
 
+/// 소셜 로그인 노출 여부.
+///
+/// 첫 배포는 **이메일 로그인만** 내보낸다. 서버(`auth/oauth/`)와 아래 버튼들은
+/// 다 살아 있지만 OAuth 클라이언트 키를 아직 발급받지 않아, 지금 내보내면
+/// **눌러도 아무 일이 일어나지 않는 버튼**이 된다. 그건 기능이 없는 것보다 나쁘다.
+///
+/// 키가 나오고 `onPressed` 가 배선되면 이 값만 `true` 로 바꾼다.
+/// (리다이렉트 URI 등록에 `tailog.me` 도메인이 필요해서 서버 배포 이후 순서다)
+const bool kSocialLoginEnabled = false;
+
 // ─── 교체 가능한 상단 아이콘 ────────────────────────────────────────────────
 // ✏️ 아이콘 변경 시 이 위젯만 수정하세요.
 //    예: Image.asset('assets/images/login_icon.png', width: 72, height: 72)
@@ -195,84 +205,88 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     onPressed: isLoading ? null : _submit,
                   ),
 
-                  const SizedBox(height: 20),
+                  // ── 소셜 로그인 (kSocialLoginEnabled) ────────────────
+                  // OR 구분선까지 통째로 감싼다 — 아래가 비어 있는 'OR'만 남으면
+                  // 뭔가 빠진 화면으로 보인다
+                  if (kSocialLoginEnabled) ...[
+                    const SizedBox(height: 20),
 
-                  // ── OR 구분선 ────────────────────────────────────────
-                  Row(
-                    children: [
-                      const Expanded(
-                        child: Divider(color: AppColors.border, thickness: 1),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: Text(
-                          'OR',
-                          style: GoogleFonts.vt323(
-                            fontSize: 14,
-                            color: AppColors.textDisabled,
-                            letterSpacing: 2,
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Divider(color: AppColors.border, thickness: 1),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Text(
+                            'OR',
+                            style: GoogleFonts.vt323(
+                              fontSize: 14,
+                              color: AppColors.textDisabled,
+                              letterSpacing: 2,
+                            ),
                           ),
                         ),
-                      ),
-                      const Expanded(
-                        child: Divider(color: AppColors.border, thickness: 1),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // ── 카카오 ───────────────────────────────────────────
-                  _SocialButton(
-                    label: '카카오로 시작하기',
-                    backgroundColor: AppColors.kakao,
-                    textColor: AppColors.textPrimary,
-                    // ✏️ 아이콘 교체: assets/icons/kakao.png 준비 후 주석 해제
-                    // iconPath: 'assets/icons/kakao.png',
-                    fallbackIcon: const Text('💛', style: TextStyle(fontSize: 18)),
-                    onPressed: () {},
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  // ── 네이버 ───────────────────────────────────────────
-                  _SocialButton(
-                    label: '네이버로 시작하기',
-                    backgroundColor: AppColors.naver,
-                    textColor: Colors.white,
-                    // ✏️ 아이콘 교체: assets/icons/naver.png 준비 후 주석 해제
-                    // iconPath: 'assets/icons/naver.png',
-                    fallbackIcon: Text(
-                      'N',
-                      style: GoogleFonts.vt323(
-                        fontSize: 20,
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
+                        const Expanded(
+                          child: Divider(color: AppColors.border, thickness: 1),
+                        ),
+                      ],
                     ),
-                    onPressed: () {},
-                  ),
 
-                  const SizedBox(height: 10),
+                    const SizedBox(height: 16),
 
-                  // ── Google ───────────────────────────────────────────
-                  _SocialButton(
-                    label: 'Google로 시작하기',
-                    backgroundColor: Colors.white,
-                    textColor: AppColors.textPrimary,
-                    hasBorder: true,
-                    // ✏️ 아이콘 교체: assets/icons/google.png 준비 후 주석 해제
-                    // iconPath: 'assets/icons/google.png',
-                    fallbackIcon: Text(
-                      'G',
-                      style: GoogleFonts.vt323(
-                        fontSize: 20,
-                        color: const Color(0xFF4285F4),
-                        fontWeight: FontWeight.bold,
-                      ),
+                    // ── 카카오 ─────────────────────────────────────────
+                    _SocialButton(
+                      label: '카카오로 시작하기',
+                      backgroundColor: AppColors.kakao,
+                      textColor: AppColors.textPrimary,
+                      // ✏️ 아이콘 교체: assets/icons/kakao.png 준비 후 주석 해제
+                      // iconPath: 'assets/icons/kakao.png',
+                      fallbackIcon: const Text('💛', style: TextStyle(fontSize: 18)),
+                      onPressed: () {},
                     ),
-                    onPressed: () {},
-                  ),
+
+                    const SizedBox(height: 10),
+
+                    // ── 네이버 ─────────────────────────────────────────
+                    _SocialButton(
+                      label: '네이버로 시작하기',
+                      backgroundColor: AppColors.naver,
+                      textColor: Colors.white,
+                      // ✏️ 아이콘 교체: assets/icons/naver.png 준비 후 주석 해제
+                      // iconPath: 'assets/icons/naver.png',
+                      fallbackIcon: Text(
+                        'N',
+                        style: GoogleFonts.vt323(
+                          fontSize: 20,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      onPressed: () {},
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    // ── Google ─────────────────────────────────────────
+                    _SocialButton(
+                      label: 'Google로 시작하기',
+                      backgroundColor: Colors.white,
+                      textColor: AppColors.textPrimary,
+                      hasBorder: true,
+                      // ✏️ 아이콘 교체: assets/icons/google.png 준비 후 주석 해제
+                      // iconPath: 'assets/icons/google.png',
+                      fallbackIcon: Text(
+                        'G',
+                        style: GoogleFonts.vt323(
+                          fontSize: 20,
+                          color: const Color(0xFF4285F4),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      onPressed: () {},
+                    ),
+                  ],
 
                   const SizedBox(height: 28),
 
