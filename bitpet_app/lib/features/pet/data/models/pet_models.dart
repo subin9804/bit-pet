@@ -345,14 +345,17 @@ class Genealogy {
 }
 
 /// 공개 프로필 — 가계도 카드의 '@닉네임' 탭
-class UserProfile {
+///
+/// 내 계정 정보인 auth_models.dart 의 UserProfile 과는 다른 것이다.
+/// (한때 둘 다 UserProfile 이라 두 파일을 함께 import 하는 곳에서 이름 충돌로 빌드가 깨졌다)
+class PublicUserProfile {
   final int userId;
   final String nickname;
   final String? profileImageUrl;
   final bool isMe;
   final List<PetCard> publicPets;
 
-  const UserProfile({
+  const PublicUserProfile({
     required this.userId,
     required this.nickname,
     this.profileImageUrl,
@@ -360,7 +363,8 @@ class UserProfile {
     this.publicPets = const [],
   });
 
-  factory UserProfile.fromJson(Map<String, dynamic> json) => UserProfile(
+  factory PublicUserProfile.fromJson(Map<String, dynamic> json) =>
+      PublicUserProfile(
         userId: (json['userId'] as num).toInt(),
         nickname: json['nickname'] as String? ?? '',
         profileImageUrl: json['profileImageUrl'] as String?,

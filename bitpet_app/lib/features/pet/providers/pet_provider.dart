@@ -95,7 +95,7 @@ final publicPetProvider =
 
 /// 공개 프로필 — 가계도 카드의 '@닉네임' 탭
 final userProfileProvider =
-    FutureProvider.family<UserProfile, int>((ref, userId) {
+    FutureProvider.family<PublicUserProfile, int>((ref, userId) {
   return ref.watch(petRepositoryProvider).getUserProfile(userId);
 });
 

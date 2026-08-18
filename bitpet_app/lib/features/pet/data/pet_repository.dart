@@ -218,11 +218,11 @@ class PetRepository {
   }
 
   /// 공개 프로필 (닉네임 + 공개 개체 목록)
-  Future<UserProfile> getUserProfile(int userId) async {
+  Future<PublicUserProfile> getUserProfile(int userId) async {
     final res = await _dio.get('/users/$userId/profile');
     final apiRes = ApiResponse.fromJson(
       res.data as Map<String, dynamic>,
-      (d) => UserProfile.fromJson(d as Map<String, dynamic>),
+      (d) => PublicUserProfile.fromJson(d as Map<String, dynamic>),
     );
     if (!apiRes.success || apiRes.data == null) {
       throw ApiException(

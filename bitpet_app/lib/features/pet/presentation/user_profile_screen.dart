@@ -40,7 +40,7 @@ class UserProfileScreen extends ConsumerWidget {
 }
 
 class _Body extends StatelessWidget {
-  final UserProfile profile;
+  final PublicUserProfile profile;
   const _Body({required this.profile});
 
   @override
