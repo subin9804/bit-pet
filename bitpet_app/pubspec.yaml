@@ -59,6 +59,11 @@ dependencies:
   # 3.x API로 작성했으므로 상한을 막아둔다.
   nfc_manager: '>=3.5.0 <4.0.0'
 
+  # 외부 링크 열기 (스마트스토어, 문의 메일 등)
+  # ⚠️ Android 11+ 는 패키지 가시성 제한 때문에 AndroidManifest 의 <queries> 항목이
+  #    없으면 canLaunchUrl 이 항상 false 를 돌려준다 — 매니페스트도 같이 봐야 한다.
+  url_launcher: ^6.3.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

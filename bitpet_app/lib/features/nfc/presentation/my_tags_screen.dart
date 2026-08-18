@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/api/api_response.dart';
+import '../../../core/constants/external_links.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/confirm_modal.dart';
@@ -25,28 +26,91 @@ class MyTagsScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.bg,
       appBar: AppBar(title: const Text('이름표 관리')),
-      body: tagsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, __) => const Center(child: Text('태그 목록을 불러오지 못했어요')),
-        data: (tags) {
-          if (tags.isEmpty) {
-            return const EmptyState(
-              icon: Icons.sell_outlined,
-              message: '연결된 이름표가 없어요',
-              subMessage: '이름표를 휴대폰에 갖다 대면 개체와 연결할 수 있어요.',
-            );
-          }
-          return RefreshIndicator(
-            onRefresh: () async => ref.invalidate(myTagsProvider),
-            child: ListView.separated(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              itemCount: tags.length,
-              separatorBuilder: (_, __) =>
-                  const Divider(height: 1, color: AppColors.paleLine),
-              itemBuilder: (_, i) => _TagRow(tag: tags[i]),
+      // 주문 버튼은 목록 상태와 무관하게 늘 바닥에 붙어 있는다.
+      // 이름표가 없는 사람(사러 가야 함)과 이미 쓰는 사람(더 사러 감) 둘 다 필요하다.
+      body: Column(
+        children: [
+          Expanded(
+            child: tagsAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (_, __) => const Center(child: Text('태그 목록을 불러오지 못했어요')),
+              data: (tags) {
+                if (tags.isEmpty) {
+                  return const EmptyState(
+                    icon: Icons.sell_outlined,
+                    message: '연결된 이름표가 없어요',
+                    subMessage: '이름표를 휴대폰에 갖다 대면 개체와 연결할 수 있어요.',
+                  );
+                }
+                return RefreshIndicator(
+                  onRefresh: () async => ref.invalidate(myTagsProvider),
+                  child: ListView.separated(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    itemCount: tags.length,
+                    separatorBuilder: (_, __) =>
+                        const Divider(height: 1, color: AppColors.paleLine),
+                    itemBuilder: (_, i) => _TagRow(tag: tags[i]),
+                  ),
+                );
+              },
             ),
-          );
-        },
+          ),
+          const _StoreCta(),
+        ],
+      ),
+    );
+  }
+}
+
+/// 스마트스토어로 나가는 CTA. 화면 하단 고정.
+class _StoreCta extends StatelessWidget {
+  const _StoreCta();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.bg,
+        border: Border(top: BorderSide(color: AppColors.paleLine)),
+      ),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        14,
+        20,
+        14 + MediaQuery.of(context).padding.bottom,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '개체 이름을 새긴 NFC 이름표를 주문할 수 있어요.',
+            style: AppTextStyles.caption,
+          ),
+          const SizedBox(height: 10),
+          InkWell(
+            onTap: () =>
+                openExternalLink(context, ExternalLinks.smartStore),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+              color: AppColors.primary,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.storefront_outlined,
+                      size: 17, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Text(
+                    '이름표 주문하기',
+                    style: AppTextStyles.bodyBold.copyWith(color: Colors.white),
+                  ),
+                  const SizedBox(width: 6),
+                  const Icon(Icons.open_in_new, size: 14, color: Colors.white70),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

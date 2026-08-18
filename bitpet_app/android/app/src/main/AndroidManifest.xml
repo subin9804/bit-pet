@@ -85,5 +85,18 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+
+        <!-- url_launcher 로 외부 링크(스마트스토어)를 열기 위해 필요.
+             Android 11+ 는 패키지 가시성이 막혀 있어서, 이 항목이 없으면
+             canLaunchUrl 이 브라우저가 멀쩡히 깔려 있어도 false 를 돌려준다. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
+        </intent>
+        <!-- 문의 메일(mailto:) — 앱 정보 화면에서 사용 -->
+        <intent>
+            <action android:name="android.intent.action.SENDTO"/>
+            <data android:scheme="mailto"/>
+        </intent>
     </queries>
 </manifest>
