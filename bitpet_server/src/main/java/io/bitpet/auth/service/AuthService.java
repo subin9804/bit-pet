@@ -1,8 +1,11 @@
 package io.bitpet.auth.service;
 
+import io.bitpet.auth.domain.AgreementSource;
+import io.bitpet.auth.domain.AgreementType;
 import io.bitpet.auth.domain.UserMst;
 import io.bitpet.auth.dto.EmailCheckResponse;
 import io.bitpet.auth.dto.LoginRequest;
+import io.bitpet.auth.dto.NicknameCheckResponse;
 import io.bitpet.auth.dto.SignupRequest;
 import io.bitpet.auth.dto.TokenResponse;
 import io.bitpet.auth.dto.UpdateMeRequest;
@@ -39,9 +42,28 @@ public class AuthService {
     private final RefreshTokenStore refreshTokenStore;
     private final S3Service s3Service;
     private final PetWithdrawalService petWithdrawalService;
+    private final AgreementService agreementService;
 
     public EmailCheckResponse checkEmail(String email) {
         return new EmailCheckResponse(!userRepository.existsByEmail(email));
+    }
+
+    /**
+     * 닉네임 중복확인. 형식 규칙과 중복을 한 번에 판정한다.
+     *
+     * <p>형식까지 여기서 보는 이유: 앱이 길이만 보고 통과시킨 뒤 가입에서 거절당하면
+     * 사용자는 이유를 알 수 없다. 판정 기준은 서버 한 곳에만 둔다.
+     */
+    public NicknameCheckResponse checkNickname(String nickname) {
+        String normalized = NicknamePolicy.normalize(nickname);
+        String formatError = NicknamePolicy.validateFormat(normalized);
+        if (formatError != null) {
+            return NicknameCheckResponse.no(formatError);
+        }
+        if (userRepository.existsByNameIgnoreCase(normalized)) {
+            return NicknameCheckResponse.no("이미 사용 중인 닉네임이에요");
+        }
+        return NicknameCheckResponse.ok();
     }
 
     @Transactional
@@ -49,9 +71,23 @@ public class AuthService {
         if (userRepository.existsByEmail(request.email())) {
             throw new BusinessException(ErrorCode.AUTH_EMAIL_ALREADY_EXISTS);
         }
+        // 앱이 중복확인을 거쳤더라도 여기서 다시 본다. 확인 시점과 가입 시점 사이에
+        // 남이 선점할 수 있고, API 를 직접 호출하면 확인 자체를 건너뛸 수 있다.
+        String nickname = requireAvailableNickname(request.nickname(), null);
+
         String passwordHash = passwordEncoder.encode(request.password());
-        UserMst user = UserMst.createLocal(request.email(), passwordHash, request.nickname());
+        UserMst user = UserMst.createLocal(request.email(), passwordHash, nickname);
         UserMst saved = userRepository.save(user);
+
+        // 동의 기록은 가입과 같은 트랜잭션에 둔다. 기록에 실패하면 가입도 없던 일이 되어야
+        // 한다 — 동의 근거 없는 계정이 남는 쪽이 가입 실패보다 나쁘다.
+        agreementService.recordSignupAgreements(saved.getId(), Map.of(
+                AgreementType.TOS, request.isTosAgreed(),
+                AgreementType.PRIVACY, request.isPrivacyAgreed(),
+                AgreementType.AGE_14, request.isAgeAgreed(),
+                AgreementType.MARKETING, request.marketingAgreed()
+        ), AgreementSource.SIGNUP);
+
         log.info("User signed up: id={}, email={}", saved.getId(), saved.getEmail());
         return UserResponse.from(saved);
     }
@@ -110,7 +146,9 @@ public class AuthService {
         UserMst user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AUTH_USER_NOT_FOUND));
         if (req.nickname() != null && !req.nickname().isBlank()) {
-            user.changeName(req.nickname().trim());
+            // 자기 자신은 중복에서 제외한다. 안 그러면 닉네임을 바꾸지 않고
+            // 프로필 사진만 교체하는 저장조차 "이미 사용 중" 으로 막힌다.
+            user.changeName(requireAvailableNickname(req.nickname(), userId));
         }
         if (req.profileImageKey() != null) {
             user.changeProfileImageUrl(req.profileImageKey().isBlank() ? null : req.profileImageKey());
@@ -119,6 +157,29 @@ public class AuthService {
             user.changeShowNicknameInPedigree(req.showNicknameInPedigree());
         }
         return UserResponse.from(user, s3Service.resolveUrl(user.getProfileImageUrl()));
+    }
+
+    /**
+     * 닉네임을 정규화하고 형식·중복을 검사한 뒤 저장할 값을 돌려준다.
+     *
+     * @param excludeUserId 중복 검사에서 제외할 사용자(프로필 수정 시 본인). 가입이면 null
+     * @throws BusinessException 형식 위반(400) 또는 중복(409)
+     */
+    private String requireAvailableNickname(String raw, Long excludeUserId) {
+        String nickname = NicknamePolicy.normalize(raw);
+
+        String formatError = NicknamePolicy.validateFormat(nickname);
+        if (formatError != null) {
+            throw new BusinessException(ErrorCode.AUTH_NICKNAME_INVALID, formatError);
+        }
+
+        boolean taken = excludeUserId == null
+                ? userRepository.existsByNameIgnoreCase(nickname)
+                : userRepository.existsByNameIgnoreCaseAndIdNot(nickname, excludeUserId);
+        if (taken) {
+            throw new BusinessException(ErrorCode.AUTH_NICKNAME_ALREADY_EXISTS);
+        }
+        return nickname;
     }
 
     private static String extractExtension(String filename) {

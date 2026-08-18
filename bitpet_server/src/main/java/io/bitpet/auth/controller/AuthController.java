@@ -1,7 +1,11 @@
 package io.bitpet.auth.controller;
 
+import io.bitpet.auth.domain.AgreementType;
+import io.bitpet.auth.dto.AgreementAcceptRequest;
+import io.bitpet.auth.dto.AgreementStatusResponse;
 import io.bitpet.auth.dto.EmailCheckResponse;
 import io.bitpet.auth.dto.LoginRequest;
+import io.bitpet.auth.dto.NicknameCheckResponse;
 import io.bitpet.auth.dto.RefreshRequest;
 import io.bitpet.auth.dto.SignupRequest;
 import io.bitpet.auth.dto.TokenResponse;
@@ -9,6 +13,7 @@ import io.bitpet.auth.dto.UpdateMeRequest;
 import io.bitpet.auth.dto.UserResponse;
 import io.bitpet.auth.dto.WithdrawPreviewResponse;
 import io.bitpet.auth.jwt.AuthPrincipal;
+import io.bitpet.auth.service.AgreementService;
 import io.bitpet.auth.service.AuthService;
 import io.bitpet.common.dto.PresignResponse;
 import io.bitpet.common.response.ApiResponse;
@@ -28,6 +33,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
+
 @Tag(name = "Auth", description = "회원가입 / 로그인 / 토큰 갱신")
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -35,11 +42,18 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final AgreementService agreementService;
 
     @Operation(summary = "이메일 중복확인")
     @GetMapping("/check-email")
     public ApiResponse<EmailCheckResponse> checkEmail(@RequestParam String email) {
         return ApiResponse.ok(authService.checkEmail(email));
+    }
+
+    @Operation(summary = "닉네임 중복확인 (형식 규칙 포함)")
+    @GetMapping("/check-nickname")
+    public ApiResponse<NicknameCheckResponse> checkNickname(@RequestParam String nickname) {
+        return ApiResponse.ok(authService.checkNickname(nickname));
     }
 
     @Operation(summary = "회원가입 (이메일 + 비밀번호)")
@@ -80,6 +94,41 @@ public class AuthController {
             @AuthenticationPrincipal AuthPrincipal principal,
             @Valid @RequestBody UpdateMeRequest request) {
         return ApiResponse.ok(authService.updateMe(principal.userId(), request));
+    }
+
+    // -------------------------------------------------------------------------
+    // 약관 동의
+    // -------------------------------------------------------------------------
+
+    @Operation(summary = "내 약관 동의 상태 — needsReagreement 가 true 면 동의 화면을 띄운다")
+    @GetMapping("/me/agreements")
+    public ApiResponse<AgreementStatusResponse> getAgreements(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return ApiResponse.ok(agreementService.getStatus(principal.userId()));
+    }
+
+    @Operation(summary = "약관 동의 (소셜 가입 직후 / 약관 개정 후 재동의)")
+    @PostMapping("/me/agreements")
+    public ApiResponse<AgreementStatusResponse> acceptAgreements(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @Valid @RequestBody AgreementAcceptRequest request) {
+        agreementService.acceptAgreements(principal.userId(), Map.of(
+                AgreementType.TOS, true,
+                AgreementType.PRIVACY, true,
+                AgreementType.AGE_14, true,
+                AgreementType.MARKETING, request.marketingAgreed()
+        ));
+        return ApiResponse.ok(agreementService.getStatus(principal.userId()));
+    }
+
+    @Operation(summary = "마케팅 정보 수신 동의 변경 (동의·철회 모두 이력으로 남음)")
+    @PatchMapping("/me/agreements/marketing")
+    public ApiResponse<AgreementStatusResponse> changeMarketingAgreement(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @RequestParam boolean agreed) {
+        agreementService.changeOptionalAgreement(
+                principal.userId(), AgreementType.MARKETING, agreed);
+        return ApiResponse.ok(agreementService.getStatus(principal.userId()));
     }
 
     @Operation(summary = "프로필 이미지 presigned PUT URL 발급")

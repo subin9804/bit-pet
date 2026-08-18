@@ -19,6 +19,9 @@ public enum ErrorCode {
     // --- Auth ---
     AUTH_INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "Invalid email or password"),
     AUTH_EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "Email already registered"),
+    AUTH_NICKNAME_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 사용 중인 닉네임입니다"),
+    AUTH_NICKNAME_INVALID(HttpStatus.BAD_REQUEST, "사용할 수 없는 닉네임입니다"),
+    AUTH_AGREEMENT_REQUIRED(HttpStatus.BAD_REQUEST, "필수 약관에 동의해야 합니다"),
     AUTH_INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "Invalid or expired token"),
     AUTH_REFRESH_TOKEN_NOT_FOUND(HttpStatus.UNAUTHORIZED, "Refresh token not found"),
     AUTH_USER_NOT_FOUND(HttpStatus.NOT_FOUND, "User not found"),

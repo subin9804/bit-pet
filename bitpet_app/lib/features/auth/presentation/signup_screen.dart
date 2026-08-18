@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/legal/legal_document_sheet.dart';
+import '../../../core/legal/legal_documents.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/step_shell.dart';
 import '../../../core/widgets/toast_message.dart';
@@ -33,6 +35,13 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   bool _emailChecking = false;
   bool? _emailAvailable;
   String? _emailCheckedFor;
+
+  // 닉네임 중복확인. _nickCheckedFor 는 "어떤 값에 대한 결과인가"를 들고 있다 —
+  // 확인 후 닉네임을 고치면 이전 결과가 그대로 남아 통과해버리는 걸 막는다.
+  bool _nickChecking = false;
+  bool? _nickAvailable;
+  String? _nickCheckedFor;
+  String? _nickReason;
 
   bool _agreeAll       = false;
   bool _agreeTos       = false; // 필수
@@ -87,6 +96,42 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       ].where((e) => e).length >= 2;
   bool get _pw2Match => _pwCtrl.text.isNotEmpty && _pwCtrl.text == _pw2Ctrl.text;
 
+  String get _nickText => _nickCtrl.text.trim();
+
+  /// 지금 입력된 닉네임이 "확인 완료 + 사용 가능" 상태인가.
+  /// 다음 단계로 넘어갈 수 있는지의 유일한 기준이다.
+  bool get _nickConfirmed =>
+      _nickCheckedFor != null && _nickCheckedFor == _nickText && _nickAvailable == true;
+
+  /// 확인 버튼을 누를 수 있는 최소 조건. 서버 왕복을 아끼려는 것뿐이고
+  /// 실제 규칙 판정(길이·문자·예약어·중복)은 전부 서버가 한다.
+  bool get _nickCheckable => _nickText.length >= 2 && !_nickChecking;
+
+  Future<void> _checkNickname() async {
+    if (!_nickCheckable) return;
+    final nickname = _nickText;
+    setState(() {
+      _nickChecking = true;
+      _nickAvailable = null;
+      _nickReason = null;
+    });
+    try {
+      final result =
+          await ref.read(authRepositoryProvider).checkNicknameAvailable(nickname);
+      if (!mounted) return;
+      setState(() {
+        _nickAvailable = result.available;
+        _nickReason = result.reason;
+        _nickCheckedFor = nickname;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ToastMessage.show(context, '닉네임 확인에 실패했습니다', type: ToastType.error);
+    } finally {
+      if (mounted) setState(() => _nickChecking = false);
+    }
+  }
+
   Future<void> _checkEmail() async {
     if (!_emailValid || _emailChecking) return;
     final email = _emailCtrl.text.trim();
@@ -139,11 +184,22 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     });
   }
 
+  /// 약관 전문 열기. 동의 체크는 건드리지 않는다 — 읽었다고 동의한 건 아니다.
+  void _showTerms(String id) {
+    final doc = findLegalDocument(id);
+    if (doc == null) return;
+    showLegalDocument(context, doc);
+  }
+
   Future<void> _submit() async {
     await ref.read(authStateProvider.notifier).signup(
       _emailCtrl.text.trim(),
       _pwCtrl.text,
       _nickCtrl.text.trim(),
+      agreeTos: _agreeTos,
+      agreePrivacy: _agreePrivacy,
+      agreeAge: _agreeAge,
+      agreeMarketing: _agreeMarketing,
     );
     if (!mounted) return;
     ref.read(authStateProvider).whenOrNull(
@@ -156,8 +212,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     // ── Step 1: 프로필 ──────────────────────────────────────────────────────
     StepConfig(
       title: '프로필을 만들어요',
-      desc: '비펫 안에서 보일 이름과 색이에요.',
-      valid: () => _nickCtrl.text.trim().length >= 2,
+      desc: '테일로그 안에서 보일 이름과 색이에요.',
+      // 중복확인을 통과해야만 다음 단계로 넘어간다.
+      valid: () => _nickConfirmed,
       render: (ctx) => ListenableBuilder(
         listenable: _nickCtrl,
         builder: (_, __) => Column(
@@ -210,38 +267,85 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             // 닉네임
             SField(
               label: '닉네임',
-              hint: '2~20자',
-              child: Row(
+              hint: '2~20자 · 한글, 영문, 숫자, 밑줄(_)',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: PaleTextField(
-                      controller: _nickCtrl,
-                      placeholder: '비펫 안에서 보일 이름',
-                      onChanged: (_) => setState(() {}),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: () => ToastMessage.show(
-                      context, '중복확인 기능은 준비 중이에요', type: ToastType.info,
-                    ),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.zero,
-                        border: Border.all(color: AppColors.paleLine),
-                      ),
-                      child: const Text(
-                        '중복확인',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
-                          color: AppColors.primary,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: PaleTextField(
+                          controller: _nickCtrl,
+                          placeholder: '테일로그 안에서 보일 이름',
+                          // 닉네임을 고치면 직전 확인 결과를 즉시 버린다. 남겨두면
+                          // 'A' 로 확인받고 'B' 로 바꾼 채 다음 단계로 넘어갈 수 있다.
+                          onChanged: (_) => setState(() {
+                            if (_nickCheckedFor != _nickText) {
+                              _nickAvailable = null;
+                              _nickReason = null;
+                            }
+                          }),
                         ),
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: _nickCheckable ? _checkNickname : null,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 13),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.zero,
+                            border: Border.all(color: AppColors.paleLine),
+                          ),
+                          child: _nickChecking
+                              ? const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : Text(
+                                  '중복확인',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
+                                    color: _nickCheckable
+                                        ? AppColors.primary
+                                        : AppColors.paleInk3,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ],
                   ),
+                  if (_nickCheckedFor != null &&
+                      _nickCheckedFor == _nickText) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      _nickAvailable == true
+                          ? '✓ 사용 가능한 닉네임입니다'
+                          : '✗ ${_nickReason ?? '사용할 수 없는 닉네임입니다'}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: _nickAvailable == true
+                            ? const Color(0xFF3A8854)
+                            : const Color(0xFFCC4422),
+                      ),
+                    ),
+                  ] else if (_nickText.length >= 2) ...[
+                    // 확인 전에는 왜 다음으로 못 넘어가는지 알려준다.
+                    const SizedBox(height: 6),
+                    const Text(
+                      '중복확인을 눌러 주세요',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.paleInk3,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -469,18 +573,21 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               checked: _agreeTos,
               badge: '필수',
               onTap: () => _toggleOne('tos'),
+              onView: () => _showTerms('tos'),
             ),
             _TermsItem(
               label: '개인정보 처리방침',
               checked: _agreePrivacy,
               badge: '필수',
               onTap: () => _toggleOne('privacy'),
+              onView: () => _showTerms('privacy'),
             ),
             _TermsItem(
               label: '만 14세 이상입니다',
               checked: _agreeAge,
               badge: '필수',
               onTap: () => _toggleOne('age'),
+              onView: () => _showTerms('age'),
             ),
             _TermsItem(
               label: '마케팅 정보 수신',
@@ -488,6 +595,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               badge: '선택',
               isLast: true,
               onTap: () => _toggleOne('marketing'),
+              onView: () => _showTerms('marketing'),
             ),
           ],
         ),
@@ -603,10 +711,14 @@ class _TermsItem extends StatelessWidget {
   final bool isLast;
   final VoidCallback onTap;
 
+  /// 전문 보기. null 이면 화살표를 아예 그리지 않는다 ('전체 동의'가 그렇다).
+  final VoidCallback? onView;
+
   const _TermsItem({
     required this.label,
     required this.checked,
     required this.onTap,
+    this.onView,
     this.badge,
     this.isBold = false,
     this.hasBorder = false,
@@ -660,8 +772,34 @@ class _TermsItem extends StatelessWidget {
                 ],
               ),
             ),
-            if (!isBold)
-              const Icon(Icons.chevron_right, size: 16, color: AppColors.paleInk3),
+            // 화살표는 행과 별개의 탭 타겟이다 — 여기를 누르면 체크가 아니라 전문이 열린다.
+            // 손가락으로 닿을 만한 크기를 주려고 아이콘 주변에 패딩을 깐다.
+            if (onView != null)
+              InkWell(
+                onTap: onView,
+                borderRadius: BorderRadius.zero,
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '보기',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.paleInk2,
+                          decoration: TextDecoration.underline,
+                          decorationColor: AppColors.paleInk3,
+                        ),
+                      ),
+                      SizedBox(width: 2),
+                      Icon(Icons.chevron_right,
+                          size: 16, color: AppColors.paleInk3),
+                    ],
+                  ),
+                ),
+              ),
           ],
         ),
       ),

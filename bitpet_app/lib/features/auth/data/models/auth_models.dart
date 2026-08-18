@@ -12,16 +12,32 @@ class SignupRequest {
   final String password;
   final String nickname; // 서버 필드명: nickname
 
+  // 약관 동의. 필수 3종이 true 가 아니면 서버가 400 으로 거절한다.
+  // 선택(마케팅)은 false 여도 그대로 보낸다 — 서버가 "동의 안 함"으로 기록해야
+  // 나중에 "물어본 적 없음"과 구별된다.
+  final bool agreeTos;
+  final bool agreePrivacy;
+  final bool agreeAge;
+  final bool agreeMarketing;
+
   const SignupRequest({
     required this.email,
     required this.password,
     required this.nickname,
+    required this.agreeTos,
+    required this.agreePrivacy,
+    required this.agreeAge,
+    required this.agreeMarketing,
   });
 
   Map<String, dynamic> toJson() => {
         'email': email,
         'password': password,
         'nickname': nickname, // 서버 SignupRequest.nickname 과 일치
+        'agreeTos': agreeTos,
+        'agreePrivacy': agreePrivacy,
+        'agreeAge': agreeAge,
+        'agreeMarketing': agreeMarketing,
       };
 }
 
@@ -93,4 +109,17 @@ class UserProfile {
         showNicknameInPedigree:
             json['showNicknameInPedigree'] as bool? ?? true,
       );
+}
+
+/// 닉네임 중복확인 결과.
+///
+/// 서버가 `available` 과 함께 `reason`(불가 사유 문장)을 내려준다.
+/// 길이·허용 문자·예약어·중복이 전부 여기로 들어오므로 앱은 규칙을 알 필요가 없다.
+class NicknameCheckResult {
+  final bool available;
+
+  /// 사용 불가 사유. 사용 가능하면 null.
+  final String? reason;
+
+  const NicknameCheckResult({required this.available, this.reason});
 }

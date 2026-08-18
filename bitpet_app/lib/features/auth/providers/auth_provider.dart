@@ -56,11 +56,26 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
     }
   }
 
-  Future<void> signup(String email, String password, String nickname) async {
+  Future<void> signup(
+    String email,
+    String password,
+    String nickname, {
+    required bool agreeTos,
+    required bool agreePrivacy,
+    required bool agreeAge,
+    required bool agreeMarketing,
+  }) async {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(
-      () => _repo.signup(
-          SignupRequest(email: email, password: password, nickname: nickname)),
+      () => _repo.signup(SignupRequest(
+        email: email,
+        password: password,
+        nickname: nickname,
+        agreeTos: agreeTos,
+        agreePrivacy: agreePrivacy,
+        agreeAge: agreeAge,
+        agreeMarketing: agreeMarketing,
+      )),
     );
     if (state.hasValue && state.value != null) {
       await _setUpPush();
