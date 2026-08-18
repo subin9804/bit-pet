@@ -198,3 +198,50 @@ class PostPage {
   final int page;
   const PostPage({required this.items, required this.last, required this.page});
 }
+
+/// 마이페이지 > 내 게시글 의 '댓글' 탭 한 줄.
+/// 댓글 본문만으로는 어느 글에 단 건지 알 수 없어 원글 정보를 함께 받는다.
+class MyComment {
+  final int id;
+  final int postId;
+  final String postTitle;
+  final int? postCategoryId;
+
+  /// 원글이 삭제된 경우. 목록에서 빼지 않고 표시만 달리한다.
+  final bool postDeleted;
+  final int? parentCommentId;
+  final String content;
+  final DateTime createdAt;
+
+  const MyComment({
+    required this.id,
+    required this.postId,
+    required this.postTitle,
+    this.postCategoryId,
+    required this.postDeleted,
+    this.parentCommentId,
+    required this.content,
+    required this.createdAt,
+  });
+
+  bool get isReply => parentCommentId != null;
+
+  factory MyComment.fromJson(Map<String, dynamic> json) => MyComment(
+        id: json['id'] as int,
+        postId: json['postId'] as int,
+        postTitle: json['postTitle'] as String? ?? '삭제된 게시글',
+        postCategoryId: json['postCategoryId'] as int?,
+        postDeleted: json['postDeleted'] as bool? ?? false,
+        parentCommentId: json['parentCommentId'] as int?,
+        content: json['content'] as String? ?? '',
+        createdAt: DateTime.parse(json['createdAt'] as String),
+      );
+}
+
+class MyCommentPage {
+  final List<MyComment> items;
+  final bool last;
+  final int page;
+  const MyCommentPage(
+      {required this.items, required this.last, required this.page});
+}

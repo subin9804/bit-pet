@@ -83,7 +83,7 @@ class MyScreen extends ConsumerWidget {
             _MenuItem(
               icon: Icons.article_outlined,
               label: '내 게시글',
-              onTap: () {},
+              onTap: () => context.push('/my/activity'),
             ),
             _MenuItem(
               icon: Icons.info_outline,

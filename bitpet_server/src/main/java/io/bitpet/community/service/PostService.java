@@ -13,6 +13,7 @@ import io.bitpet.community.dto.CommentCreateRequest;
 import io.bitpet.community.dto.CommentResponse;
 import io.bitpet.community.dto.CommentUpdateRequest;
 import io.bitpet.community.dto.LikeToggleResponse;
+import io.bitpet.community.dto.MyCommentResponse;
 import io.bitpet.community.dto.PostCategoryResponse;
 import io.bitpet.community.dto.PostCreateRequest;
 import io.bitpet.community.dto.PostDetailResponse;
@@ -98,6 +99,35 @@ public class PostService {
 
     public Page<PostSummaryResponse> listMyPosts(Long userId, Pageable pageable) {
         return toSummaryPage(userId, postRepository.findByUserId(userId, pageable));
+    }
+
+    /**
+     * 내가 쓴 댓글 목록.
+     *
+     * <p>원글 제목을 붙이려고 게시글을 조회하는데, 댓글마다 한 번씩 부르면 N+1 이 된다.
+     * postId 를 모아 한 번에 읽고 맵으로 붙인다. 원글이 소프트 삭제됐으면 맵에 없으므로
+     * {@code postTitle = null} 로 흘러가 '삭제된 게시글' 로 표시된다.
+     */
+    public Page<MyCommentResponse> listMyComments(Long userId, Pageable pageable) {
+        Page<PostCommentDtl> page =
+                commentRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
+        List<PostCommentDtl> comments = page.getContent();
+
+        Set<Long> postIds = comments.stream()
+                .map(PostCommentDtl::getPostId).collect(Collectors.toSet());
+        Map<Long, PostMst> posts = postIds.isEmpty()
+                ? Map.of()
+                : postRepository.findAllById(postIds).stream()
+                        .collect(Collectors.toMap(PostMst::getId, p -> p));
+
+        List<MyCommentResponse> content = comments.stream().map(c -> {
+            PostMst post = posts.get(c.getPostId());
+            return MyCommentResponse.of(c,
+                    post == null ? null : post.getTitle(),
+                    post == null ? null : post.getCategoryId());
+        }).toList();
+
+        return new PageImpl<>(content, page.getPageable(), page.getTotalElements());
     }
 
     private Page<PostSummaryResponse> toSummaryPage(Long userId, Page<PostMst> page) {

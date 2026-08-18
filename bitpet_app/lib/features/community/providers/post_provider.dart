@@ -250,3 +250,151 @@ class ComposeNotifier extends StateNotifier<ComposeState> {
     }
   }
 }
+
+// ── 마이페이지 > 내 게시글 / 내 댓글 ──────────────────────────────────
+//
+// autoDispose 로 둔다. 마이페이지에서 들어갔다 나오는 화면이라 목록을 붙들고 있을
+// 이유가 없고, 다시 들어올 때 최신 상태로 다시 받는 편이 맞다.
+
+class MyPostsState {
+  final List<Post> posts;
+  final bool loading;
+  final bool loadingMore;
+  final bool hasMore;
+  final Object? error;
+
+  const MyPostsState({
+    this.posts = const [],
+    this.loading = true,
+    this.loadingMore = false,
+    this.hasMore = true,
+    this.error,
+  });
+
+  MyPostsState copyWith({
+    List<Post>? posts,
+    bool? loading,
+    bool? loadingMore,
+    bool? hasMore,
+  }) =>
+      MyPostsState(
+        posts: posts ?? this.posts,
+        loading: loading ?? this.loading,
+        loadingMore: loadingMore ?? this.loadingMore,
+        hasMore: hasMore ?? this.hasMore,
+        error: error,
+      );
+}
+
+final myPostsProvider =
+    StateNotifierProvider.autoDispose<MyPostsNotifier, MyPostsState>(
+        (ref) => MyPostsNotifier(ref.watch(postRepositoryProvider)));
+
+class MyPostsNotifier extends StateNotifier<MyPostsState> {
+  final PostRepository _repo;
+  int _page = 0;
+
+  MyPostsNotifier(this._repo) : super(const MyPostsState()) {
+    refresh();
+  }
+
+  Future<void> refresh() async {
+    _page = 0;
+    state = const MyPostsState(loading: true);
+    try {
+      final p = await _repo.getMyPosts(page: 0);
+      state = MyPostsState(posts: p.items, loading: false, hasMore: !p.last);
+    } catch (e) {
+      state = MyPostsState(loading: false, hasMore: false, error: e);
+    }
+  }
+
+  Future<void> loadMore() async {
+    if (state.loading || state.loadingMore || !state.hasMore) return;
+    state = state.copyWith(loadingMore: true);
+    try {
+      final next = _page + 1;
+      final p = await _repo.getMyPosts(page: next);
+      _page = next;
+      state = state.copyWith(
+        posts: [...state.posts, ...p.items],
+        loadingMore: false,
+        hasMore: !p.last,
+      );
+    } catch (_) {
+      state = state.copyWith(loadingMore: false);
+    }
+  }
+}
+
+class MyCommentsState {
+  final List<MyComment> comments;
+  final bool loading;
+  final bool loadingMore;
+  final bool hasMore;
+  final Object? error;
+
+  const MyCommentsState({
+    this.comments = const [],
+    this.loading = true,
+    this.loadingMore = false,
+    this.hasMore = true,
+    this.error,
+  });
+
+  MyCommentsState copyWith({
+    List<MyComment>? comments,
+    bool? loading,
+    bool? loadingMore,
+    bool? hasMore,
+  }) =>
+      MyCommentsState(
+        comments: comments ?? this.comments,
+        loading: loading ?? this.loading,
+        loadingMore: loadingMore ?? this.loadingMore,
+        hasMore: hasMore ?? this.hasMore,
+        error: error,
+      );
+}
+
+final myCommentsProvider =
+    StateNotifierProvider.autoDispose<MyCommentsNotifier, MyCommentsState>(
+        (ref) => MyCommentsNotifier(ref.watch(postRepositoryProvider)));
+
+class MyCommentsNotifier extends StateNotifier<MyCommentsState> {
+  final PostRepository _repo;
+  int _page = 0;
+
+  MyCommentsNotifier(this._repo) : super(const MyCommentsState()) {
+    refresh();
+  }
+
+  Future<void> refresh() async {
+    _page = 0;
+    state = const MyCommentsState(loading: true);
+    try {
+      final p = await _repo.getMyComments(page: 0);
+      state =
+          MyCommentsState(comments: p.items, loading: false, hasMore: !p.last);
+    } catch (e) {
+      state = MyCommentsState(loading: false, hasMore: false, error: e);
+    }
+  }
+
+  Future<void> loadMore() async {
+    if (state.loading || state.loadingMore || !state.hasMore) return;
+    state = state.copyWith(loadingMore: true);
+    try {
+      final next = _page + 1;
+      final p = await _repo.getMyComments(page: next);
+      _page = next;
+      state = state.copyWith(
+        comments: [...state.comments, ...p.items],
+        loadingMore: false,
+        hasMore: !p.last,
+      );
+    } catch (_) {
+      state = state.copyWith(loadingMore: false);
+    }
+  }
+}

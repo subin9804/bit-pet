@@ -67,6 +67,41 @@ class PostRepository {
     );
   }
 
+  // ── 마이페이지 > 내 게시글 ─────────────────────────────────
+  Future<PostPage> getMyPosts({int page = 0, int size = 20}) async {
+    final res = await _dio.get('/posts/mine',
+        queryParameters: {'page': page, 'size': size});
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => d as Map<String, dynamic>,
+    );
+    final data = apiRes.data ?? const <String, dynamic>{};
+    return PostPage(
+      items: (data['content'] as List<dynamic>? ?? [])
+          .map((e) => Post.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      last: data['last'] as bool? ?? true,
+      page: data['number'] as int? ?? page,
+    );
+  }
+
+  Future<MyCommentPage> getMyComments({int page = 0, int size = 20}) async {
+    final res = await _dio.get('/posts/comments/mine',
+        queryParameters: {'page': page, 'size': size});
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => d as Map<String, dynamic>,
+    );
+    final data = apiRes.data ?? const <String, dynamic>{};
+    return MyCommentPage(
+      items: (data['content'] as List<dynamic>? ?? [])
+          .map((e) => MyComment.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      last: data['last'] as bool? ?? true,
+      page: data['number'] as int? ?? page,
+    );
+  }
+
   Future<Post> getPost(int id) async {
     final res = await _dio.get('/posts/$id');
     final apiRes = ApiResponse.fromJson(

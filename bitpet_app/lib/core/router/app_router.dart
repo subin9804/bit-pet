@@ -25,6 +25,7 @@ import '../../features/routine/presentation/routine_form_screen.dart';
 import '../../features/pet/share/presentation/pet_share_screen.dart';
 import '../../features/pet/share/presentation/share_inbox_screen.dart';
 import '../../features/pet/share/presentation/share_hub_screen.dart';
+import '../../features/my/presentation/my_activity_screen.dart';
 import '../../features/my/presentation/my_screen.dart';
 import '../../features/notification/data/notification_repository.dart';
 import '../../features/notification/data/models/notification_models.dart';
@@ -174,6 +175,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/my', builder: (_, __) => const MyScreen()),
           // 마이페이지 > 이름표 관리
           GoRoute(path: '/my/tags', builder: (_, __) => const MyTagsScreen()),
+          // 마이페이지 > 내 게시글 (작성한 글 / 작성한 댓글)
+          GoRoute(
+              path: '/my/activity',
+              builder: (_, __) => const MyActivityScreen()),
           // 공유 허브 (공유코드·받은 초대·시작 안내)
           GoRoute(path: '/share', builder: (_, __) => const ShareHubScreen()),
           // 받은 공유·입분양 초대함

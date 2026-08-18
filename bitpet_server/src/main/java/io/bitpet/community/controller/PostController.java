@@ -6,6 +6,7 @@ import io.bitpet.community.dto.CommentCreateRequest;
 import io.bitpet.community.dto.CommentResponse;
 import io.bitpet.community.dto.CommentUpdateRequest;
 import io.bitpet.community.dto.LikeToggleResponse;
+import io.bitpet.community.dto.MyCommentResponse;
 import io.bitpet.community.dto.PostCreateRequest;
 import io.bitpet.community.dto.PostDetailResponse;
 import io.bitpet.community.dto.PostPhotoPresignResponse;
@@ -73,6 +74,14 @@ public class PostController {
             @AuthenticationPrincipal AuthPrincipal principal,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         return ApiResponse.ok(postService.listMyPosts(principal.userId(), pageable));
+    }
+
+    @Operation(summary = "내가 쓴 댓글 목록 (원글 제목 포함)")
+    @GetMapping("/comments/mine")
+    public ApiResponse<Page<MyCommentResponse>> listMyComments(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @PageableDefault(size = 20) Pageable pageable) {
+        return ApiResponse.ok(postService.listMyComments(principal.userId(), pageable));
     }
 
     @Operation(summary = "게시글 상세 조회 (조회수 +1)")
