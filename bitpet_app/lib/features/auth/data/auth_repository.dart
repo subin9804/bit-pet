@@ -117,6 +117,27 @@ class AuthRepository {
     return apiRes.data!['available'] as bool;
   }
 
+  // ── 닉네임 중복확인 ───────────────────────────────────────
+  // 형식 규칙(길이·허용 문자·예약어)까지 서버가 판정한다. 앱이 따로 규칙을 들고 있으면
+  // 서버와 어긋나 "확인은 통과했는데 가입에서 거절" 이 난다.
+  Future<NicknameCheckResult> checkNicknameAvailable(String nickname) async {
+    final res = await _dio.get('/auth/check-nickname',
+        queryParameters: {'nickname': nickname});
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => d as Map<String, dynamic>,
+    );
+    if (!apiRes.success || apiRes.data == null) {
+      throw ApiException(
+          statusCode: res.statusCode ?? 0,
+          message: apiRes.message ?? '닉네임 확인에 실패했습니다.');
+    }
+    return NicknameCheckResult(
+      available: apiRes.data!['available'] as bool,
+      reason: apiRes.data!['reason'] as String?,
+    );
+  }
+
   // ── 회원가입 ──────────────────────────────────────────────
   // 서버 흐름:
   //   1) POST /auth/signup → UserResponse (토큰 없음)

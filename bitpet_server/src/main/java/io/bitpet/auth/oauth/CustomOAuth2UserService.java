@@ -5,6 +5,7 @@ import io.bitpet.auth.domain.UserMst;
 import io.bitpet.auth.domain.UserOAuthRls;
 import io.bitpet.auth.repository.UserMstRepository;
 import io.bitpet.auth.repository.UserOAuthRlsRepository;
+import io.bitpet.auth.service.NicknamePolicy;
 import io.bitpet.auth.service.TokenEncryptor;
 import io.bitpet.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -74,9 +75,16 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         UserMst user = userMstRepository.findByEmail(email)
                 .orElseGet(() -> {
                     String randomHash = passwordEncoder.encode(UUID.randomUUID().toString());
+                    // 제공자 이름을 그대로 쓰면 안 된다. 닉네임에는 유니크 제약
+                    // (idx_user_mst_name_unique)이 걸려 있어서 동명이인이 로그인하는 순간
+                    // 제약 위반으로 로그인 자체가 실패한다. 공백·괄호가 섞인 이름도 마찬가지로
+                    // 형식 규칙에 어긋나 나중에 프로필 저장이 막힌다.
+                    String nickname = NicknamePolicy.makeUnique(
+                            NicknamePolicy.sanitizeForOAuth(info.name(), provider.name()),
+                            userMstRepository::existsByNameIgnoreCase);
                     UserMst newUser = UserMst.createOAuth(
                             email,
-                            info.name() != null ? info.name() : provider.name() + " User",
+                            nickname,
                             info.profileImageUrl(),
                             randomHash);
                     return userMstRepository.save(newUser);
