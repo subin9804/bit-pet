@@ -2,7 +2,8 @@
 <!--
   Android 9(API 28)부터 평문(http) 통신은 기본 차단이다.
   운영은 https://tailog.me 이므로 문제가 없지만, 로컬 개발 서버는 http 라서
-  아무 설정이 없으면 `flutter run --release` + adb reverse 로 실기기 검증을 할 수 없다.
+  아무 설정이 없으면 릴리즈 모드 flutter run + adb reverse 로 실기기 검증을 할 수 없다.
+  (XML 주석 안에는 하이픈 두 개를 연달아 쓸 수 없어 플래그를 그대로 적지 못한다)
 
   그래서 예외를 로컬 주소 두 개로만 연다. 기본값(cleartextTrafficPermitted="false")은
   그대로 두므로 tailog.me 를 포함한 나머지 전부는 여전히 https 강제다.
