@@ -1,0 +1,26 @@
+# 최초 인증서 발급 전용 임시 설정.
+#
+# 인증서가 없는 상태에서 tailog.conf 의 443 블록을 로드하면 nginx 가 기동 자체를 실패한다.
+# (ssl_certificate 파일이 없으면 문법 오류가 아니라 시작 실패다)
+#
+# 사용법:
+#   mv tailog.conf tailog.conf.off && mv bootstrap.conf.disabled bootstrap.conf
+#   docker compose ... up -d nginx
+#   (README 의 certbot certonly 실행)
+#   mv bootstrap.conf bootstrap.conf.disabled && mv tailog.conf.off tailog.conf
+#   docker compose ... restart nginx
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name tailog.me www.tailog.me;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 200 'bootstrap\n';
+        add_header Content-Type text/plain;
+    }
+}

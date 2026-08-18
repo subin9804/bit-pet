@@ -190,6 +190,24 @@ features/
 
 ## Flyway 마이그레이션 현황
 
+**2026-08-19 스쿼시 — 구 V1~V55 는 `V1__baseline_schema.sql` 하나로 합쳐졌고 파일은 삭제됐다.**
+
+베이스라인은 V55까지 적용한 DB를 `pg_dump` 로 뽑은 것이라 순차 적용 결과와 동일하다.
+(빈 DB에 새 V1만 적용해 다시 덤프한 뒤 diff 로 검증 — 구조 차이 0. CHECK 제약 표기만
+PostgreSQL이 재정규화하는데 의미는 같다.)
+
+- ⛔ **`V1__baseline_schema.sql` 은 절대 수정하지 말 것.** 고치면 체크섬이 바뀌어
+  이미 적용된 모든 DB가 `validate` 단계에서 기동을 거부한다.
+- ⛔ **스쿼시를 또 하지 말 것.** 운영 DB가 생긴 뒤로는 불가능하다. 배포 직전이라 가능했던 일회성 작업이다.
+- **다음 마이그레이션은 V2 부터 작성한다.**
+- 코드성 시드(`memo_tag_cd`, `post_category_cd`, `serial_pool_stat_mst`)는 베이스라인 하단에 들어 있다.
+  종·모프 마스터는 그대로 `R__01`/`R__02` 담당.
+- 어떤 컬럼이 왜 생겼는지 추적할 땐 git 이력을 본다:
+  `git log --diff-filter=D --name-only -- 'bitpet_server/src/main/resources/db/migration/V*'`
+
+<details>
+<summary>구 V1~V55 이력 (파일은 삭제됨, 기록용)</summary>
+
 | 버전 | 내용 |
 |------|------|
 | V1 | user_mst, user_oauth_rls |
@@ -236,7 +254,7 @@ features/
 | V54 | 탈퇴 개체 처리 — pet_mst.is_orphaned, user_mst.show_nickname_in_pedigree, s3_delete_queue_dtl(커밋 후 S3 삭제 재시도 큐) 신설 |
 | V55 | nfc_tag_bind_hst 신설 — 태그 연결 이력(append-only, BIND/REBIND/UNBIND/REVOKE). 태그 소유권 분쟁 판정 근거. FK 없음(개체·유저가 사라져도 이력은 남아야 함) |
 
-> **다음 마이그레이션은 V56부터 작성.**
+</details>
 
 ---
 
@@ -550,6 +568,7 @@ Base URL: `/api/v1`
 - 외부 시스템 영향(push·삭제·외부 API 호출)은 확인 후 진행
 - Flutter UI는 디자인 확정 전까지 **뼈대(Skeleton)만** 구현, 상세 UI는 별도 지시 대기
 - 새 Flyway 마이그레이션은 기존 파일 절대 수정 금지, 항상 다음 버전으로 신규 작성
+  (2026-08-19 스쿼시 이후 **다음은 V2**. `V1__baseline_schema.sql` 수정 = 모든 DB 기동 불가)
 
 ---
 

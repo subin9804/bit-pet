@@ -1,0 +1,8 @@
+# 실제 시크릿은 절대 커밋하지 않는다. 레포가 public 이다.
+.env.prod
+secrets/
+backups/
+
+# 부트스트랩 중 잠시 만들어지는 파일
+nginx/conf.d/*.off
+nginx/conf.d/bootstrap.conf

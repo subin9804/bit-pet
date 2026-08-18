@@ -1,0 +1,132 @@
+# 운영 스택 — Lightsail 단일 인스턴스
+#
+# 로컬 개발용 bitpet_server/docker-compose.yml 과는 별개 파일이다. 합치지 말 것:
+#   - 로컬은 DB/Redis 포트를 호스트에 열어야 한다 (서버가 호스트에서 직접 돌므로)
+#   - 운영은 정반대로 절대 열면 안 된다 (인터넷에 노출된 인스턴스다)
+#
+# 실행: docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+
+name: tailog
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: tailog-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ: Asia/Seoul
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./backups:/backups
+    # ⚠️ ports 를 뚫지 않는다. app 컨테이너가 같은 네트워크에서 postgres:5432 로 붙는다.
+    #    5432 를 호스트에 열면 인터넷에서 DB가 직접 보인다.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: tailog-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a $$REDIS_PASSWORD ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: ../bitpet_server
+      dockerfile: Dockerfile
+    image: tailog-app:latest
+    container_name: tailog-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+
+      BITPET_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      BITPET_DB_USERNAME: ${POSTGRES_USER}
+      BITPET_DB_PASSWORD: ${POSTGRES_PASSWORD}
+
+      BITPET_REDIS_HOST: redis
+      BITPET_REDIS_PORT: 6379
+      BITPET_REDIS_PASSWORD: ${REDIS_PASSWORD}
+
+      BITPET_JWT_SECRET: ${BITPET_JWT_SECRET}
+      BITPET_TOKEN_ENC_KEY: ${BITPET_TOKEN_ENC_KEY}
+
+      # 실제 AWS S3. S3Config 가 endpointOverride 를 무조건 적용하므로 리전 엔드포인트를 명시하고,
+      # path-style 은 반드시 false 여야 한다 (LocalStack 에서만 true 였다).
+      BITPET_S3_ENDPOINT: ${BITPET_S3_ENDPOINT}
+      BITPET_S3_REGION: ${BITPET_S3_REGION}
+      BITPET_S3_BUCKET: ${BITPET_S3_BUCKET}
+      BITPET_S3_ACCESS_KEY: ${BITPET_S3_ACCESS_KEY}
+      BITPET_S3_SECRET_KEY: ${BITPET_S3_SECRET_KEY}
+      BITPET_S3_PATH_STYLE: "false"
+
+      MAIL_FROM: ${MAIL_FROM}
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+
+      # NFC 딥링크 검증용 지문. 업로드 키와 Play 앱 서명 키 둘 다 넣어야 한다.
+      BITPET_ANDROID_SHA256: ${BITPET_ANDROID_SHA256}
+
+      BITPET_FCM_ENABLED: ${BITPET_FCM_ENABLED:-true}
+      BITPET_FCM_CREDENTIALS: /app/secrets/firebase-service-account.json
+    volumes:
+      - ./secrets:/app/secrets:ro
+    expose:
+      - "8080"
+    # 2GB 인스턴스에서 postgres/redis/nginx 와 나눠 쓴다. 한도를 안 주면 앱이 다 먹고 OOM Killer 가 DB를 죽인다.
+    mem_limit: 900m
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: tailog-nginx
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - certbot-www:/var/www/certbot:ro
+      - certbot-conf:/etc/letsencrypt:ro
+    # 갱신된 인증서는 재적재해야 적용된다. certbot 이 파일만 갈아끼우고 nginx 는 옛 인증서를
+    # 메모리에 들고 있으므로, 주기적으로 reload 하지 않으면 90일 뒤 만료된 인증서를 계속 내민다.
+    command: >
+      sh -c "while :; do sleep 6h & wait $${!}; nginx -s reload; done &
+             nginx -g 'daemon off;'"
+
+  # 인증서 자동 갱신. 12시간마다 깨어나 만료 30일 이내면 갱신한다.
+  certbot:
+    image: certbot/certbot:latest
+    container_name: tailog-certbot
+    restart: unless-stopped
+    volumes:
+      - certbot-www:/var/www/certbot
+      - certbot-conf:/etc/letsencrypt
+    entrypoint: >
+      sh -c "trap exit TERM;
+             while :; do certbot renew --webroot -w /var/www/certbot --quiet;
+             sleep 12h & wait $${!}; done"
+
+volumes:
+  postgres-data:
+  redis-data:
+  certbot-www:
+  certbot-conf:
