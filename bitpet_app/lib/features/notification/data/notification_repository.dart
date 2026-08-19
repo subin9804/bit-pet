@@ -34,4 +34,40 @@ class NotificationRepository {
     }
     return apiRes.data!;
   }
+
+  Future<NotificationPref> getPref() async {
+    final res = await _dio.get('/notifications/settings');
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => NotificationPref.fromJson(d as Map<String, dynamic>),
+    );
+    if (!apiRes.success || apiRes.data == null) {
+      throw ApiException(statusCode: res.statusCode ?? 0, message: '알림 설정을 불러오지 못했어요');
+    }
+    return apiRes.data!;
+  }
+
+  /// 바뀐 항목 하나만 보낸다. null 인 필드는 서버가 건드리지 않는다 —
+  /// 전체를 보내면 다른 기기에서 방금 바꾼 설정을 덮어쓴다.
+  Future<NotificationPref> updatePref({
+    bool? routine,
+    bool? comment,
+    bool? postLike,
+    bool? marketing,
+  }) async {
+    final res = await _dio.patch('/notifications/settings', data: {
+      if (routine != null) 'routine': routine,
+      if (comment != null) 'comment': comment,
+      if (postLike != null) 'postLike': postLike,
+      if (marketing != null) 'marketing': marketing,
+    });
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => NotificationPref.fromJson(d as Map<String, dynamic>),
+    );
+    if (!apiRes.success || apiRes.data == null) {
+      throw ApiException(statusCode: res.statusCode ?? 0, message: '알림 설정을 저장하지 못했어요');
+    }
+    return apiRes.data!;
+  }
 }

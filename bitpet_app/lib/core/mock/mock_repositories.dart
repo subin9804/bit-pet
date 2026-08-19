@@ -731,6 +731,34 @@ class MockNotificationRepository extends NotificationRepository {
   @override
   Future<NotificationLog> markRead(int notificationId) async =>
       throw UnimplementedError();
+
+  NotificationPref _pref = const NotificationPref(
+    routine: true,
+    comment: true,
+    postLike: true,
+    system: true,
+    marketing: false,
+  );
+
+  @override
+  Future<NotificationPref> getPref() async => _pref;
+
+  @override
+  Future<NotificationPref> updatePref({
+    bool? routine,
+    bool? comment,
+    bool? postLike,
+    bool? marketing,
+  }) async {
+    _pref = NotificationPref(
+      routine: routine ?? _pref.routine,
+      comment: comment ?? _pref.comment,
+      postLike: postLike ?? _pref.postLike,
+      system: true,
+      marketing: marketing ?? _pref.marketing,
+    );
+    return _pref;
+  }
 }
 
 // ────────────────────────────────────────────────────────────────────

@@ -24,6 +24,7 @@ public class NotificationService {
 
     private final NotificationLogDtlRepository notificationLogRepository;
     private final FcmSender fcmSender;
+    private final NotificationPrefService notificationPrefService;
 
     public List<NotificationLogResponse> listNotifications(Long userId) {
         return notificationLogRepository.findTop50ByUserIdOrderBySentAtDesc(userId)
@@ -135,9 +136,20 @@ public class NotificationService {
      * 알림 로그 저장 후 FCM 푸시 발송.
      * 푸시 실패가 알림 이력 자체를 롤백시키면 안 되므로 예외는 삼키고 status만 FAILED로 남긴다.
      * (FCM 비활성화·디바이스 토큰 없음은 실패가 아니라 SENT 유지 — 앱 내 알림함에는 그대로 노출)
+     *
+     * <p>알림 설정으로 꺼둔 종류는 <b>푸시만 건너뛰고 로그는 그대로 남긴다.</b> 사용자가 끈 것은
+     * "폰이 울리는 것"이지 "무슨 일이 있었는지"가 아니다 — 알림함까지 비우면 루틴을 놓친 사실을
+     * 나중에 확인할 방법이 없어진다. 발송을 안 했으므로 status 는 SENT 가 아니라 SKIPPED 다.
      */
     private void save(NotificationLogDtl notificationLog) {
         notificationLogRepository.save(notificationLog);
+
+        if (!notificationPrefService.allowsPush(
+                notificationLog.getUserId(), notificationLog.getNotificationType())) {
+            notificationLog.markSkipped();
+            return;
+        }
+
         try {
             fcmSender.send(notificationLog);
         } catch (Exception e) {

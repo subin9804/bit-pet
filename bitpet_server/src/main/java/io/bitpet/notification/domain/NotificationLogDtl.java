@@ -98,6 +98,11 @@ public class NotificationLogDtl extends BaseTimeEntity {
         this.status = NotificationStatus.READ;
     }
 
+    /** 수신 설정으로 푸시를 건너뜀. 로그 자체는 남으므로 알림함에는 그대로 보인다. */
+    public void markSkipped() {
+        this.status = NotificationStatus.SKIPPED;
+    }
+
     public void markFailed(String errorMessage) {
         this.status       = NotificationStatus.FAILED;
         this.errorMessage = errorMessage;

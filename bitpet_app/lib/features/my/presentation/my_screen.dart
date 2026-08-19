@@ -78,7 +78,7 @@ class MyScreen extends ConsumerWidget {
             _MenuItem(
               icon: Icons.notifications_outlined,
               label: '알림 설정',
-              onTap: () {},
+              onTap: () => context.push('/my/notifications'),
             ),
             _MenuItem(
               icon: Icons.article_outlined,

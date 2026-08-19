@@ -27,6 +27,7 @@ import io.bitpet.community.repository.PostCommentDtlRepository;
 import io.bitpet.community.repository.PostLikeRlsRepository;
 import io.bitpet.community.repository.PostMstRepository;
 import io.bitpet.community.repository.PostPhotoDtlRepository;
+import io.bitpet.notification.service.NotificationService;
 import io.bitpet.storage.S3Service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -60,6 +61,7 @@ public class PostService {
     private final UserMstRepository userRepository;
     private final AdminRoleRlsRepository adminRepository;
     private final S3Service s3Service;
+    private final NotificationService notificationService;
 
     // -------------------------------------------------------------------------
     // Category
@@ -290,6 +292,13 @@ public class PostService {
 
         post.incrementCommentCount();
         UserMst author = userRepository.findById(userId).orElse(null);
+
+        // 내 글에 내가 단 댓글은 알리지 않는다.
+        if (!userId.equals(post.getUserId())) {
+            notificationService.createCommentNotification(post.getUserId(), saved.getId(),
+                    "새 댓글", nameOf(author) + "님이 회원님의 글에 댓글을 남겼어요");
+        }
+
         return CommentResponse.of(saved, List.of(), nameOf(author), imageOf(author),
                 userId.equals(post.getUserId()));
     }
@@ -332,6 +341,15 @@ public class PostService {
             likeRepository.save(PostLikeRls.builder().postId(postId).userId(userId).build());
             post.incrementLikeCount();
             liked = true;
+
+            // 취소했다가 다시 누르면 또 알림이 간다. 좋아요는 토글이라 연타가 가능한데,
+            // 중복 억제를 하려면 "언제 누구에게 보냈는지"를 들고 있어야 해서 비용이 크다.
+            // 실제로 성가시다는 얘기가 나오면 그때 막는다.
+            if (!userId.equals(post.getUserId())) {
+                UserMst liker = userRepository.findById(userId).orElse(null);
+                notificationService.createLikeNotification(post.getUserId(), postId,
+                        "좋아요", nameOf(liker) + "님이 회원님의 글을 좋아합니다");
+            }
         }
         return new LikeToggleResponse(liked, post.getLikeCount());
     }

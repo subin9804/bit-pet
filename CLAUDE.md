@@ -199,7 +199,9 @@ PostgreSQL이 재정규화하는데 의미는 같다.)
 - ⛔ **`V1__baseline_schema.sql` 은 절대 수정하지 말 것.** 고치면 체크섬이 바뀌어
   이미 적용된 모든 DB가 `validate` 단계에서 기동을 거부한다.
 - ⛔ **스쿼시를 또 하지 말 것.** 운영 DB가 생긴 뒤로는 불가능하다. 배포 직전이라 가능했던 일회성 작업이다.
-- **다음 마이그레이션은 V2 부터 작성한다.**
+- **스쿼시 이후 추가된 마이그레이션**: V2(자유), V3(`user_agreement_dtl` — 약관·마케팅 동의 원장),
+  V4(`user_notification_pref` — 알림 종류별 수신 설정 + `notification_log_dtl` 상태에 `SKIPPED` 추가).
+  **다음은 V5.**
 - 코드성 시드(`memo_tag_cd`, `post_category_cd`, `serial_pool_stat_mst`)는 베이스라인 하단에 들어 있다.
   종·모프 마스터는 그대로 `R__01`/`R__02` 담당.
 - 어떤 컬럼이 왜 생겼는지 추적할 땐 git 이력을 본다:
@@ -327,6 +329,23 @@ private Map<String, Object> extraData;
 - `COMMUNITY_LIKE` — 좋아요 알림 (referenceId = postId)
 - `AI_CONSULTING` — AI 컨설팅 완료 (2차 예정)
 - `SYSTEM` — 공지·점검
+
+### 알림 수신 설정 (V4, 2026-08-20)
+
+`user_notification_pref` — **유저당 1행, 종류당 1컬럼**(routine / comment / post_like).
+행이 아니라 컬럼인 이유: 이 조회는 알림을 보낼 때마다 도는 경로다.
+
+- **행이 없으면 전부 켜짐.** 처음 하나를 끌 때 lazy 하게 생성한다 → 기존 유저 백필이 필요 없다
+- **끈 것은 푸시일 뿐 기록이 아니다.** 억제돼도 `notification_log_dtl` 행은 그대로 쌓여 앱 내
+  알림함에 보인다. 상태는 `SKIPPED` — `SENT` 로 두면 발송 통계가 거짓이 되고 `FAILED` 는 장애 알람을 울린다
+- **억제 지점은 `NotificationService.save()` 한 곳.** 모든 발송이 여기를 지나므로 다른 데서 검사하지 말 것
+- **`SYSTEM`(공지)은 끌 수 없다** — 요청 DTO에 필드 자체가 없다. 끌 수 없는 항목의 필드를 열어두고
+  서버가 조용히 무시하면 "껐는데 계속 온다"가 된다. 응답에는 `system: true` 로 내려 앱이 '항상 켜짐'을 표시
+- **마케팅의 단일 진실은 `user_agreement_dtl`(법적 원장)이지 이 테이블이 아니다.**
+  `NotificationPrefService` 는 `AgreementService.changeOptionalAgreement` 로 위임만 한다. ⛔ 여기에 컬럼을 만들지 말 것
+- `UserNotificationPref.allows()` 의 default 는 **true**(보낸다) — 새 타입이 조용히 안 가는 것보다 가는 게 눈에 띈다
+- 앱: `/my/notifications` → `NotificationSettingsScreen`. 낙관적 갱신 + 실패 시 롤백.
+  OS 알림 권한이 꺼져 있으면 상단 경고 배너(권한 없으면 앱 안 토글이 다 켜져 있어도 알림이 안 와 앱 버그로 보인다)
 
 ### FCM 푸시 알림
 - Firebase 프로젝트: `tailog-bba42` (project_number `326050818454`), Android 패키지 `me.tailog.app`
@@ -568,7 +587,7 @@ Base URL: `/api/v1`
 - 외부 시스템 영향(push·삭제·외부 API 호출)은 확인 후 진행
 - Flutter UI는 디자인 확정 전까지 **뼈대(Skeleton)만** 구현, 상세 UI는 별도 지시 대기
 - 새 Flyway 마이그레이션은 기존 파일 절대 수정 금지, 항상 다음 버전으로 신규 작성
-  (2026-08-19 스쿼시 이후 **다음은 V2**. `V1__baseline_schema.sql` 수정 = 모든 DB 기동 불가)
+  (2026-08-19 스쿼시 이후 V2~V4 추가됨, **다음은 V5**. `V1__baseline_schema.sql` 수정 = 모든 DB 기동 불가)
 
 ---
 
