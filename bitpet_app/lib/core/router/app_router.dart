@@ -26,6 +26,7 @@ import '../../features/pet/share/presentation/pet_share_screen.dart';
 import '../../features/pet/share/presentation/share_inbox_screen.dart';
 import '../../features/pet/share/presentation/share_hub_screen.dart';
 import '../../features/my/presentation/my_activity_screen.dart';
+import '../../features/my/presentation/about_screen.dart';
 import '../../features/notification/presentation/notification_settings_screen.dart';
 import '../../features/my/presentation/my_screen.dart';
 import '../../features/notification/data/notification_repository.dart';
@@ -184,6 +185,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
               path: '/my/notifications',
               builder: (_, __) => const NotificationSettingsScreen()),
+          // 마이페이지 > 앱 정보 (버전·약관·문의처)
+          GoRoute(path: '/my/about', builder: (_, __) => const AboutScreen()),
           // 공유 허브 (공유코드·받은 초대·시작 안내)
           GoRoute(path: '/share', builder: (_, __) => const ShareHubScreen()),
           // 받은 공유·입분양 초대함

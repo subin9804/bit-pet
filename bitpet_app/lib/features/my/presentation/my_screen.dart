@@ -88,7 +88,7 @@ class MyScreen extends ConsumerWidget {
             _MenuItem(
               icon: Icons.info_outline,
               label: '앱 정보',
-              onTap: () {},
+              onTap: () => context.push('/my/about'),
             ),
 
             const SizedBox(height: 24),

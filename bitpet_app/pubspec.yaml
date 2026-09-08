@@ -64,6 +64,11 @@ dependencies:
   #    없으면 canLaunchUrl 이 항상 false 를 돌려준다 — 매니페스트도 같이 봐야 한다.
   url_launcher: ^6.3.0
 
+  # 앱 버전 표시 (마이페이지 > 앱 정보)
+  # pubspec 의 version 을 빌드 시점에 읽어온다. 화면에 상수로 박아두면 배포할 때마다
+  # 손으로 고쳐야 하고, 한 번 까먹으면 화면에 거짓 버전이 뜬 채로 나간다.
+  package_info_plus: ^8.0.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
