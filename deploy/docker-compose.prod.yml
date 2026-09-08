@@ -43,11 +43,15 @@ services:
       retries: 10
 
   app:
-    build:
-      context: ../bitpet_server
-      dockerfile: Dockerfile
-    image: tailog-app:latest
-    container_name: tailog-app
+    # ⛔ build: 를 되살리지 말 것. 이미지는 GitHub Actions 가 만들어 GHCR 에 올리고
+    #    서버는 받기만 한다. 2GB 인스턴스에서 Gradle 빌드를 돌리면 빌드 몇 분 동안
+    #    API 응답이 같이 느려지고, 스왑이 모자라면 OOM Killer 가 postgres 를 죽인다.
+    #
+    # IMAGE_TAG 는 커밋 SHA 다. latest 를 쓰지 않는 이유는 롤백 때문 — 태그가 고정
+    # 값이면 "어제 이미지로 되돌리기"가 성립하지 않는다.
+    image: ghcr.io/subin9804/tailog-app:${IMAGE_TAG:-latest}
+    # ⛔ container_name 을 되살리지 말 것. 이름을 고정하면 같은 서비스를 2개로
+    #    띄울 수 없어(--scale) 무중단 배포가 원천 봉쇄된다.
     restart: unless-stopped
     depends_on:
       postgres:

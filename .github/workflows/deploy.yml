@@ -1,0 +1,123 @@
+# 백엔드 자동 배포
+#
+# master 에 서버 코드가 푸시되면: 테스트 → 이미지 빌드 → GHCR 푸시 → 서버가 pull.
+#
+# 서버에서 빌드하지 않는 이유: Lightsail 2GB 인스턴스에서 Gradle 빌드를 돌리면
+# 빌드가 도는 몇 분 동안 운영 API 응답이 같이 느려지고, 스왑이 모자라면 OOM Killer 가
+# postgres 를 골라 죽인다. 배포가 장애의 원인이 되면 안 된다.
+#
+# 이미지 태그는 커밋 SHA 다. latest 로 덮어쓰면 "어제 이미지로 되돌리기"가 성립하지 않는다.
+
+name: deploy
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'bitpet_server/**'
+      - 'deploy/**'
+      - '.github/workflows/deploy.yml'
+  # 코드 변경 없이 서버만 다시 올리고 싶을 때 (인증서 문제 등) 수동 실행
+  workflow_dispatch:
+
+# 배포가 겹치면 두 버전이 뒤섞여 올라간다. 뒤에 온 것이 이기고 앞의 것은 취소한다.
+# cancel-in-progress 를 false 로 두면 큐가 쌓여 옛 커밋이 나중에 배포될 수 있다.
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: true
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/tailog-app
+  DEPLOY_HOST: 15.165.103.232
+  DEPLOY_USER: ubuntu
+  DEPLOY_PATH: /home/ubuntu/bit-pet/deploy
+
+jobs:
+  # ───────────────────────────────────────────────────────────────────────────
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+          cache: gradle
+
+      # Testcontainers 가 Docker 를 쓴다. ubuntu-latest 러너에는 이미 떠 있다.
+      - name: test
+        working-directory: bitpet_server
+        run: ./gradlew --no-daemon test
+
+  # ───────────────────────────────────────────────────────────────────────────
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write        # GHCR 푸시에 필요
+    outputs:
+      tag: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: build & push
+        uses: docker/build-push-action@v6
+        with:
+          context: bitpet_server
+          push: true
+          # SHA 태그가 배포·롤백의 기준이다. latest 는 "지금 뭐가 떠 있는지" 사람이
+          # 볼 때만 쓰는 편의용이라 절대 compose 의 기본값으로 삼지 않는다.
+          tags: |
+            ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ───────────────────────────────────────────────────────────────────────────
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: SSH 키 준비
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          # 호스트 키를 매번 새로 받아 붙인다. StrictHostKeyChecking=no 로 통째로
+          # 끄면 중간자 공격을 그냥 통과시킨다.
+          ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: 배포
+        run: |
+          ssh -i ~/.ssh/id_ed25519 "$DEPLOY_USER@$DEPLOY_HOST" bash -s <<EOF
+            set -euo pipefail
+            cd "$DEPLOY_PATH"
+
+            # 배포 스크립트·compose 변경분을 먼저 받는다. 스크립트를 서버가 아니라
+            # 레포에서 관리해야 "서버에만 있는 배포 절차"가 생기지 않는다.
+            git -C .. fetch --quiet origin master
+            git -C .. checkout --quiet -B master origin/master
+
+            # GHCR 은 비공개다. 러너의 임시 토큰으로 그때그때 로그인한다 —
+            # 서버에 장기 PAT 를 심어두지 않기 위한 것이다.
+            echo '${{ secrets.GITHUB_TOKEN }}' \
+              | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
+
+            chmod +x scripts/deploy.sh
+            ./scripts/deploy.sh '${{ env.IMAGE }}:${{ github.sha }}'
+
+            docker logout ghcr.io
+          EOF

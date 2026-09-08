@@ -572,6 +572,21 @@ Base URL: `/api/v1`
 
 ---
 
+## 배포 / CI-CD
+
+`master` 에 `bitpet_server/**`·`deploy/**` 가 푸시되면 자동 배포된다 (`.github/workflows/deploy.yml`).
+test → GHCR 이미지 빌드(**태그 = 커밋 SHA**) → SSH → `deploy/scripts/deploy.sh`.
+절차·시크릿은 `deploy/README.md` 참고.
+
+- ⛔ **compose 에 `build:` 나 `container_name` 을 되살리지 말 것.** 전자는 운영 인스턴스에서
+  Gradle 을 돌려 OOM 을 부르고, 후자는 `--scale` 을 막아 무중단 배포를 원천 봉쇄한다
+- ⛔ **`IMAGE_TAG` 를 `latest` 로 고정하지 말 것** — 롤백 지점이 사라진다
+- 무중단 배포는 **아직 안 한다.** 다만 막는 요소는 전부 제거돼 있어 `deploy.sh` 교체 구간만
+  바꾸면 된다. 🚨 **그 시점부터 Flyway 는 expand/contract 강제** — 교체 중 구/신 버전이 같은
+  스키마에 동시에 붙으므로, 컬럼 삭제·리네임을 한 번에 올리면 살아 있는 구버전이 터진다
+
+---
+
 ## 작업 완료 후 루틴 (매번 지킬 것)
 
 1. **Git 커밋 + push** → `github.com/subin9804/bit-pet` master
