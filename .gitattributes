@@ -1,0 +1,9 @@
+# 서버에서 실행되는 파일은 무조건 LF 로 체크아웃한다.
+# CRLF 로 나가면 리눅스가 셔뱅 뒤의 \r 까지 인터프리터 이름으로 읽어
+#   "bash\r: No such file or directory"
+# 로 죽는다. 윈도우에서 커밋했다는 이유만으로 배포가 깨지는 종류의 사고다.
+*.sh   text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+Dockerfile text eol=lf
+gradlew text eol=lf
