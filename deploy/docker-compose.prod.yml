@@ -34,6 +34,11 @@ services:
     container_name: tailog-redis
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
+    # 헬스체크가 컨테이너 안에서 $REDIS_PASSWORD 를 읽는다. 이 블록이 없으면 빈 값이 되어
+    # redis-cli -a "" 가 WRONGPASS 로 떨어지고, redis 는 멀쩡한데 계속 unhealthy 로 남는다.
+    # app 이 depends_on: redis(service_healthy) 라 그대로 기동이 막힌다.
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
     volumes:
       - redis-data:/data
     healthcheck:
