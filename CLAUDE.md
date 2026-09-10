@@ -198,10 +198,20 @@ PostgreSQL이 재정규화하는데 의미는 같다.)
 
 - ⛔ **`V1__baseline_schema.sql` 은 절대 수정하지 말 것.** 고치면 체크섬이 바뀌어
   이미 적용된 모든 DB가 `validate` 단계에서 기동을 거부한다.
-- ⛔ **스쿼시를 또 하지 말 것.** 운영 DB가 생긴 뒤로는 불가능하다. 배포 직전이라 가능했던 일회성 작업이다.
+- **스쿼시 정책 (2026-09-10 확정):** 다음 스쿼시는 **운영 첫 배포 직전에 한 번** 한다.
+  개발 중인 지금은 하지 않는다 — 로컬 DB를 드롭·재생성해야 하고 실기기 확인용 데이터가 날아간다.
+- ℹ️ **"운영 DB가 생기면 스쿼시 불가"는 틀렸다.** 배포 후에도 가능하다. 절차만 늘어난다:
+  ① 파일 합치기 → ② 운영 DB에 `flyway repair` 1회(히스토리 행 체크섬을 새 파일 기준으로 재정렬)
+  → ③ `spring.flyway.ignore-migration-patterns: "*:missing"` (히스토리엔 있고 파일은 없는 버전 허용).
+  새로 만드는 DB(새 PC·CI Testcontainers)는 합쳐진 V1 하나만 적용하므로 영향 없다.
+  ⚠️ `repair` 는 **운영 히스토리 테이블을 수정**한다 → 실행 전 Lightsail 스냅샷 필수, 배포와 겹치지 않게.
+  검증은 8/19 방식 그대로 — 빈 DB에 새 베이스라인만 적용해 덤프 뜨고 순차 적용 결과와 diff.
 - **스쿼시 이후 추가된 마이그레이션**: V2(자유), V3(`user_agreement_dtl` — 약관·마케팅 동의 원장),
-  V4(`user_notification_pref` — 알림 종류별 수신 설정 + `notification_log_dtl` 상태에 `SKIPPED` 추가).
-  **다음은 V5.**
+  V4(`user_notification_pref` — 알림 종류별 수신 설정 + `notification_log_dtl` 상태에 `SKIPPED` 추가),
+  V5(`post_category_cd` 에 NOTICE 공지사항 카테고리 시드),
+  V6(`notification_log_dtl.sent_at` 인덱스 — 보존기간 정리 배치용),
+  V7(`morph_cd.is_user_defined` + `created_by` — 사용자 정의 모프).
+  **다음은 V8.**
 - 코드성 시드(`memo_tag_cd`, `post_category_cd`, `serial_pool_stat_mst`)는 베이스라인 하단에 들어 있다.
   종·모프 마스터는 그대로 `R__01`/`R__02` 담당.
 - 어떤 컬럼이 왜 생겼는지 추적할 땐 git 이력을 본다:
@@ -347,6 +357,34 @@ private Map<String, Object> extraData;
 - 앱: `/my/notifications` → `NotificationSettingsScreen`. 낙관적 갱신 + 실패 시 롤백.
   OS 알림 권한이 꺼져 있으면 상단 경고 배너(권한 없으면 앱 안 토글이 다 켜져 있어도 알림이 안 와 앱 버그로 보인다)
 
+### 알림 로그 수명 (V6, 2026-09-09)
+
+`notification_log_dtl` 은 원래 **지워지는 경로가 하나도 없었다.** 루틴 알람은 유저당 하루 몇 건씩
+쌓이므로 이 테이블만 단조 증가한다. 두 갈래로 막는다.
+
+**① 보존기간 정리** — `NotificationRetentionScheduler`, 매일 Seoul 03:30, 기본 90일
+(`bitpet.notification.retention-days`, `0` 이하면 꺼짐).
+
+- 앱 알림함이 `findTop50` 이라 보존기간이 지난 행은 **어떤 화면에서도 조회되지 않는다**
+- 그런데도 90일이나 두는 건 장애 조사용이다 — "알림이 안 왔다"는 며칠 뒤에 들어오고
+  그때 `status`(SENT/SKIPPED/FAILED)와 `error_message` 를 봐야 한다
+- 삭제는 `LIMIT` 배치 + **배치마다 독립 트랜잭션**(`NotificationRetentionService.purgeBatch`).
+  ⛔ 한 트랜잭션으로 묶지 말 것 — 첫 실행이 수백만 행일 수 있고, 도중에 터지면 지운 것까지 되살아난다
+- 03:10 의 고아 개체 정리와 시각을 벌려 뒀다 (둘 다 대량 삭제라 I/O 를 서로 뺏는다)
+
+**② 받을 기기가 없으면 루틴 알람은 행을 만들지 않는다** — `NotificationService.isUndeliverableRoutineAlarm`.
+
+- 판정 기준은 **`device_token_rls` 에 행이 0개**. 앱을 지우면 FCM 이 `UNREGISTERED` 를 주고
+  `FcmSender` 가 토큰 행을 지우므로, 결국 0이 된다
+- ⛔ **"마지막 로그인 N개월" 같은 임계값을 쓰지 말 것.** Refresh 가 14일 rotation 이라
+  `last_login_at` 은 앱을 매일 쓰는 사람도 몇 달째 그대로다. 활동(기록 작성) 기준은 더 나쁘다 —
+  겨울 쿨링이면 두세 달 기록이 없는 게 정상이고, **그때가 루틴 알람이 가장 필요한 시점**이다
+- **ROUTINE_ALARM 만** 거른다. 루틴 알람은 그 시각에 알리는 게 전부라 지나면 가치가 없지만,
+  댓글·좋아요·공지는 "무슨 일이 있었나"의 기록이라 재설치 후에 열어봐도 값어치가 있다
+- 알림 설정 OFF(`SKIPPED`)와 **다른 것**이다. 그건 행을 남기고 푸시만 건너뛴다 (볼 사람은 있다)
+- ⚠️ 로컬에서 앱을 한 번도 안 띄웠으면 토큰이 없어 루틴 알람이 안 쌓인다.
+  "알림이 왜 안 생기지"의 첫 확인 대상 (`log.debug` 로 남는다)
+
 ### FCM 푸시 알림
 - Firebase 프로젝트: `tailog-bba42` (project_number `326050818454`), Android 패키지 `me.tailog.app`
   - `tailog` 는 전역 선점되어 있어 콘솔이 접미사를 붙였다. 사용자 비노출 값이라 그대로 쓴다.
@@ -469,6 +507,35 @@ private Map<String, Object> extraData;
   로 남아 있어 "REST 로는 이름이 고쳐지는데 오프라인 동기화만 403" 이던 불일치가 있었다
 - **역할 세분화(STAFF 등)는 실제 수직 관계 사용자가 생긴 뒤에** 한다. `PetKeeperRole` enum 에 값을
   더하는 쪽이, 열어둔 권한을 나중에 회수하는 것보다 싸다
+
+### 운영자 권한 — SUPER_ADMIN / MODERATOR (2026-09-09)
+
+**개체 권한(OWNER/KEEPER)과 완전히 다른 축이다.** 전자는 "이 개체에 대해" 무엇을 할 수 있나이고,
+후자는 "서비스 전체에 대해"다. 서로를 대체하지 않는다 — 어떤 개체의 OWNER 라고 공지를 쓸 수 없고,
+SUPER_ADMIN 이라고 남의 개체 기록을 고칠 수 없다.
+
+- 저장소는 `admin_role_rls` (user_id, role) — **유니크가 (user_id, role) 이라 한 사람이 여러 등급을 가진다**
+- 판정은 `AdminGuard`. `assertAdmin`(등급 무관) / `assertRole(userId, AdminRole.X)`(특정 등급) / `rolesOf`
+- ⛔ **등급을 포함 관계로 보지 말 것.** SUPER_ADMIN 이 MODERATOR 를 자동으로 갖지 않는다.
+  둘 다 주려면 행을 2개 넣는다. 코드에 상하 관계를 박으면 "MODERATOR 만 되고 SUPER_ADMIN 은 안 되는
+  동작"이 생겼을 때 되돌릴 수 없다
+- **확장은 두 단계**: `AdminRole` enum 에 상수 추가 → 마이그레이션으로 `ck_admin_role_rls_role` CHECK 를
+  **넓힌다**. 넓히는 방향이라 무중단 배포 중에도 안전하다(구버전은 모르는 값을 안 쓸 뿐).
+  반대로 좁히는 건 2회 배포로 나눠야 한다
+- `/api/v1/auth/me` 응답의 `adminRoles`(문자열 배열, 일반 유저는 `[]`)는 **앱이 버튼을 켤지 정하는 용도만**.
+  실제 차단은 매 요청 서버가 DB로 다시 본다. ⛔ 다른 응답(게시글 작성자 등)에 붙이지 말 것 —
+  누가 운영자인지가 전체 사용자에게 노출된다
+
+**공지사항 (V5)**: 별도 테이블이 아니라 `post_category_cd` 의 `NOTICE` 카테고리 하나다.
+목록·상세·신고가 전부 같아서 테이블을 나누면 모든 경로를 두 벌 만들게 된다.
+
+- **SUPER_ADMIN·MODERATOR 둘 다 작성 가능**(`PostService.verifyNoticePermission` → `AdminGuard.assertAnyRole`)
+- ⛔ **여기에 `assertAdmin`(등급 무관)을 쓰지 말 것.** 등급을 나열하는 이유는 나중에 등급이 추가될 때
+  그 등급이 공지 권한을 **조용히 물려받지 않게** 하기 위해서다. 새 등급을 만드는 시점에 다시 판단하게 만든다
+- **생성뿐 아니라 수정에서도 검사한다.** 안 하면 "자유게시판에 쓴 뒤 카테고리만 공지로 변경"이 우회로가 된다
+- ⛔ **카테고리 id(5)로 판정하지 말 것 — `code == 'NOTICE'` 로 본다.** id 는 DB 마다 갈릴 수 있어
+  박아두면 "개발에선 되는데 운영에선 아무나 공지를 쓴다"가 된다
+- 공지는 작성 즉시 `pinned` 로 만든다 (고정 API 를 따로 부르게 두면 그 사이 묻히고, 잊으면 영영 안 고정된다)
 
 ### 가계도 부모 등록 (V53)
 - **부모는 항상 실존 개체(`pet_mst`) 참조.** 텍스트 직접 입력 없음. 폐사(DECEASED) 개체도 부모로 등록 가능
@@ -602,7 +669,7 @@ test → GHCR 이미지 빌드(**태그 = 커밋 SHA**) → SSH → `deploy/scri
 - 외부 시스템 영향(push·삭제·외부 API 호출)은 확인 후 진행
 - Flutter UI는 디자인 확정 전까지 **뼈대(Skeleton)만** 구현, 상세 UI는 별도 지시 대기
 - 새 Flyway 마이그레이션은 기존 파일 절대 수정 금지, 항상 다음 버전으로 신규 작성
-  (2026-08-19 스쿼시 이후 V2~V4 추가됨, **다음은 V5**. `V1__baseline_schema.sql` 수정 = 모든 DB 기동 불가)
+  (2026-08-19 스쿼시 이후 V2~V7 추가됨, **다음은 V8**. `V1__baseline_schema.sql` 수정 = 모든 DB 기동 불가)
 
 ---
 
@@ -621,3 +688,9 @@ test → GHCR 이미지 빌드(**태그 = 커밋 SHA**) → SSH → `deploy/scri
   테스트 클래스 단위로 관리해서, 첫 클래스가 끝나면 static 컨테이너를 멈춰버린다 → 두 번째 클래스부터
   전부 `CannotCreateTransactionException(ConnectException)`. static 블록에서 직접 `start()` 하는
   싱글턴 방식이 정답 (테스트 클래스가 하나뿐이면 드러나지 않는 함정)
+- **요청 DTO 에 필드를 추가하면 테스트 픽스처가 같이 깨진다.** `compileJava` 는 통과하는데
+  `compileTestJava` 에서만 터지므로 본 코드만 확인하면 못 본다. CI 의 첫 단계가 `./gradlew test`라
+  여기서 깨지면 **배포가 아예 시작조차 안 된다.** 서버 코드를 고친 뒤에는 `compileJava` 가 아니라
+  `./gradlew test` 를 돌릴 것.
+  (실제 사례 2026-09-10: `SignupRequest` 에 약관 동의 4개가 늘면서 테스트 3곳 컴파일 실패 +
+  `AuthFlowIntegrationTest` 의 JSON 본문 2곳이 400. 본 코드는 멀쩡했다)
