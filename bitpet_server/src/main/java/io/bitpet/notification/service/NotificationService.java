@@ -25,6 +25,7 @@ public class NotificationService {
     private final NotificationLogDtlRepository notificationLogRepository;
     private final FcmSender fcmSender;
     private final NotificationPrefService notificationPrefService;
+    private final DeviceTokenService deviceTokenService;
 
     public List<NotificationLogResponse> listNotifications(Long userId) {
         return notificationLogRepository.findTop50ByUserIdOrderBySentAtDesc(userId)
@@ -142,6 +143,9 @@ public class NotificationService {
      * 나중에 확인할 방법이 없어진다. 발송을 안 했으므로 status 는 SENT 가 아니라 SKIPPED 다.
      */
     private void save(NotificationLogDtl notificationLog) {
+        if (isUndeliverableRoutineAlarm(notificationLog)) {
+            return;
+        }
         notificationLogRepository.save(notificationLog);
 
         if (!notificationPrefService.allowsPush(
@@ -156,5 +160,35 @@ public class NotificationService {
             log.warn("[FCM] 푸시 발송 중 예외 (userId={}): {}", notificationLog.getUserId(), e.getMessage());
             notificationLog.markFailed(e.getMessage());
         }
+    }
+
+    /**
+     * 받을 기기가 없는 루틴 알람인가 — 맞으면 <b>행 자체를 만들지 않는다</b>.
+     *
+     * <p>알림 설정으로 끈 경우(SKIPPED)와 다르다. 그건 "폰이 울리는 것"만 끈 거라 앱을 열면
+     * 알림함에서 볼 수 있어야 한다. 여기는 <b>볼 사람이 없는 경우</b>다 — 앱을 지운 계정에도
+     * 루틴은 살아 있어서 스케줄러가 매일 행을 만들고, 그 행은 영원히 아무도 열지 않는다.
+     *
+     * <p>ROUTINE_ALARM 만 거르는 이유: 루틴 알람은 <b>그 시각에 알리는 것</b>이 전부라
+     * 지나고 나면 가치가 없다. 반면 댓글·좋아요는 "내 글에 무슨 일이 있었나"의 기록이라
+     * 나중에 재설치해서 열어봐도 읽을 값어치가 있다. SYSTEM(공지)도 같은 이유로 남긴다.
+     *
+     * <p>"마지막 로그인 N개월" 같은 임계값을 쓰지 않는 이유는 <b>추측이 필요 없어서</b>다.
+     * 토큰이 0개라는 건 유추가 아니라 FCM 이 알려준 사실이다
+     * ({@link DeviceTokenService#hasAnyDevice}).
+     *
+     * <p>⚠️ 로컬 개발에서 앱을 한 번도 안 띄웠다면 토큰이 없어 루틴 알람이 알림함에 안 쌓인다.
+     * "알림이 왜 안 생기지"의 첫 번째 확인 대상이라 로그를 남긴다.
+     */
+    private boolean isUndeliverableRoutineAlarm(NotificationLogDtl notificationLog) {
+        if (notificationLog.getNotificationType() != NotificationType.ROUTINE_ALARM) {
+            return false;
+        }
+        if (deviceTokenService.hasAnyDevice(notificationLog.getUserId())) {
+            return false;
+        }
+        log.debug("[알림] 등록된 기기가 없어 루틴 알람을 생성하지 않음 (userId={})",
+                notificationLog.getUserId());
+        return true;
     }
 }

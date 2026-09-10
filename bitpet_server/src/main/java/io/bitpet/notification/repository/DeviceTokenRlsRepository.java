@@ -13,6 +13,8 @@ public interface DeviceTokenRlsRepository extends JpaRepository<DeviceTokenRls, 
 
     List<DeviceTokenRls> findByUserId(Long userId);
 
+    boolean existsByUserId(Long userId);
+
     void deleteByDeviceToken(String deviceToken);
 
     void deleteByDeviceTokenIn(Collection<String> deviceTokens);

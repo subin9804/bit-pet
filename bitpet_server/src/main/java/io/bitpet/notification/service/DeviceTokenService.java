@@ -51,6 +51,21 @@ public class DeviceTokenService {
                 .toList();
     }
 
+    /**
+     * 이 유저에게 푸시가 닿을 기기가 하나라도 있는지.
+     *
+     * <p>"앱이 설치되어 있나"에 가장 가까운 신호다. 앱을 지우면 FCM 이 다음 발송에서
+     * {@code UNREGISTERED} 를 돌려주고 {@link FcmSender} 가 그 토큰 행을 지우므로,
+     * 결국 <b>토큰이 0개</b>가 된다. 마지막 로그인·마지막 활동과 달리 임계값("몇 개월이면
+     * 휴면인가")을 추측할 필요가 없다.
+     *
+     * <p>알림 권한을 거부한 유저도 토큰은 등록된다(앱의 PushService 가 권한과 무관하게
+     * 등록한다) — 즉 "권한 거부"와 "앱 삭제"는 여기서 구분된다.
+     */
+    public boolean hasAnyDevice(Long userId) {
+        return deviceTokenRepository.existsByUserId(userId);
+    }
+
     /** FCM이 무효(UNREGISTERED 등)로 응답한 토큰 정리 */
     @Transactional
     public void deleteInvalidTokens(Collection<String> tokens) {

@@ -156,6 +156,12 @@ bitpet:
     credentials-path: ${BITPET_FCM_CREDENTIALS:./secrets/firebase-service-account.json}
     project-id: ${BITPET_FCM_PROJECT_ID:tailog-bba42}
     android-channel-id: bitpet_default_channel
+  notification:
+    # 알림 로그(notification_log_dtl) 보존기간. 지난 행은 매일 03:30 에 삭제된다.
+    # 앱 알림함이 최근 50건만 보여주므로 사용자가 볼 수 있는 값은 아니고, 장애 조사용이다
+    # ("알림이 안 왔다" 문의는 며칠 뒤에 들어온다).
+    # 0 이하로 두면 정리가 꺼진다 — 문제가 생겼을 때 배포 없이 멈추기 위한 것.
+    retention-days: ${BITPET_NOTIFICATION_RETENTION_DAYS:90}
   deeplink:
     # NFC 태그가 굽고 있는 URL 의 호스트. 태그 코드는 https://{host}/t/{tagCd} 형태로 들어온다.
     host: ${BITPET_DEEPLINK_HOST:tailog.me}
