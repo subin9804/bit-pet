@@ -33,6 +33,7 @@ class Morph {
   final String? nameEn;
   final String? aliasList;        // 쉼표 구분 별칭
   final bool hasHealthConcern;    // 건강 우려 모프 여부 (예: Spider, Enigma)
+  final bool isUserDefined;       // 사용자가 직접 등록한 모프 (V7) — 본인에게만 보임
 
   const Morph({
     required this.id,
@@ -41,10 +42,28 @@ class Morph {
     this.nameEn,
     this.aliasList,
     this.hasHealthConcern = false,
+    this.isUserDefined = false,
   });
 
   // 표시용 라벨: 영문명 우선, 없으면 한글명
   String get label => (nameEn != null && nameEn!.isNotEmpty) ? nameEn! : nameKo;
+
+  /// 검색 대상 문자열. 한글명·영문명에 더해 별칭(`핀스`, `할퀸`, `LW` …)까지 포함한다.
+  /// 별칭은 서버 `morph_cd.alias_list` 에 이미 들어 있는데 그동안 UI에서 안 쓰이고 있었다.
+  bool matches(String query) {
+    final q = query.trim().toLowerCase();
+    if (q.isEmpty) return true;
+    return nameKo.toLowerCase().contains(q) ||
+        (nameEn?.toLowerCase().contains(q) ?? false) ||
+        (aliasList?.toLowerCase().contains(q) ?? false);
+  }
+
+  /// 목록에 노출할 별칭들 (쉼표 구분 → 트림된 리스트)
+  List<String> get aliases => (aliasList ?? '')
+      .split(',')
+      .map((e) => e.trim())
+      .where((e) => e.isNotEmpty)
+      .toList();
 
   factory Morph.fromJson(Map<String, dynamic> json) => Morph(
         id: (json['id'] as num).toInt(),
@@ -53,6 +72,7 @@ class Morph {
         nameEn: json['nameEn'] as String?,
         aliasList: json['aliasList'] as String?,
         hasHealthConcern: json['hasHealthConcern'] as bool? ?? false,
+        isUserDefined: json['isUserDefined'] as bool? ?? false,
       );
 }
 

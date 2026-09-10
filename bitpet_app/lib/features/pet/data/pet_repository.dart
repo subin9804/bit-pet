@@ -255,4 +255,20 @@ class PetRepository {
     );
     return apiRes.data ?? [];
   }
+
+  /// 카탈로그에 없는 조합 모프 직접 등록 — POST /species/{speciesId}/morphs/custom
+  ///
+  /// 같은 종에 같은 이름이 이미 있으면 서버가 새로 만들지 않고 기존 모프를 돌려준다.
+  /// 등록된 모프는 본인에게만 보인다.
+  Future<Morph> createCustomMorph(int speciesId, String nameKo) async {
+    final res = await _dio.post(
+      '/species/$speciesId/morphs/custom',
+      data: {'nameKo': nameKo},
+    );
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => Morph.fromJson(d as Map<String, dynamic>),
+    );
+    return apiRes.data!;
+  }
 }

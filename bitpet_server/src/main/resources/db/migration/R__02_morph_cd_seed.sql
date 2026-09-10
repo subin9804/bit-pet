@@ -3,6 +3,11 @@
 -- R 파일: 체크섬 변경 시 Flyway가 자동 재실행
 -- 전략: INSERT ON CONFLICT (species_id, name_ko) DO UPDATE → 중복 실행 가능
 --
+-- DO UPDATE 가 is_user_defined = false / created_by = NULL 로 되돌리는 이유(V7):
+--   사용자가 커스텀 모프로 먼저 만들어둔 이름이 나중에 공식 카탈로그에 추가되면
+--   uq_morph_cd_species_name_ko 때문에 행이 하나뿐이라, 플래그를 그대로 두면
+--   그 모프가 만든 사람에게만 보이고 나머지 유저에겐 영영 안 보이게 된다.
+--
 -- has_health_concern = TRUE 항목:
 --   BALL_PYTHON  : 스파이더, 캐러멜알비노, 샤페인, 범블비, 슈퍼모하비스파이더
 --   HOGNOSE_SNAKE: 핑크파스텔알비노(PPA)
@@ -46,6 +51,8 @@ ON CONFLICT (species_id, name_ko) DO UPDATE SET
     has_health_concern = EXCLUDED.has_health_concern,
     display_order      = EXCLUDED.display_order,
     is_active          = EXCLUDED.is_active,
+    is_user_defined    = false,
+    created_by         = NULL,
     updated_at         = NOW();
 
 -- ═══════════════════════════════════════════════════════════════════════
@@ -91,6 +98,8 @@ ON CONFLICT (species_id, name_ko) DO UPDATE SET
     has_health_concern = EXCLUDED.has_health_concern,
     display_order      = EXCLUDED.display_order,
     is_active          = EXCLUDED.is_active,
+    is_user_defined    = false,
+    created_by         = NULL,
     updated_at         = NOW();
 
 -- ═══════════════════════════════════════════════════════════════════════
@@ -120,6 +129,8 @@ ON CONFLICT (species_id, name_ko) DO UPDATE SET
     has_health_concern = EXCLUDED.has_health_concern,
     display_order      = EXCLUDED.display_order,
     is_active          = EXCLUDED.is_active,
+    is_user_defined    = false,
+    created_by         = NULL,
     updated_at         = NOW();
 
 -- ═══════════════════════════════════════════════════════════════════════
@@ -145,6 +156,8 @@ ON CONFLICT (species_id, name_ko) DO UPDATE SET
     has_health_concern = EXCLUDED.has_health_concern,
     display_order      = EXCLUDED.display_order,
     is_active          = EXCLUDED.is_active,
+    is_user_defined    = false,
+    created_by         = NULL,
     updated_at         = NOW();
 
 -- ═══════════════════════════════════════════════════════════════════════
@@ -214,6 +227,8 @@ ON CONFLICT (species_id, name_ko) DO UPDATE SET
     has_health_concern = EXCLUDED.has_health_concern,
     display_order      = EXCLUDED.display_order,
     is_active          = EXCLUDED.is_active,
+    is_user_defined    = false,
+    created_by         = NULL,
     updated_at         = NOW();
 
 -- ═══════════════════════════════════════════════════════════════════════
@@ -256,6 +271,8 @@ ON CONFLICT (species_id, name_ko) DO UPDATE SET
     has_health_concern = EXCLUDED.has_health_concern,
     display_order      = EXCLUDED.display_order,
     is_active          = EXCLUDED.is_active,
+    is_user_defined    = false,
+    created_by         = NULL,
     updated_at         = NOW();
 
 -- ═══════════════════════════════════════════════════════════════════════
@@ -288,6 +305,8 @@ ON CONFLICT (species_id, name_ko) DO UPDATE SET
     has_health_concern = EXCLUDED.has_health_concern,
     display_order      = EXCLUDED.display_order,
     is_active          = EXCLUDED.is_active,
+    is_user_defined    = false,
+    created_by         = NULL,
     updated_at         = NOW();
 
 -- ═══════════════════════════════════════════════════════════════════════
@@ -326,6 +345,8 @@ ON CONFLICT (species_id, name_ko) DO UPDATE SET
     has_health_concern = EXCLUDED.has_health_concern,
     display_order      = EXCLUDED.display_order,
     is_active          = EXCLUDED.is_active,
+    is_user_defined    = false,
+    created_by         = NULL,
     updated_at         = NOW();
 
 -- ═══════════════════════════════════════════════════════════════════════
@@ -374,6 +395,8 @@ ON CONFLICT (species_id, name_ko) DO UPDATE SET
     has_health_concern = EXCLUDED.has_health_concern,
     display_order      = EXCLUDED.display_order,
     is_active          = EXCLUDED.is_active,
+    is_user_defined    = false,
+    created_by         = NULL,
     updated_at         = NOW();
 
 -- ═══════════════════════════════════════════════════════════════════════
@@ -416,6 +439,8 @@ ON CONFLICT (species_id, name_ko) DO UPDATE SET
     has_health_concern = EXCLUDED.has_health_concern,
     display_order      = EXCLUDED.display_order,
     is_active          = EXCLUDED.is_active,
+    is_user_defined    = false,
+    created_by         = NULL,
     updated_at         = NOW();
 
 -- ═══════════════════════════════════════════════════════════════════════
@@ -445,6 +470,8 @@ ON CONFLICT (species_id, name_ko) DO UPDATE SET
     has_health_concern = EXCLUDED.has_health_concern,
     display_order      = EXCLUDED.display_order,
     is_active          = EXCLUDED.is_active,
+    is_user_defined    = false,
+    created_by         = NULL,
     updated_at         = NOW();
 
 -- ═══════════════════════════════════════════════════════════════════════
@@ -470,4 +497,6 @@ ON CONFLICT (species_id, name_ko) DO UPDATE SET
     has_health_concern = EXCLUDED.has_health_concern,
     display_order      = EXCLUDED.display_order,
     is_active          = EXCLUDED.is_active,
+    is_user_defined    = false,
+    created_by         = NULL,
     updated_at         = NOW();

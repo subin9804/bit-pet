@@ -42,4 +42,32 @@ public class MorphCd extends BaseTimeEntity {
 
     @Column(name = "is_active", nullable = false)
     private Boolean isActive;
+
+    /** 사용자가 직접 입력한 모프 여부 (false = 공식 카탈로그). V7 참고. */
+    @Column(name = "is_user_defined", nullable = false)
+    private Boolean isUserDefined;
+
+    /** 커스텀 모프 생성자. 공식 카탈로그는 null. */
+    @Column(name = "created_by")
+    private Long createdBy;
+
+    /**
+     * 카탈로그에 없는 조합 모프를 사용자가 직접 만든 경우.
+     * displayOrder 를 공식 카탈로그(최대 ~9000 미만)보다 크게 잡아 목록 맨 뒤로 보낸다.
+     */
+    public static MorphCd ofCustom(Long speciesId, String nameKo, Long userId) {
+        MorphCd m = new MorphCd();
+        m.speciesId = speciesId;
+        m.nameKo = nameKo;
+        m.nameEn = null;
+        m.aliasList = null;
+        m.hasHealthConcern = false;
+        m.displayOrder = CUSTOM_DISPLAY_ORDER;
+        m.isActive = true;
+        m.isUserDefined = true;
+        m.createdBy = userId;
+        return m;
+    }
+
+    private static final short CUSTOM_DISPLAY_ORDER = 30000;
 }

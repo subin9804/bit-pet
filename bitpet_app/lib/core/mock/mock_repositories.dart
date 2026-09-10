@@ -397,6 +397,25 @@ class MockPetRepository extends PetRepository {
   @override
   Future<List<Morph>> getMorphs(int speciesId) async =>
       List.from(_mockMorphsBySpecies[speciesId] ?? const []);
+
+  /// 커스텀 모프 등록. 서버와 같게 — 같은 이름이 이미 있으면 새로 만들지 않고 그걸 돌려준다.
+  @override
+  Future<Morph> createCustomMorph(int speciesId, String nameKo) async {
+    // 시드 리스트가 const 라 그대로 add 하면 터진다 — 증가 가능한 복사본으로 갈아끼운다.
+    final list = List<Morph>.from(_mockMorphsBySpecies[speciesId] ?? const <Morph>[]);
+    final existing = list.where((m) => m.nameKo == nameKo);
+    if (existing.isNotEmpty) return existing.first;
+
+    final created = Morph(
+      id: DateTime.now().millisecondsSinceEpoch % 1000000,
+      speciesId: speciesId,
+      nameKo: nameKo,
+      isUserDefined: true,
+    );
+    list.add(created);
+    _mockMorphsBySpecies[speciesId] = list;
+    return created;
+  }
 }
 
 // ────────────────────────────────────────────────────────────────────

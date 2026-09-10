@@ -13,6 +13,7 @@ import '../data/photo_repository.dart';
 import '../providers/pet_provider.dart';
 import 'widgets/species_bottom_sheet.dart';
 import 'widgets/parent_pet_bottom_sheet.dart';
+import 'widgets/morph_picker_sheet.dart';
 
 // ════════════════════════════════════════════════════════════════
 // 03s · 개체 등록 — 6단계 스텝 위저드
@@ -170,6 +171,132 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
         _selectedMorphs.clear();
       });
     }
+  }
+
+  Future<void> _openMorphSheet() async {
+    final species = _species;
+    if (species == null) return;
+
+    final result = await showModalBottomSheet<List<Morph>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => MorphPickerSheet(
+        species: species,
+        initialSelection: _selectedMorphs,
+      ),
+    );
+    if (result == null) return; // 취소
+
+    setState(() {
+      _selectedMorphs
+        ..clear()
+        ..addAll(result);
+      _selectedMorphIds
+        ..clear()
+        ..addAll(result.map((m) => m.id));
+    });
+  }
+
+  /// 스텝 안에서는 선택 결과만 보여주고, 실제 고르기는 [MorphPickerSheet] 가 맡는다.
+  /// 칩에는 한글명만 넣는다 — 영문명까지 붙이면 칩이 길어져 줄바꿈이 지저분해진다.
+  Widget _buildMorphField() {
+    final disabled = _species == null;
+
+    return GestureDetector(
+      onTap: disabled ? null : _openMorphSheet,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          border: Border.all(color: AppColors.paleLine),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_selectedMorphs.isNotEmpty) ...[
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _selectedMorphs
+                    .map((m) => Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            border: Border.all(color: AppColors.primary),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                m.nameKo,
+                                style: const TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.paleBg,
+                                ),
+                              ),
+                              if (m.hasHealthConcern) ...[
+                                const SizedBox(width: 4),
+                                Icon(
+                                  Icons.warning_amber_rounded,
+                                  size: 13,
+                                  color:
+                                      AppColors.paleBg.withValues(alpha: 0.85),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ))
+                    .toList(),
+              ),
+              const SizedBox(height: 10),
+            ],
+            Row(
+              children: [
+                Icon(
+                  _selectedMorphs.isEmpty ? Icons.add : Icons.edit,
+                  size: 16,
+                  color: disabled ? AppColors.paleInk3 : AppColors.primary,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  disabled
+                      ? '종을 먼저 선택하세요'
+                      : (_selectedMorphs.isEmpty ? '모프 추가' : '모프 변경'),
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    color: disabled ? AppColors.paleInk3 : AppColors.primary,
+                  ),
+                ),
+              ],
+            ),
+            if (_selectedMorphs.any((m) => m.hasHealthConcern)) ...[
+              const SizedBox(height: 8),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: const [
+                  Icon(Icons.warning_amber_rounded,
+                      size: 12, color: Color(0xFFCC8800)),
+                  SizedBox(width: 4),
+                  Text(
+                    '건강 우려 모프가 포함되어 있어요',
+                    style: TextStyle(
+                        fontSize: 10.5,
+                        color: Color(0xFFCC8800),
+                        fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _openParentSheet({required bool isFather}) async {
@@ -463,105 +590,12 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
               ),
             ),
           ),
-          Consumer(
-            builder: (ctx, ref, _) {
-              final morphsAsync = _species == null
-                  ? const AsyncValue<List<Morph>>.data([])
-                  : ref.watch(morphsBySpeciesProvider(_species!.id));
-
-              return SField(
-                label: '모프',
-                hint: _species == null ? '종 먼저' : null,
-                child: morphsAsync.when(
-                  loading: () => const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: LinearProgressIndicator(),
-                  ),
-                  error: (_, __) => const SizedBox.shrink(),
-                  data: (morphs) => Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      // 카탈로그 모프 추천 칩
-                      ...morphs.map((m) {
-                        final selected = _selectedMorphIds.contains(m.id);
-                        return GestureDetector(
-                          onTap: () => setState(() {
-                            if (selected) {
-                              _selectedMorphIds.remove(m.id);
-                              _selectedMorphs.removeWhere((s) => s.id == m.id);
-                            } else {
-                              _selectedMorphIds.add(m.id);
-                              _selectedMorphs.add(m);
-                            }
-                          }),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 150),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                            decoration: BoxDecoration(
-                              color: selected ? AppColors.primary : AppColors.surface,
-                              border: Border.all(
-                                color: selected ? AppColors.primary : AppColors.paleLine,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  m.nameKo,
-                                  style: TextStyle(
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w600,
-                                    color: selected ? AppColors.paleBg : AppColors.primary,
-                                  ),
-                                ),
-                                if (m.nameEn != null) ...[
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    m.nameEn!,
-                                    style: TextStyle(
-                                      fontSize: 10.5,
-                                      color: selected ? AppColors.paleBg.withValues(alpha: 0.75) : AppColors.paleInk2,
-                                    ),
-                                  ),
-                                ],
-                                if (m.hasHealthConcern) ...[
-                                  const SizedBox(width: 4),
-                                  Tooltip(
-                                    message: '건강 우려 모프',
-                                    child: Icon(
-                                      Icons.warning_amber_rounded,
-                                      size: 13,
-                                      color: selected ? AppColors.paleBg.withValues(alpha: 0.85) : const Color(0xFFCC8800),
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        );
-                      }),
-                      // 건강 우려 안내
-                      if (morphs.any((m) => m.hasHealthConcern))
-                        Padding(
-                          padding: const EdgeInsets.only(top: 2),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: const [
-                              Icon(Icons.warning_amber_rounded, size: 12, color: Color(0xFFCC8800)),
-                              SizedBox(width: 4),
-                              Text(
-                                '건강 우려 모프가 포함되어 있어요',
-                                style: TextStyle(fontSize: 10.5, color: Color(0xFFCC8800), fontWeight: FontWeight.w600),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              );
-            },
+          // 모프 — 종당 최대 60개(볼파이썬)라 스텝 안에 다 깔면 화면이 감당이 안 된다.
+          // 검색·직접입력이 있는 전용 시트로 분리하고 여기엔 선택 결과만 보여준다.
+          SField(
+            label: '모프',
+            hint: _species == null ? '종 먼저' : null,
+            child: _buildMorphField(),
           ),
         ],
       ),
