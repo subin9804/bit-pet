@@ -14,8 +14,14 @@ set -euo pipefail
 DEPLOY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$DEPLOY_DIR"
 
-# shellcheck disable=SC1091
-set -a; source .env.prod; set +a
+# .env.prod 를 통째로 source 하지 않는다. 값에 공백이 든 항목이 하나만 있어도
+# (Gmail 앱 비밀번호가 그렇다) bash 가 그 뒤를 명령으로 읽어 스크립트가 죽는다.
+# 백업에 필요한 건 두 개뿐이니 그것만 뽑는다.
+read_env() {
+    grep -m1 -E "^$1=" .env.prod | cut -d= -f2-
+}
+POSTGRES_USER="$(read_env POSTGRES_USER)"
+POSTGRES_DB="$(read_env POSTGRES_DB)"
 
 STAMP="$(date +%Y%m%d-%H%M%S)"
 OUT="/backups/bitpet-${STAMP}.sql.gz"
