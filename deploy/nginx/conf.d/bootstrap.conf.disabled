@@ -5,9 +5,10 @@
 #
 # 사용법:
 #   mv tailog.conf tailog.conf.off && mv bootstrap.conf.disabled bootstrap.conf
-#   docker compose ... up -d nginx
-#   (README 의 certbot certonly 실행)
+#   docker compose ... up -d --no-deps nginx     ← --no-deps 없으면 app 까지 띄우려다 실패한다
+#   (README 의 certbot certonly 실행 — --entrypoint certbot 필요)
 #   mv bootstrap.conf bootstrap.conf.disabled && mv tailog.conf.off tailog.conf
+#   docker compose ... restart nginx             ← 파일만 바꾸면 안 바뀐다
 #   docker compose ... restart nginx
 
 server {

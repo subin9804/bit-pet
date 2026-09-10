@@ -61,10 +61,16 @@ mv tailog.conf tailog.conf.off
 mv bootstrap.conf.disabled bootstrap.conf
 cd ../..
 
-docker compose -f docker-compose.prod.yml --env-file .env.prod up -d nginx
+# ⚠️ --no-deps 필수. nginx 는 depends_on: app 이라 이게 없으면 compose 가 app 도 같이
+#    띄우려 든다. 이 시점엔 GHCR 에 이미지가 아직 없어서 pull 이 실패하고 nginx 도 못 뜬다.
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --no-deps nginx
 curl http://tailog.me/          # bootstrap 이 떠야 함
 
-docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm certbot \
+# ⚠️ --entrypoint certbot 필수. compose 의 certbot 서비스는 entrypoint 가 "renew 무한루프"라
+#    그냥 run 하면 certonly 인자가 sh -c 의 $0/$1 로 먹혀 무시되고 갱신 루프만 돈다
+#    (발급이 안 되는데 에러도 안 난다). 이미지 기본 entrypoint 로 되돌려야 발급이 실행된다.
+docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm \
+  --entrypoint certbot certbot \
   certonly --webroot -w /var/www/certbot \
   -d tailog.me -d www.tailog.me \
   --email su9804@gmail.com --agree-tos --no-eff-email
@@ -73,10 +79,21 @@ cd nginx/conf.d
 mv bootstrap.conf bootstrap.conf.disabled
 mv tailog.conf.off tailog.conf
 cd ../..
+
+# ⚠️ 설정 파일은 bind mount 라 파일만 바꿔서는 안 바뀐다. nginx 는 아직 bootstrap 을
+#    메모리에 들고 있으므로 명시적으로 재시작해야 443 이 열린다.
+#    (3번의 up -d 는 nginx 를 재생성하지 않는다 — compose 가 보기에 달라진 게 없다)
+docker compose -f docker-compose.prod.yml --env-file .env.prod restart nginx
 ```
 
-> 💡 실패하면 `--dry-run` 을 붙여 먼저 시험한다. Let's Encrypt 는 **주당 발급 횟수 제한**이 있어
+앱이 아직 없어도 nginx 는 정상 기동한다 — `tailog.conf` 가 upstream 을 변수로 잡아
+기동 시점에 해석하지 않기 때문이다(무중단 배포 대비로 넣어둔 구조).
+
+> 💡 **`--dry-run` 을 먼저 돌려라.** 위 `certonly` 명령 맨 뒤에 `--dry-run` 을 붙여 성공을
+> 확인한 다음, 빼고 다시 실행한다. Let's Encrypt 는 **주당 발급 횟수 제한**이 있어
 > 설정을 고쳐가며 실제 발급을 반복하면 일주일간 막힌다.
+>
+> 발급 확인: `docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm --entrypoint certbot certbot certificates`
 
 ---
 
@@ -234,3 +251,7 @@ cd ~/bit-pet/deploy && git -C .. pull
 | 서버가 이따금 멈춤 | 스왑 미설정 (0번) |
 | 배포 시 `pull access denied` | GHCR 로그인 만료. 워크플로가 아니라 손으로 배포하는 중이라면 PAT 재로그인 (3번) |
 | 배포가 롤백됨 | 새 이미지가 healthy 가 못 됨. `docker compose logs app` — 대개 Flyway 실패 아니면 `.env.prod` 누락 |
+| Actions 가 `test` 에서 실패 | 배포 전 단계다. 서버 문제가 아니라 코드 문제 — `cd bitpet_server && ./gradlew test` 로 로컬에서 먼저 재현할 것 |
+| certbot 이 아무 반응 없이 도는 중 | `--entrypoint certbot` 누락. compose 의 entrypoint(갱신 무한루프)가 인자를 먹어버린 것 (2번) |
+| `up -d nginx` 가 이미지 pull 실패로 죽음 | `--no-deps` 누락 — `depends_on: app` 때문에 아직 없는 앱 이미지를 받으러 간다 (2번) |
+| 인증서를 받았는데 여전히 `bootstrap` 응답 | nginx 재시작 누락. 설정은 bind mount 라 파일만 바꿔선 안 바뀐다 (2번) |

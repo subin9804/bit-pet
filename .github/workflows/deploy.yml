@@ -94,15 +94,18 @@ jobs:
       - name: SSH 키 준비
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
+          # 파일명은 키 종류와 무관하다 (Lightsail 이 주는 건 RSA PEM 이다).
+          # ssh -i 로 명시하므로 이름이 뭐든 상관없고, id_ed25519 라고 두면
+          # 나중에 "왜 ed25519 인데 RSA 지?" 하고 헷갈린다.
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
           # 호스트 키를 매번 새로 받아 붙인다. StrictHostKeyChecking=no 로 통째로
           # 끄면 중간자 공격을 그냥 통과시킨다.
           ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
 
       - name: 배포
         run: |
-          ssh -i ~/.ssh/id_ed25519 "$DEPLOY_USER@$DEPLOY_HOST" bash -s <<EOF
+          ssh -i ~/.ssh/id_deploy "$DEPLOY_USER@$DEPLOY_HOST" bash -s <<EOF
             set -euo pipefail
             cd "$DEPLOY_PATH"
 

@@ -21,7 +21,16 @@ COMPOSE="docker compose -f docker-compose.prod.yml --env-file .env.prod"
 # ── 롤백 지점 기록 ───────────────────────────────────────────────────────────
 # 지금 떠 있는 태그. 배포가 실패했을 때 되돌아갈 곳이다.
 PREV_TAG="$(grep -E '^IMAGE_TAG=' .env.prod | cut -d= -f2- || true)"
-echo "▸ 현재: ${PREV_TAG:-(없음)} → 새 버전: $NEW_TAG"
+
+# 'latest' 와 "새 태그와 같은 값"은 되돌아갈 곳이 못 된다.
+#   - latest: .env.prod.example 의 초기값이다. 워크플로가 SHA 와 함께 latest 도 밀기
+#     때문에 최초 배포에서 latest == 방금 실패한 그 이미지다. 이걸로 롤백하면 같은
+#     이미지를 다시 띄우고는 "롤백 완료"라고 찍어 원인을 가린다.
+#   - 재배포(같은 SHA 를 다시 밀었을 때)도 마찬가지다.
+if [ "$PREV_TAG" = "latest" ] || [ "$PREV_TAG" = "$NEW_TAG" ]; then
+    PREV_TAG=""
+fi
+echo "▸ 현재: ${PREV_TAG:-(롤백 지점 없음)} → 새 버전: $NEW_TAG"
 
 # ── 백업 ─────────────────────────────────────────────────────────────────────
 # 마이그레이션이 먼저 돌기 때문에 백업은 반드시 pull 보다 앞이다.
