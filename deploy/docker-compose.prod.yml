@@ -86,6 +86,19 @@ services:
       BITPET_S3_SECRET_KEY: ${BITPET_S3_SECRET_KEY}
       BITPET_S3_PATH_STYLE: "false"
 
+      # 소셜 로그인 키. 없으면 application.yml 의 자리표시자가 쓰여 기동은 되고
+      # 소셜 로그인만 동작하지 않는다 (첫 배포는 이메일 로그인만 내보낸다).
+      # 값을 넣을 땐 각 콘솔에 https://tailog.me/login/oauth2/code/{provider} 를
+      # 리다이렉트 URI 로 먼저 등록해야 한다.
+      BITPET_OAUTH_GOOGLE_CLIENT_ID: ${BITPET_OAUTH_GOOGLE_CLIENT_ID:-not-configured}
+      BITPET_OAUTH_GOOGLE_CLIENT_SECRET: ${BITPET_OAUTH_GOOGLE_CLIENT_SECRET:-not-configured}
+      BITPET_OAUTH_KAKAO_CLIENT_ID: ${BITPET_OAUTH_KAKAO_CLIENT_ID:-not-configured}
+      BITPET_OAUTH_KAKAO_CLIENT_SECRET: ${BITPET_OAUTH_KAKAO_CLIENT_SECRET:-not-configured}
+      BITPET_OAUTH_NAVER_CLIENT_ID: ${BITPET_OAUTH_NAVER_CLIENT_ID:-not-configured}
+      BITPET_OAUTH_NAVER_CLIENT_SECRET: ${BITPET_OAUTH_NAVER_CLIENT_SECRET:-not-configured}
+      BITPET_OAUTH_SUCCESS_REDIRECT: ${BITPET_OAUTH_SUCCESS_REDIRECT:-https://tailog.me/oauth/callback}
+      BITPET_OAUTH_FAILURE_REDIRECT: ${BITPET_OAUTH_FAILURE_REDIRECT:-https://tailog.me/oauth/error}
+
       MAIL_FROM: ${MAIL_FROM}
       MAIL_USERNAME: ${MAIL_USERNAME}
       MAIL_PASSWORD: ${MAIL_PASSWORD}
