@@ -1,8 +1,10 @@
 package io.bitpet.community.service;
 
+import io.bitpet.auth.domain.AdminRole;
 import io.bitpet.auth.domain.UserMst;
 import io.bitpet.auth.repository.AdminRoleRlsRepository;
 import io.bitpet.auth.repository.UserMstRepository;
+import io.bitpet.auth.service.AdminGuard;
 import io.bitpet.common.exception.BusinessException;
 import io.bitpet.common.exception.ErrorCode;
 import io.bitpet.community.domain.PostCommentDtl;
@@ -53,6 +55,9 @@ public class PostService {
 
     private static final int MAX_PHOTOS_PER_POST = 5;
 
+    /** post_category_cd.code. id 가 아니라 code 로 판정한다 (verifyNoticePermission 주석 참고) */
+    private static final String NOTICE_CATEGORY_CODE = "NOTICE";
+
     private final PostMstRepository postRepository;
     private final PostCategoryCdRepository categoryRepository;
     private final PostPhotoDtlRepository photoRepository;
@@ -60,6 +65,7 @@ public class PostService {
     private final PostLikeRlsRepository likeRepository;
     private final UserMstRepository userRepository;
     private final AdminRoleRlsRepository adminRepository;
+    private final AdminGuard adminGuard;
     private final S3Service s3Service;
     private final NotificationService notificationService;
 
@@ -79,12 +85,19 @@ public class PostService {
     @Transactional
     public PostDetailResponse createPost(Long userId, PostCreateRequest req) {
         verifyCategory(req.categoryId());
+        verifyNoticePermission(userId, req.categoryId());
+
         PostMst post = postRepository.save(PostMst.builder()
                 .userId(userId)
                 .categoryId(req.categoryId())
                 .title(req.title())
                 .content(req.content())
                 .build());
+        // 공지는 쓰자마자 상단에 올린다. 운영자가 글을 쓴 뒤 고정 API 를 따로 호출해야 한다면
+        // 그 사이 잠깐 묻히고, 잊으면 영영 안 고정된다.
+        if (isNoticeCategory(req.categoryId())) {
+            post.setPinned(true);
+        }
         UserMst author = userRepository.findById(userId).orElse(null);
         return PostDetailResponse.of(post, false, List.of(),
                 nameOf(author), imageOf(author));
@@ -167,6 +180,8 @@ public class PostService {
         PostMst post = findPost(postId);
         verifyPostOwner(post, userId);
         verifyCategory(req.categoryId());
+        // 작성 때만 막으면 "자유게시판에 쓴 뒤 공지로 카테고리 변경"이라는 우회로가 남는다.
+        verifyNoticePermission(userId, req.categoryId());
         post.update(req.categoryId(), req.title(), req.content());
 
         boolean likedByMe = likeRepository.existsByPostIdAndUserId(postId, userId);
@@ -410,6 +425,28 @@ public class PostService {
     private void verifyCategory(Long categoryId) {
         if (!categoryRepository.existsById(categoryId)) {
             throw new BusinessException(ErrorCode.CATEGORY_NOT_FOUND);
+        }
+    }
+
+    private boolean isNoticeCategory(Long categoryId) {
+        return categoryRepository.findById(categoryId)
+                .map(c -> NOTICE_CATEGORY_CODE.equals(c.getCode()))
+                .orElse(false);
+    }
+
+    /**
+     * 공지사항 카테고리에는 운영자(SUPER_ADMIN 또는 MODERATOR)만 쓸 수 있다.
+     *
+     * <p>카테고리 id(5)가 아니라 code('NOTICE')로 판정한다. id 는 DB 마다 갈릴 수 있는
+     * 값이라 코드에 박아두면 나중에 "개발에선 되는데 운영에선 아무나 공지를 쓴다"가 된다.
+     *
+     * <p>등급을 <b>나열</b>하고 {@code assertAdmin}(등급 무관)을 쓰지 않는 이유: 나중에
+     * 등급이 추가되면 그 등급이 공지 권한을 <b>조용히 물려받는다</b>. 새 등급을 만드는 시점에
+     * 여기에 넣을지 다시 판단하게 만드는 편이 낫다.
+     */
+    private void verifyNoticePermission(Long userId, Long categoryId) {
+        if (isNoticeCategory(categoryId)) {
+            adminGuard.assertAnyRole(userId, AdminRole.SUPER_ADMIN, AdminRole.MODERATOR);
         }
     }
 

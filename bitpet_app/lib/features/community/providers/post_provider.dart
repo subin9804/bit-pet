@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/upload/image_upload.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../data/models/post_models.dart';
 import '../data/post_repository.dart';
 
@@ -17,10 +18,26 @@ final categoriesProvider = FutureProvider<List<PostCategory>>((ref) {
 // MVP에서 화면에 노출하지 않을 카테고리 코드 (추후 확장 시 사용)
 const kHiddenCategoryCodes = {'INFO', 'ADOPTION'};
 
-// 탭/글쓰기에서 실제로 선택 가능한 카테고리 (INFO·분양 제외)
+/// 공지사항 카테고리 코드. id(5)가 아니라 code 로 판정한다 — id 는 DB 마다 갈릴 수 있어
+/// 앱에 박아두면 개발 DB 에서만 맞는 화면이 된다. 서버도 같은 기준으로 막는다.
+const kNoticeCategoryCode = 'NOTICE';
+
+// 탭에 노출할 카테고리 (INFO·분양 제외). 공지사항은 **모두에게 보인다** — 읽는 건 누구나 한다
 final visibleCategoriesProvider = Provider<List<PostCategory>>((ref) {
   final all = ref.watch(categoriesProvider).valueOrNull ?? const <PostCategory>[];
   return all.where((c) => !kHiddenCategoryCodes.contains(c.code)).toList();
+});
+
+/// 글쓰기 화면에서 고를 수 있는 카테고리. 운영자가 아니면 공지사항이 빠진다.
+///
+/// 서버가 어차피 403 을 주지만, 고를 수 있게 열어두고 등록 버튼을 누른 뒤에야
+/// 거절하면 사용자는 글을 다 쓰고 나서 못 올린다는 걸 알게 된다.
+final composableCategoriesProvider = Provider<List<PostCategory>>((ref) {
+  final visible = ref.watch(visibleCategoriesProvider);
+  final isAdmin =
+      ref.watch(authStateProvider).valueOrNull?.isAdmin ?? false;
+  if (isAdmin) return visible;
+  return visible.where((c) => c.code != kNoticeCategoryCode).toList();
 });
 
 // ── 피드 (무한 스크롤) ────────────────────────────────────────────────

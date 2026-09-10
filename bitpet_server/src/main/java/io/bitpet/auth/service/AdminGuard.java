@@ -1,11 +1,15 @@
 package io.bitpet.auth.service;
 
+import io.bitpet.auth.domain.AdminRole;
 import io.bitpet.auth.repository.AdminRoleRlsRepository;
 import io.bitpet.common.exception.BusinessException;
 import io.bitpet.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Objects;
 
 /**
  * 어드민 권한 판정 (admin_role_rls).
@@ -33,5 +37,51 @@ public class AdminGuard {
 
     public boolean isAdmin(Long userId) {
         return userId != null && adminRepository.existsByUserId(userId);
+    }
+
+    /**
+     * 특정 등급이 아니면 403.
+     *
+     * <p>등급을 <b>포함 관계로 보지 않는다</b> — SUPER_ADMIN 이라고 해서 MODERATOR 를
+     * 자동으로 갖는 게 아니라, 두 등급을 다 주고 싶으면 admin_role_rls 에 행을 2개 넣는다.
+     * (테이블의 유니크 제약이 (user_id, role) 이라 애초에 그렇게 쓰라고 만들어진 구조다.)
+     * 등급 사이에 상하 관계를 코드에 박아두면, 나중에 "이건 MODERATOR 만 되고 SUPER_ADMIN 은
+     * 안 되는 동작"이 생겼을 때 되돌릴 수 없다.
+     */
+    public void assertRole(Long userId, AdminRole role) {
+        if (!hasRole(userId, role)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
+    }
+
+    public boolean hasRole(Long userId, AdminRole role) {
+        return userId != null && adminRepository.existsByUserIdAndRole(userId, role.name());
+    }
+
+    /**
+     * 나열한 등급 중 하나도 없으면 403.
+     *
+     * <p>"등급 여러 개가 되는 동작"에 {@link #assertAdmin} 대신 이걸 쓴다. assertAdmin 은
+     * 등급을 안 보므로, 나중에 등급이 늘어나면 그 등급이 권한을 <b>조용히 물려받는다</b>.
+     * 여기에 나열해두면 새 등급을 만들 때 어디에 넣을지 다시 판단하게 된다.
+     */
+    public void assertAnyRole(Long userId, AdminRole... roles) {
+        for (AdminRole role : roles) {
+            if (hasRole(userId, role)) return;
+        }
+        throw new BusinessException(ErrorCode.FORBIDDEN);
+    }
+
+    /** 이 사용자가 가진 등급 전부. 앱이 UI(공지 작성 버튼 등)를 켤지 판단하는 데 쓴다 */
+    public List<AdminRole> rolesOf(Long userId) {
+        if (userId == null) return List.of();
+        return adminRepository.findAllByUserId(userId).stream()
+                .map(r -> {
+                    // DB 에 코드가 모르는 등급이 들어 있어도 조회가 통째로 터지면 안 된다.
+                    try { return AdminRole.valueOf(r.getRole()); }
+                    catch (IllegalArgumentException e) { return null; }
+                })
+                .filter(Objects::nonNull)
+                .toList();
     }
 }

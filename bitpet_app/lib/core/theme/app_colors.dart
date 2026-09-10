@@ -106,6 +106,9 @@ abstract final class AppColors {
   static const commInfoInk  = Color(0xFF2A5438);
   static const commSellBg   = Color(0xFFE8DDFA);
   static const commSellInk  = Color(0xFF5C2880);
+  // 공지 — 다른 카테고리보다 진하게. 운영자 글이라 "글 하나"가 아니라 알림처럼 읽혀야 한다
+  static const commNoticeBg  = Color(0xFF3A3833);
+  static const commNoticeInk = Color(0xFFF5F0E8);
 
   // 커뮤니티 HOT/PINNED/좋아요
   static const commHot      = Color(0xFFC44030);

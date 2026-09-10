@@ -43,6 +43,7 @@ public class AuthService {
     private final S3Service s3Service;
     private final PetWithdrawalService petWithdrawalService;
     private final AgreementService agreementService;
+    private final AdminGuard adminGuard;
 
     public EmailCheckResponse checkEmail(String email) {
         return new EmailCheckResponse(!userRepository.existsByEmail(email));
@@ -128,7 +129,10 @@ public class AuthService {
     public UserResponse getMe(Long userId) {
         UserMst user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AUTH_USER_NOT_FOUND));
-        return UserResponse.from(user, s3Service.resolveUrl(user.getProfileImageUrl()));
+        // 운영자 등급은 /me 에서만 실어 보낸다. 다른 응답(게시글 작성자 등)에 붙이면
+        // "누가 운영자인지"가 모든 사용자에게 노출된다.
+        return UserResponse.from(user, s3Service.resolveUrl(user.getProfileImageUrl()),
+                adminGuard.rolesOf(userId));
     }
 
     /** 프로필 이미지 업로드용 presigned PUT URL 발급 */
@@ -156,7 +160,10 @@ public class AuthService {
         if (req.showNicknameInPedigree() != null) {
             user.changeShowNicknameInPedigree(req.showNicknameInPedigree());
         }
-        return UserResponse.from(user, s3Service.resolveUrl(user.getProfileImageUrl()));
+        // getMe 와 같은 모양으로 내려야 한다. 여기서 등급을 빼면 앱이 프로필을 수정한 직후
+        // 상태를 이 응답으로 덮어쓰면서 운영자 표시가 사라진다 (다시 로그인해야 돌아온다).
+        return UserResponse.from(user, s3Service.resolveUrl(user.getProfileImageUrl()),
+                adminGuard.rolesOf(userId));
     }
 
     /**

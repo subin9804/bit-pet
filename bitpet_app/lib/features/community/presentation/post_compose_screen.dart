@@ -81,7 +81,8 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(composeProvider);
-    final categories = ref.watch(visibleCategoriesProvider);
+    // visible 이 아니라 composable — 운영자가 아니면 공지사항이 목록에 없다
+    final categories = ref.watch(composableCategoriesProvider);
 
     return Scaffold(
       backgroundColor: AppColors.paleBg,

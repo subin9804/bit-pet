@@ -90,6 +90,13 @@ class UserProfile {
   /// userId도 내리지 않아 남이 내 프로필로 들어올 수 없다
   final bool showNicknameInPedigree;
 
+  /// 운영자 등급 (SUPER_ADMIN / MODERATOR). 일반 유저는 빈 목록.
+  ///
+  /// 개체 권한(OWNER/KEEPER)과 다른 축이다 — 이건 서비스 전체에 대한 권한이다.
+  /// **화면을 켤지 정하는 용도로만 쓴다.** 실제 차단은 서버가 매 요청 DB로 다시 본다
+  /// (이 값은 응답에 담겨 나온 뒤라 못 믿는다).
+  final List<String> adminRoles;
+
   const UserProfile({
     required this.id,
     required this.email,
@@ -97,9 +104,15 @@ class UserProfile {
     this.profileImageUrl,
     required this.userType,
     this.showNicknameInPedigree = true,
+    this.adminRoles = const [],
   });
 
-  // 서버 UserResponse: id, email, nickname, userType, profileImageUrl, showNicknameInPedigree
+  /// 등급 종류를 가리지 않는 운영자 여부. 공지 작성 UI 노출 기준이다
+  /// (서버 `verifyNoticePermission` 이 SUPER_ADMIN·MODERATOR 둘 다 허용한다).
+  bool get isAdmin => adminRoles.isNotEmpty;
+
+  // 서버 UserResponse: id, email, nickname, userType, profileImageUrl,
+  //                    showNicknameInPedigree, adminRoles
   factory UserProfile.fromJson(Map<String, dynamic> json) => UserProfile(
         id: json['id'] as int,
         email: json['email'] as String,
@@ -108,6 +121,9 @@ class UserProfile {
         userType: json['userType'] as String? ?? 'GENERAL',
         showNicknameInPedigree:
             json['showNicknameInPedigree'] as bool? ?? true,
+        adminRoles: ((json['adminRoles'] as List<dynamic>?) ?? const [])
+            .map((e) => e.toString())
+            .toList(),
       );
 }
 

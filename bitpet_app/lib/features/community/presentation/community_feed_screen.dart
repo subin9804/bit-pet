@@ -10,6 +10,7 @@ import '../data/models/post_models.dart';
 import '../providers/post_provider.dart';
 
 Color _catBg(String? code) => switch (code?.toUpperCase()) {
+      'NOTICE' => AppColors.commNoticeBg,
       'FREE' => AppColors.commFreeBg,
       'QNA' => AppColors.commQnaBg,
       'INFO' => AppColors.commInfoBg,
@@ -18,6 +19,7 @@ Color _catBg(String? code) => switch (code?.toUpperCase()) {
     };
 
 Color _catInk(String? code) => switch (code?.toUpperCase()) {
+      'NOTICE' => AppColors.commNoticeInk,
       'FREE' => AppColors.commFreeInk,
       'QNA' => AppColors.commQnaInk,
       'INFO' => AppColors.commInfoInk,
@@ -380,8 +382,11 @@ class _PostRow extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
-        decoration: const BoxDecoration(
-          border: Border(
+        decoration: BoxDecoration(
+          // 고정된 글은 바탕을 깔아 "맨 위에 있는 최신 글"이 아니라 "고정된 글"로 읽히게 한다.
+          // 이게 없으면 며칠 지난 공지가 매번 새 글처럼 보인다.
+          color: post.isPinned ? AppColors.commPinnedBg : null,
+          border: const Border(
             bottom: BorderSide(color: AppColors.paleLineSoft),
           ),
         ),
@@ -395,6 +400,11 @@ class _PostRow extends StatelessWidget {
                   Row(
                     children: [
                       _CategoryPill(code: code, label: label),
+                      if (post.isPinned) ...[
+                        const SizedBox(width: 5),
+                        const Icon(Icons.push_pin,
+                            size: 12, color: AppColors.paleInk2),
+                      ],
                       const Spacer(),
                       Text(
                         _relativeTime(post.createdAt),
