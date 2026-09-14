@@ -48,6 +48,29 @@ mkdir -p secrets backups
 > ⚠️ `google-services.json` 과 `firebase_options.dart` 는 앱 빌드용이라 서버에는 필요 없다.
 > 서버가 필요한 건 `firebase-service-account.json` 하나뿐이다.
 
+**올린 뒤 소유권을 컨테이너 사용자에게 넘긴다 — 빠뜨리면 푸시가 조용히 꺼진다.**
+
+```bash
+# 앱 컨테이너는 uid=100(app)/gid=101(app) 으로 돈다 (bitpet_server/Dockerfile 의 USER app).
+# scp 로 올리면 ubuntu(1000) 소유 700/600 이 되어 컨테이너가 읽지 못한다.
+sudo chown -R 100:101 ~/bit-pet/deploy/secrets
+sudo chmod 700 ~/bit-pet/deploy/secrets
+sudo chmod 600 ~/bit-pet/deploy/secrets/firebase-service-account.json
+```
+
+⚠️ 이걸 빼먹어도 **앱은 정상 기동한다.** 파일을 못 읽으면 푸시 발송만 꺼지고 WARN 한 줄이
+남을 뿐이라, 헬스체크·API 응답 어디에도 드러나지 않는다. 실제로 첫 배포에서 이 상태로
+며칠을 돌았다. 확인은 기동 로그로 한다:
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env.prod logs app | grep FCM
+#   ✅ [FCM] Firebase Admin SDK 초기화 완료 (projectId=...)
+#   ❌ [FCM] credentials-path 파일 없음: /app/secrets/firebase-service-account.json
+```
+
+> `ls -l` 에 소유자가 `dhcpcd messagebus` 로 보이는 건 정상이다. 호스트에 uid 100 /
+> gid 101 을 쓰는 계정 이름이 그것뿐이라 그렇게 표시될 뿐, 컨테이너 안에서는 `app` 이다.
+
 ---
 
 ## 2. 최초 인증서 발급
@@ -255,3 +278,7 @@ cd ~/bit-pet/deploy && git -C .. pull
 | certbot 이 아무 반응 없이 도는 중 | `--entrypoint certbot` 누락. compose 의 entrypoint(갱신 무한루프)가 인자를 먹어버린 것 (2번) |
 | `up -d nginx` 가 이미지 pull 실패로 죽음 | `--no-deps` 누락 — `depends_on: app` 때문에 아직 없는 앱 이미지를 받으러 간다 (2번) |
 | 인증서를 받았는데 여전히 `bootstrap` 응답 | nginx 재시작 누락. 설정은 bind mount 라 파일만 바꿔선 안 바뀐다 (2번) |
+| `.env.prod` 를 고쳤는데 안 먹음 | 컨테이너는 기동할 때 환경변수를 한 번 읽고 끝이다. `up -d --no-deps app` 으로 **재생성**해야 한다 (`restart` 로는 안 바뀐다) |
+| 푸시 알림만 안 감 | Firebase 키 파일 소유권. 컨테이너가 못 읽어도 앱은 멀쩡히 뜬다 — `logs app \| grep FCM` 으로 확인 (1번) |
+| `Client id of registration 'google' must not be empty` | OAuth 키가 **빈 문자열**로 주입됨. 안 넣을 거면 compose 에서 아예 빼거나 자리표시자를 넘겨야 한다. 빈 값은 "설정됨"으로 취급되어 기본값이 안 쓰인다 |
+| 백업이 조용히 안 돌아감 | `.env.prod` 값에 공백이 있으면 예전 `source` 방식이 죽었다. 지금은 필요한 두 값만 뽑지만, 크론 로그(`~/backup.log`)는 가끔 봐야 한다 |
