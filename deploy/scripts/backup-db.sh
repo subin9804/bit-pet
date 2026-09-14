@@ -3,7 +3,11 @@
 #
 # 크론 등록 (매일 04:00 KST):
 #   crontab -e
+#   CRON_TZ=Asia/Seoul
 #   0 4 * * * /home/ubuntu/bit-pet/deploy/scripts/backup-db.sh >> /home/ubuntu/backup.log 2>&1
+#
+# ⚠️ CRON_TZ 를 빼지 말 것. 호스트가 UTC 라 그냥 두면 04:00 이 13:00 KST 가 된다
+#    (컨테이너만 TZ=Asia/Seoul 이고 호스트 크론은 아니다).
 #
 # ⚠️ 이 백업은 같은 인스턴스 디스크에 쌓인다. 인스턴스가 통째로 날아가면 백업도 같이 날아간다.
 #    Lightsail 스냅샷(주 1회 자동)을 반드시 함께 켤 것. 둘은 대체재가 아니다 —

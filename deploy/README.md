@@ -148,10 +148,13 @@ Flyway 마이그레이션(V1~V55)은 앱 첫 기동 때 자동 실행된다.
 ## 4. 백업 크론
 
 ```bash
-chmod +x scripts/backup-db.sh
 crontab -e
+# CRON_TZ=Asia/Seoul
 # 0 4 * * * /home/ubuntu/bit-pet/deploy/scripts/backup-db.sh >> /home/ubuntu/backup.log 2>&1
 ```
+
+⚠️ `CRON_TZ` 를 빼면 04:00 이 **13:00 KST** 가 된다. 호스트는 UTC 이고
+`TZ=Asia/Seoul` 은 컨테이너에만 걸려 있다.
 
 Lightsail 콘솔에서 **자동 스냅샷**도 함께 켠다.
 
