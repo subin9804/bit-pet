@@ -9,11 +9,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_input_styles.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/pet_avatar.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../../routine/data/models/routine_models.dart';
 import '../../routine/data/routine_repository.dart';
 import '../../routine/providers/routine_provider.dart';
 import '../data/record_repository.dart';
+import '../providers/record_invalidation.dart';
 import 'widgets/feed_items_editor.dart';
 
 class FeedingRecordSheet extends ConsumerStatefulWidget {
@@ -99,6 +101,7 @@ class _FeedingRecordSheetState extends ConsumerState<FeedingRecordSheet> {
       );
       setState(() => _saved[_current.petId] = true);
       ref.read(todayRoutinesProvider.notifier).updatePetStatus(widget.routine.id, _current.petId, true);
+      invalidatePetRecords(ref, _current.petId);
     } catch (e) {
       if (mounted) showToast(context, '저장 실패: $e');
     } finally {
@@ -209,9 +212,11 @@ class _FeedingRecordSheetState extends ConsumerState<FeedingRecordSheet> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.pets,
-                              size: 13,
-                              color: AppColors.primary
+                          PetAvatar(
+                              imageUrl: s.imageUrl,
+                              size: 18,
+                              background: Colors.transparent,
+                              iconColor: AppColors.primary
                                   .withValues(alpha: 0.5)),
                           const SizedBox(width: 4),
                           Text(s.petName,

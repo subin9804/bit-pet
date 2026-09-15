@@ -207,6 +207,7 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
     switch (action) {
       case 'farewell': await _handleFarewell(pet.name);
       case 'revert':   await _handleRevertFarewell();
+      case 'parents':  showParentEditSheet(context, ref, pet, widget.petId);
       case 'share':    context.push('/pets/${widget.petId}/share');
       case 'delete':   await _handleDelete(pet.name);
       case 'leave':    await _handleLeave(pet.name);
@@ -233,8 +234,31 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
         ),
       );
 
+  /// 부모 등록 — 부모가 없으면 정보 카드에서 부모 영역이 통째로 숨겨지므로 등록 진입점을 여기 둔다.
+  /// 부모가 하나라도 있으면 카드의 '수정' 버튼이 있으니 메뉴에는 띄우지 않는다.
+  /// 가계도 연결은 KEEPER 도 가능(자식 쪽 사육자 기준)해서 두 메뉴 모두에 들어간다.
+  bool _hasNoParents(Pet pet) => pet.fatherId == null && pet.motherId == null;
+
+  PopupMenuEntry<String> _parentMenuItem() => const PopupMenuItem(
+        value: 'parents',
+        height: 44,
+        child: Row(
+          children: [
+            Icon(Icons.account_tree_outlined,
+                size: 16, color: AppColors.textSecondary),
+            SizedBox(width: 8),
+            Text('부모 등록',
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary)),
+          ],
+        ),
+      );
+
   List<PopupMenuEntry<String>> _ownerMenuItems(Pet pet) => [
         _farewellMenuItem(pet),
+        if (_hasNoParents(pet)) _parentMenuItem(),
         PopupMenuItem(
           value: 'share',
           height: 44,
@@ -284,6 +308,7 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
         ),
         const PopupMenuDivider(height: 1),
         _farewellMenuItem(pet),
+        if (_hasNoParents(pet)) _parentMenuItem(),
         const PopupMenuDivider(height: 1),
         const PopupMenuItem(
           value: 'leave',

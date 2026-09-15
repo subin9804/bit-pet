@@ -19,34 +19,38 @@ class PetInfoGrid extends ConsumerStatefulWidget {
   ConsumerState<PetInfoGrid> createState() => _PetInfoGridState();
 }
 
+/// 부모 개체 수정 시트. 상세 화면의 더보기 메뉴(부모가 없어 영역이 숨겨졌을 때)와
+/// 부모 영역의 '수정' 버튼이 같이 쓴다. 닫히면 저장 여부와 무관하게 상세·가계도를 새로 읽는다.
+void showParentEditSheet(BuildContext context, WidgetRef ref, Pet pet, int petId) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => _ParentEditSheet(
+      petId: petId,
+      speciesId: pet.speciesId,
+      initialFather: pet.fatherId != null
+          ? _ParentInfo(
+              relationId: pet.fatherRelationId!,
+              petId: pet.fatherId!,
+              name: pet.fatherName!)
+          : null,
+      initialMother: pet.motherId != null
+          ? _ParentInfo(
+              relationId: pet.motherRelationId!,
+              petId: pet.motherId!,
+              name: pet.motherName!)
+          : null,
+    ),
+  ).then((_) {
+    ref.invalidate(petDetailProvider(petId));
+    ref.invalidate(genealogyProvider(petId));
+  });
+}
+
 class _PetInfoGridState extends ConsumerState<PetInfoGrid> {
-  void _openParentEdit() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _ParentEditSheet(
-        petId: widget.petId,
-        speciesId: widget.pet.speciesId,
-        initialFather: widget.pet.fatherId != null
-            ? _ParentInfo(
-                relationId: widget.pet.fatherRelationId!,
-                petId: widget.pet.fatherId!,
-                name: widget.pet.fatherName!)
-            : null,
-        initialMother: widget.pet.motherId != null
-            ? _ParentInfo(
-                relationId: widget.pet.motherRelationId!,
-                petId: widget.pet.motherId!,
-                name: widget.pet.motherName!)
-            : null,
-      ),
-    ).then((_) {
-      // 시트가 닫히면 상세 데이터 새로 불러옴 (저장 여부 무관)
-      ref.invalidate(petDetailProvider(widget.petId));
-      ref.invalidate(genealogyProvider(widget.petId));
-    });
-  }
+  void _openParentEdit() =>
+      showParentEditSheet(context, ref, widget.pet, widget.petId);
 
   @override
   Widget build(BuildContext context) {
@@ -98,47 +102,42 @@ class _PetInfoGridState extends ConsumerState<PetInfoGrid> {
               _Cell(label: '나이',   value: age),
             ],
           ),
-          const SizedBox(height: 12),
-          // 부모 (전체폭 + 수정 버튼)
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text('부모', style: AppTextStyles.paleGridLabel),
-                  const Spacer(),
-                  GestureDetector(
-                    onTap: _openParentEdit,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: const [
-                        Icon(Icons.edit_outlined, size: 13, color: AppColors.paleInk3),
-                        SizedBox(width: 3),
-                        Text('수정',
-                            style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.paleInk3)),
-                      ],
+          // 부모 — 등록된 부모가 있을 때만 영역을 그린다. 없으면 통째로 숨기고
+          // 등록은 상단 더보기 메뉴의 '부모 등록'에서 한다 (수정 폼은 편집 모드에 부모 단계가 없다).
+          // 가계도 로딩 중에도 숨긴다: '없음'을 잠깐 띄웠다 사라지는 것보다 늦게 나타나는 게 덜 거슬린다.
+          if (hasParents) ...[
+            const SizedBox(height: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text('부모', style: AppTextStyles.paleGridLabel),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: _openParentEdit,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(Icons.edit_outlined, size: 13, color: AppColors.paleInk3),
+                          SizedBox(width: 3),
+                          Text('수정',
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.paleInk3)),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 5),
-              if (!hasParents)
-                Text(
-                  // 로딩 중에 '없음'을 띄우면 부모가 있는 개체도 잠깐 미등록처럼 보인다
-                  genealogy.isLoading ? '불러오는 중…' : '등록된 부모 개체 없음',
-                  style: AppTextStyles.paleGridValue.copyWith(
-                      color: AppColors.paleInk2, fontStyle: FontStyle.italic),
-                )
-              else ...[
+                  ],
+                ),
+                const SizedBox(height: 5),
                 if (father != null) PedigreeParentCard(card: father),
                 if (father != null && mother != null) const SizedBox(height: 8),
                 if (mother != null) PedigreeParentCard(card: mother),
               ],
-            ],
-          ),
+            ),
+          ],
         ],
       ),
     );

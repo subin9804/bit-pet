@@ -6,6 +6,7 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/skeleton_loader.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../../../core/theme/app_input_styles.dart';
+import '../providers/record_invalidation.dart';
 import '../providers/record_provider.dart';
 import '../data/models/record_models.dart';
 import '../data/record_repository.dart';
@@ -69,20 +70,7 @@ class _RecordScreenState extends ConsumerState<RecordScreen> {
         recordType: widget.recordType,
         onSaved: () {
           Navigator.pop(context);
-          switch (widget.recordType) {
-            case 'weight':
-              ref.invalidate(weightListProvider(widget.petId));
-            case 'feeding':
-              ref.invalidate(feedingListProvider(widget.petId));
-            case 'cleaning':
-              ref.invalidate(cleaningListProvider(widget.petId));
-            case 'memo':
-              ref.invalidate(memoListProvider(widget.petId));
-          case 'mating':
-              ref.invalidate(matingListProvider(widget.petId));
-          case 'laying':
-              ref.invalidate(layingListProvider(widget.petId));
-          }
+          invalidatePetRecords(ref, widget.petId);
         },
       ),
     );

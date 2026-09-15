@@ -11,7 +11,7 @@ import '../../../core/widgets/skeleton_loader.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../data/models/feed_models.dart';
 import '../providers/feed_provider.dart';
-import '../providers/record_provider.dart';
+import '../providers/record_invalidation.dart';
 import 'widgets/feed_items_editor.dart';
 import '../../pet/providers/pet_provider.dart';
 
@@ -45,7 +45,6 @@ Color _dotColor(String food) =>
 Color _chipColor(String food) =>
     _foodChip[_foodColorKey[food] ?? 'sage'] ?? AppColors.petSage;
 
-const _foods = ['귀뚜라미', '슈퍼웜', '밀웜', '버터웜', '핑키마우스'];
 const _weekKo = ['일','월','화','수','목','금','토'];
 
 // ── 메인 화면 ───────────────────────────────────────────────
@@ -92,17 +91,24 @@ class _FeedDetailScreenState extends ConsumerState<FeedDetailScreen> {
     final e = _editor;
     if (e == null || e.items.isEmpty) return;
     final notifier = ref.read(feedSessionsProvider(widget.petId).notifier);
-    if (e.isEdit && e.editId != null) {
-      await notifier.update(FeedSession(
-        id: e.editId!, date: e.date, time: e.time,
-        items: e.items, memo: e.memo,
-      ));
-    } else {
-      await notifier.add(FeedSession(
-        id: '', date: e.date, time: e.time,
-        items: e.items, memo: e.memo,
-      ));
+    try {
+      if (e.isEdit && e.editId != null) {
+        await notifier.update(FeedSession(
+          id: e.editId!, date: e.date, time: e.time,
+          items: e.items, memo: e.memo,
+        ));
+      } else {
+        await notifier.add(FeedSession(
+          id: '', date: e.date, time: e.time,
+          items: e.items, memo: e.memo,
+        ));
+      }
+    } catch (err) {
+      if (mounted) showToast(context, '저장 실패: $err', type: ToastType.error);
+      return;
     }
+    // 목록은 notifier 가 이미 반영 — 캘린더 탭·기록 탭 요약·홈만 갱신
+    invalidatePetRecords(ref, widget.petId, keepFeedSessions: true);
     if (mounted) {
       setState(() => _editor = null);
       showToast(context,
@@ -122,7 +128,7 @@ class _FeedDetailScreenState extends ConsumerState<FeedDetailScreen> {
     if (!ok) return;
     try {
       await ref.read(feedSessionsProvider(widget.petId).notifier).delete(id);
-      ref.invalidate(petCalendarProvider);
+      invalidatePetRecords(ref, widget.petId, keepFeedSessions: true);
       if (mounted) {
         setState(() => _editor = null);
         showToast(context, '기록이 삭제되었습니다.', type: ToastType.info);
@@ -518,54 +524,19 @@ class _CalendarViewState extends State<_CalendarView> {
   @override
   Widget build(BuildContext context) {
     final byDate = _byDate;
-    return Column(
-      children: [
-        Expanded(
-          child: MonthGridCalendar(
-            month: _month,
-            selectedDate: _selDate,
-            monthSummary: '${_monthSessions.length}회 급여',
-            accent: AppColors.petButter,
-            onMonthChanged: (m) => setState(() => _month = m),
-            onDayTap: (ds) {
-              setState(() => _selDate = ds);
-              _openDaySheet(ds, byDate[ds] ?? const []);
-            },
-            cellBuilder: (ds) => _cellContent(byDate, ds),
-          ),
-        ),
-        // 범례 — 셀이 좁아 라벨이 잘릴 때 색으로 구분할 수 있게 남겨둔다
-        Container(
-          width: double.infinity,
-          decoration: const BoxDecoration(
-            color: AppColors.paleBgAlt,
-            border: Border(top: BorderSide(color: AppColors.paleLine)),
-          ),
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: _foods.map((f) => Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 8, height: 8,
-                      decoration: BoxDecoration(
-                        color: _dotColor(f), shape: BoxShape.circle),
-                    ),
-                    const SizedBox(width: 5),
-                    Text(f, style: const TextStyle(
-                        fontSize: 11, fontWeight: FontWeight.w600,
-                        color: AppColors.paleInk2)),
-                  ],
-                ),
-              )).toList(),
-            ),
-          ),
-        ),
-      ],
+    // 먹이 범례는 두지 않는다 — 셀에 먹이 이름이 그대로 찍히고, 고정 5종만 나열돼
+    // 직접입력·기타 먹이는 어차피 범례에 없었다.
+    return MonthGridCalendar(
+      month: _month,
+      selectedDate: _selDate,
+      monthSummary: '${_monthSessions.length}회 급여',
+      accent: AppColors.petButter,
+      onMonthChanged: (m) => setState(() => _month = m),
+      onDayTap: (ds) {
+        setState(() => _selDate = ds);
+        _openDaySheet(ds, byDate[ds] ?? const []);
+      },
+      cellBuilder: (ds) => _cellContent(byDate, ds),
     );
   }
 }

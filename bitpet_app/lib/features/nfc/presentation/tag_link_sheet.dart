@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_response.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/pet_avatar.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../../pet/data/models/pet_models.dart';
 import '../../pet/providers/pet_provider.dart';
@@ -241,6 +242,13 @@ class _PetRow extends StatelessWidget {
         ),
         child: Row(
           children: [
+            PetAvatar(
+              imageUrl: pet.profileImageUrl,
+              size: 36,
+              background: AppColors.paleBgAlt,
+              iconColor: AppColors.primary,
+            ),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

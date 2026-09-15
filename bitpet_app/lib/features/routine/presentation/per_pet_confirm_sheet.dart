@@ -16,6 +16,7 @@ import '../data/models/routine_models.dart';
 import '../data/routine_repository.dart';
 import '../providers/routine_provider.dart';
 import 'widgets/confirm_accordion.dart';
+import '../../record/providers/record_invalidation.dart';
 import '../../record/providers/record_provider.dart';
 
 // ── 개체별 입력 상태 ──────────────────────────────────────────────
@@ -258,6 +259,9 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
       if (!mounted) return;
       Navigator.of(context).pop();
       ref.invalidate(routineTodayStatusProvider(routine.id));
+      for (final p in _pets) {
+        invalidatePetRecords(ref, p.petId);
+      }
       final ym = DateTime.now();
       ref.invalidate(homeCalendarProvider(
           '${ym.year}-${ym.month.toString().padLeft(2, '0')}'));

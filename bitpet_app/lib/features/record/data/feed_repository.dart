@@ -139,25 +139,29 @@ class DioFeedRepository implements FeedRepository {
 
   @override
   Future<FeedSession> addSession(int petId, FeedSession session) async {
-    // 다중 아이템일 경우 첫 번째 아이템으로 대표 등록
-    // TODO: 백엔드가 멀티 아이템 지원 시 반복 POST 또는 스키마 변경
-    final item = session.items.isNotEmpty
-        ? session.items.first
-        : const FeedItem(food: '귀뚜라미', amt: 1);
+    // feeding_dtl 은 1행 = 1먹이 → 먹이마다 POST (FAB 시트와 같은 방식).
+    // 예전엔 첫 먹이만 저장돼 나머지가 조용히 사라졌다.
+    final items = session.items.isNotEmpty
+        ? session.items
+        : const [FeedItem(food: '귀뚜라미', amt: 1)];
     final fedAt = DateTime.parse(
         '${session.date}T${session.time.length == 5 ? "${session.time}:00" : session.time}');
-    final data = item.toForm().toApiMap(fedAt: fedAt);
-    if (session.memo.isNotEmpty) data['memo'] = session.memo;
-    final res = await _dio.post('/pets/$petId/feedings', data: data);
-    final apiRes = ApiResponse.fromJson(
-      res.data as Map<String, dynamic>,
-      (d) => FeedingRecord.fromJson(d as Map<String, dynamic>),
-    );
-    if (!apiRes.success || apiRes.data == null) {
-      throw ApiException(
-          statusCode: res.statusCode ?? 0, message: apiRes.message ?? '급여 기록 실패');
+    FeedSession? first;
+    for (final item in items) {
+      final data = item.toForm().toApiMap(fedAt: fedAt);
+      if (session.memo.isNotEmpty) data['memo'] = session.memo;
+      final res = await _dio.post('/pets/$petId/feedings', data: data);
+      final apiRes = ApiResponse.fromJson(
+        res.data as Map<String, dynamic>,
+        (d) => FeedingRecord.fromJson(d as Map<String, dynamic>),
+      );
+      if (!apiRes.success || apiRes.data == null) {
+        throw ApiException(
+            statusCode: res.statusCode ?? 0, message: apiRes.message ?? '급여 기록 실패');
+      }
+      first ??= _toSession(apiRes.data!);
     }
-    return _toSession(apiRes.data!);
+    return first!;
   }
 
   @override

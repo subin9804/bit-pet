@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_toggle.dart';
+import '../../../core/widgets/pet_avatar.dart';
 import '../../../core/widgets/step_shell.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../../pet/data/models/pet_models.dart';
@@ -687,16 +688,12 @@ class _PetSelectorStep extends ConsumerWidget {
                             Stack(
                               clipBehavior: Clip.none,
                               children: [
-                                Container(
-                                  width: 46,
-                                  height: 46,
-                                  decoration: BoxDecoration(
-                                    color: on ? AppColors.surface.withValues(alpha: 0.55) : bg,
-                                    borderRadius: BorderRadius.zero,
-                                  ),
-                                  child: const Center(
-                                    child: Text('🦎', style: TextStyle(fontSize: 22)),
-                                  ),
+                                PetAvatar(
+                                  imageUrl: p.profileImageUrl,
+                                  size: 46,
+                                  background: on ? AppColors.surface.withValues(alpha: 0.55) : bg,
+                                  iconColor: AppColors.paleInk2,
+                                  fallback: const Text('🦎', style: TextStyle(fontSize: 22)),
                                 ),
                                 if (on)
                                   Positioned(

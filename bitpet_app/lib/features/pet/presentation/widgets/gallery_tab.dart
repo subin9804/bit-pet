@@ -11,6 +11,7 @@ import '../../data/pet_repository.dart';
 import '../../data/photo_repository.dart';
 import '../../providers/pet_provider.dart';
 import '../../providers/photo_provider.dart';
+import 'gallery_photo_viewer.dart';
 
 class GalleryTab extends ConsumerStatefulWidget {
   final int petId;
@@ -52,6 +53,23 @@ class _GalleryTabState extends ConsumerState<GalleryTab> {
     }
   }
 
+  /// 사진 탭 → 전체화면 캐러셀. 뷰어에서 고른 동작(대표 설정·삭제)은 여기서 처리한다.
+  Future<void> _openViewer(List<PetPhoto> photos, int index) async {
+    final result = await GalleryPhotoViewer.show(
+      context,
+      photos: photos,
+      initialIndex: index,
+      profilePhotoId: widget.profilePhotoId,
+    );
+    if (result == null || !mounted) return;
+    if (result.action == 'profile') {
+      await _setProfile(result.photo);
+    } else if (result.action == 'delete') {
+      await _delete(result.photo);
+    }
+  }
+
+  /// 사진 길게 누르기 → 뷰어를 거치지 않고 바로 메뉴
   Future<void> _onTileMenu(PetPhoto photo) async {
     final isProfile = widget.profilePhotoId == photo.id;
     final action = await showModalBottomSheet<String>(
@@ -155,7 +173,8 @@ class _GalleryTabState extends ConsumerState<GalleryTab> {
                 photo: photos[i],
                 bg: bg,
                 isProfile: widget.profilePhotoId == photos[i].id,
-                onTap: () => _onTileMenu(photos[i]),
+                onTap: () => _openViewer(photos, i),
+                onLongPress: () => _onTileMenu(photos[i]),
               ),
             );
           },
@@ -203,18 +222,21 @@ class _PhotoTile extends StatelessWidget {
   final Color bg;
   final bool isProfile;
   final VoidCallback onTap;
+  final VoidCallback onLongPress;
 
   const _PhotoTile({
     required this.photo,
     required this.bg,
     required this.isProfile,
     required this.onTap,
+    required this.onLongPress,
   });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
+      onLongPress: onLongPress,
       child: Stack(
         fit: StackFit.expand,
         children: [

@@ -28,6 +28,11 @@ class FeedSessionsNotifier
 
   Future<void> add(FeedSession session) async {
     final added = await _repo.addSession(petId, session);
+    // 먹이가 여러 개면 서버에 행이 여러 개 생긴다 — 첫 행만 붙이면 목록이 어긋나므로 다시 받는다
+    if (session.items.length > 1) {
+      await load();
+      return;
+    }
     state.whenData((list) {
       state = AsyncValue.data([...list, added]);
     });

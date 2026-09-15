@@ -5,12 +5,14 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/upload/image_upload.dart';
 import '../../../core/widgets/app_toggle.dart';
+import '../../../core/widgets/pet_avatar.dart';
 import '../../../core/widgets/step_shell.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../data/models/pet_models.dart';
 import '../data/pet_repository.dart';
 import '../data/photo_repository.dart';
 import '../providers/pet_provider.dart';
+import '../providers/photo_provider.dart';
 import 'widgets/species_bottom_sheet.dart';
 import 'widgets/parent_pet_bottom_sheet.dart';
 import 'widgets/morph_picker_sheet.dart';
@@ -379,6 +381,9 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
             image: img,
           );
       await ref.read(petRepositoryProvider).setProfilePhoto(petId, photo.id);
+      // 대표 사진도 갤러리(photo_dtl)에 올라가므로 갤러리 탭 캐시를 비워야 바로 보인다.
+      // 안 비우면 다음에 갤러리에서 직접 올릴 때에서야 같이 나타난다.
+      ref.invalidate(petPhotosProvider(petId));
     } catch (e) {
       if (mounted) {
         ToastMessage.show(context, '사진 업로드 실패: $e', type: ToastType.error);
@@ -1124,13 +1129,12 @@ class _ParentTile extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: _bgOf(pet!),
-            ),
-            child: const Center(child: Text('🦎', style: TextStyle(fontSize: 20))),
+          PetAvatar(
+            imageUrl: pet!.profileImageUrl,
+            size: 42,
+            background: _bgOf(pet!),
+            iconColor: AppColors.primary,
+            fallback: const Text('🦎', style: TextStyle(fontSize: 20)),
           ),
           const SizedBox(width: 12),
           Expanded(

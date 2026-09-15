@@ -12,6 +12,7 @@ import '../../../core/widgets/skeleton_loader.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../data/models/record_models.dart';
 import '../data/record_repository.dart';
+import '../providers/record_invalidation.dart';
 import '../providers/record_provider.dart';
 import '../../pet/providers/pet_provider.dart';
 
@@ -117,21 +118,7 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
     }
   }
 
-  void _invalidate() {
-    switch (widget.recordType) {
-      case 'cleaning': ref.invalidate(cleaningListProvider(widget.petId));
-      case 'memo':     ref.invalidate(memoListProvider(widget.petId));
-      case 'mating':   ref.invalidate(matingListProvider(widget.petId));
-      case 'laying':   ref.invalidate(layingListProvider(widget.petId));
-    }
-    ref.invalidate(petCalendarProvider(
-        PetYearMonth(widget.petId, _currentYearMonth())));
-  }
-
-  String _currentYearMonth() {
-    final now = DateTime.now();
-    return '${now.year}-${now.month.toString().padLeft(2, '0')}';
-  }
+  void _invalidate() => invalidatePetRecords(ref, widget.petId);
 
   void _openAdd(String? dateStr) {
     setState(() {

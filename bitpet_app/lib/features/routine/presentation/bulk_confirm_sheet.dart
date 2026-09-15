@@ -13,6 +13,7 @@ import '../data/models/routine_models.dart';
 import '../data/routine_repository.dart';
 import '../providers/routine_provider.dart';
 import 'widgets/confirm_accordion.dart';
+import '../../record/providers/record_invalidation.dart';
 import '../../record/providers/record_provider.dart';
 
 class BulkConfirmSheet extends ConsumerStatefulWidget {
@@ -93,6 +94,7 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
           ),
         );
         ref.read(todayRoutinesProvider.notifier).updatePetStatus(widget.routine.id, pet.petId, true);
+        invalidatePetRecords(ref, pet.petId);
       }
       ref.invalidate(routineTodayStatusProvider(widget.routine.id));
       final ym = DateTime.now();

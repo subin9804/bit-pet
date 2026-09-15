@@ -91,10 +91,16 @@ final petDayTimelineProvider =
 });
 
 // ── 개체 상세 — 요약 카드 (카테고리별 최신 1건) ─────────────
+// 전체 타임라인 최신 N건에서 카테고리별로 고르면, 급여처럼 자주 쌓이는 기록이 N건을
+// 채워 청소·메모 등이 요약에서 빠진다 → 카테고리마다 1건씩 따로 받는다.
+const _summaryCategories = ['WEIGHT', 'FEEDING', 'CLEANING', 'MEMO', 'MATING', 'LAYING'];
+
 final petRecordSummaryProvider =
-    FutureProvider.family<List<TimelineItem>, int>((ref, petId) {
-  return ref.watch(recordRepositoryProvider).getTimeline(
-        petId,
-        limit: 30,
-      );
+    FutureProvider.family<List<TimelineItem>, int>((ref, petId) async {
+  final repo = ref.watch(recordRepositoryProvider);
+  final results = await Future.wait(_summaryCategories.map(
+    (cat) => repo.getTimeline(petId, categories: [cat], limit: 1),
+  ));
+  return results.expand((l) => l).toList()
+    ..sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
 });

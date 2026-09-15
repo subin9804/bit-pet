@@ -7,6 +7,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_input_styles.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/pale_palette.dart';
+import '../../../core/widgets/pet_avatar.dart';
 import '../../../core/widgets/step_dots.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../../pet/data/models/pet_models.dart';
@@ -15,7 +16,7 @@ import '../../pet/providers/pet_provider.dart';
 import '../data/models/record_models.dart';
 import '../data/record_repository.dart';
 import '../providers/record_provider.dart';
-import '../providers/feed_provider.dart';
+import '../providers/record_invalidation.dart';
 import 'widgets/feed_items_editor.dart';
 import 'widgets/selected_pet_row.dart';
 
@@ -215,10 +216,8 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
           final apiItem = bulkMemo.isNotEmpty ? item.copyWith(memo: bulkMemo) : item;
           await repo.addFeeding(pet.id, apiItem.toApiMap(fedAt: now));
         }
-        ref.invalidate(feedSessionsProvider(pet.id));
-        ref.invalidate(petDetailProvider(pet.id));
+        invalidatePetRecords(ref, pet.id);
       }
-      ref.invalidate(homeCalendarProvider(_yearMonth(now)));
       setState(() {
         _savedCount = pets.length;
         _step = _FabStep.done;
@@ -244,11 +243,9 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
           final apiItem = petMemo.isNotEmpty ? item.copyWith(memo: petMemo) : item;
           await repo.addFeeding(pet.id, apiItem.toApiMap(fedAt: now));
         }
-        ref.invalidate(feedSessionsProvider(pet.id));
-        ref.invalidate(petDetailProvider(pet.id));
+        invalidatePetRecords(ref, pet.id);
         count++;
       }
-      ref.invalidate(homeCalendarProvider(_yearMonth(now)));
       setState(() {
         _savedCount = count;
         _step = _FabStep.done;
@@ -720,16 +717,13 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                   ),
                   child: Row(
                     children: [
-                      Container(
-                        width: 22, height: 22,
-                        decoration: BoxDecoration(
-                          color: active
-                              ? Colors.white.withValues(alpha: 0.55)
-                              : pPale,
-                          borderRadius: BorderRadius.zero,
-                        ),
-                        child: Icon(Icons.pets, size: 12,
-                            color: AppColors.primary),
+                      PetAvatar(
+                        imageUrl: p.profileImageUrl,
+                        size: 22,
+                        background: active
+                            ? Colors.white.withValues(alpha: 0.55)
+                            : pPale,
+                        iconColor: AppColors.primary,
                       ),
                       const SizedBox(width: 6),
                       Text(p.name,
@@ -777,14 +771,11 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                   padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
                   child: Row(
                     children: [
-                      Container(
-                        width: 44, height: 44,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.55),
-                          borderRadius: BorderRadius.zero,
-                        ),
-                        child: Icon(Icons.pets, size: 22,
-                            color: AppColors.primary),
+                      PetAvatar(
+                        imageUrl: activePet.profileImageUrl,
+                        size: 44,
+                        background: Colors.white.withValues(alpha: 0.55),
+                        iconColor: AppColors.primary,
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -958,15 +949,12 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Container(
-                                    width: 22, height: 22,
-                                    decoration: BoxDecoration(
-                                      color: PalePalette.pale(PalePalette
-                                          .keyFromHex(pets[_activePerPetIdx + 1].colorCode)),
-                                      borderRadius: BorderRadius.zero,
-                                    ),
-                                    child: Icon(Icons.pets, size: 12,
-                                        color: AppColors.primary),
+                                  PetAvatar(
+                                    imageUrl: pets[_activePerPetIdx + 1].profileImageUrl,
+                                    size: 22,
+                                    background: PalePalette.pale(PalePalette
+                                        .keyFromHex(pets[_activePerPetIdx + 1].colorCode)),
+                                    iconColor: AppColors.primary,
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
@@ -1130,9 +1118,8 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
             };
             await repo.addLaying(pet.id, layData);
         }
-        ref.invalidate(petDetailProvider(pet.id));
+        invalidatePetRecords(ref, pet.id);
       }
-      ref.invalidate(homeCalendarProvider(_yearMonth(now)));
       setState(() {
         _savedCount = pets.length;
         _step = _FabStep.done;
@@ -1143,9 +1130,6 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
       if (mounted) setState(() => _saving = false);
     }
   }
-
-  String _yearMonth(DateTime dt) =>
-      '${dt.year}-${dt.month.toString().padLeft(2, '0')}';
 
   // ── simpleForm 빌드 ────────────────────────────────────────────
   Widget _buildSimpleForm(AsyncValue<List<Pet>> petsAsync) {
@@ -1542,14 +1526,11 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                                   horizontal: 14, vertical: 10),
                               child: Row(
                                 children: [
-                                  Container(
-                                    width: 32, height: 32,
-                                    decoration: BoxDecoration(
-                                      color: PalePalette.pale(key),
-                                      borderRadius: BorderRadius.zero,
-                                    ),
-                                    child: Icon(Icons.pets, size: 15,
-                                        color: AppColors.primary),
+                                  PetAvatar(
+                                    imageUrl: p.profileImageUrl,
+                                    size: 32,
+                                    background: PalePalette.pale(key),
+                                    iconColor: AppColors.primary,
                                   ),
                                   const SizedBox(width: 10),
                                   Expanded(
@@ -1975,16 +1956,13 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
                         padding: const EdgeInsets.fromLTRB(10, 12, 10, 10),
                         child: Column(
                           children: [
-                            Container(
-                              width: 52, height: 52,
-                              decoration: BoxDecoration(
-                                color: isOn
-                                    ? Colors.white.withValues(alpha: 0.55)
-                                    : pale,
-                                borderRadius: BorderRadius.zero,
-                              ),
-                              child: Icon(Icons.pets, size: 24,
-                                  color: AppColors.primary),
+                            PetAvatar(
+                              imageUrl: p.profileImageUrl,
+                              size: 52,
+                              background: isOn
+                                  ? Colors.white.withValues(alpha: 0.55)
+                                  : pale,
+                              iconColor: AppColors.primary,
                             ),
                             const SizedBox(height: 8),
                             Text(p.name,
@@ -2508,13 +2486,11 @@ class _PartnerResultCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 36, height: 36,
-            decoration: BoxDecoration(
-              color: PalePalette.ink(key).withOpacity(0.15),
-              borderRadius: BorderRadius.zero,
-            ),
-            child: Icon(Icons.pets, size: 18, color: PalePalette.ink(key)),
+          PetAvatar(
+            imageUrl: pet.profileImageUrl,
+            size: 36,
+            background: PalePalette.ink(key).withOpacity(0.15),
+            iconColor: PalePalette.ink(key),
           ),
           const SizedBox(width: 10),
           Expanded(

@@ -9,6 +9,7 @@ import '../data/models/routine_models.dart';
 import '../data/routine_repository.dart';
 import '../providers/routine_provider.dart';
 import '../../record/presentation/feeding_record_sheet.dart';
+import '../../record/providers/record_invalidation.dart';
 
 class RoutineTodayCheckSheet extends ConsumerStatefulWidget {
   final TodayRoutine routine;
@@ -130,6 +131,7 @@ class _RoutineTodayCheckSheetState
         ref
             .read(todayRoutinesProvider.notifier)
             .updatePetStatus(widget.routine.id, s.petId, s.isCompleted);
+        invalidatePetRecords(ref, s.petId);
       }
       ref.invalidate(routineTodayStatusProvider(widget.routine.id));
       if (mounted) Navigator.of(context).pop();

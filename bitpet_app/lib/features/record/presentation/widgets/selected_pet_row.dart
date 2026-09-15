@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/theme/pale_palette.dart';
+import '../../../../core/widgets/pet_avatar.dart';
 import '../../../pet/data/models/pet_models.dart';
 
 /// 선택된 개체 요약 행.
@@ -35,19 +36,12 @@ class SelectedPetRow extends StatelessWidget {
                 final key = PalePalette.keyFromHex(pet.colorCode);
                 return Positioned(
                   left: i * 22.0,
-                  child: Container(
-                    width: 30, height: 30,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.55),
-                      borderRadius: BorderRadius.zero,
-                      border: Border.all(
-                          color: bandColor, width: 1.5),
-                    ),
-                    child: Icon(
-                      Icons.pets,
-                      size: 14,
-                      color: PalePalette.ink(key),
-                    ),
+                  child: PetAvatar(
+                    imageUrl: pet.profileImageUrl,
+                    size: 30,
+                    background: Colors.white.withValues(alpha: 0.55),
+                    iconColor: PalePalette.ink(key),
+                    border: Border.all(color: bandColor, width: 1.5),
                   ),
                 );
               }).toList(),

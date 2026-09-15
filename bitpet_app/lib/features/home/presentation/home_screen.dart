@@ -26,7 +26,9 @@ class HomeScreen extends ConsumerWidget {
   }
 
   // ── FAB 노출 규칙 ────────────────────────────────────────────
-  // 뜨는 곳: 홈 / 내 개체 목록 / 개체 상세 / 루틴 목록 — 딱 이 넷.
+  // 뜨는 곳: 홈 / 개체 상세 — 딱 이 둘.
+  // 내 개체 목록·루틴 목록은 뺐다: 그 화면의 + 는 '개체/루틴 추가'로 읽혀서
+  //   기록 시트가 열리면 헷갈린다 (2026-09-15 실사용 피드백).
   // 안 뜨는 곳: 그 외 전부. 특히 **모든 등록·수정 화면**은 아래 _isFormRoute로
   //             한 번 더 잠가서, 새 폼 라우트가 생겨도 실수로 뜨지 않게 한다.
   //             (커뮤니티는 자체 글쓰기 버튼, 기록 목록 화면은 자체 FAB이 있다)
@@ -45,10 +47,7 @@ class HomeScreen extends ConsumerWidget {
 
   bool get _showFab {
     if (_isFormRoute(location)) return false;
-    return location == '/home' ||
-        location == '/pets' ||
-        location == '/routines' ||
-        _detailPetId != null;
+    return location == '/home' || _detailPetId != null;
   }
 
   void _onFabPressed(BuildContext context) {

@@ -7,6 +7,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_chip.dart';
 import '../../../core/widgets/app_toggle.dart';
 import '../../../core/widgets/empty_state.dart';
+import '../../../core/widgets/pet_avatar.dart';
 import '../../../core/widgets/skeleton_loader.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../data/models/routine_models.dart';
@@ -1108,16 +1109,15 @@ class _RoutinePetPickerSheetState
                             Stack(
                               clipBehavior: Clip.none,
                               children: [
-                                Container(
-                                  width: 46, height: 46,
-                                  color: on
+                                PetAvatar(
+                                  imageUrl: p.profileImageUrl,
+                                  size: 46,
+                                  background: on
                                       ? Colors.white.withValues(alpha: 0.55)
                                       : petColor,
-                                  child: const Center(
-                                    child: Text('🦎',
-                                        style:
-                                            TextStyle(fontSize: 22)),
-                                  ),
+                                  iconColor: ink,
+                                  fallback: const Text('🦎',
+                                      style: TextStyle(fontSize: 22)),
                                 ),
                                 if (on)
                                   Positioned(

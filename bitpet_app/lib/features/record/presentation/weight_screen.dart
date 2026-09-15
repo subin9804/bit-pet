@@ -12,6 +12,7 @@ import '../../../core/widgets/skeleton_loader.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../data/models/record_models.dart';
 import '../data/record_repository.dart';
+import '../providers/record_invalidation.dart';
 import '../providers/record_provider.dart';
 import '../../pet/providers/pet_provider.dart';
 
@@ -105,8 +106,7 @@ class _WeightScreenState extends ConsumerState<WeightScreen> {
       await ref
           .read(recordRepositoryProvider)
           .addWeight(widget.petId, w, _entryDate, null);
-      ref.invalidate(weightListProvider(widget.petId));
-      ref.invalidate(petDetailProvider(widget.petId));
+      invalidatePetRecords(ref, widget.petId);
       if (mounted) {
         showToast(context, '체중이 기록되었습니다.', type: ToastType.success);
         _entryCtrl.clear();
@@ -130,9 +130,7 @@ class _WeightScreenState extends ConsumerState<WeightScreen> {
     if (!ok) return;
     try {
       await ref.read(recordRepositoryProvider).deleteWeight(id);
-      ref.invalidate(weightListProvider(widget.petId));
-      ref.invalidate(petDetailProvider(widget.petId));
-      ref.invalidate(petCalendarProvider);
+      invalidatePetRecords(ref, widget.petId);
       if (mounted) showToast(context, '기록을 삭제했어요.', type: ToastType.success);
     } catch (e) {
       if (mounted) showToast(context, '오류: $e', type: ToastType.error);
