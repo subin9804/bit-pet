@@ -210,10 +210,14 @@ PostgreSQL이 재정규화하는데 의미는 같다.)
   V4(`user_notification_pref` — 알림 종류별 수신 설정 + `notification_log_dtl` 상태에 `SKIPPED` 추가),
   V5(`post_category_cd` 에 NOTICE 공지사항 카테고리 시드),
   V6(`notification_log_dtl.sent_at` 인덱스 — 보존기간 정리 배치용),
-  V7(`morph_cd.is_user_defined` + `created_by` — 사용자 정의 모프).
-  **다음은 V8.**
+  V7(`morph_cd.is_user_defined` + `created_by` — 사용자 정의 모프),
+  V8(`species_cd.category` CHECK 에 포유류 `M` 추가 — subcategory `SMALL_MAMMAL`).
+  **다음은 V9.**
 - 코드성 시드(`memo_tag_cd`, `post_category_cd`, `serial_pool_stat_mst`)는 베이스라인 하단에 들어 있다.
   종·모프 마스터는 그대로 `R__01`/`R__02` 담당.
+- ⚠️ **`R__02` 는 파일에 없는 공식 모프를 매 실행마다 지운다** (개체가 물고 있으면 FK RESTRICT 라 비활성화만).
+  공식 모프를 DB 에 직접 INSERT 하지 말고 반드시 `R__02` 에 추가할 것. 사용자 정의 모프는 대상 아님.
+- 새 subcategory 를 추가하면 앱 `species_bottom_sheet.dart` 의 라벨·순서 목록에도 넣어야 레일에 뜬다.
 - 어떤 컬럼이 왜 생겼는지 추적할 땐 git 이력을 본다:
   `git log --diff-filter=D --name-only -- 'bitpet_server/src/main/resources/db/migration/V*'`
 
@@ -669,7 +673,7 @@ test → GHCR 이미지 빌드(**태그 = 커밋 SHA**) → SSH → `deploy/scri
 - 외부 시스템 영향(push·삭제·외부 API 호출)은 확인 후 진행
 - Flutter UI는 디자인 확정 전까지 **뼈대(Skeleton)만** 구현, 상세 UI는 별도 지시 대기
 - 새 Flyway 마이그레이션은 기존 파일 절대 수정 금지, 항상 다음 버전으로 신규 작성
-  (2026-08-19 스쿼시 이후 V2~V7 추가됨, **다음은 V8**. `V1__baseline_schema.sql` 수정 = 모든 DB 기동 불가)
+  (2026-08-19 스쿼시 이후 V2~V8 추가됨, **다음은 V9**. `V1__baseline_schema.sql` 수정 = 모든 DB 기동 불가)
 
 ---
 

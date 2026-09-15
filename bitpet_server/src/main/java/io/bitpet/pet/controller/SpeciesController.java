@@ -34,7 +34,7 @@ public class SpeciesController {
     private final MorphService morphService;
 
     @Operation(summary = "종 목록 조회 (subcategory 또는 category 필터 가능)",
-            description = "subcategory(G/L/C/S/T/F/N) 우선, 없으면 category(R/A), 둘 다 없으면 전체 반환.")
+            description = "subcategory(GECKO/LIZARD/CHAMELEON/SNAKE/TURTLE/FROG/NEWT/SMALL_MAMMAL) 우선, 없으면 category(R/A/M), 둘 다 없으면 전체 반환.")
     @GetMapping
     public ApiResponse<List<SpeciesCdResponse>> list(
             @RequestParam(required = false) String category,

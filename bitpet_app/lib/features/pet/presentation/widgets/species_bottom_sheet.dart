@@ -4,20 +4,22 @@ import '../../../../core/theme/app_colors.dart';
 import '../../data/models/pet_models.dart';
 import '../../providers/pet_provider.dart';
 
-// ── subcategory 코드 → 한글 라벨 (DB: GECKO/LIZARD/CHAMELEON/SNAKE/TURTLE/FROG/NEWT)
+// ── subcategory 코드 → 한글 라벨 (DB: GECKO/LIZARD/CHAMELEON/SNAKE/TURTLE/FROG/NEWT/SMALL_MAMMAL)
+// ⚠️ 여기 없는 subcategory 의 종은 레일에 안 떠서 검색으로만 찾을 수 있다
 const _kSubcategoryLabels = <String, String>{
-  'GECKO':     '게코',
-  'LIZARD':    '도마뱀',
-  'CHAMELEON': '카멜레온',
-  'SNAKE':     '뱀',
-  'TURTLE':    '거북',
-  'FROG':      '개구리',
-  'NEWT':      '도롱뇽',
+  'GECKO':        '게코',
+  'LIZARD':       '도마뱀',
+  'CHAMELEON':    '카멜레온',
+  'SNAKE':        '뱀',
+  'TURTLE':       '거북',
+  'FROG':         '개구리',
+  'NEWT':         '도롱뇽',
+  'SMALL_MAMMAL': '소동물',
 };
 
 // 레일 노출 순서
 const _kSubcategoryOrder = [
-  'GECKO', 'LIZARD', 'CHAMELEON', 'SNAKE', 'TURTLE', 'FROG', 'NEWT',
+  'GECKO', 'LIZARD', 'CHAMELEON', 'SNAKE', 'TURTLE', 'FROG', 'NEWT', 'SMALL_MAMMAL',
 ];
 
 /// 03c — 종 선택 바텀시트

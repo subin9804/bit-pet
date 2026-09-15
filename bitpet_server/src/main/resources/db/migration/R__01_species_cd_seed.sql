@@ -1,11 +1,16 @@
 -- R__01_species_cd_seed.sql
--- 파충류·양서류 종 마스터 데이터 v1.1 (148종)
+-- 파충류·양서류 종 마스터 데이터 v1.1 (Notion "파충류·양서류 종 마스터 v1.1" 기준, 2026-09-15 동기화)
 -- R 파일: 체크섬 변경 시 Flyway가 자동 재실행
 -- 전략: INSERT ON CONFLICT (code) DO UPDATE → FK 참조 안전, 중복 실행 가능
 --
--- category: R=파충류, A=양서류
--- subcategory: GECKO / LIZARD / CHAMELEON / SNAKE / TURTLE / FROG / NEWT
+-- category: R=파충류, A=양서류, M=포유류(V8)
+-- subcategory: GECKO / LIZARD / CHAMELEON / SNAKE / TURTLE / FROG / NEWT / SMALL_MAMMAL
 -- display_order: subcategory 내 100단위 채번 (일부 예외 존재)
+--   분리·아종 코드는 부모 order 뒤에 10단위로 붙인다 (Notion에 order 미기재)
+--
+-- 종 분리(CAVE / HELMETED / LEAF_TAILED)는 부모 코드를 지우지 않고
+-- is_active=false 로 남긴다 — 이미 그 코드로 등록된 개체의 FK 보호.
+-- 단 KNOB_TAILED_GECKO 는 분리 후에도 활성 유지 (세부 종을 모르는 사용자의 선택지).
 -- ─────────────────────────────────────────────────────────────────────────
 
 INSERT INTO species_cd
@@ -13,9 +18,12 @@ INSERT INTO species_cd
 VALUES
 
 -- ═══════════════════════════════════════════════════════════════════════
---  파충류 (R)  ·  GECKO  38종
+--  파충류 (R)  ·  GECKO  활성 53종 (+ 분리로 비활성화된 부모 3, 목록 제외 1)
 -- ═══════════════════════════════════════════════════════════════════════
 ('LEOPARD_GECKO',           'R', 'GECKO', '레오파드게코',           'Leopard Gecko',                   'Eublepharis macularius',                  100,  true),
+('LEOPARD_GECKO_FUSCUS',    'R', 'GECKO', '푸스쿠스레오파드게코',   'Leopard Gecko (fuscus)',          'Eublepharis macularius fuscus',           110,  true),
+('LEOPARD_GECKO_MONTANUS',  'R', 'GECKO', '몬타누스레오파드게코',   'Leopard Gecko (montanus)',        'Eublepharis macularius montanus',         120,  true),
+('LEOPARD_GECKO_FASCIOLATUS','R','GECKO', '파시올라투스레오파드게코','Leopard Gecko (fasciolatus)',    'Eublepharis macularius fasciolatus',      130,  true),
 ('CRESTED_GECKO',           'R', 'GECKO', '크레스티드게코',         'Crested Gecko',                   'Correlophus ciliatus',                    200,  true),
 ('GARGOYLE_GECKO',          'R', 'GECKO', '가고일게코',             'Gargoyle Gecko',                  'Rhacodactylus auriculatus',               300,  true),
 ('AFRICAN_FAT_TAILED_GECKO','R', 'GECKO', '팻테일게코',             'African Fat-tailed Gecko',        'Hemitheconyx caudicinctus',               400,  true),
@@ -25,14 +33,22 @@ VALUES
 ('NEON_DAY_GECKO',          'R', 'GECKO', '네온데이게코',           'Neon Day Gecko',                  'Phelsuma klemmeri',                       800,  true),
 ('PEACOCK_DAY_GECKO',       'R', 'GECKO', '피콕데이게코',           'Peacock Day Gecko',               'Phelsuma quadriocellata',                 900,  true),
 ('LINED_DAY_GECKO',         'R', 'GECKO', '라인데이게코',           'Lined Day Gecko',                 'Phelsuma lineata',                        1000, true),
-('KNOB_TAILED_GECKO',       'R', 'GECKO', '납테일게코',             'Knob-tailed Gecko',               'Nephrurus levis',                         1100, true),
+('KNOB_TAILED_GECKO',       'R', 'GECKO', '납테일게코',             'Knob-tailed Gecko',               'Nephrurus levis',                         1100, true),  -- 6종 분리 후에도 활성 (종을 모르면 이걸 고른다)
+('KNOB_TAILED_LEVIS',       'R', 'GECKO', '레비스납테일게코',       'Smooth Knob-tailed Gecko',        'Nephrurus levis levis',                   1110, true),
+('KNOB_TAILED_PILBARENSIS', 'R', 'GECKO', '필바렌시스납테일게코',   'Pilbara Knob-tailed Gecko',       'Nephrurus levis pilbarensis',             1120, true),
+('KNOB_TAILED_WHEELERI',    'R', 'GECKO', '휠러리납테일게코',       'Wheeler''s Knob-tailed Gecko',    'Nephrurus wheeleri wheeleri',             1130, true),
+('KNOB_TAILED_CINCTUS',     'R', 'GECKO', '싱크투스납테일게코',     'Banded Knob-tailed Gecko',        'Nephrurus wheeleri cinctus',              1140, true),
+('KNOB_TAILED_AMYAE',       'R', 'GECKO', '에이미아이납테일게코',   'Centralian Rough Knob-tailed Gecko','Nephrurus amyae',                       1150, true),
+('KNOB_TAILED_ASPER',       'R', 'GECKO', '아스퍼납테일게코',       'Rough Knob-tailed Gecko',         'Nephrurus asper',                         1160, true),
 ('VIPER_GECKO',             'R', 'GECKO', '바이퍼게코',             'Viper Gecko',                     'Hemidactylus imbricatus',                 1200, true),
 ('MOURNING_GECKO',          'R', 'GECKO', '모어닝게코',             'Mourning Gecko',                  'Lepidodactylus lugubris',                 1300, true),
 ('CHAHOUA_GECKO',           'R', 'GECKO', '차화게코',               'Chahoua Gecko',                   'Mniarogekko chahoua',                     1400, true),
 ('LEACHIANUS_GT',           'R', 'GECKO', '리키에너스GT',           'Leachianus Gecko (Grande Terre)', 'Rhacodactylus leachianus (GT)',            1500, true),
 ('LEACHIANUS_ISLAND',       'R', 'GECKO', '리키에너스아일랜드',     'Leachianus Gecko (Island)',       'Rhacodactylus leachianus (Island)',        1600, true),
 ('FROG_EYED_GECKO',         'R', 'GECKO', '프록아이게코',           'Frog-eyed Gecko',                 'Teratoscincus scincus',                   1700, true),
-('HELMETED_GECKO',          'R', 'GECKO', '호주헬멧티드게코',       'Helmeted Gecko',                  'Diplodactylus galeatus',                  1800, true),
+('HELMETED_GECKO',          'R', 'GECKO', '호주헬멧티드게코',       'Helmeted Gecko',                  'Diplodactylus galeatus',                  1800, false), -- 2종으로 분리
+('HELMETED_GECKO_AUSTRALIAN','R','GECKO', '호주헬멧티드게코',       'Australian Helmeted Gecko',       'Diplodactylus galeatus',                  1810, true),
+('HELMETED_GECKO_MOROCCAN', 'R', 'GECKO', '모로코헬멧티드게코',     'Moroccan Helmeted Gecko',         'Quedenfeldtia trachyblepharus',           1820, true),
 ('THICK_TAILED_GECKO',      'R', 'GECKO', '틱테일게코',             'Thick-tailed Gecko',              'Underwoodisaurus milii',                  1900, true),
 ('ANGRAMAINYU_GECKO',       'R', 'GECKO', '앙그라마이뉴',           'Angramainyu Gecko',               'Eublepharis angramainyu',                 2000, true),
 ('DUNE_GECKO',              'R', 'GECKO', '듄게코',                 'Dune Gecko',                      'Stenodactylus petrii',                    2100, true),
@@ -43,19 +59,27 @@ VALUES
 ('SARASIN_GECKO',           'R', 'GECKO', '사라신게코',             'Sarasin''s Gecko',                'Correlophus sarasinorum',                 2600, true),
 ('CHAMELEON_GECKO',         'R', 'GECKO', '카멜레온게코',           'Chameleon Gecko',                 'Eurydactylodes agricolae',                2700, true),
 ('BIBRON_GECKO',            'R', 'GECKO', '비브론게코',             'Bibron''s Gecko',                 'Chondrodactylus bibronii',                2800, true),
-('WHITE_LINED_GECKO',       'R', 'GECKO', '화이트라인드게코',       'White-lined Gecko',               'Gekko vittatus',                          2900, true),
+('WHITE_LINED_GECKO',       'R', 'GECKO', '화이트라인게코',         'White-lined Gecko',               'Gekko vittatus',                          2900, true),
 ('GOLDEN_GECKO',            'R', 'GECKO', '골든게코',               'Golden Gecko',                    'Gekko badenii',                           3000, true),
-('CRESTED_DAY_GECKO',       'R', 'GECKO', '크레스티드데이게코',     'Crested Day Gecko',               'Phelsuma guimbeaui',                      3100, true),
-('LEAF_TAILED_GECKO',       'R', 'GECKO', '리프테일게코',           'Leaf-tailed Gecko',               'Uroplatus phantasticus',                  3200, true),
+('CRESTED_DAY_GECKO',       'R', 'GECKO', '크레스티드데이게코',     'Crested Day Gecko',               'Phelsuma guimbeaui',                      3100, false), -- Notion v1.1 목록에 없음
+('LEAF_TAILED_GECKO',       'R', 'GECKO', '리프테일게코',           'Leaf-tailed Gecko',               'Uroplatus phantasticus',                  3200, false), -- 6종으로 분리
+('LEAF_TAILED_SATANIC',     'R', 'GECKO', '사타닉리프테일게코',     'Satanic Leaf-tailed Gecko',       'Uroplatus phantasticus',                  3210, true),
+('LEAF_TAILED_MOSSY',       'R', 'GECKO', '모시리프테일게코',       'Mossy Leaf-tailed Gecko',         'Uroplatus sikorae',                       3220, true),
+('LEAF_TAILED_GIANT',       'R', 'GECKO', '자이언트리프테일게코',   'Giant Leaf-tailed Gecko',         'Uroplatus fimbriatus',                    3230, true),
+('LEAF_TAILED_LINEATUS',    'R', 'GECKO', '리니아투스리프테일게코', 'Lined Leaf-tailed Gecko',         'Uroplatus lineatus',                      3240, true),
+('LEAF_TAILED_HENKEL',      'R', 'GECKO', '헨켈리프테일게코',       'Henkel''s Leaf-tailed Gecko',     'Uroplatus henkeli',                       3250, true),
+('LEAF_TAILED_EBENAUI',     'R', 'GECKO', '에베나우이리프테일게코', 'Spearpoint Leaf-tailed Gecko',    'Uroplatus ebenaui',                       3260, true),
 ('HOUSE_GECKO',             'R', 'GECKO', '하우스게코',             'Common House Gecko',              'Hemidactylus frenatus',                   3400, true),
 ('FLYING_GECKO',            'R', 'GECKO', '플라잉게코',             'Flying Gecko',                    'Gekko kuhli',                             3600, true),
 ('MADAGASCAR_GROUND_GECKO', 'R', 'GECKO', '마다가스카르그라운드게코','Madagascar Ground Gecko',        'Paroedura androyensis',                   3700, true),
 ('BANDED_GECKO',            'R', 'GECKO', '밴디드게코',             'Western Banded Gecko',            'Coleonyx variegatus',                     3800, true),
-('CAVE_GECKO',              'R', 'GECKO', '케이브게코',             'Cave Gecko',                      'Goniurosaurus luii',                      3900, true),
+('CAVE_GECKO',              'R', 'GECKO', '케이브게코',             'Cave Gecko',                      'Goniurosaurus luii',                      3900, false), -- 2종으로 분리
+('CAVE_GECKO_CHINESE',      'R', 'GECKO', '차이니즈케이브게코',     'Chinese Cave Gecko',              'Goniurosaurus spp. (China)',              3910, true),
+('CAVE_GECKO_JAPANESE',     'R', 'GECKO', '재패니즈케이브게코',     'Japanese Cave Gecko',             'Goniurosaurus kuroiwae',                  3920, true),
 ('STRIPED_DAY_GECKO',       'R', 'GECKO', '스트라이프드데이게코',   'Striped Day Gecko',               'Phelsuma lineata bifasciata',             4000, true),
 
 -- ═══════════════════════════════════════════════════════════════════════
---  파충류 (R)  ·  LIZARD  35종
+--  파충류 (R)  ·  LIZARD  36종
 -- ═══════════════════════════════════════════════════════════════════════
 ('BEARDED_DRAGON',              'R', 'LIZARD', '비어디드래곤',               'Bearded Dragon',                       'Pogona vitticeps',                    100,  true),
 ('BLUE_TONGUE_SKINK',           'R', 'LIZARD', '블루텅스킨크',               'Blue-tongued Skink',                   'Tiliqua scincoides',                  200,  true),
@@ -65,7 +89,7 @@ VALUES
 ('ACKIE_MONITOR',               'R', 'LIZARD', '액키모니터',                 'Ackie Monitor',                        'Varanus acanthurus',                  600,  true),
 ('GREEN_IGUANA',                'R', 'LIZARD', '그린이구아나',               'Green Iguana',                         'Iguana iguana',                       700,  true),
 ('RHINOCEROS_IGUANA',           'R', 'LIZARD', '라이노세로스이구아나',       'Rhinoceros Iguana',                    'Cyclura cornuta',                     800,  true),
-('UROMASTYX',                   'R', 'LIZARD', '유로마스틱스',               'Uromastyx',                            'Uromastyx aegyptia',                  900,  true),
+('UROMASTYX',                   'R', 'LIZARD', '유로매스틱스',               'Uromastyx',                           'Uromastyx aegyptia',                  900,  true),
 ('SAND_FISH_SKINK',             'R', 'LIZARD', '샌드피쉬스킨크',             'Sandfish Skink',                       'Scincus scincus',                     1000, true),
 ('LEGLESS_LIZARD',              'R', 'LIZARD', '레그리스리자드',             'Legless Lizard',                       'Anguis fragilis',                     1100, true),
 ('CHINESE_WATER_DRAGON',        'R', 'LIZARD', '차이니즈워터드래곤',         'Chinese Water Dragon',                 'Physignathus cocincinus',             1200, true),
@@ -77,11 +101,11 @@ VALUES
 ('FIRE_SKINK',                  'R', 'LIZARD', '파이어스킨크',               'Fire Skink',                           'Lepidothyris fernandi',               1800, true),
 ('SCHNEIDER_SKINK',             'R', 'LIZARD', '슈나이더스킨크',             'Schneider''s Skink',                   'Eumeces schneideri',                  1900, true),
 ('PINK_TONGUE_SKINK',           'R', 'LIZARD', '핑크텅스킨크',               'Pink-tongued Skink',                   'Cyclodomorphus gerrardii',            2000, true),
-('SHINGLEBACK_SKINK',           'R', 'LIZARD', '슁글백스킨크',               'Shingleback Skink',                    'Tiliqua rugosa',                      2100, true),
+('SHINGLEBACK_SKINK',           'R', 'LIZARD', '싱글백스킨크',              'Shingleback Skink',                    'Tiliqua rugosa',                      2100, true),
 ('CURLY_TAILED_LIZARD',         'R', 'LIZARD', '컬리테일리자드',             'Curly-tailed Lizard',                  'Leiocephalus carinatus',              2200, true),
 ('COLLARED_LIZARD',             'R', 'LIZARD', '칼라드리자드',               'Collared Lizard',                      'Crotaphytus collaris',                2300, true),
-('MALI_UROMASTYX',              'R', 'LIZARD', '말리유로마스틱스',           'Mali Uromastyx',                       'Uromastyx dispar maliensis',          2400, true),
-('ORNATE_UROMASTYX',            'R', 'LIZARD', '오네이트유로마스틱스',       'Ornate Uromastyx',                     'Uromastyx ornata',                    2500, true),
+('MALI_UROMASTYX',              'R', 'LIZARD', '말리유로매스틱스',           'Mali Uromastyx',                      'Uromastyx dispar maliensis',          2400, true),
+('ORNATE_UROMASTYX',            'R', 'LIZARD', '오네이트유로매스틱스',       'Ornate Uromastyx',                    'Uromastyx ornata',                    2500, true),
 ('NILE_MONITOR',                'R', 'LIZARD', '나일모니터',                 'Nile Monitor',                         'Varanus niloticus',                   2600, true),
 ('ASIAN_WATER_MONITOR',         'R', 'LIZARD', '아시안워터모니터',           'Asian Water Monitor',                  'Varanus salvator',                    2700, true),
 ('EMERALD_TREE_MONITOR',        'R', 'LIZARD', '에메랄드트리모니터',         'Emerald Tree Monitor',                 'Varanus prasinus',                    2800, true),
@@ -91,10 +115,11 @@ VALUES
 ('EGERNIA_EPSISOLUS',           'R', 'LIZARD', '에게르니아 앱시솔루스',      'Eastern Pilbara Spiny-tailed Skink',   'Egernia epsisolus',                   3300, true),
 ('EGERNIA_CYGNITOS',            'R', 'LIZARD', '에게르니아 시그니토스',      'Western Pilbara Spiny-tailed Skink',   'Egernia cygnitos',                    3400, true),
 ('BLACK_THROAT_MONITOR',        'R', 'LIZARD', '블랙쓰롯모니터',             'Black-throated Monitor',               'Varanus albigularis ionidesi',        3500, true),
-('QUINCE_MONITOR',              'R', 'LIZARD', '꾸잉모니터',                 'Quince Monitor',                       'Varanus cumingi',                     3600, true),
+('QUINCE_MONITOR',              'R', 'LIZARD', '퀸모니터',                   'Quince Monitor',                       'Varanus cumingi',                     3600, true),
+('GIDGEE_SKINK',                'R', 'LIZARD', '깃지스킨크',                 'Gidgee Skink',                         'Egernia stokesii',                    3700, true),
 
 -- ═══════════════════════════════════════════════════════════════════════
---  파충류 (R)  ·  CHAMELEON  8종
+--  파충류 (R)  ·  CHAMELEON  9종
 -- ═══════════════════════════════════════════════════════════════════════
 ('VEILED_CHAMELEON',  'R', 'CHAMELEON', '베일드카멜레온',  'Veiled Chameleon',     'Chamaeleo calyptratus',  100, true),
 ('PANTHER_CHAMELEON', 'R', 'CHAMELEON', '팬서카멜레온',   'Panther Chameleon',    'Furcifer pardalis',      200, true),
@@ -104,6 +129,7 @@ VALUES
 ('MELLER_CHAMELEON',  'R', 'CHAMELEON', '멜러카멜레온',   'Meller''s Chameleon',  'Trioceros melleri',      600, true),
 ('CARPET_CHAMELEON',  'R', 'CHAMELEON', '카펫카멜레온',   'Carpet Chameleon',     'Furcifer lateralis',     700, true),
 ('SENEGAL_CHAMELEON', 'R', 'CHAMELEON', '세네갈카멜레온', 'Senegal Chameleon',    'Chamaeleo senegalensis', 900, true),
+('BROOKESIA_BRYGOOI', 'R', 'CHAMELEON', '브리구이카멜레온', 'Brygoo''s Leaf Chameleon', 'Brookesia brygooi', 1000, true),
 
 -- ═══════════════════════════════════════════════════════════════════════
 --  파충류 (R)  ·  SNAKE  20종
@@ -119,7 +145,7 @@ VALUES
 ('RAINBOW_BOA',             'R', 'SNAKE', '레인보우보아',       'Brazilian Rainbow Boa',    'Epicrates cenchria',            900,  true),
 ('CARPET_PYTHON',           'R', 'SNAKE', '카펫파이톤',         'Carpet Python',            'Morelia spilota',               1000, true),
 ('CHILDREN_PYTHON',         'R', 'SNAKE', '칠드런파이톤',       'Children''s Python',       'Antaresia childreni',           1100, true),
-('SPOTTED_PYTHON',          'R', 'SNAKE', '스파티드파이톤',     'Spotted Python',           'Antaresia maculosa',            1200, true),
+('SPOTTED_PYTHON',          'R', 'SNAKE', '스팟티드파이톤',    'Spotted Python',           'Antaresia maculosa',            1200, true),
 ('BLOOD_PYTHON',            'R', 'SNAKE', '블러드파이톤',       'Blood Python',             'Python brongersmai',            1300, true),
 ('WOMA_PYTHON',             'R', 'SNAKE', '워마파이톤',         'Woma Python',              'Aspidites ramsayi',             1400, true),
 ('GREEN_TREE_PYTHON',       'R', 'SNAKE', '그린트리파이톤',     'Green Tree Python',        'Morelia viridis',               1500, true),
@@ -178,7 +204,7 @@ VALUES
 -- ═══════════════════════════════════════════════════════════════════════
 --  양서류 (A)  ·  NEWT  9종
 -- ═══════════════════════════════════════════════════════════════════════
-('AXOLOTL',                    'A', 'NEWT', '액솔로틀',               'Axolotl',                      'Ambystoma mexicanum',        100,  true),
+('AXOLOTL',                    'A', 'NEWT', '아홀로틀',            'Axolotl',                      'Ambystoma mexicanum',        100,  true),
 ('EMPEROR_NEWT',               'A', 'NEWT', '엠페러뉴트',             'Emperor Newt',                 'Tylototriton shanjing',      200,  true),
 ('LAOS_NEWT',                  'A', 'NEWT', '라오스뉴트',             'Laos Warty Newt',              'Laotriton laoensis',         300,  true),
 ('FIRE_BELLIED_NEWT',          'A', 'NEWT', '파이어벨리뉴트',         'Chinese Fire-bellied Newt',    'Cynops orientalis',          400,  true),
@@ -186,7 +212,15 @@ VALUES
 ('SPANISH_RIBBED_NEWT',        'A', 'NEWT', '스페니쉬리브드뉴트',     'Spanish Ribbed Newt',          'Pleurodeles waltl',          600,  true),
 ('ALPINE_NEWT',                'A', 'NEWT', '알파인뉴트',             'Alpine Newt',                  'Ichthyosaura alpestris',     700,  true),
 ('TIGER_SALAMANDER',           'A', 'NEWT', '타이거샐러맨더',         'Tiger Salamander',             'Ambystoma tigrinum',         900,  true),
-('FIRE_SALAMANDER',            'A', 'NEWT', '파이어샐러맨더',         'Fire Salamander',              'Salamandra salamandra',      1000, true)
+('FIRE_SALAMANDER',            'A', 'NEWT', '파이어샐러맨더',         'Fire Salamander',              'Salamandra salamandra',      1000, true),
+
+-- ═══════════════════════════════════════════════════════════════════════
+--  포유류 (M)  ·  SMALL_MAMMAL  4종  (V8 에서 category CHECK 확장)
+-- ═══════════════════════════════════════════════════════════════════════
+('AFRICAN_PYGMY_DORMOUSE', 'M', 'SMALL_MAMMAL', '아프리카 겨울잠쥐', 'African Pygmy Dormouse', 'Graphiurus murinus',    100, true),
+('HAMSTER_SYRIAN',         'M', 'SMALL_MAMMAL', '시리안햄스터',      'Syrian Hamster',         'Mesocricetus auratus',  200, true),
+('GERBIL_MONGOLIAN',       'M', 'SMALL_MAMMAL', '몽골리안 저빌',     'Mongolian Gerbil',       'Meriones unguiculatus', 300, true),
+('CHINCHILLA',             'M', 'SMALL_MAMMAL', '친칠라',            'Chinchilla',             'Chinchilla lanigera',   400, true)
 
 ON CONFLICT (code) DO UPDATE SET
     category        = EXCLUDED.category,
@@ -216,7 +250,6 @@ UPDATE species_cd
      'BOA_CONSTRICTOR',
      'OUSTALET_CHAMELEON',
      'FOUR_HORNED_CHAMELEON',
-     'GIDGEE_SKINK',
      'TURNIP_TAILED_GECKO',
      'MOSSY_LEAF_TAILED_GECKO',
      'WESTERN_HOGNOSE_ALBINO',
