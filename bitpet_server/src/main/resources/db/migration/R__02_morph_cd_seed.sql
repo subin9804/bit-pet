@@ -8,7 +8,7 @@
 --   ③ INSERT ON CONFLICT (species_id, name_ko) DO UPDATE → 중복 실행 가능
 --   ④ 목록에 없는 공식 모프(전 종) 정리
 --      a. 개체(pet_morph_rls)가 안 물고 있으면 DELETE
---      b. 물고 있으면 FK RESTRICT 라 못 지우므로 is_active = false
+--      b. 물고 있으면 FK RESTRICT 라 못 지우므로 사용자 정의 모프로 전환 (개체 OWNER 소유)
 --      사용자 정의 모프(is_user_defined = true)는 건드리지 않는다.
 --      ⚠️ 이 파일에 없는 공식 모프는 매 실행마다 지워진다 — 공식 모프 추가는 반드시 여기에.
 --
@@ -575,16 +575,28 @@ WHERE  m.species_id = s.id
        )
   AND  NOT EXISTS (SELECT 1 FROM pet_morph_rls r WHERE r.morph_id = m.id);
 
--- ④-b 개체가 물고 있어 못 지운 나머지는 비활성화 (fk_pet_morph_rls_morph 가 ON DELETE RESTRICT)
---      신규 선택지에선 사라지고, 이미 그 모프로 등록된 개체는 그대로 보인다.
---      개체에서 연결이 풀리면 다음 R__02 재실행 때 ④-a 가 지운다.
+-- ④-b 개체가 물고 있어 못 지운 나머지는 사용자 정의 모프로 전환
+--      (fk_pet_morph_rls_morph 가 ON DELETE RESTRICT 라 행 자체는 남아야 한다)
+--      공식 카탈로그에선 빠지고, 개체의 모프 표시는 그대로 유지된다.
+--      created_by = 그 모프를 쓰는 개체 중 가장 앞 개체의 OWNER → 그 사람 선택지에만 '직접 입력'으로 보인다.
+--      OWNER 가 없으면(고아 개체) NULL — ck_morph_cd_user_defined 가 허용하는 '주인 없는 커스텀'.
+--      나중에 같은 이름이 공식 목록에 다시 들어오면 ③ 의 DO UPDATE 가 공식으로 되돌린다.
 UPDATE morph_cd m
-SET    is_active  = false,
-       updated_at = NOW()
+SET    is_user_defined    = true,
+       created_by         = (
+           SELECT k.user_id
+             FROM pet_morph_rls r
+             JOIN pet_keeper_rls k ON k.pet_id = r.pet_id AND k.role = 'OWNER'
+            WHERE r.morph_id = m.id
+            ORDER BY r.pet_id
+            LIMIT 1
+       ),
+       display_order      = 30000,   -- MorphCd.CUSTOM_DISPLAY_ORDER
+       is_active          = true,
+       updated_at         = NOW()
 FROM   species_cd s
 WHERE  m.species_id = s.id
   AND  m.is_user_defined = false
-  AND  m.is_active = true
   AND  NOT EXISTS (
          SELECT 1 FROM tmp_morph_seed t
           WHERE t.species_code = s.code
