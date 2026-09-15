@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/theme/pale_palette.dart';
+import '../../../../core/utils/weight_format.dart';
 import '../../data/models/pet_models.dart';
 
 class PetHeroCard extends StatefulWidget {
@@ -184,7 +185,7 @@ class _PetHeroCardState extends State<PetHeroCard> {
                           style: TextStyle(fontSize: 11, color: AppColors.paleInk2),
                         ),
                         Text(
-                          '${pet.latestWeightG!.toStringAsFixed(0)}g',
+                          '${formatWeight(pet.latestWeightG!)}g',
                           style: AppTextStyles.mono(11, FontWeight.w700),
                         ),
                       ],

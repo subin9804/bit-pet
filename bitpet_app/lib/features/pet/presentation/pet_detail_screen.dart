@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/api_response.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/pale_palette.dart';
 import '../../../core/widgets/confirm_modal.dart';
 import '../../../core/widgets/skeleton_loader.dart';
@@ -39,8 +38,6 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
   int _tabIndex = 0; // 0:기록 1:캘린더 2:갤러리
 
   static const _tabs = ['기록', '캘린더', '갤러리'];
-  // mock 탭 카운트 (추후 API 대체)
-  static const _tabCounts = [24, 4, 9];
 
   @override
   void initState() {
@@ -129,30 +126,16 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
                                         ? null
                                         : Border.all(color: AppColors.paleLine),
                                   ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        _tabs[i],
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w700,
-                                          color: active
-                                              ? AppColors.paleBg
-                                              : AppColors.primary,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        '${_tabCounts[i]}',
-                                        style: AppTextStyles.mono(
-                                          10, FontWeight.w600,
-                                          color: active
-                                              ? AppColors.paleBg.withValues(alpha: 0.6)
-                                              : AppColors.paleInk3,
-                                        ),
-                                      ),
-                                    ],
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    _tabs[i],
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      color: active
+                                          ? AppColors.paleBg
+                                          : AppColors.primary,
+                                    ),
                                   ),
                                 ),
                               ),
