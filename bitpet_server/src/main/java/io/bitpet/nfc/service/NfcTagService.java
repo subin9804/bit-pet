@@ -7,7 +7,10 @@ import io.bitpet.nfc.domain.NfcTagMst;
 import io.bitpet.nfc.domain.TagStockStatus;
 import io.bitpet.nfc.dto.MyTagResponse;
 import io.bitpet.nfc.dto.NfcScanResponse;
+import io.bitpet.nfc.dto.TagLandingPet;
 import io.bitpet.nfc.dto.TagResolveResponse;
+import io.bitpet.photo.repository.PhotoDtlRepository;
+import io.bitpet.storage.S3Service;
 import io.bitpet.nfc.repository.NfcTagBindHstRepository;
 import io.bitpet.nfc.repository.NfcTagMstRepository;
 import io.bitpet.pet.domain.PetMst;
@@ -48,6 +51,8 @@ public class NfcTagService {
     private final PetKeeperService petKeeperService;
     private final PetService petService;
     private final TagCodeGenerator tagCodeGenerator;
+    private final PhotoDtlRepository photoRepository;   // 랜딩 페이지 대표 사진
+    private final S3Service s3Service;
 
     // -------------------------------------------------------------------------
     // 조회
@@ -112,14 +117,39 @@ public class NfcTagService {
                 : NfcScanResponse.ownedByOther(tag.getTagCd(), petService.cardOf(userId, pet, false));
     }
 
-    /** 미설치자 랜딩 페이지용 — 개체 이름만. 없거나 미연결이거나 차단됐으면 empty */
-    public Optional<String> peekPetName(String tagCd) {
+    /**
+     * 미설치자 랜딩 페이지용 — 이름·종·모프·성별·대표 사진까지.
+     * 없거나 미연결이거나 차단됐거나 고아면 empty.
+     *
+     * <p>사육 기록(체중·급여·청소)·날짜·주인 정보는 내려주지 않는다. 이름표에 적혀 있을 법한 것까지만.
+     */
+    public Optional<TagLandingPet> peekPet(String tagCd) {
         return tagRepository.findById(normalize(tagCd))
                 .filter(tag -> !tag.isRevoked())
                 .map(NfcTagMst::getPetId)
                 .flatMap(petRepository::findById)
                 .filter(pet -> !pet.isOrphaned())
-                .map(PetMst::getName);
+                .map(pet -> new TagLandingPet(
+                        pet.getName(),
+                        pet.getSpecies() != null ? pet.getSpecies().getNameKo() : null,
+                        pet.getMorphs().stream()
+                                .map(m -> m.getMorph().getNameKo())
+                                .filter(java.util.Objects::nonNull)
+                                .toList(),
+                        switch (pet.getGender()) {
+                            case MALE   -> "수컷";
+                            case FEMALE -> "암컷";
+                            case null, default -> null;
+                        },
+                        resolvePhotoUrl(pet)
+                ));
+    }
+
+    private String resolvePhotoUrl(PetMst pet) {
+        if (pet.getProfilePhotoId() == null) return null;
+        return photoRepository.findById(pet.getProfilePhotoId())
+                .map(p -> s3Service.resolveUrl(p.getS3Key()))
+                .orElse(null);
     }
 
     /** 마이페이지 — 내가 연결한 태그 목록 */

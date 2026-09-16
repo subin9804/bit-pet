@@ -153,6 +153,9 @@ bitpet:
       # NFC 태그 딥링크 — OS가 검증 파일을 직접 가져가고, 미설치자는 랜딩 페이지를 본다
       - /.well-known/**
       - /t/**
+      # 랜딩 페이지가 쓰는 로고·파비콘 (static/brand)
+      - /brand/**
+      - /favicon.ico
   oauth2:
     # 로그인 성공 시 클라이언트로 리다이렉트할 URL (deep link 가능)
     success-redirect-uri: ${BITPET_OAUTH_SUCCESS_REDIRECT:http://localhost:3000/oauth/callback}

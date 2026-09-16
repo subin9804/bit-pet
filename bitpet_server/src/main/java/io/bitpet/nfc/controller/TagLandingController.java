@@ -1,6 +1,7 @@
 package io.bitpet.nfc.controller;
 
 import io.bitpet.common.config.DeeplinkProperties;
+import io.bitpet.nfc.dto.TagLandingPet;
 import io.bitpet.nfc.service.NfcTagService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -21,7 +22,11 @@ import java.util.Optional;
  * 검증이 끝났다면 브라우저를 거치지 않고 앱이 열리므로 이 페이지는 보이지 않는다.
  * 미설치자에게 404 가 뜨는 것이 최악이므로 반드시 이 페이지가 있어야 한다.
  *
- * <p><b>노출 범위</b> — 개체 이름까지만. 체중·급여 등 사육 기록은 절대 내려주지 않는다.
+ * <p><b>노출 범위</b> — 이름·종·모프·성별·대표 사진까지. 이름표에 이미 적혀 있을 법한 것들이다.
+ * 체중·급여 같은 사육 기록, 생일·입양일, 주인 정보는 절대 내려주지 않는다.
+ *
+ * <p><b>설치 유도는 아주 약하게.</b> 이 페이지의 주인공은 개체다. 설치 링크는 맨 아래 작은
+ * 한 줄로만 둔다 — 광고처럼 보이는 순간 이름표의 신뢰가 깎인다.
  */
 @Tag(name = "Deep Link")
 @RestController
@@ -34,21 +39,20 @@ public class TagLandingController {
     @Operation(summary = "NFC 태그 랜딩 페이지 (미설치자용 HTML)")
     @GetMapping(value = "/t/{tagCd}", produces = MediaType.TEXT_HTML_VALUE + ";charset=UTF-8")
     public ResponseEntity<String> landing(@PathVariable String tagCd) {
-        Optional<String> petName;
+        Optional<TagLandingPet> pet;
         try {
-            petName = nfcTagService.peekPetName(tagCd);
+            pet = nfcTagService.peekPet(tagCd);
         } catch (Exception e) {
-            petName = Optional.empty();
+            pet = Optional.empty();
         }
 
-        String headline = petName
-                .map(n -> escape(n) + " 의 이름표")
-                .orElse("테일로그 이름표");
-        String subline = petName.isPresent()
-                ? "앱에서 이 태그를 스캔하면 개체 상세로 바로 들어갑니다."
-                : "아직 개체와 연결되지 않은 태그입니다. 앱에서 스캔해 연결해 주세요.";
-
-        return ResponseEntity.ok(page(headline, subline, escape(tagCd)));
+        String code = escape(tagCd);
+        return ResponseEntity.ok(pet
+                .map(p -> petPage(p, code))
+                .orElseGet(() -> emptyPage(
+                        "연결되지 않은 이름표",
+                        "아직 개체와 연결되지 않은 태그예요.<br>앱에서 스캔하면 개체를 연결할 수 있어요.",
+                        code)));
     }
 
     /** 존재하지 않는 태그 코드 — 위조 차단. 404 지만 빈 화면 대신 안내를 보여준다. */
@@ -56,13 +60,68 @@ public class TagLandingController {
     public ResponseEntity<String> landingWithoutCode() {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .contentType(MediaType.valueOf(MediaType.TEXT_HTML_VALUE + ";charset=UTF-8"))
-                .body(page("유효하지 않은 태그", "태그 코드가 확인되지 않습니다.", ""));
+                .body(emptyPage("유효하지 않은 이름표", "태그 코드가 확인되지 않아요.", ""));
     }
 
-    private String page(String headline, String subline, String tagCd) {
+    // -------------------------------------------------------------------------
+    // HTML
+    // -------------------------------------------------------------------------
+
+    private String petPage(TagLandingPet pet, String tagCd) {
+        String name = escape(pet.name());
+
+        // 종 · 모프 · 성별 — 있는 것만 가운뎃점으로 잇는다
+        StringBuilder meta = new StringBuilder();
+        if (pet.speciesName() != null) meta.append(escape(pet.speciesName()));
+        if (pet.genderLabel() != null) {
+            if (meta.length() > 0) meta.append(" · ");
+            meta.append(escape(pet.genderLabel()));
+        }
+
+        StringBuilder morphs = new StringBuilder();
+        for (String m : pet.morphNames()) {
+            morphs.append("<span class=\"chip\">").append(escape(m)).append("</span>");
+        }
+
+        String photo = pet.imageUrl() != null
+                ? "<img class=\"photo\" src=\"" + escape(pet.imageUrl()) + "\" alt=\"\">"
+                : "<div class=\"photo placeholder\"><img src=\"/brand/icon-512.png\" alt=\"\"></div>";
+
+        String body = """
+                  <header><img class="wordmark" src="/brand/logo.svg" alt="TAILOG"></header>
+                  <main>
+                    %s
+                    <h1>%s</h1>
+                    %s
+                    %s
+                    <p class="code">%s</p>
+                  </main>
+                """.formatted(
+                photo,
+                name,
+                meta.length() > 0 ? "<p class=\"meta\">" + meta + "</p>" : "",
+                morphs.length() > 0 ? "<div class=\"chips\">" + morphs + "</div>" : "",
+                tagCd);
+
+        return page(name + " 의 이름표", body);
+    }
+
+    private String emptyPage(String headline, String subline, String tagCd) {
+        String body = """
+                  <header><img class="wordmark" src="/brand/logo.svg" alt="TAILOG"></header>
+                  <main>
+                    <div class="photo placeholder"><img src="/brand/icon-512.png" alt=""></div>
+                    <h1>%s</h1>
+                    <p class="meta">%s</p>
+                    %s
+                  </main>
+                """.formatted(headline, subline,
+                tagCd.isEmpty() ? "" : "<p class=\"code\">" + tagCd + "</p>");
+        return page(headline, body);
+    }
+
+    private String page(String title, String body) {
         String store = escape(deeplinkProperties.playStoreUrl());
-        String codeBlock = tagCd.isEmpty() ? ""
-                : "<p class=\"code\">" + tagCd + "</p>";
         return """
                 <!doctype html>
                 <html lang="ko">
@@ -70,35 +129,43 @@ public class TagLandingController {
                   <meta charset="utf-8">
                   <meta name="viewport" content="width=device-width,initial-scale=1">
                   <meta name="robots" content="noindex">
-                  <title>%s · tailog</title>
+                  <link rel="icon" href="/brand/favicon.png">
+                  <title>%s · 테일로그</title>
                   <style>
                     :root { color-scheme: light; }
-                    body { margin:0; min-height:100vh; display:flex; align-items:center;
-                           justify-content:center; background:#F5F2EA; color:#2B2A26;
+                    * { box-sizing: border-box; }
+                    body { margin:0; min-height:100vh; display:flex; flex-direction:column;
+                           align-items:center; justify-content:center; padding:32px 20px;
+                           background:#F4FBF6; color:#2B2A26;
                            font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,
                                        "Apple SD Gothic Neo","Noto Sans KR",sans-serif; }
-                    main { width:min(420px,88vw); background:#FFFDF7; border:1px solid #E3DED0;
-                           padding:40px 28px; text-align:center; }
-                    h1 { font-size:20px; margin:0 0 10px; letter-spacing:-.02em; }
-                    p  { font-size:14px; line-height:1.6; color:#6B665A; margin:0; }
-                    .code { margin-top:18px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
-                            font-size:12px; letter-spacing:.12em; color:#A29B88; }
-                    a.cta { display:block; margin-top:26px; padding:14px; background:#2B2A26;
-                            color:#F5F2EA; text-decoration:none; font-size:14px; font-weight:600; }
-                    .brand { margin-top:22px; font-size:11px; letter-spacing:.2em; color:#A29B88; }
+                    header { margin-bottom:18px; }
+                    .wordmark { height:22px; opacity:.5; }
+                    main { width:min(400px,100%%); background:#fff; border:1px solid #E4EFE8;
+                           padding:32px 24px 26px; text-align:center; }
+                    .photo { width:132px; height:132px; object-fit:cover; border-radius:50%%;
+                             display:block; margin:0 auto 18px; background:#F4FBF6; }
+                    .photo.placeholder { display:flex; align-items:center; justify-content:center; }
+                    .photo.placeholder img { width:76px; height:76px; opacity:.85; }
+                    h1 { font-size:24px; margin:0 0 6px; letter-spacing:-.02em; }
+                    .meta { font-size:14px; line-height:1.6; color:#6B7A70; margin:0; }
+                    .chips { margin-top:12px; display:flex; flex-wrap:wrap; gap:6px;
+                             justify-content:center; }
+                    .chip { font-size:12px; padding:5px 10px; background:#F0F8F3;
+                            color:#3E7A5E; }
+                    .code { margin-top:20px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+                            font-size:11px; letter-spacing:.14em; color:#B6C4BC; }
+                    /* 설치 유도는 여기 한 줄뿐 — 버튼으로 키우지 말 것 */
+                    footer { margin-top:16px; font-size:12px; color:#9AA8A0; text-align:center; }
+                    footer a { color:#6B7A70; }
                   </style>
                 </head>
                 <body>
-                  <main>
-                    <h1>%s</h1>
-                    <p>%s</p>
-                    %s
-                    <a class="cta" href="%s">테일로그 앱 설치하기</a>
-                    <p class="brand">TAILOG</p>
-                  </main>
+                %s
+                  <footer>테일로그로 기록되는 개체예요 · <a href="%s">앱 보기</a></footer>
                 </body>
                 </html>
-                """.formatted(headline, headline, subline, codeBlock, store);
+                """.formatted(title, body, store);
     }
 
     private static String escape(String raw) {
