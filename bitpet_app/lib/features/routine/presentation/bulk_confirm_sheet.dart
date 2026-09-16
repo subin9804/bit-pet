@@ -119,7 +119,9 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
     final pending = pets.length - done;
     final screenH   = MediaQuery.of(context).size.height;
     final keyboardH = MediaQuery.of(context).viewInsets.bottom;
-    final cardH   = (screenH - 112 - keyboardH).clamp(0.0, 524.0);
+    // 상한 524 고정이면 큰 폰에서 화면이 남는데도 목록만 좁게 스크롤된다 (개별 완료와 같은 이유).
+    // 작은 폰에서는 screenH - 112 쪽이 먼저 걸려 예전 크기와 거의 같다.
+    final cardH = (screenH - 112 - keyboardH).clamp(0.0, screenH * 0.82);
 
     return Material(
       type: MaterialType.transparency,
@@ -138,7 +140,7 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 26),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 320),
+                constraints: const BoxConstraints(maxWidth: 380),
                 child: SizedBox(
                   height: cardH,
                   child: Container(

@@ -285,7 +285,10 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
     final routine = widget.routine;
     final screenH   = MediaQuery.of(context).size.height;
     final keyboardH = MediaQuery.of(context).viewInsets.bottom;
-    final cardH   = (screenH - 112 - keyboardH).clamp(0.0, 524.0);
+    // 카드 높이. 상한이 524 고정이라 요즘 폰에서는 화면 위아래가 남는데도 개체 목록만
+    // 좁게 스크롤됐다 — 개체가 많을수록 손해다. 화면 비율로 바꿔 큰 폰에서 실제로 커지게 한다.
+    // (작은 폰에서는 screenH - 112 쪽이 먼저 걸려 예전과 거의 같다)
+    final cardH = (screenH - 112 - keyboardH).clamp(0.0, screenH * 0.82);
 
     return Material(
       type: MaterialType.transparency,
@@ -303,7 +306,7 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 26),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 326),
+                constraints: const BoxConstraints(maxWidth: 380),
                 child: SizedBox(
                   height: cardH,
                   child: Container(
