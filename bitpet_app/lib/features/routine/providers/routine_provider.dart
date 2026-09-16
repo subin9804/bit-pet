@@ -98,6 +98,13 @@ class TodayRoutinesNotifier extends StateNotifier<AsyncValue<List<TodayRoutine>>
     super.dispose();
   }
 
+  /// 미룬 루틴은 오늘 목록에서 사라진다 (서버 재조회 없이 즉시 반영)
+  void removeRoutine(int routineId) {
+    state.whenData((list) {
+      state = AsyncValue.data(list.where((r) => r.id != routineId).toList());
+    });
+  }
+
   void updatePetStatus(int routineId, int petId, bool isCompleted) {
     state.whenData((list) {
       state = AsyncValue.data(list.map((r) {
@@ -126,6 +133,8 @@ class TodayRoutinesNotifier extends StateNotifier<AsyncValue<List<TodayRoutine>>
           routineType: r.routineType,
           alarmTime: r.alarmTime,
           isAlarmEnabled: r.isAlarmEnabled,
+          cycleDays: r.cycleDays,
+          nextDueAt: r.nextDueAt,
           totalPetCount: r.totalPetCount,
           completedPetCount: r.totalPetCount,
           petStatuses: updated,

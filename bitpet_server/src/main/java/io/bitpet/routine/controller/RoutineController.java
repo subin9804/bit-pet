@@ -6,6 +6,7 @@ import io.bitpet.routine.dto.RoutineCompleteBatchRequest;
 import io.bitpet.routine.dto.RoutineCompleteIndividualRequest;
 import io.bitpet.routine.dto.RoutineCreateRequest;
 import io.bitpet.routine.dto.RoutineLogResponse;
+import io.bitpet.routine.dto.RoutinePostponeRequest;
 import io.bitpet.routine.dto.RoutineResponse;
 import io.bitpet.routine.dto.TodayRoutineResponse;
 import io.bitpet.routine.dto.RoutineUpdateRequest;
@@ -72,6 +73,16 @@ public class RoutineController {
             @AuthenticationPrincipal AuthPrincipal principal,
             @PathVariable Long routineId) {
         routineService.deleteRoutine(principal.userId(), routineId);
+    }
+
+    /** 미루기 — 루틴 단위. 연결된 모든 개체의 다음 예정일이 함께 밀린다 */
+    @PostMapping("/routines/{routineId}/postpone")
+    public ApiResponse<RoutineResponse> postponeRoutine(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @PathVariable Long routineId,
+            @Valid @RequestBody RoutinePostponeRequest req) {
+        return ApiResponse.ok(
+                routineService.postponeRoutine(principal.userId(), routineId, req.nextDueAt()));
     }
 
     // -------------------------------------------------------------------------

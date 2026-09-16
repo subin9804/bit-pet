@@ -17,6 +17,7 @@ import '../../routine/data/models/routine_models.dart';
 import '../../routine/providers/routine_provider.dart';
 import '../../routine/presentation/bulk_confirm_sheet.dart';
 import '../../routine/presentation/per_pet_confirm_sheet.dart';
+import '../../routine/presentation/routine_postpone_sheet.dart';
 
 // ignore_for_file: prefer_const_constructors_in_immutables
 
@@ -446,6 +447,29 @@ class _TodayRoutineCard extends StatelessWidget {
                       color: AppColors.textSecondary),
                 ),
                 const Spacer(),
+                // 미루기 — 루틴 단위라 연결된 개체 전부가 밀린다 (시트에서 고지)
+                if (!allDone) ...[
+                  GestureDetector(
+                    onTap: () => showRoutinePostponeSheet(context, routine),
+                    behavior: HitTestBehavior.opaque,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 2),
+                      color: Colors.white.withValues(alpha: 0.55),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.snooze,
+                              size: 11, color: AppColors.textSecondary),
+                          const SizedBox(width: 3),
+                          Text('미루기',
+                              style: AppTextStyles.mono(10, FontWeight.w700,
+                                  color: AppColors.textSecondary)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                ],
                 Container(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 7, vertical: 2),

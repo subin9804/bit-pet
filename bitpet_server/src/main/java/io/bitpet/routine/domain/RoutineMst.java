@@ -78,6 +78,14 @@ public class RoutineMst extends BaseTimeEntity {
     @Column(name = "last_notified_at")
     private Instant lastNotifiedAt;
 
+    /** 마지막으로 미룬 시각 (없으면 미룬 적 없음) */
+    @Column(name = "postponed_at")
+    private Instant postponedAt;
+
+    /** 미루기 직전의 nextDueAt — "9/16에서 미룸" 표시용 */
+    @Column(name = "postponed_from")
+    private LocalDate postponedFrom;
+
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
@@ -114,6 +122,22 @@ public class RoutineMst extends BaseTimeEntity {
         LocalDate completionDate = at.atZone(SEOUL).toLocalDate();
         this.lastExecutedAt = completionDate;
         this.nextDueAt      = completionDate.plusDays(cycleDays);
+        clearPostponed();   // 실제로 실행했으므로 미룸 표시는 해제
+    }
+
+    /**
+     * 미루기 — 다음 예정일을 사용자가 고른 날짜로 옮긴다. <b>루틴 단위</b>라 연결된 모든 개체가 함께 밀린다.
+     * 그 다음 예정일은 현행대로 완료 시점(markExecuted) 또는 자정 롤오버(advanceDueDate)가 정한다.
+     */
+    public void postpone(LocalDate newDueDate, Instant at) {
+        this.postponedFrom = this.nextDueAt;
+        this.postponedAt   = at;
+        this.nextDueAt     = newDueDate;
+    }
+
+    private void clearPostponed() {
+        this.postponedAt   = null;
+        this.postponedFrom = null;
     }
 
     /** 알림 발송 기록 — nextDueAt은 변경하지 않음 */

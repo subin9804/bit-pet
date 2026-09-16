@@ -17,6 +17,8 @@ class TodayRoutine {
   final RoutineType routineType;
   final String? alarmTime;
   final bool isAlarmEnabled;
+  final int cycleDays;          // 미루기 날짜 프리셋 계산용
+  final DateTime? nextDueAt;    // 현재 예정일 (보통 오늘)
   final int totalPetCount;
   final int completedPetCount;
   final List<TodayPetStatus> petStatuses;
@@ -27,6 +29,8 @@ class TodayRoutine {
     required this.routineType,
     this.alarmTime,
     required this.isAlarmEnabled,
+    this.cycleDays = 1,
+    this.nextDueAt,
     required this.totalPetCount,
     required this.completedPetCount,
     required this.petStatuses,
@@ -44,6 +48,10 @@ class TodayRoutine {
         ),
         alarmTime: json['alarmTime'] as String?,
         isAlarmEnabled: json['alarmEnabled'] as bool? ?? false,
+        cycleDays: json['cycleDays'] as int? ?? 1,
+        nextDueAt: json['nextDueAt'] != null
+            ? DateTime.tryParse(json['nextDueAt'] as String)
+            : null,
         totalPetCount: json['totalPetCount'] as int? ?? 0,
         completedPetCount: json['completedPetCount'] as int? ?? 0,
         petStatuses: (json['petStatuses'] as List<dynamic>? ?? [])
@@ -71,6 +79,8 @@ class TodayRoutine {
       routineType: routineType,
       alarmTime: alarmTime,
       isAlarmEnabled: isAlarmEnabled,
+      cycleDays: cycleDays,
+      nextDueAt: nextDueAt,
       totalPetCount: totalPetCount,
       completedPetCount: newCompleted,
       petStatuses: updated,
@@ -124,9 +134,13 @@ class Routine {
   final DateTime? nextDueAt;
   final bool isActive;
   final String? memo;
+  final DateTime? postponedAt;   // 미룬 적 있으면 그 시각
+  final DateTime? postponedFrom; // 미루기 직전 예정일
   final List<int> petIds;
   final int petCount;
   final DateTime? createdAt;
+
+  bool get isPostponed => postponedAt != null;
 
   const Routine({
     required this.id,
@@ -141,6 +155,8 @@ class Routine {
     this.nextDueAt,
     required this.isActive,
     this.memo,
+    this.postponedAt,
+    this.postponedFrom,
     required this.petIds,
     required this.petCount,
     this.createdAt,
@@ -168,6 +184,12 @@ class Routine {
             : null,
         isActive: json['active'] as bool? ?? true,
         memo: json['memo'] as String?,
+        postponedAt: json['postponedAt'] != null
+            ? DateTime.tryParse(json['postponedAt'] as String)
+            : null,
+        postponedFrom: json['postponedFrom'] != null
+            ? DateTime.tryParse(json['postponedFrom'] as String)
+            : null,
         petIds: (json['petIds'] as List<dynamic>?)
                 ?.map((e) => e as int)
                 .toList() ??

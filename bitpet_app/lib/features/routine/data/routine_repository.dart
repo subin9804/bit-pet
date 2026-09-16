@@ -65,6 +65,25 @@ class RoutineRepository {
     return apiRes.data!;
   }
 
+  /// 미루기 — 다음 예정일을 [nextDueAt] 으로 옮긴다.
+  /// 루틴 단위라 연결된 모든 개체가 함께 밀린다 (호출 전 사용자에게 고지할 것).
+  Future<Routine> postponeRoutine(int routineId, DateTime nextDueAt) async {
+    final ymd = '${nextDueAt.year.toString().padLeft(4, '0')}-'
+        '${nextDueAt.month.toString().padLeft(2, '0')}-'
+        '${nextDueAt.day.toString().padLeft(2, '0')}';
+    final res = await _dio.post('/routines/$routineId/postpone',
+        data: {'nextDueAt': ymd});
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => Routine.fromJson(d as Map<String, dynamic>),
+    );
+    if (!apiRes.success || apiRes.data == null) {
+      throw ApiException(
+          statusCode: res.statusCode ?? 0, message: apiRes.message ?? '미루기 실패');
+    }
+    return apiRes.data!;
+  }
+
   Future<void> deleteRoutine(int routineId) async {
     await _dio.delete('/routines/$routineId');
   }

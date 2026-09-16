@@ -159,6 +159,23 @@ public class RoutineService {
         routine.softDelete();
     }
 
+    /**
+     * 미루기 — 다음 예정일을 사용자가 고른 날짜로 옮긴다.
+     * ⚠️ 루틴 단위 동작: 연결된 모든 개체의 예정일이 함께 밀린다 (앱에서 사전 고지).
+     * 완료 기록은 남기지 않는다 — 실행이 아니라 알림 일정 변경이다.
+     */
+    @Transactional
+    public RoutineResponse postponeRoutine(Long userId, Long routineId, LocalDate newDueDate) {
+        RoutineMst routine = findAccessibleRoutine(userId, routineId);
+        LocalDate today = LocalDate.now(SEOUL);
+        if (newDueDate == null || !newDueDate.isAfter(today)) {
+            throw new BusinessException(ErrorCode.ROUTINE_POSTPONE_DATE_INVALID);
+        }
+        routine.postpone(newDueDate, Instant.now());
+        List<Long> petIds = routinePetRepository.findPetIdsByRoutineId(routineId);
+        return RoutineResponse.from(routine, petIds);
+    }
+
     // -------------------------------------------------------------------------
     // Pet subscription (routine_pet_rls)
     // -------------------------------------------------------------------------

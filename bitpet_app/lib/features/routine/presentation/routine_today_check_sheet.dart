@@ -8,6 +8,7 @@ import '../../../core/widgets/toast_message.dart';
 import '../data/models/routine_models.dart';
 import '../data/routine_repository.dart';
 import '../providers/routine_provider.dart';
+import 'routine_postpone_sheet.dart';
 import '../../record/presentation/feeding_record_sheet.dart';
 import '../../record/providers/record_invalidation.dart';
 
@@ -143,6 +144,17 @@ class _RoutineTodayCheckSheetState
     }
   }
 
+  /// 미루기 — 완료 처리한 개체가 있으면 먼저 저장하라고 알린다 (미루면 이 시트는 닫힌다)
+  Future<void> _postpone() async {
+    if (_completedCount > 0 &&
+        _statuses.any((s) => s.isCompleted && s.logId == null)) {
+      showToast(context, '완료 체크한 개체가 있어요. 저장 후 미뤄 주세요');
+      return;
+    }
+    final done = await showRoutinePostponeSheet(context, widget.routine);
+    if (done && mounted) Navigator.of(context).pop();
+  }
+
   IconData get _typeIcon => switch (widget.routine.routineType) {
         RoutineType.FEEDING => Icons.restaurant_outlined,
         RoutineType.CLEANING => Icons.cleaning_services_outlined,
@@ -262,6 +274,13 @@ class _RoutineTodayCheckSheetState
                     style: AppTextStyles.caption,
                   ),
                   const Spacer(),
+                  // 미루기 — 루틴 단위라 연결된 개체 전부가 밀린다 (시트에서 고지)
+                  _SmallBtn(
+                    icon: Icons.snooze,
+                    label: '미루기',
+                    onTap: _postpone,
+                  ),
+                  const SizedBox(width: 8),
                   _SmallBtn(
                     icon: Icons.check,
                     label: '전체완료',

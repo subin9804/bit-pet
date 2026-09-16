@@ -12,6 +12,9 @@ public record TodayRoutineResponse(
         RoutineType routineType,
         String alarmTime,
         boolean alarmEnabled,
+        /** 미루기 시트에서 날짜 프리셋을 계산하는 데 쓴다 */
+        int cycleDays,
+        java.time.LocalDate nextDueAt,
         int totalPetCount,
         int completedPetCount,
         List<PetTodayStatus> petStatuses
@@ -36,6 +39,8 @@ public record TodayRoutineResponse(
                 routine.getRoutineType(),
                 routine.getAlarmTime() != null ? routine.getAlarmTime().format(HH_MM) : null,
                 routine.isAlarmEnabled(),
+                routine.getCycleDays(),
+                routine.getNextDueAt(),
                 petStatuses.size(),
                 completedCount,
                 petStatuses

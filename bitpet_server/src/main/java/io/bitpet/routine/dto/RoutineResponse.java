@@ -21,6 +21,10 @@ public record RoutineResponse(
         LocalDate nextDueAt,
         boolean active,
         String memo,
+        /** 마지막으로 미룬 시각 — null 이면 미룬 적 없음 */
+        Instant postponedAt,
+        /** 미루기 직전 예정일 — "9/16에서 미룸" 표시용 */
+        LocalDate postponedFrom,
         List<Long> petIds,
         int petCount,
         Instant createdAt,
@@ -32,6 +36,7 @@ public record RoutineResponse(
                 r.getCycleDays(), r.getAlarmTime(), r.isAlarmEnabled(),
                 r.getStartDate(), r.getLastExecutedAt(), r.getNextDueAt(),
                 r.isActive(), r.getMemo(),
+                r.getPostponedAt(), r.getPostponedFrom(),
                 petIds, petIds.size(),
                 r.getCreatedAt(), r.getUpdatedAt()
         );
