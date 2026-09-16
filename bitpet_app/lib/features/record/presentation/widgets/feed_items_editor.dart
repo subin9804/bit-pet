@@ -56,16 +56,19 @@ class _FeedItemsEditorState extends State<FeedItemsEditor> {
         // ── 거식 체크박스 ───────────────────────────────────
         // 컴포저 안이 아니라 여기서 직접 들고 있다 — 체크 자체가 기록이라
         // '추가하기' 를 거치지 않기 때문이다.
-        RefusedCheckbox(
-          active: _hasRefused,
-          bandColor: widget.bandColor,
-          onTap: _toggleRefused,
+        Align(
+          alignment: Alignment.centerLeft,
+          child: RefusedCheckbox(
+            active: _hasRefused,
+            bandColor: widget.bandColor,
+            onTap: _toggleRefused,
+          ),
         ),
 
         // ── 컴포저 ──────────────────────────────────────────
         // 거식이면 입력창 자체를 감춘다 (체크를 풀면 다시 나온다)
         if (!_hasRefused) ...[
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           FeedComposerFields(
             form: _current,
             bandColor: widget.bandColor,

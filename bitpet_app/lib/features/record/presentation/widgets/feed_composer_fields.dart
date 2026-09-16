@@ -58,8 +58,12 @@ class FeedComposerFields extends StatelessWidget {
       children: [
         // ── 거식 ────────────────────────────────────────────
         if (showRefused) ...[
-          RefusedCheckbox(active: refused, bandColor: bandColor, onTap: _toggleRefused),
-          const SizedBox(height: 20),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: RefusedCheckbox(
+                active: refused, bandColor: bandColor, onTap: _toggleRefused),
+          ),
+          const SizedBox(height: 16),
         ],
 
         // 거식이면 종류·서브입력·영양제는 아예 사라지고 메모만 남는다
@@ -167,9 +171,9 @@ class FeedComposerFields extends StatelessWidget {
 // ── 거식 체크박스 ──────────────────────────────────────────────────────────────
 /// 폼 최상단. 체크하면 아래 입력이 전부 사라지고 그대로 거식으로 기록된다.
 ///
-/// 원래는 "먹이를 거부함 · 메모만 기록" 부연설명을 옆에 달았는데, 체크박스 한 줄에
-/// 설명까지 붙으니 줄이 빽빽해 보이기만 하고 정작 체크박스라는 게 눈에 안 들어왔다.
-/// 단어 하나로 충분한 항목이다.
+/// 원래는 "먹이를 거부함 · 메모만 기록" 부연설명을 옆에 달아 **가로 한 줄을 통째로**
+/// 쓰는 박스였다. 거식은 어쩌다 한 번 쓰는 항목인데 매번 제일 크고 넓은 자리를
+/// 차지하니 폼이 복잡해 보이기만 했다. 글자 폭에 맞춘 작은 칩으로 줄인다.
 class RefusedCheckbox extends StatelessWidget {
   final bool active;
   final Color bandColor;
@@ -187,23 +191,25 @@ class RefusedCheckbox extends StatelessWidget {
     behavior: HitTestBehavior.opaque,
     child: AnimatedContainer(
       duration: const Duration(milliseconds: 140),
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+      padding: const EdgeInsets.fromLTRB(8, 6, 11, 6),
       decoration: BoxDecoration(
         color: active ? bandColor : AppColors.card,
         border: Border.all(color: active ? Colors.transparent : AppColors.paleLine),
         borderRadius: BorderRadius.zero,
       ),
-      child: Row(children: [
-        Icon(active ? Icons.check_box : Icons.check_box_outline_blank,
-            size: 19, color: active ? AppColors.primary : AppColors.paleInk3),
-        const SizedBox(width: 10),
-        Text('거식',
-            style: TextStyle(
-              fontSize: 13.5, fontWeight: FontWeight.w700,
-              color: active ? AppColors.primary : AppColors.paleInk2,
-            )),
-      ]),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(active ? Icons.check_box : Icons.check_box_outline_blank,
+              size: 16, color: active ? AppColors.primary : AppColors.paleInk3),
+          const SizedBox(width: 6),
+          Text('거식',
+              style: TextStyle(
+                fontSize: 12.5, fontWeight: FontWeight.w700,
+                color: active ? AppColors.primary : AppColors.paleInk2,
+              )),
+        ],
+      ),
     ),
   );
 }
