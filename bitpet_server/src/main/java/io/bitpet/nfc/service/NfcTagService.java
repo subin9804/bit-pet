@@ -54,6 +54,7 @@ public class NfcTagService {
     private final PhotoDtlRepository photoRepository;   // 랜딩 페이지 대표 사진
     private final S3Service s3Service;
     private final io.bitpet.auth.repository.UserMstRepository userRepository;  // 랜딩 페이지 주인 닉네임
+    private final io.bitpet.pet.repository.PetRelationRlsRepository relationRepository;  // 랜딩 페이지 부모
     private final org.springframework.jdbc.core.JdbcTemplate jdbc;             // 랜딩 페이지 마지막 기록
 
     // -------------------------------------------------------------------------
@@ -152,11 +153,54 @@ public class NfcTagService {
                             resolvePhotoUrl(pet),
                             resolveOwnerName(pet.getId()),
                             last == null ? null : last.label(),
-                            last == null ? null : last.at());
+                            last == null ? null : last.at(),
+                            parentsOf(pet));
                 });
     }
 
     private record LastRecord(String label, java.time.Instant at) {}
+
+    /**
+     * 부모 개체 — 아빠·엄마 순. 등록된 게 없으면 빈 목록.
+     *
+     * <p><b>왜 이름만 기본으로 내보내는가.</b> 가계도 부모 등록은 상대 승인 없이 되는 구조라
+     * (그게 의도된 설계다 — CLAUDE.md "가계도 부모 등록"), 부모 칸에는 남의 개체가 들어올 수 있다.
+     * 그 개체의 주인은 이 이름표를 산 적도, 공개에 동의한 적도 없다. 그런데 이 페이지는
+     * 코드만 알면 로그인 없이 열린다. 그래서 혈통 확인에 꼭 필요한 <b>이름</b>만 기본으로 둔다.
+     *
+     * <p><b>모프는 두 경우에만 붙인다.</b>
+     * <ul>
+     *   <li>부모가 <b>공개 개체</b>({@code private_yn = 'N'}) — 주인이 전체 검색 노출을 이미 허용했다</li>
+     *   <li>부모의 주인이 <b>이 개체의 주인과 같다</b> — 자기 정보를 자기 이름표에 싣는 것뿐이다</li>
+     * </ul>
+     * 모프는 혈통에서 가장 값어치 있는 정보라 브리더에게는 이게 핵심인데, 동시에 남의 작업물이기도 하다.
+     *
+     * <p>소프트 삭제된 부모는 {@code @SQLRestriction} 이 걸러준다. 고아 개체(주인 탈퇴)는
+     * <b>남긴다</b> — 익명화 보존의 목적 자체가 혈통 식별이고, 이름은 그래서 살려둔 값이다.
+     */
+    private List<io.bitpet.nfc.dto.TagLandingParent> parentsOf(PetMst pet) {
+        Long ownerId = petKeeperService.ownerIdOf(pet.getId()).orElse(null);
+
+        return relationRepository.findAllByChildPetId(pet.getId()).stream()
+                .sorted(java.util.Comparator.comparing(r -> r.getRelationType().name()))  // FATHER → MOTHER
+                .map(rel -> {
+                    PetMst parent = rel.getParentPet();
+                    boolean showMorphs = "N".equals(parent.getPrivateYn())
+                            || (ownerId != null
+                                && petKeeperService.ownerIdOf(parent.getId())
+                                        .map(ownerId::equals).orElse(false));
+                    return new io.bitpet.nfc.dto.TagLandingParent(
+                            rel.getRelationType() == io.bitpet.pet.domain.RelationType.FATHER ? "아빠" : "엄마",
+                            parent.getName(),
+                            showMorphs
+                                    ? parent.getMorphs().stream()
+                                            .map(m -> m.getMorph().getNameKo())
+                                            .filter(java.util.Objects::nonNull)
+                                            .toList()
+                                    : List.of());
+                })
+                .toList();
+    }
 
     /**
      * 주인 닉네임. 숨김 설정이면 {@code "비공개"}, 주인을 특정할 수 없으면 null.

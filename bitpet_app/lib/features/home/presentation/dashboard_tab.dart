@@ -447,29 +447,6 @@ class _TodayRoutineCard extends StatelessWidget {
                       color: AppColors.textSecondary),
                 ),
                 const Spacer(),
-                // 미루기 — 루틴 단위라 연결된 개체 전부가 밀린다 (시트에서 고지)
-                if (!allDone) ...[
-                  GestureDetector(
-                    onTap: () => showRoutinePostponeSheet(context, routine),
-                    behavior: HitTestBehavior.opaque,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 7, vertical: 2),
-                      color: Colors.white.withValues(alpha: 0.55),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.snooze,
-                              size: 11, color: AppColors.textSecondary),
-                          const SizedBox(width: 3),
-                          Text('미루기',
-                              style: AppTextStyles.mono(10, FontWeight.w700,
-                                  color: AppColors.textSecondary)),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                ],
                 Container(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 7, vertical: 2),
@@ -549,10 +526,15 @@ class _TodayRoutineCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
 
-            // 액션 버튼 2개 — border-radius 0
+            // 액션 버튼 — border-radius 0
+            //
+            // 미루기는 원래 카드 맨 위 오른쪽에 10sp 알약으로 있었다. 바로 옆 '01/02'
+            // 인덱스 배지와 크기·색·서체가 똑같아서 **버튼이 아니라 표시로 읽혔고**,
+            // 기능이 있는 줄 모른 채 지나쳤다. 실제 동작이니 실제 버튼 자리로 내린다.
             Row(
               children: [
                 Expanded(
+                  flex: 3,
                   child: GestureDetector(
                     onTap: allDone ? null : () => _openBulk(context),
                     child: Container(
@@ -593,6 +575,7 @@ class _TodayRoutineCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 6),
                 Expanded(
+                  flex: 3,
                   child: GestureDetector(
                     onTap: () => _openPerPet(context),
                     child: Container(
@@ -618,6 +601,38 @@ class _TodayRoutineCard extends StatelessWidget {
                     ),
                   ),
                 ),
+                // 미루기 — 루틴 단위라 연결된 개체 전부가 밀린다 (시트에서 고지).
+                // 완료된 카드에는 미룰 게 없어 자리 자체를 없앤다.
+                if (!allDone) ...[
+                  const SizedBox(width: 6),
+                  Expanded(
+                    flex: 2,
+                    child: GestureDetector(
+                      onTap: () => showRoutinePostponeSheet(context, routine),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.65),
+                          // 나머지 두 버튼과 높이를 맞추기 위한 투명 테두리
+                          border: Border.all(color: Colors.transparent, width: 1),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.snooze,
+                                size: 13, color: AppColors.textPrimary),
+                            const SizedBox(width: 4),
+                            const Text('미루기',
+                                style: TextStyle(
+                                    fontSize: 13, fontWeight: FontWeight.w700,
+                                    color: AppColors.textPrimary)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ],

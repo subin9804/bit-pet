@@ -11,6 +11,8 @@ import java.util.List;
  * 이 페이지는 로그인도 없이 코드만 알면 열리는 공개 URL 이라, "돌봐지고 있다"는 사실까지만 보인다.
  *
  * <p>생일·입양일·주인 이메일·연락처는 여전히 절대 포함하지 않는다.
+ *
+ * <p>부모는 {@link TagLandingParent} 참고 — 남의 개체가 섞이는 자리라 노출 범위가 더 좁다.
  */
 public record TagLandingPet(
         String name,
@@ -20,5 +22,6 @@ public record TagLandingPet(
         String imageUrl,         // 대표 사진 (없으면 null)
         String ownerName,        // 주인 닉네임. 숨김 설정이면 "비공개", 알 수 없으면 null
         String lastRecordLabel,  // 마지막 기록 종류 (체중/급여/청소/메모) — 없으면 null
-        Instant lastRecordAt     // 마지막 기록 시각 — 없으면 null
+        Instant lastRecordAt,    // 마지막 기록 시각 — 없으면 null
+        List<TagLandingParent> parents  // 아빠·엄마 (등록된 것만, 없으면 빈 목록)
 ) {}

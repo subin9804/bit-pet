@@ -99,11 +99,23 @@ public class TagLandingController {
                  .append(escape(relativeDay(pet.lastRecordAt()))).append("</b></div>");
         }
 
+        // 부모 — 이름이 주인공이고 모프는 있을 때만 작게 뒤에 붙는다
+        StringBuilder parents = new StringBuilder();
+        for (var p : pet.parents()) {
+            parents.append("<div class=\"parent\"><span>").append(escape(p.roleLabel()))
+                   .append("</span><b>").append(escape(p.name())).append("</b>");
+            if (!p.morphNames().isEmpty()) {
+                parents.append("<i>").append(escape(String.join(" · ", p.morphNames()))).append("</i>");
+            }
+            parents.append("</div>");
+        }
+
         String body = """
                   <header><img class="wordmark" src="/brand/logo.svg" alt="TAILOG"></header>
                   <main>
                     %s
                     <h1>%s</h1>
+                    %s
                     %s
                     %s
                     %s
@@ -115,6 +127,9 @@ public class TagLandingController {
                 meta.length() > 0 ? "<p class=\"meta\">" + meta + "</p>" : "",
                 morphs.length() > 0 ? "<div class=\"chips\">" + morphs + "</div>" : "",
                 facts.length() > 0 ? "<div class=\"facts\">" + facts + "</div>" : "",
+                parents.length() > 0
+                        ? "<div class=\"parents\"><p class=\"parents-title\">부모</p>" + parents + "</div>"
+                        : "",
                 tagCd);
 
         return page(name + " 의 이름표", body);
@@ -185,6 +200,16 @@ public class TagLandingController {
                     .fact { display:flex; justify-content:space-between; font-size:13px; }
                     .fact span { color:#9AA8A0; }
                     .fact b { font-weight:600; color:#3E4B44; }
+                    /* 부모 — 남의 개체가 섞이는 자리라 이름(+공개 조건 만족 시 모프)만 */
+                    .parents { margin-top:14px; padding-top:14px; border-top:1px solid #EFF5F1;
+                               display:flex; flex-direction:column; gap:8px; text-align:left; }
+                    .parents-title { font-size:11px; font-weight:700; letter-spacing:.08em;
+                                     color:#9AA8A0; }
+                    .parent { display:flex; align-items:baseline; gap:8px; font-size:13px; }
+                    .parent span { flex:none; width:28px; color:#9AA8A0; }
+                    .parent b { font-weight:600; color:#3E4B44; }
+                    .parent i { font-style:normal; font-size:12px; color:#9AA8A0;
+                                overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
                     .code { margin-top:20px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
                             font-size:11px; letter-spacing:.14em; color:#B6C4BC; }
                     /* 설치 유도는 여기 한 줄뿐 — 버튼으로 키우지 말 것 */
