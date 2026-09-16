@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -97,6 +98,22 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   /// 실제 규칙 판정(길이·문자·예약어·중복)은 전부 서버가 한다.
   bool get _nickCheckable => _nickText.length >= 2 && !_nickChecking;
 
+  /// 중복확인 실패 토스트 문구.
+  ///
+  /// 그냥 "확인에 실패했습니다"로 뭉뚱그리면 **서버가 거절한 것**과 **서버에 닿지도 못한 것**이
+  /// 같은 문장으로 보인다. 둘은 사용자가 할 일이 완전히 다르다(고치기 vs 기다리기).
+  /// 실제로 이것 때문에 "닉네임이 거부된다"로 오해해 한참 엉뚱한 데를 팠다 —
+  /// 원인은 `adb reverse` 가 안 걸려 요청이 서버까지 가지도 않은 것이었다.
+  String _checkFailMessage(Object e, String what) {
+    if (e is DioException &&
+        (e.type == DioExceptionType.connectionError ||
+            e.type == DioExceptionType.connectionTimeout ||
+            e.type == DioExceptionType.receiveTimeout)) {
+      return '서버에 연결할 수 없습니다. 네트워크를 확인해주세요';
+    }
+    return '$what 확인에 실패했습니다';
+  }
+
   Future<void> _checkNickname() async {
     if (!_nickCheckable) return;
     final nickname = _nickText;
@@ -116,7 +133,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      ToastMessage.show(context, '닉네임 확인에 실패했습니다', type: ToastType.error);
+      ToastMessage.show(context, _checkFailMessage(e, '닉네임'), type: ToastType.error);
     } finally {
       if (mounted) setState(() => _nickChecking = false);
     }
@@ -139,7 +156,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      ToastMessage.show(context, '이메일 확인에 실패했습니다', type: ToastType.error);
+      ToastMessage.show(context, _checkFailMessage(e, '이메일'), type: ToastType.error);
     } finally {
       if (mounted) setState(() => _emailChecking = false);
     }
