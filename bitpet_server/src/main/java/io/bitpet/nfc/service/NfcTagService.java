@@ -53,6 +53,8 @@ public class NfcTagService {
     private final TagCodeGenerator tagCodeGenerator;
     private final PhotoDtlRepository photoRepository;   // 랜딩 페이지 대표 사진
     private final S3Service s3Service;
+    private final io.bitpet.auth.repository.UserMstRepository userRepository;  // 랜딩 페이지 주인 닉네임
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;             // 랜딩 페이지 마지막 기록
 
     // -------------------------------------------------------------------------
     // 조회
@@ -118,10 +120,14 @@ public class NfcTagService {
     }
 
     /**
-     * 미설치자 랜딩 페이지용 — 이름·종·모프·성별·대표 사진까지.
+     * 미설치자 랜딩 페이지용 — 이름·종·모프·성별·대표 사진 + 주인 닉네임 + 마지막 기록(종류·시점).
      * 없거나 미연결이거나 차단됐거나 고아면 empty.
      *
-     * <p>사육 기록(체중·급여·청소)·날짜·주인 정보는 내려주지 않는다. 이름표에 적혀 있을 법한 것까지만.
+     * <p><b>기록은 종류와 시점만이다.</b> 체중 값·급여 내용·메모 본문은 담지 않는다 —
+     * 이 페이지는 코드만 알면 로그인 없이 열리므로 "돌봐지고 있다"는 사실까지만 보여준다.
+     *
+     * <p>주인 닉네임은 가계도와 같은 규칙을 쓴다({@code show_nickname_in_pedigree}).
+     * 거기서 숨긴 사람이 이름표에서는 드러나면 설정의 의미가 없다.
      */
     public Optional<TagLandingPet> peekPet(String tagCd) {
         return tagRepository.findById(normalize(tagCd))
@@ -129,20 +135,65 @@ public class NfcTagService {
                 .map(NfcTagMst::getPetId)
                 .flatMap(petRepository::findById)
                 .filter(pet -> !pet.isOrphaned())
-                .map(pet -> new TagLandingPet(
-                        pet.getName(),
-                        pet.getSpecies() != null ? pet.getSpecies().getNameKo() : null,
-                        pet.getMorphs().stream()
-                                .map(m -> m.getMorph().getNameKo())
-                                .filter(java.util.Objects::nonNull)
-                                .toList(),
-                        switch (pet.getGender()) {
-                            case MALE   -> "수컷";
-                            case FEMALE -> "암컷";
-                            case null, default -> null;
-                        },
-                        resolvePhotoUrl(pet)
-                ));
+                .map(pet -> {
+                    LastRecord last = lastRecordOf(pet.getId());
+                    return new TagLandingPet(
+                            pet.getName(),
+                            pet.getSpecies() != null ? pet.getSpecies().getNameKo() : null,
+                            pet.getMorphs().stream()
+                                    .map(m -> m.getMorph().getNameKo())
+                                    .filter(java.util.Objects::nonNull)
+                                    .toList(),
+                            switch (pet.getGender()) {
+                                case MALE   -> "수컷";
+                                case FEMALE -> "암컷";
+                                case null, default -> null;
+                            },
+                            resolvePhotoUrl(pet),
+                            resolveOwnerName(pet.getId()),
+                            last == null ? null : last.label(),
+                            last == null ? null : last.at());
+                });
+    }
+
+    private record LastRecord(String label, java.time.Instant at) {}
+
+    /**
+     * 주인 닉네임. 숨김 설정이면 {@code "비공개"}, 주인을 특정할 수 없으면 null.
+     *
+     * <p>판정 소스는 {@code pet_keeper_rls}(OWNER)다. ⛔ {@code pet_mst.user_id} 를 쓰지 말 것 —
+     * 표시용 비정규화 값이라 소유권 이전 뒤에 옛 주인이 남을 수 있다.
+     */
+    private String resolveOwnerName(Long petId) {
+        return petKeeperService.ownerIdOf(petId)
+                .flatMap(userRepository::findById)
+                .map(u -> u.isShowNicknameInPedigree() ? u.getName() : "비공개")
+                .orElse(null);
+    }
+
+    /**
+     * 마지막 기록의 종류와 시점. 기록이 하나도 없으면 null.
+     *
+     * <p>UNION ALL 후 1건만 뽑는다. 종류별 테이블이 각각 {@code (pet_id, 시각)} 인덱스를 갖고 있어
+     * 네 갈래 모두 인덱스 스캔의 첫 행만 읽는다. 합사·산란은 제외했다 —
+     * 번식 활동은 공개 이름표에 띄울 성질이 아니다.
+     */
+    private LastRecord lastRecordOf(Long petId) {
+        String sql = """
+                SELECT label, logged_at FROM (
+                    SELECT '체중' AS label, measured_at AS logged_at FROM weight_dtl   WHERE pet_id = ? AND deleted_at IS NULL
+                    UNION ALL
+                    SELECT '급여',          fed_at                   FROM feeding_dtl  WHERE pet_id = ? AND deleted_at IS NULL
+                    UNION ALL
+                    SELECT '청소',          cleaned_at               FROM cleaning_dtl WHERE pet_id = ? AND deleted_at IS NULL
+                    UNION ALL
+                    SELECT '메모',          logged_at                FROM memo_dtl     WHERE pet_id = ? AND deleted_at IS NULL
+                ) x ORDER BY logged_at DESC LIMIT 1
+                """;
+        List<LastRecord> rows = jdbc.query(sql,
+                (rs, i) -> new LastRecord(rs.getString("label"), rs.getTimestamp("logged_at").toInstant()),
+                petId, petId, petId, petId);
+        return rows.isEmpty() ? null : rows.get(0);
     }
 
     private String resolvePhotoUrl(PetMst pet) {

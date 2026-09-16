@@ -87,11 +87,24 @@ public class TagLandingController {
                 ? "<img class=\"photo\" src=\"" + escape(pet.imageUrl()) + "\" alt=\"\">"
                 : "<div class=\"photo placeholder\"><img src=\"/brand/icon-512.png\" alt=\"\"></div>";
 
+        // 주인 · 마지막 기록 — 개체 정보 아래 작은 두 줄. 기록은 종류와 시점만이다
+        StringBuilder facts = new StringBuilder();
+        if (pet.ownerName() != null) {
+            facts.append("<div class=\"fact\"><span>주인</span><b>")
+                 .append(escape(pet.ownerName())).append("</b></div>");
+        }
+        if (pet.lastRecordLabel() != null) {
+            facts.append("<div class=\"fact\"><span>마지막 기록</span><b>")
+                 .append(escape(pet.lastRecordLabel())).append(" · ")
+                 .append(escape(relativeDay(pet.lastRecordAt()))).append("</b></div>");
+        }
+
         String body = """
                   <header><img class="wordmark" src="/brand/logo.svg" alt="TAILOG"></header>
                   <main>
                     %s
                     <h1>%s</h1>
+                    %s
                     %s
                     %s
                     <p class="code">%s</p>
@@ -101,9 +114,22 @@ public class TagLandingController {
                 name,
                 meta.length() > 0 ? "<p class=\"meta\">" + meta + "</p>" : "",
                 morphs.length() > 0 ? "<div class=\"chips\">" + morphs + "</div>" : "",
+                facts.length() > 0 ? "<div class=\"facts\">" + facts + "</div>" : "",
                 tagCd);
 
         return page(name + " 의 이름표", body);
+    }
+
+    /** "오늘 / 어제 / N일 전 / yyyy.MM.dd" — 30일이 넘으면 상대 표현이 오히려 안 읽힌다 */
+    private static String relativeDay(java.time.Instant at) {
+        if (at == null) return "";
+        java.time.ZoneId seoul = java.time.ZoneId.of("Asia/Seoul");
+        java.time.LocalDate day = at.atZone(seoul).toLocalDate();
+        long days = java.time.temporal.ChronoUnit.DAYS.between(day, java.time.LocalDate.now(seoul));
+        if (days <= 0)  return "오늘";
+        if (days == 1)  return "어제";
+        if (days <= 30) return days + "일 전";
+        return day.format(java.time.format.DateTimeFormatter.ofPattern("yyyy.MM.dd"));
     }
 
     private String emptyPage(String headline, String subline, String tagCd) {
@@ -153,6 +179,12 @@ public class TagLandingController {
                              justify-content:center; }
                     .chip { font-size:12px; padding:5px 10px; background:#F0F8F3;
                             color:#3E7A5E; }
+                    /* 주인 · 마지막 기록 — 기록의 '내용'은 여기 절대 넣지 말 것 (공개 URL 이다) */
+                    .facts { margin-top:18px; padding-top:14px; border-top:1px solid #EFF5F1;
+                             display:flex; flex-direction:column; gap:7px; }
+                    .fact { display:flex; justify-content:space-between; font-size:13px; }
+                    .fact span { color:#9AA8A0; }
+                    .fact b { font-weight:600; color:#3E4B44; }
                     .code { margin-top:20px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
                             font-size:11px; letter-spacing:.14em; color:#B6C4BC; }
                     /* 설치 유도는 여기 한 줄뿐 — 버튼으로 키우지 말 것 */

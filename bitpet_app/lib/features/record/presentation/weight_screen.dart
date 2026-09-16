@@ -911,8 +911,9 @@ class _BigChartPainter extends CustomPainter {
     // 위에 자리가 없으면 점 아래로
     var boxTop = anchor.dy - offsetY - h;
     if (boxTop < 0) boxTop = anchor.dy + offsetY;
-    final boxLeft =
-        (anchor.dx - w / 2).clamp(0.0, max(0.0, size.width - w));
+    // num.clamp 는 num 을 돌려준다 — Rect.fromLTWH 가 double 을 받으므로 여기서 좁힌다
+    final double boxLeft =
+        (anchor.dx - w / 2).clamp(0.0, max(0.0, size.width - w)).toDouble();
     final rect = Rect.fromLTWH(boxLeft, boxTop, w, h);
 
     canvas.drawRect(rect, Paint()..color = AppColors.primary);
