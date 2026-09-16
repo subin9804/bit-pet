@@ -18,6 +18,11 @@ class FeedComposerFields extends StatelessWidget {
   final bool showMemo;
   final VoidCallback? onAdd;
 
+  /// 거식 체크박스를 이 안에 그릴지.
+  /// `FeedItemsEditor` 는 거식을 '입력하다가 추가하는 항목'이 아니라 **체크하면 그걸로 끝**인
+  /// 상태로 다루므로 체크박스를 바깥에서 직접 들고 있다 — 그때만 false.
+  final bool showRefused;
+
   const FeedComposerFields({
     super.key,
     required this.form,
@@ -25,6 +30,7 @@ class FeedComposerFields extends StatelessWidget {
     this.bandColor = AppColors.feedBand,
     this.showMemo = true,
     this.onAdd,
+    this.showRefused = true,
   });
 
   void _selectType(FoodType? ft) {
@@ -51,17 +57,19 @@ class FeedComposerFields extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // ── 거식 ────────────────────────────────────────────
-        _RefusedToggle(active: refused, bandColor: bandColor, onTap: _toggleRefused),
-        const SizedBox(height: 14),
+        if (showRefused) ...[
+          RefusedCheckbox(active: refused, bandColor: bandColor, onTap: _toggleRefused),
+          const SizedBox(height: 20),
+        ],
 
         // 거식이면 종류·서브입력·영양제는 아예 사라지고 메모만 남는다
         if (!refused) ..._feedFields(),
 
         // ── 메모 ────────────────────────────────────────────
         if (showMemo) ...[
-          if (!refused) const SizedBox(height: 14),
+          if (!refused) const SizedBox(height: 20),
           _Label('메모', optional: true),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           TextField(
             onChanged: (v) => onChanged(form.copyWith(memo: v)),
             maxLines: 2,
@@ -73,8 +81,9 @@ class FeedComposerFields extends StatelessWidget {
         ],
 
         // ── 추가하기 버튼 ────────────────────────────────────
-        if (onAdd != null) ...[
-          const SizedBox(height: 16),
+        // 거식은 '담아서 추가하는' 항목이 아니라 체크 자체가 기록이다 — 버튼을 두지 않는다
+        if (onAdd != null && !refused) ...[
+          const SizedBox(height: 20),
           _AddButton(enabled: form.isValid, bandColor: bandColor, onTap: onAdd!),
         ],
       ],
@@ -155,21 +164,31 @@ class FeedComposerFields extends StatelessWidget {
   }
 }
 
-// ── 거식 토글 ──────────────────────────────────────────────────────────────────
-/// 폼 최상단. 켜면 아래 입력이 전부 사라지고 메모만 남는다.
-class _RefusedToggle extends StatelessWidget {
+// ── 거식 체크박스 ──────────────────────────────────────────────────────────────
+/// 폼 최상단. 체크하면 아래 입력이 전부 사라지고 그대로 거식으로 기록된다.
+///
+/// 원래는 "먹이를 거부함 · 메모만 기록" 부연설명을 옆에 달았는데, 체크박스 한 줄에
+/// 설명까지 붙으니 줄이 빽빽해 보이기만 하고 정작 체크박스라는 게 눈에 안 들어왔다.
+/// 단어 하나로 충분한 항목이다.
+class RefusedCheckbox extends StatelessWidget {
   final bool active;
   final Color bandColor;
   final VoidCallback onTap;
-  const _RefusedToggle({required this.active, required this.bandColor, required this.onTap});
+  const RefusedCheckbox({
+    super.key,
+    required this.active,
+    required this.bandColor,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) => GestureDetector(
     onTap: onTap,
+    behavior: HitTestBehavior.opaque,
     child: AnimatedContainer(
       duration: const Duration(milliseconds: 140),
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
       decoration: BoxDecoration(
         color: active ? bandColor : AppColors.card,
         border: Border.all(color: active ? Colors.transparent : AppColors.paleLine),
@@ -177,21 +196,13 @@ class _RefusedToggle extends StatelessWidget {
       ),
       child: Row(children: [
         Icon(active ? Icons.check_box : Icons.check_box_outline_blank,
-            size: 17, color: active ? AppColors.primary : AppColors.paleInk3),
-        const SizedBox(width: 8),
+            size: 19, color: active ? AppColors.primary : AppColors.paleInk3),
+        const SizedBox(width: 10),
         Text('거식',
             style: TextStyle(
-              fontSize: 13, fontWeight: FontWeight.w700,
+              fontSize: 13.5, fontWeight: FontWeight.w700,
               color: active ? AppColors.primary : AppColors.paleInk2,
             )),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text('먹이를 거부함 · 메모만 기록',
-              style: TextStyle(
-                fontSize: 11, fontWeight: FontWeight.w500,
-                color: active ? AppColors.primary.withValues(alpha: 0.7) : AppColors.paleInk3,
-              )),
-        ),
       ]),
     ),
   );

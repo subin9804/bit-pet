@@ -84,7 +84,10 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
   @override
   void initState() {
     super.initState();
-    _page = PageController(viewportFraction: 0.84);
+    // viewportFraction 1.0 — 예전엔 0.84 로 양옆 카드를 흐릿하게 걸쳐 보여줬는데,
+    // 그 peek 때문에 **정작 입력하는 현재 개체의 폭이 16% 깎였다**.
+    // 슬라이드로 개체를 넘기는 동작은 그대로 두고, 옆 카드를 내밀지만 않는다.
+    _page = PageController();
     _rec = {
       for (final s in _pets)
         s.petId: _PerPetRec(done: s.isCompleted, logId: s.logId),
@@ -391,8 +394,6 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
                             },
                             itemCount: _pets.length,
                             itemBuilder: (_, i) => _PetPage(
-                              page: _page,
-                              index: i,
                               pet: _pets[i],
                               rec: _rec[_pets[i].petId]!,
                               isFeed: _isFeed,
@@ -429,10 +430,8 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
   }
 }
 
-// ── 개체 1장 (peek 스케일 적용) ────────────────────────────────────
+// ── 개체 1장 ──────────────────────────────────────────────────────
 class _PetPage extends StatelessWidget {
-  final PageController page;
-  final int index;
   final TodayPetStatus pet;
   final _PerPetRec rec;
   final bool isFeed;
@@ -444,8 +443,6 @@ class _PetPage extends StatelessWidget {
   final VoidCallback onChanged;
 
   const _PetPage({
-    required this.page,
-    required this.index,
     required this.pet,
     required this.rec,
     required this.isFeed,
@@ -459,23 +456,8 @@ class _PetPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: page,
-      builder: (context, child) {
-        double delta = 0;
-        if (page.position.haveDimensions) {
-          delta = (page.page ?? page.initialPage.toDouble()) - index;
-        }
-        final t       = (1 - delta.abs()).clamp(0.0, 1.0);
-        final scale   = 0.92 + 0.08 * t;
-        final opacity = 0.4 + 0.6 * t;
-        return Transform.scale(
-          scale: scale,
-          child: Opacity(opacity: opacity, child: child),
-        );
-      },
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(10, 12, 10, 12),
+    return SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -541,7 +523,7 @@ class _PetPage extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 18),
 
             // 완료/미완료 버튼
             GestureDetector(
@@ -571,7 +553,7 @@ class _PetPage extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 8),
             Center(
               child: Text(
                 rec.done
@@ -584,16 +566,16 @@ class _PetPage extends StatelessWidget {
                     color: AppColors.paleInk3),
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 10),
 
             // 몸무게 입력 (WEIGHT 루틴 — 필수)
             if (isWeight) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               Text('몸무게 (g) *',
                   style: TextStyle(
                       fontSize: 12, fontWeight: FontWeight.w700,
                       color: AppColors.paleInk2)),
-              const SizedBox(height: 4),
+              const SizedBox(height: 8),
               TextField(
                 controller: rec.weightCtrl,
                 keyboardType:
@@ -658,7 +640,6 @@ class _PetPage extends StatelessWidget {
             ),
           ],
         ),
-      ),
     );
   }
 }

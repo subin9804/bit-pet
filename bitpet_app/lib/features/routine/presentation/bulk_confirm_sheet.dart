@@ -189,13 +189,13 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
                       // 본문 (스크롤)
                       Flexible(
                         child: SingleChildScrollView(
-                          padding: const EdgeInsets.fromLTRB(22, 20, 22, 18),
+                          padding: const EdgeInsets.fromLTRB(22, 22, 22, 22),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               // 질문
                               _QuestionText(title: routine.title, accent: _accent),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 20),
 
                               // 대상 개체 아코디언
                               ConfirmAccordion(
@@ -250,16 +250,16 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
 
                               // 몸무게 입력 (WEIGHT 타입 — 개체별 필수)
                               if (_isWeight) ...[
-                                const SizedBox(height: 4),
+                                const SizedBox(height: 14),
                                 Text('몸무게 (g) *',
                                     style: TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w700,
                                         color: AppColors.paleInk2)),
-                                const SizedBox(height: 6),
+                                const SizedBox(height: 10),
                                 ...pets.where((s) => !s.isCompleted).map(
                                   (pet) => Padding(
-                                    padding: const EdgeInsets.only(bottom: 8),
+                                    padding: const EdgeInsets.only(bottom: 10),
                                     child: Row(
                                       children: [
                                         SizedBox(

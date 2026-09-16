@@ -27,7 +27,7 @@ class ConfirmAccordion extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(top: 10),
+      margin: const EdgeInsets.only(top: 14),
       decoration: const BoxDecoration(
         color: AppColors.card,
         border: Border.fromBorderSide(BorderSide(color: AppColors.border)),
@@ -38,7 +38,7 @@ class ConfirmAccordion extends StatelessWidget {
             onTap: onToggle,
             behavior: HitTestBehavior.opaque,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
+              padding: const EdgeInsets.fromLTRB(16, 15, 16, 15),
               child: Row(
                 children: [
                   if (label.isNotEmpty) ...[
@@ -78,7 +78,7 @@ class ConfirmAccordion extends StatelessWidget {
           ),
           if (open)
             Padding(
-              padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+              padding: const EdgeInsets.fromLTRB(16, 2, 16, 18),
               child: child,
             ),
         ],

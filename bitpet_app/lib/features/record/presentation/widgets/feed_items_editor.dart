@@ -31,8 +31,14 @@ class _FeedItemsEditorState extends State<FeedItemsEditor> {
 
   void _add() {
     if (!_current.isValid) return;
-    // 거식을 추가하면 앞서 담은 먹이는 의미가 없어지므로 목록을 비운다
-    widget.onChanged(_current.isRefused ? [_current] : [...widget.items, _current]);
+    widget.onChanged([...widget.items, _current]);
+    setState(() => _current = const FeedFormData());
+  }
+
+  /// 거식 체크 — 여기엔 '추가하기'가 없다. 체크하는 순간 그게 곧 기록이다.
+  /// 거식은 단독 기록이라 체크하면 앞서 담아둔 먹이는 의미가 없어지므로 목록을 통째로 갈아끼운다.
+  void _toggleRefused() {
+    widget.onChanged(_hasRefused ? const [] : const [FeedFormData(isRefused: true)]);
     setState(() => _current = const FeedFormData());
   }
 
@@ -47,23 +53,37 @@ class _FeedItemsEditorState extends State<FeedItemsEditor> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // ── 거식 체크박스 ───────────────────────────────────
+        // 컴포저 안이 아니라 여기서 직접 들고 있다 — 체크 자체가 기록이라
+        // '추가하기' 를 거치지 않기 때문이다.
+        RefusedCheckbox(
+          active: _hasRefused,
+          bandColor: widget.bandColor,
+          onTap: _toggleRefused,
+        ),
+
         // ── 컴포저 ──────────────────────────────────────────
-        // 거식이 담겨 있으면 입력창 자체를 감춘다 (지우면 다시 나온다)
-        if (!_hasRefused)
+        // 거식이면 입력창 자체를 감춘다 (체크를 풀면 다시 나온다)
+        if (!_hasRefused) ...[
+          const SizedBox(height: 20),
           FeedComposerFields(
             form: _current,
             bandColor: widget.bandColor,
             showMemo: false,
+            showRefused: false,
             onChanged: (f) => setState(() => _current = f),
             onAdd: _add,
           ),
+        ],
+
         // ── 추가된 아이템 목록 ─────────────────────────────
-        if (widget.items.isNotEmpty) ...[
-          SizedBox(height: _hasRefused ? 0 : 20),
-          _SectionLabel(_hasRefused ? '거식 기록' : '추가된 급여'),
-          const SizedBox(height: 8),
+        // 거식은 체크박스가 이미 상태를 보여주므로 목록으로 또 보여주지 않는다
+        if (!_hasRefused && widget.items.isNotEmpty) ...[
+          const SizedBox(height: 24),
+          const _SectionLabel('추가된 급여'),
+          const SizedBox(height: 10),
           ...widget.items.asMap().entries.map((e) => Padding(
-            padding: const EdgeInsets.only(bottom: 6),
+            padding: const EdgeInsets.only(bottom: 8),
             child: _ItemRow(
               item: e.value,
               bandColor: widget.bandColor,
