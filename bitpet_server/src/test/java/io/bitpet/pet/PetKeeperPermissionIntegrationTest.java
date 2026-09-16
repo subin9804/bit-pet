@@ -171,7 +171,7 @@ class PetKeeperPermissionIntegrationTest extends IntegrationTestBase {
         // 뒤 4개는 약관 동의 — 필수 3종(이용약관·개인정보·만14세) 동의, 마케팅 미동의.
         // 필수 항목이 true 가 아니면 @AssertTrue 가 걸려 가입 자체가 400 이다.
         return authService.signup(new SignupRequest(
-                "perm" + n + "@example.com", "Passw0rd!23", "permuser" + n,
+                "perm" + n + "@example.com", "Passw0rd!23", "permuser" + n, null,
                 true, true, true, false)).id();
     }
 

@@ -64,18 +64,24 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
     required bool agreePrivacy,
     required bool agreeAge,
     required bool agreeMarketing,
+    String profileColor = 'peach',
+    PickedImage? profileImage,
   }) async {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(
-      () => _repo.signup(SignupRequest(
+      () => _repo.signup(
+        SignupRequest(
         email: email,
         password: password,
         nickname: nickname,
+        profileColor: profileColor,
         agreeTos: agreeTos,
         agreePrivacy: agreePrivacy,
         agreeAge: agreeAge,
         agreeMarketing: agreeMarketing,
-      )),
+        ),
+        profileImage: profileImage,
+      ),
     );
     if (state.hasValue && state.value != null) {
       await _setUpPush();

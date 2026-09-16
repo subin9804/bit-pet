@@ -4,14 +4,16 @@ import 'package:go_router/go_router.dart';
 import '../../../core/legal/legal_document_sheet.dart';
 import '../../../core/legal/legal_documents.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/upload/image_upload.dart';
 import '../../../core/widgets/step_shell.dart';
 import '../../../core/widgets/toast_message.dart';
+import '../../../core/widgets/user_avatar.dart';
 import '../data/auth_repository.dart';
 import '../providers/auth_provider.dart';
 
 // ════════════════════════════════════════════════════════════════
 // 11s · 회원가입 — 4단계 스텝 위저드
-// 1) 프로필(색·닉네임)  2) 로그인 정보  3) 약관  4) 확인
+// 1) 프로필(사진·색·닉네임)  2) 로그인 정보  3) 약관  4) 확인
 // ════════════════════════════════════════════════════════════════
 
 class SignupScreen extends ConsumerStatefulWidget {
@@ -23,7 +25,13 @@ class SignupScreen extends ConsumerStatefulWidget {
 
 class _SignupScreenState extends ConsumerState<SignupScreen> {
   // ── 상태 ────────────────────────────────────────────────────────────────────
-  String _colorKey = 'peach'; // sage/peach/sky/lilac/butter/coral
+  String _colorKey = ProfilePalette.defaultKey; // sage/peach/sky/lilac/butter/coral
+
+  /// 가입 중 고른 프로필 사진. 아직 **업로드되지 않은 바이트**다 —
+  /// presign 이 인증을 요구하는데 이 시점엔 계정도 토큰도 없어서,
+  /// 가입·자동로그인이 끝난 뒤 `AuthRepository.signup` 이 올린다.
+  PickedImage? _profileImage;
+
   final _nickCtrl   = TextEditingController();
   final _emailCtrl  = TextEditingController();
   final _pwCtrl     = TextEditingController();
@@ -52,28 +60,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   bool get _reqAgreed => _agreeTos && _agreePrivacy && _agreeAge;
 
   // ── 팔레트 ──────────────────────────────────────────────────────────────────
-  static const _palette = <(String, Color, Color)>[
-    ('sage',   AppColors.petSage,   AppColors.petSageInk),
-    ('peach',  AppColors.petPeach,  AppColors.petPeachInk),
-    ('sky',    AppColors.petSky,    AppColors.petSkyInk),
-    ('lilac',  AppColors.petLilac,  AppColors.petLilacInk),
-    ('butter', AppColors.petButter, AppColors.petButterInk),
-    ('coral',  AppColors.petCoral,  AppColors.petCoralInk),
-  ];
+  // 목록은 ProfilePalette 한 곳에만 둔다 — 마이페이지와 각자 들고 있으면 반드시 어긋난다.
+  static const _palette = ProfilePalette.entries;
 
-  Color get _accentInk {
-    for (final (key, _, ink) in _palette) {
-      if (key == _colorKey) return ink;
-    }
-    return AppColors.petPeachInk;
-  }
-
-  Color get _selectedBg {
-    for (final (key, bg, _) in _palette) {
-      if (key == _colorKey) return bg;
-    }
-    return AppColors.petPeach;
-  }
+  Color get _accentInk => ProfilePalette.inkOf(_colorKey);
 
   // ── 비밀번호 강도 ────────────────────────────────────────────────────────────
   int _strength(String pw) {
@@ -191,6 +181,18 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     showLegalDocument(context, doc);
   }
 
+  /// 프로필 사진 고르기. 여기서는 **고르기만** 한다 — 업로드는 가입 후다(위 _profileImage 주석).
+  Future<void> _pickProfileImage() async {
+    try {
+      final picked = await ref.read(imageUploadServiceProvider).pickFromGallery();
+      if (picked == null || !mounted) return;
+      setState(() => _profileImage = picked);
+    } catch (_) {
+      if (!mounted) return;
+      ToastMessage.show(context, '사진을 불러오지 못했습니다', type: ToastType.error);
+    }
+  }
+
   Future<void> _submit() async {
     await ref.read(authStateProvider.notifier).signup(
       _emailCtrl.text.trim(),
@@ -200,6 +202,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       agreePrivacy: _agreePrivacy,
       agreeAge: _agreeAge,
       agreeMarketing: _agreeMarketing,
+      profileColor: _colorKey,
+      profileImage: _profileImage,
     );
     if (!mounted) return;
     ref.read(authStateProvider).whenOrNull(
@@ -212,7 +216,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     // ── Step 1: 프로필 ──────────────────────────────────────────────────────
     StepConfig(
       title: '프로필을 만들어요',
-      desc: '테일로그 안에서 보일 이름과 색이에요.',
+      desc: '테일로그 안에서 보일 사진과 이름, 색이에요.',
       // 중복확인을 통과해야만 다음 단계로 넘어간다.
       valid: () => _nickConfirmed,
       render: (ctx) => ListenableBuilder(
@@ -224,17 +228,32 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // 아바타 프리뷰
-                Container(
-                  width: 92,
-                  height: 92,
-                  decoration: BoxDecoration(
-                    color: _selectedBg,
-                    borderRadius: BorderRadius.zero,
-                  ),
-                  child: const Center(
-                    child: Text('🦎', style: TextStyle(fontSize: 40)),
-                  ),
+                // 아바타 프리뷰 — 탭하면 사진 선택. 사진을 고르면 고른 색이 3px 테두리로 남는다
+                Column(
+                  children: [
+                    GestureDetector(
+                      onTap: _pickProfileImage,
+                      child: UserAvatar(
+                        size: 92,
+                        colorKey: _colorKey,
+                        localBytes: _profileImage?.bytes,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    GestureDetector(
+                      onTap: _profileImage == null
+                          ? _pickProfileImage
+                          : () => setState(() => _profileImage = null),
+                      child: Text(
+                        _profileImage == null ? '사진 추가' : '사진 지우기',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.paleInk2,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -612,6 +631,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           StepSummaryGroup(label: '프로필', step: 0, rows: [
             StepSummaryRow(k: '닉네임', v: _nickCtrl.text),
             StepSummaryRow(k: '색상', v: _colorKey),
+            StepSummaryRow(k: '프로필 사진', v: _profileImage == null ? '없음' : '선택됨'),
           ]),
           StepSummaryGroup(label: '계정', step: 1, rows: [
             StepSummaryRow(k: '이메일', v: _emailCtrl.text),

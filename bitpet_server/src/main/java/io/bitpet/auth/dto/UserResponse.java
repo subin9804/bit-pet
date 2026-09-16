@@ -12,6 +12,11 @@ public record UserResponse(
         String nickname,
         String userType,
         String profileImageUrl,
+        /**
+         * 프로필 색 팔레트 키 (sage/peach/sky/lilac/butter/coral).
+         * 사진이 없으면 아바타 배경색, 있으면 테두리 색으로 쓰인다.
+         */
+        String profileColor,
         /** 가계도에 닉네임을 노출할지 (마이페이지 설정 토글) */
         boolean showNicknameInPedigree,
         /**
@@ -40,6 +45,7 @@ public record UserResponse(
                 user.getName(),
                 user.getUserType().name(),
                 resolvedImageUrl,
+                user.getProfileColor(),
                 user.isShowNicknameInPedigree(),
                 roles.stream().map(Enum::name).toList(),
                 user.getCreatedAt()

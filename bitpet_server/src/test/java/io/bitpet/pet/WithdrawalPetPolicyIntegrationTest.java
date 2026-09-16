@@ -129,7 +129,7 @@ class WithdrawalPetPolicyIntegrationTest extends IntegrationTestBase {
     void 닉네임_비공개면_비공개로_치환되고_userId를_내리지_않는다() {
         Long owner   = signup();
         Long breeder = signup();
-        authService.updateMe(owner, new UpdateMeRequest(null, null, false));
+        authService.updateMe(owner, new UpdateMeRequest(null, null, null, false));
 
         Long father = createPet(owner, "아빠", PetGender.MALE);
         Long child  = createPet(breeder, "남의새끼", PetGender.UNKNOWN);
@@ -198,7 +198,7 @@ class WithdrawalPetPolicyIntegrationTest extends IntegrationTestBase {
         // 뒤 4개는 약관 동의 — 필수 3종(이용약관·개인정보·만14세) 동의, 마케팅 미동의.
         // 필수 항목이 true 가 아니면 @AssertTrue 가 걸려 가입 자체가 400 이다.
         return authService.signup(new SignupRequest(
-                "withdraw" + n + "@example.com", "Passw0rd!23", "user" + n,
+                "withdraw" + n + "@example.com", "Passw0rd!23", "user" + n, null,
                 true, true, true, false)).id();
     }
 

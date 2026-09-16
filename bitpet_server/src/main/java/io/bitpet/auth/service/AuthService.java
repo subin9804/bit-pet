@@ -77,7 +77,8 @@ public class AuthService {
         String nickname = requireAvailableNickname(request.nickname(), null);
 
         String passwordHash = passwordEncoder.encode(request.password());
-        UserMst user = UserMst.createLocal(request.email(), passwordHash, nickname);
+        UserMst user = UserMst.createLocal(request.email(), passwordHash, nickname,
+                request.profileColor());
         UserMst saved = userRepository.save(user);
 
         // 동의 기록은 가입과 같은 트랜잭션에 둔다. 기록에 실패하면 가입도 없던 일이 되어야
@@ -157,6 +158,7 @@ public class AuthService {
         if (req.profileImageKey() != null) {
             user.changeProfileImageUrl(req.profileImageKey().isBlank() ? null : req.profileImageKey());
         }
+        user.changeProfileColor(req.profileColor());   // 빈 값은 엔티티가 무시한다
         if (req.showNicknameInPedigree() != null) {
             user.changeShowNicknameInPedigree(req.showNicknameInPedigree());
         }

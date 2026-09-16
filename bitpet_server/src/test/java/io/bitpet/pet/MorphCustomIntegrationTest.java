@@ -180,7 +180,7 @@ class MorphCustomIntegrationTest extends IntegrationTestBase {
     private Long signup() {
         int n = SEQ.incrementAndGet();
         return authService.signup(new SignupRequest(
-                "morph" + n + "@example.com", "Passw0rd!23", "morphuser" + n,
+                "morph" + n + "@example.com", "Passw0rd!23", "morphuser" + n, null,
                 true, true, true, false)).id();
     }
 }

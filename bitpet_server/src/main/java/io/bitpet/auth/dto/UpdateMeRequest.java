@@ -9,6 +9,8 @@ import jakarta.validation.constraints.Size;
 public record UpdateMeRequest(
         @Size(min = 1, max = 50) String nickname,
         String profileImageKey,
+        /** 프로필 색 팔레트 키. 사진이 있으면 테두리 색이 된다 */
+        @Size(max = 20) String profileColor,
         /** 가계도·개체 카드에 내 닉네임을 노출할지. false 면 '비공개'로 치환되고 프로필 이동 불가 */
         Boolean showNicknameInPedigree
 ) {}

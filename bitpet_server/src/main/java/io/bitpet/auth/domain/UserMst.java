@@ -64,24 +64,42 @@ public class UserMst extends BaseTimeEntity {
     @Column(name = "show_nickname_in_pedigree", nullable = false)
     private boolean showNicknameInPedigree = true;
 
+    /**
+     * 프로필 아바타 색 팔레트 키 (V10). 사진이 있으면 테두리 색으로 쓰인다.
+     *
+     * <p>색상 코드가 아니라 <b>팔레트 키</b>를 저장한다 — 테마가 바뀌면 같은 'peach' 라도
+     * 실제 색이 달라져야 한다. 모르는 값이 들어와도 앱이 기본색으로 떨어뜨리므로 CHECK 은 걸지 않는다.
+     */
+    @Column(name = "profile_color", nullable = false, length = 20)
+    private String profileColor = DEFAULT_PROFILE_COLOR;
+
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
+    public static final String DEFAULT_PROFILE_COLOR = "peach";
+
     @Builder
     private UserMst(String email, String passwordHash, String name,
-                    String profileImageUrl, UserType userType) {
+                    String profileImageUrl, UserType userType, String profileColor) {
         this.email = email;
         this.passwordHash = passwordHash;
         this.name = name;
         this.profileImageUrl = profileImageUrl;
         this.userType = userType == null ? UserType.GENERAL : userType;
+        this.profileColor = (profileColor == null || profileColor.isBlank())
+                ? DEFAULT_PROFILE_COLOR : profileColor;
     }
 
     public static UserMst createLocal(String email, String passwordHash, String name) {
+        return createLocal(email, passwordHash, name, null);
+    }
+
+    public static UserMst createLocal(String email, String passwordHash, String name, String profileColor) {
         return UserMst.builder()
                 .email(email)
                 .passwordHash(passwordHash)
                 .name(name)
+                .profileColor(profileColor)
                 .userType(UserType.GENERAL)
                 .build();
     }
@@ -110,6 +128,13 @@ public class UserMst extends BaseTimeEntity {
 
     public void markLoggedIn() {
         this.lastLoginAt = Instant.now();
+    }
+
+    /** 빈 값은 무시한다 — 부분 수정(PATCH)에서 안 보낸 필드가 색을 지워버리면 안 된다 */
+    public void changeProfileColor(String profileColor) {
+        if (profileColor != null && !profileColor.isBlank()) {
+            this.profileColor = profileColor;
+        }
     }
 
     public void changeShowNicknameInPedigree(boolean show) {

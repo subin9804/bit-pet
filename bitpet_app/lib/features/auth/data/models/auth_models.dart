@@ -12,6 +12,9 @@ class SignupRequest {
   final String password;
   final String nickname; // 서버 필드명: nickname
 
+  /// 프로필 색 팔레트 키. 사진을 올리면 이 색이 테두리가 된다.
+  final String profileColor;
+
   // 약관 동의. 필수 3종이 true 가 아니면 서버가 400 으로 거절한다.
   // 선택(마케팅)은 false 여도 그대로 보낸다 — 서버가 "동의 안 함"으로 기록해야
   // 나중에 "물어본 적 없음"과 구별된다.
@@ -24,6 +27,7 @@ class SignupRequest {
     required this.email,
     required this.password,
     required this.nickname,
+    this.profileColor = 'peach',
     required this.agreeTos,
     required this.agreePrivacy,
     required this.agreeAge,
@@ -34,6 +38,7 @@ class SignupRequest {
         'email': email,
         'password': password,
         'nickname': nickname, // 서버 SignupRequest.nickname 과 일치
+        'profileColor': profileColor,
         'agreeTos': agreeTos,
         'agreePrivacy': agreePrivacy,
         'agreeAge': agreeAge,
@@ -86,6 +91,9 @@ class UserProfile {
   final String? profileImageUrl;
   final String userType;
 
+  /// 프로필 색 팔레트 키. 사진이 없으면 아바타 배경, 있으면 테두리가 된다.
+  final String profileColor;
+
   /// 남의 가계도에 내 닉네임을 노출할지. false면 서버가 '비공개'로 치환하고
   /// userId도 내리지 않아 남이 내 프로필로 들어올 수 없다
   final bool showNicknameInPedigree;
@@ -103,6 +111,7 @@ class UserProfile {
     required this.name,
     this.profileImageUrl,
     required this.userType,
+    this.profileColor = 'peach',
     this.showNicknameInPedigree = true,
     this.adminRoles = const [],
   });
@@ -119,6 +128,7 @@ class UserProfile {
         name: (json['nickname'] ?? json['name']) as String, // 서버는 nickname
         profileImageUrl: json['profileImageUrl'] as String?,
         userType: json['userType'] as String? ?? 'GENERAL',
+        profileColor: json['profileColor'] as String? ?? 'peach',
         showNicknameInPedigree:
             json['showNicknameInPedigree'] as bool? ?? true,
         adminRoles: ((json['adminRoles'] as List<dynamic>?) ?? const [])

@@ -13,6 +13,10 @@ public record SignupRequest(
         // 상세 규칙(허용 문자·예약어)은 NicknamePolicy 가 본다. 여기 길이는 그와 맞춘 1차 방어선.
         @NotBlank @Size(min = 2, max = 20) String nickname,
 
+        // 프로필 색 팔레트 키. 안 보내면 기본값('peach')이 붙는다 —
+        // 색은 가입을 막을 만한 정보가 아니라서 필수로 두지 않는다.
+        @Size(max = 20) String profileColor,
+
         // 약관 동의. 필수 3종은 true 가 아니면 400 이다.
         // Boolean(래퍼)인 이유 — boolean 이면 필드가 통째로 빠진 요청이 false 로 조용히
         // 통과해 "동의하지 않음"으로 기록된다. null 과 false 는 구별해야 한다.

@@ -69,11 +69,13 @@ class AuthRepository {
   Future<UserProfile> updateMe({
     String? nickname,
     String? profileImageKey,
+    String? profileColor,
     bool? showNicknameInPedigree,
   }) async {
     final res = await _dio.patch('/auth/me', data: {
       if (nickname != null) 'nickname': nickname,
       if (profileImageKey != null) 'profileImageKey': profileImageKey,
+      if (profileColor != null) 'profileColor': profileColor,
       if (showNicknameInPedigree != null)
         'showNicknameInPedigree': showNicknameInPedigree,
     });
@@ -142,7 +144,15 @@ class AuthRepository {
   // 서버 흐름:
   //   1) POST /auth/signup → UserResponse (토큰 없음)
   //   2) POST /auth/login  → TokenResponse → 토큰 저장
-  Future<UserProfile> signup(SignupRequest request) async {
+  //   3) (사진을 골랐다면) presign → S3 PUT → PATCH /me
+  //
+  // 사진을 가입 요청에 실어 보내지 않는 이유: presign 은 인증이 필요한데 가입 시점에는
+  // 아직 계정도 토큰도 없다. 그래서 앱이 바이트만 들고 있다가 로그인 직후에 올린다.
+  //
+  // ⚠️ 사진 업로드 실패가 가입을 되돌리지는 않는다. 계정은 이미 만들어졌고 로그인도 끝났으므로
+  //    여기서 예외를 던지면 "가입은 됐는데 가입 실패로 보이는" 최악의 상태가 된다.
+  //    사진은 마이페이지에서 다시 올릴 수 있다.
+  Future<UserProfile> signup(SignupRequest request, {PickedImage? profileImage}) async {
     // 1. 회원가입
     final res = await _dio.post('/auth/signup', data: request.toJson());
     final apiRes = ApiResponse.fromJson(
@@ -159,7 +169,16 @@ class AuthRepository {
     // 2. 자동 로그인 → 토큰 발급
     await login(LoginRequest(email: request.email, password: request.password));
 
-    // 3. 가입 응답(UserResponse)으로 프로필 반환
+    // 3. 프로필 사진 — 토큰이 생긴 지금부터 올릴 수 있다
+    if (profileImage != null) {
+      try {
+        return await uploadProfileImage(profileImage);
+      } catch (_) {
+        // 위 주석 참고 — 가입 자체는 성공이다. 사진 없는 프로필로 진행한다
+      }
+    }
+
+    // 4. 가입 응답(UserResponse)으로 프로필 반환
     return UserProfile.fromJson(userData);
   }
 

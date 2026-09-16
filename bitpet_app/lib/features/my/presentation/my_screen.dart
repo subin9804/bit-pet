@@ -6,6 +6,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/upload/image_upload.dart';
 import '../../../core/widgets/confirm_modal.dart';
 import '../../../core/widgets/toast_message.dart';
+import '../../../core/widgets/user_avatar.dart';
 import '../../auth/data/models/auth_models.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../pet/share/providers/share_provider.dart';
@@ -34,7 +35,10 @@ class MyScreen extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
               child: Row(
                 children: [
-                  _ProfileAvatar(imageUrl: user?.profileImageUrl),
+                  _ProfileAvatar(
+                    imageUrl: user?.profileImageUrl,
+                    colorKey: user?.profileColor,
+                  ),
                   const SizedBox(width: 16),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -168,7 +172,11 @@ class _ShareManageItem extends ConsumerWidget {
 // 프로필 아바타 — 탭하면 갤러리에서 골라 업로드
 class _ProfileAvatar extends ConsumerStatefulWidget {
   final String? imageUrl;
-  const _ProfileAvatar({this.imageUrl});
+
+  /// 프로필 색 팔레트 키. 사진이 없으면 배경, 있으면 3px 테두리가 된다
+  final String? colorKey;
+
+  const _ProfileAvatar({this.imageUrl, this.colorKey});
 
   @override
   ConsumerState<_ProfileAvatar> createState() => _ProfileAvatarState();
@@ -195,25 +203,14 @@ class _ProfileAvatarState extends ConsumerState<_ProfileAvatar> {
 
   @override
   Widget build(BuildContext context) {
-    final url = widget.imageUrl;
     return GestureDetector(
       onTap: _uploading ? null : _pickAndUpload,
       child: Stack(
         children: [
-          Container(
-            width: 56,
-            height: 56,
-            clipBehavior: Clip.hardEdge,
-            decoration: const BoxDecoration(color: AppColors.bg2),
-            child: url != null
-                ? Image.network(
-                    url,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const Icon(Icons.person,
-                        color: AppColors.textSecondary, size: 28),
-                  )
-                : const Icon(Icons.person,
-                    color: AppColors.textSecondary, size: 28),
+          UserAvatar(
+            imageUrl: widget.imageUrl,
+            colorKey: widget.colorKey,
+            size: 56,
           ),
           Positioned(
             right: 0,
