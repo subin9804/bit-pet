@@ -1,11 +1,13 @@
 package io.bitpet.community.controller;
 
+import io.bitpet.auth.jwt.AuthPrincipal;
 import io.bitpet.common.response.ApiResponse;
 import io.bitpet.community.dto.PostCategoryResponse;
 import io.bitpet.community.service.PostService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -20,9 +22,10 @@ public class PostCategoryController {
 
     private final PostService postService;
 
-    @Operation(summary = "카테고리 목록 조회")
+    @Operation(summary = "카테고리 목록 조회 (어린이 게시판은 어린이·운영자에게만 보인다)")
     @GetMapping
-    public ApiResponse<List<PostCategoryResponse>> list() {
-        return ApiResponse.ok(postService.listCategories());
+    public ApiResponse<List<PostCategoryResponse>> list(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return ApiResponse.ok(postService.listCategories(principal.userId()));
     }
 }

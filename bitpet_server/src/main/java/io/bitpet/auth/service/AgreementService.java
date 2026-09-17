@@ -3,8 +3,10 @@ package io.bitpet.auth.service;
 import io.bitpet.auth.domain.AgreementSource;
 import io.bitpet.auth.domain.AgreementType;
 import io.bitpet.auth.domain.UserAgreementDtl;
+import io.bitpet.auth.domain.UserMst;
 import io.bitpet.auth.dto.AgreementStatusResponse;
 import io.bitpet.auth.repository.UserAgreementDtlRepository;
+import io.bitpet.auth.repository.UserMstRepository;
 import io.bitpet.common.exception.BusinessException;
 import io.bitpet.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +31,7 @@ import java.util.Map;
 public class AgreementService {
 
     private final UserAgreementDtlRepository agreementRepository;
+    private final UserMstRepository userRepository;
 
     /**
      * 가입 시점의 동의를 기록한다.
@@ -43,8 +46,31 @@ public class AgreementService {
     @Transactional
     public void recordSignupAgreements(Long userId, Map<AgreementType, Boolean> agreements,
                                        AgreementSource source) {
+        // values() 가 아니라 forSignup() 이다 — GUARDIAN 처럼 일부 계정에만 해당하는 항목이
+        // 끼면 보호자가 없는 성인 계정이 전부 "필수 약관 미동의"로 가입에 실패한다.
+        record(userId, AgreementType.forSignup(), agreements, source);
+    }
+
+    /**
+     * 자녀 계정(V12)의 동의를 기록한다. 보호자가 자녀 계정을 만드는 그 트랜잭션에서 부른다.
+     *
+     * <p>항목 집합이 일반 가입과 다르다 — {@code AGE_14}('만 14세 이상이다')는 이 계정에
+     * 거짓이라 빠지고, 그 자리를 {@code GUARDIAN}(법정대리인 동의)이 대신한다.
+     *
+     * <p>행의 {@code user_id} 는 <b>동의의 대상인 자녀</b>다. 누가 눌렀는지는 자녀의
+     * {@code guardian_user_id} 를 따라가면 나온다 — 동의 기록은 "누구의 개인정보 처리에 대한
+     * 근거인가"로 찾게 되기 때문이다.
+     */
+    @Transactional
+    public void recordChildAgreements(Long childUserId, Map<AgreementType, Boolean> agreements) {
+        record(childUserId, AgreementType.forChildSignup(), agreements,
+                AgreementSource.GUARDIAN_CONSENT);
+    }
+
+    private void record(Long userId, List<AgreementType> types,
+                        Map<AgreementType, Boolean> agreements, AgreementSource source) {
         List<UserAgreementDtl> rows = new ArrayList<>();
-        for (AgreementType type : AgreementType.values()) {
+        for (AgreementType type : types) {
             boolean agreed = Boolean.TRUE.equals(agreements.get(type));
             if (type.isRequired() && !agreed) {
                 throw new BusinessException(ErrorCode.AUTH_AGREEMENT_REQUIRED,
@@ -99,8 +125,14 @@ public class AgreementService {
     public AgreementStatusResponse getStatus(Long userId) {
         Map<AgreementType, UserAgreementDtl> latest = latestByType(userId);
 
+        // 자녀 계정은 항목 집합이 다르다. forSignup() 으로 고정하면 자녀 계정 화면에
+        // 'AGE_14 미동의'가 뜨고 GUARDIAN 동의는 보이지 않는다.
+        boolean child = userRepository.findById(userId)
+                .map(UserMst::isChild)
+                .orElse(false);
+
         List<AgreementStatusResponse.Item> items = new ArrayList<>();
-        for (AgreementType type : AgreementType.values()) {
+        for (AgreementType type : child ? AgreementType.forChildSignup() : AgreementType.forSignup()) {
             UserAgreementDtl row = latest.get(type);
             items.add(new AgreementStatusResponse.Item(
                     type,

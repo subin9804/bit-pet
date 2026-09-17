@@ -37,4 +37,21 @@ public interface PostMstRepository extends JpaRepository<PostMst, Long> {
             + "ORDER BY CASE WHEN p.pinnedYn = 'Y' THEN 0 ELSE 1 END, p.createdAt DESC")
     Page<PostMst> findByCategoryOrderedExcluding(@Param("categoryId") Long categoryId,
             @Param("blockedUserIds") Collection<Long> blockedUserIds, Pageable pageable);
+
+    // ── 어린이 게시판 제외 버전 (V12) ────────────────────────────────────────────
+    // 전체 피드에서만 쓴다. 카테고리를 콕 집어 들어오는 경로는 KidsBoardPolicy 가 403 으로 막으므로
+    // 여기서 또 거를 필요가 없다.
+    // ⚠️ 정렬은 위 쿼리들과 한 글자도 다르면 안 된다 (차단 필터와 같은 이유).
+
+    @Query("SELECT p FROM PostMst p WHERE p.categoryId <> :excludeCategoryId "
+            + "ORDER BY CASE WHEN p.pinnedYn = 'Y' THEN 0 ELSE 1 END, p.createdAt DESC")
+    Page<PostMst> findAllOrderedExcludingCategory(
+            @Param("excludeCategoryId") Long excludeCategoryId, Pageable pageable);
+
+    @Query("SELECT p FROM PostMst p WHERE p.categoryId <> :excludeCategoryId "
+            + "AND p.userId NOT IN :blockedUserIds "
+            + "ORDER BY CASE WHEN p.pinnedYn = 'Y' THEN 0 ELSE 1 END, p.createdAt DESC")
+    Page<PostMst> findAllOrderedExcludingCategoryAndUsers(
+            @Param("excludeCategoryId") Long excludeCategoryId,
+            @Param("blockedUserIds") Collection<Long> blockedUserIds, Pageable pageable);
 }

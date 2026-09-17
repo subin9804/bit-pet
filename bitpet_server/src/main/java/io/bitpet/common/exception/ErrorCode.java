@@ -28,6 +28,15 @@ public enum ErrorCode {
     AUTH_OAUTH_PROVIDER_NOT_SUPPORTED(HttpStatus.BAD_REQUEST, "Unsupported OAuth provider"),
     AUTH_OAUTH_USER_INFO_MISSING(HttpStatus.BAD_REQUEST, "OAuth provider returned insufficient user info"),
 
+    // --- 보호자 / 자녀 계정 (V12) ---
+    GUARDIAN_NOT_ELIGIBLE(HttpStatus.FORBIDDEN, "자녀 계정은 다른 자녀 계정을 만들 수 없습니다."),
+    GUARDIAN_CHILD_AGE_INVALID(HttpStatus.BAD_REQUEST, "자녀 계정은 만 14세 미만만 만들 수 있습니다."),
+    GUARDIAN_CHILD_LIMIT(HttpStatus.CONFLICT, "한 계정이 만들 수 있는 자녀 계정 수를 넘었습니다."),
+    GUARDIAN_HAS_CHILDREN(HttpStatus.CONFLICT, "자녀 계정이 남아 있어 탈퇴할 수 없습니다. 자녀 계정을 먼저 삭제해 주세요."),
+    CHILD_NOT_FOUND(HttpStatus.NOT_FOUND, "자녀 계정을 찾을 수 없습니다."),
+    CHILD_BOARD_ONLY(HttpStatus.FORBIDDEN, "어린이 회원은 어린이 게시판에서만 글과 댓글을 남길 수 있습니다."),
+    KIDS_BOARD_FORBIDDEN(HttpStatus.FORBIDDEN, "어린이 게시판입니다."),
+
     // --- Password Reset ---
     PASSWORD_RESET_CODE_NOT_FOUND(HttpStatus.BAD_REQUEST, "인증 코드가 존재하지 않거나 만료되었습니다."),
     PASSWORD_RESET_CODE_INVALID(HttpStatus.BAD_REQUEST, "인증 코드가 올바르지 않습니다."),

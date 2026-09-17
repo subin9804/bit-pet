@@ -173,8 +173,10 @@ public class AuthService {
      *
      * @param excludeUserId 중복 검사에서 제외할 사용자(프로필 수정 시 본인). 가입이면 null
      * @throws BusinessException 형식 위반(400) 또는 중복(409)
+     * @implNote package-private 인 이유는 {@link GuardianService} 가 자녀 계정 닉네임에
+     *         <b>같은 규칙</b>을 적용하기 위해서다. 규칙을 복사해 두면 한쪽만 바뀐다.
      */
-    private String requireAvailableNickname(String raw, Long excludeUserId) {
+    String requireAvailableNickname(String raw, Long excludeUserId) {
         String nickname = NicknamePolicy.normalize(raw);
 
         String formatError = NicknamePolicy.validateFormat(nickname);
@@ -245,6 +247,15 @@ public class AuthService {
     public void withdraw(Long userId, boolean handOverSharedPets) {
         UserMst user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AUTH_USER_NOT_FOUND));
+
+        // 자녀가 남아 있으면 탈퇴를 막는다 (V12). user_mst.guardian_user_id 는 ON DELETE
+        // RESTRICT 지만 우리 탈퇴는 소프트 삭제라 DB 가 막아주지 않는다 — 보호자만 조용히
+        // 사라지고 '법정대리인 없는 아동 계정'이 남는다.
+        // ⛔ 자녀를 같이 지우는 쪽으로 바꾸지 말 것. 아이 계정과 기록이 부모의 탈퇴 버튼
+        //    하나로 사라지는 건 되돌릴 수 없고, 아이는 그 결정에 관여하지 못한다.
+        if (userRepository.existsByGuardianUserId(userId)) {
+            throw new BusinessException(ErrorCode.GUARDIAN_HAS_CHILDREN);
+        }
 
         PetWithdrawalService.Result petResult =
                 petWithdrawalService.process(userId, handOverSharedPets);

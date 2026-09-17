@@ -69,13 +69,20 @@ public class PostService {
     private final S3Service s3Service;
     private final NotificationService notificationService;
     private final BlockService blockService;
+    private final KidsBoardPolicy kidsBoardPolicy;
 
     // -------------------------------------------------------------------------
     // Category
     // -------------------------------------------------------------------------
 
-    public List<PostCategoryResponse> listCategories() {
-        return categoryRepository.findAllByOrderByDisplayOrderAsc()
+    /**
+     * 카테고리 목록. 사용자마다 다르다 — 어린이 게시판은 성인 목록에서 아예 빠진다(V12).
+     *
+     * <p>목록에서 빼는 건 안내일 뿐이고 실제 차단은 각 경로가 따로 한다. 그래도 빼는 이유는
+     * 열리지 않을 탭을 보여줘 봐야 "눌렀는데 오류"밖에 안 되기 때문이다.
+     */
+    public List<PostCategoryResponse> listCategories(Long userId) {
+        return kidsBoardPolicy.visibleCategories(userId)
                 .stream().map(PostCategoryResponse::from).toList();
     }
 
@@ -87,6 +94,8 @@ public class PostService {
     public PostDetailResponse createPost(Long userId, PostCreateRequest req) {
         verifyCategory(req.categoryId());
         verifyNoticePermission(userId, req.categoryId());
+        // 아동은 어린이 게시판에서만, 성인은 어린이 게시판을 빼고 쓴다 (V12)
+        kidsBoardPolicy.assertCanWrite(userId, req.categoryId());
 
         PostMst post = postRepository.save(PostMst.builder()
                 .userId(userId)
@@ -113,14 +122,26 @@ public class PostService {
         Set<Long> hidden = blockService.hiddenUserIds(userId);
 
         Page<PostMst> page;
-        if (hidden.isEmpty()) {
-            page = categoryId != null
+        if (categoryId != null) {
+            // 카테고리를 콕 집어 들어오는 경로. 어린이 게시판이면 여기서 403 이다 —
+            // 목록을 빈 페이지로 내려주면 "글이 없는 게시판"처럼 보여 오해를 만든다.
+            kidsBoardPolicy.assertCanRead(userId, categoryId);
+            page = hidden.isEmpty()
                     ? postRepository.findByCategoryOrdered(categoryId, pageOnly)
-                    : postRepository.findAllOrdered(pageOnly);
+                    : postRepository.findByCategoryOrderedExcluding(categoryId, hidden, pageOnly);
         } else {
-            page = categoryId != null
-                    ? postRepository.findByCategoryOrderedExcluding(categoryId, hidden, pageOnly)
-                    : postRepository.findAllOrderedExcluding(hidden, pageOnly);
+            // 전체 피드. 아동이 아니면 어린이 게시판 글이 섞이지 않는다 (V12).
+            Long excluded = kidsBoardPolicy.excludedCategoryIdFor(userId);
+            if (excluded == null) {
+                page = hidden.isEmpty()
+                        ? postRepository.findAllOrdered(pageOnly)
+                        : postRepository.findAllOrderedExcluding(hidden, pageOnly);
+            } else {
+                page = hidden.isEmpty()
+                        ? postRepository.findAllOrderedExcludingCategory(excluded, pageOnly)
+                        : postRepository.findAllOrderedExcludingCategoryAndUsers(
+                                excluded, hidden, pageOnly);
+            }
         }
         return toSummaryPage(userId, page);
     }
@@ -181,6 +202,7 @@ public class PostService {
     public PostDetailResponse getPost(Long userId, Long postId) {
         PostMst post = findPost(postId);
         assertNotBlocked(userId, post.getUserId());
+        kidsBoardPolicy.assertCanRead(userId, post.getCategoryId());
         post.incrementViewCount();
 
         boolean likedByMe = likeRepository.existsByPostIdAndUserId(postId, userId);
@@ -196,6 +218,7 @@ public class PostService {
         verifyCategory(req.categoryId());
         // 작성 때만 막으면 "자유게시판에 쓴 뒤 공지로 카테고리 변경"이라는 우회로가 남는다.
         verifyNoticePermission(userId, req.categoryId());
+        kidsBoardPolicy.assertCanWrite(userId, req.categoryId());
         post.update(req.categoryId(), req.title(), req.content());
 
         boolean likedByMe = likeRepository.existsByPostIdAndUserId(postId, userId);
@@ -283,6 +306,7 @@ public class PostService {
     public List<CommentResponse> listComments(Long userId, Long postId) {
         PostMst post = findPost(postId);
         assertNotBlocked(userId, post.getUserId());
+        kidsBoardPolicy.assertCanRead(userId, post.getCategoryId());
 
         // 차단한(혹은 나를 차단한) 사람의 댓글은 통째로 빠진다.
         // ⚠️ 부모 댓글이 빠지면 그 대댓글도 함께 사라진다 — 트리를 만들 때 부모가 없으면
@@ -314,6 +338,9 @@ public class PostService {
     public CommentResponse createComment(Long userId, Long postId, CommentCreateRequest req) {
         PostMst post = findPost(postId);
         assertNotBlocked(userId, post.getUserId());
+        // 아동은 어린이 게시판에만 댓글을 단다. 목록에서 안 보이게 하는 것만으로는 부족하다 —
+        // 알림·딥링크로 글에 직접 들어오는 경로가 남는다 (V12).
+        kidsBoardPolicy.assertCanWrite(userId, post.getCategoryId());
 
         if (req.parentCommentId() != null) {
             commentRepository.findById(req.parentCommentId())
@@ -369,6 +396,8 @@ public class PostService {
     public LikeToggleResponse toggleLike(Long userId, Long postId) {
         PostMst post = findPost(postId);
         assertNotBlocked(userId, post.getUserId());
+        // 좋아요도 '흔적'이다. 아동 글에 성인의 이름이 남으면 그게 곧 말 걸 구실이 된다 (V12).
+        kidsBoardPolicy.assertCanWrite(userId, post.getCategoryId());
         Optional<PostLikeRls> existing = likeRepository.findByPostIdAndUserId(postId, userId);
 
         boolean liked;

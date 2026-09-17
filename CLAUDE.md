@@ -214,8 +214,10 @@ PostgreSQL이 재정규화하는데 의미는 같다.)
   V8(`species_cd.category` CHECK 에 포유류 `M` 추가 — subcategory `SMALL_MAMMAL`),
   V9(`routine_mst.postponed_at` / `postponed_from` — 루틴 미루기 이력),
   V10(`user_mst.profile_color` — 프로필 아바타 색 팔레트 키. 사진이 있으면 테두리 색으로 쓰인다),
-  V11(`user_block_rls`·`post_report_dtl` 신설 + `post_mst`/`post_comment_dtl` 에 `blinded_at`/`blinded_by`).
-  **다음은 V12.**
+  V11(`user_block_rls`·`post_report_dtl` 신설 + `post_mst`/`post_comment_dtl` 에 `blinded_at`/`blinded_by`),
+  V12(`user_mst.birth_date`·`guardian_user_id` + `user_agreement_dtl` CHECK 확장(GUARDIAN/GUARDIAN_CONSENT)
+  + `post_category_cd` 에 KIDS 어린이 게시판 시드).
+  **다음은 V13.**
 - 코드성 시드(`memo_tag_cd`, `post_category_cd`, `serial_pool_stat_mst`)는 베이스라인 하단에 들어 있다.
   종·모프 마스터는 그대로 `R__01`/`R__02` 담당.
 - ⚠️ **`R__02` 는 파일에 없는 공식 모프를 매 실행마다 지운다** (개체가 물고 있으면 FK RESTRICT 라
@@ -585,7 +587,7 @@ SUPER_ADMIN 이라고 남의 개체 기록을 고칠 수 없다.
   메서드마다 `adminGuard.assertAnyRole(SUPER_ADMIN, MODERATOR)` 를 직접 호출한다
 - `ReportAction.SUSPEND` 는 **enum 에 자리만 있고 아직 거부한다**(계정 정지 상태를 들고 있을 곳이 없다).
   조용히 아무것도 안 하는 대신 명시적으로 400 — 2단계
-- 만 14세 미만 가입은 **이것이 붙은 뒤에** 판단한다 (신고·차단 → 보호자 동의 → Play 가족 정책 순서)
+- 만 14세 미만 가입은 이것이 붙은 뒤 V12 에서 처리했다 (아래 '만 14세 미만 아동 계정' 항목)
 
 **앱 쪽 (`features/community`)**
 - `presentation/report_actions.dart` 가 신고·차단 진입점의 **단일 지점**이다.
@@ -596,6 +598,45 @@ SUPER_ADMIN 이라고 남의 개체 기록을 고칠 수 없다.
 - 차단 목록은 `/my/blocks`. **내가 차단한 사람만** 보여준다 — "나를 차단한 사람"은 만들지 말 것
 - `Post.isBlinded`/`PostComment.isBlinded` (서버 키는 `blinded`) 는 문구를 가리는 용도가 **아니다**
   — 치환은 서버가 이미 했다. 앱은 회색 이탤릭 표시 + 좋아요·신고 버튼을 접는 데만 쓴다
+
+### 만 14세 미만 아동 계정 — 보호자 동의 + 어린이 게시판 (V12, 2026-09-17)
+
+만 14세 미만은 **직접 가입할 수 없다.** 보호자가 먼저 가입한 뒤 마이페이지 > 자녀 계정에서
+만들어 준다 (`POST /api/v1/guardian/children`). 동의를 누르는 사람과 동의 주체가 같은 자리에
+있어야 하기 때문 — 보호자 이메일로 링크를 보내는 방식은 아이가 아무 주소나 적어도 통과한다.
+
+- `user_mst.birth_date`(NULL = 성인) + `guardian_user_id`(`ON DELETE RESTRICT`, 자기참조 금지 CHECK).
+  **`isChild` 는 저장하지 않고 조회 시점에 계산한다** — 생일이 지나면 그날부터 일반 회원이어야 하는데
+  저장해두면 그 전환이 영영 일어나지 않는다
+- **동의 항목 집합이 성인과 다르다.** `AgreementType.Scope{ALL, ADULT_ONLY, CHILD_ONLY}` 로 나뉘고
+  `forSignup()`(CHILD_ONLY 제외) / `forChildSignup()`(ADULT_ONLY 제외) 두 집합이 있다.
+  ⛔ **`values()` 를 그대로 순회하지 말 것** — GUARDIAN 이 성인 가입에 필수로 끼어 전원 가입 실패가 된다
+  - `AGE_14` 는 자녀에게 남기지 않는다. '만 14세 이상이다'라는 확인인데 이 계정은 그 반대라 **기록 자체가 거짓**이 된다.
+    그 자리를 `GUARDIAN`(source `GUARDIAN_CONSENT`)이 대신한다. 행의 `user_id` 는 **동의 대상인 자녀**이고,
+    누가 눌렀는지는 `guardian_user_id` 를 따라가면 나온다
+- **보호자는 자녀가 남아 있으면 탈퇴할 수 없다** (`GUARDIAN_HAS_CHILDREN`). 우리 탈퇴는 소프트 삭제라
+  DB 의 RESTRICT 가 안 걸려서, 막지 않으면 '법정대리인 없는 아동 계정'이 남는다.
+  ⛔ **자녀를 같이 지우는 쪽으로 바꾸지 말 것** — 아이 계정과 기록이 부모의 버튼 하나로 사라지고 아이는 관여하지 못한다
+- ⛔ **'자녀 계정으로 로그인' 같은 대리 진입을 만들지 말 것.** 아이 계정으로 쓴 글의 작성자가 누구인지 답할 수 없게 된다.
+  보호자 감독은 별도 '자녀 활동 보기'로 한다
+- `MAX_CHILDREN = 5`. 자녀 계정은 이메일 인증 없이 발급되므로 무제한이면 계정 발급 통로가 된다
+- 남의 자녀 조회는 403 이 아니라 **404**(`CHILD_NOT_FOUND`) — 403 이면 "그 id 가 누군가의 자녀"라는 사실이 샌다
+- 자녀 삭제는 `AuthService.withdraw` 를 그대로 탄다 (개체·기록·사진 정리가 전부 거기 있다)
+
+**어린이 게시판 (`post_category_cd.code = 'KIDS'`)** — 판정은 `KidsBoardPolicy` 한 곳.
+
+- **아동은 일반 게시판을 읽을 수 있지만 글·댓글·좋아요는 KIDS 에서만** (`CHILD_BOARD_ONLY`)
+- **성인은 KIDS 를 읽지도 못한다** (`KIDS_BOARD_FORBIDDEN`). ⛔ "읽기만 되게" 로 완화하지 말 것 —
+  읽을 수 있으면 그 자체가 아동에게 접근하는 통로다. 카테고리 목록에서도 빠지고 전체 피드에서도 빠진다
+- **예외는 운영자의 읽기뿐. 운영자도 쓰지 못한다** — 쓰기를 열면 "글쓴이 전원이 아동"이라는 이 게시판의
+  안전 전제가 깨진다. 전체 피드에서는 운영자에게도 KIDS 글이 섞이지 않는다
+- 목록에서 빼는 것만으로 부족하다(신고/차단과 같은 이유) — `getPost`/`listComments`/`createComment`/`toggleLike`
+  가 각각 `assertCanRead`/`assertCanWrite` 를 거친다. `updatePost` 도 검사한다(카테고리 변경 우회로 차단)
+- ⛔ **카테고리 id(6)로 판정하지 말 것 — `code == 'KIDS'`** (NOTICE 와 같은 이유)
+- ⚠️ KIDS 제외 쿼리(`findAllOrderedExcludingCategory*`)는 **정렬이 제외 없는 버전과 한 글자도 다르면 안 된다**
+- 앱: `features/guardian/`(목록 `/my/children` + 생성 폼), 약관 전문은 `guardianConsentDocument`.
+  ⚠️ 이 문서는 `legalDocuments` 목록에 **의도적으로 넣지 않았다** — 일반 가입 3단계에 뜨면 안 된다
+- `/auth/me` 응답의 `isChild` 는 **화면 안내용**(자녀 계정 메뉴 숨김 등). 실제 차단은 서버가 매 요청 판정한다
 
 ### 가계도 부모 등록 (V53)
 - **부모는 항상 실존 개체(`pet_mst`) 참조.** 텍스트 직접 입력 없음. 폐사(DECEASED) 개체도 부모로 등록 가능
@@ -729,7 +770,7 @@ test → GHCR 이미지 빌드(**태그 = 커밋 SHA**) → SSH → `deploy/scri
 - 외부 시스템 영향(push·삭제·외부 API 호출)은 확인 후 진행
 - Flutter UI는 디자인 확정 전까지 **뼈대(Skeleton)만** 구현, 상세 UI는 별도 지시 대기
 - 새 Flyway 마이그레이션은 기존 파일 절대 수정 금지, 항상 다음 버전으로 신규 작성
-  (2026-08-19 스쿼시 이후 V2~V11 추가됨, **다음은 V12**. `V1__baseline_schema.sql` 수정 = 모든 DB 기동 불가)
+  (2026-08-19 스쿼시 이후 V2~V12 추가됨, **다음은 V13**. `V1__baseline_schema.sql` 수정 = 모든 DB 기동 불가)
 
 ---
 

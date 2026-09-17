@@ -27,6 +27,14 @@ public record UserResponse(
          * 권한을 회수해도 앱이 다시 /me 를 부를 때까지 옛 값을 들고 있기 때문이다.
          */
         List<String> adminRoles,
+        /**
+         * 지금 만 14세 미만인가 (V12). 저장값이 아니라 조회 시점에 생년월일로 계산한다 —
+         * 생일이 지나면 그날부터 일반 회원과 같아져야 하는데, 저장해두면 그 전환이 일어나지 않는다.
+         *
+         * <p>앱은 이 값으로 '자녀 계정' 메뉴를 감추고 어린이 게시판 안내를 띄운다.
+         * 실제 차단은 서버가 매 요청 판정한다 ({@code KidsBoardPolicy}).
+         */
+        boolean isChild,
         Instant createdAt
 ) {
     public static UserResponse from(UserMst user) {
@@ -48,6 +56,7 @@ public record UserResponse(
                 user.getProfileColor(),
                 user.isShowNicknameInPedigree(),
                 roles.stream().map(Enum::name).toList(),
+                user.isChild(),
                 user.getCreatedAt()
         );
     }

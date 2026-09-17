@@ -13,5 +13,8 @@ public enum AgreementSource {
     SETTINGS,
 
     /** 약관 개정 후 재동의 */
-    REAGREEMENT
+    REAGREEMENT,
+
+    /** 보호자가 로그인한 상태에서 자녀 계정을 만들며 동의 (V12) */
+    GUARDIAN_CONSENT
 }
