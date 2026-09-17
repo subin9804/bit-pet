@@ -159,8 +159,10 @@ public class PostController {
 
     @Operation(summary = "댓글 목록 조회 (트리 구조)")
     @GetMapping("/{postId}/comments")
-    public ApiResponse<List<CommentResponse>> listComments(@PathVariable Long postId) {
-        return ApiResponse.ok(postService.listComments(postId));
+    public ApiResponse<List<CommentResponse>> listComments(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @PathVariable Long postId) {
+        return ApiResponse.ok(postService.listComments(principal.userId(), postId));
     }
 
     @Operation(summary = "댓글 작성 (parentCommentId 있으면 대댓글)")

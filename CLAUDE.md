@@ -213,8 +213,9 @@ PostgreSQL이 재정규화하는데 의미는 같다.)
   V7(`morph_cd.is_user_defined` + `created_by` — 사용자 정의 모프),
   V8(`species_cd.category` CHECK 에 포유류 `M` 추가 — subcategory `SMALL_MAMMAL`),
   V9(`routine_mst.postponed_at` / `postponed_from` — 루틴 미루기 이력),
-  V10(`user_mst.profile_color` — 프로필 아바타 색 팔레트 키. 사진이 있으면 테두리 색으로 쓰인다).
-  **다음은 V11.**
+  V10(`user_mst.profile_color` — 프로필 아바타 색 팔레트 키. 사진이 있으면 테두리 색으로 쓰인다),
+  V11(`user_block_rls`·`post_report_dtl` 신설 + `post_mst`/`post_comment_dtl` 에 `blinded_at`/`blinded_by`).
+  **다음은 V12.**
 - 코드성 시드(`memo_tag_cd`, `post_category_cd`, `serial_pool_stat_mst`)는 베이스라인 하단에 들어 있다.
   종·모프 마스터는 그대로 `R__01`/`R__02` 담당.
 - ⚠️ **`R__02` 는 파일에 없는 공식 모프를 매 실행마다 지운다** (개체가 물고 있으면 FK RESTRICT 라
@@ -555,6 +556,47 @@ SUPER_ADMIN 이라고 남의 개체 기록을 고칠 수 없다.
   박아두면 "개발에선 되는데 운영에선 아무나 공지를 쓴다"가 된다
 - 공지는 작성 즉시 `pinned` 로 만든다 (고정 API 를 따로 부르게 두면 그 사이 묻히고, 잊으면 영영 안 고정된다)
 
+### 커뮤니티 신고 / 차단 (V11, 2026-09-17)
+
+아동·청소년이 쓰는 UGC 앱의 최소선이자 Play 심사 요건. **신고와 차단은 사용자가 따로 고른다.**
+
+- **신고하면 차단도 된다. 차단하면 차단만 된다.** 신고한 글이 계속 눈앞에 보이면 신고한 의미가
+  없고, 반대로 "이 사람 글이 내 눈에 안 보이면 좋겠다"는 "규칙을 어겼으니 조치해달라"와 다른 요청이다
+- ⛔ **신고 취소 API 를 만들지 말 것.** 접수된 사건의 이력이라 지우면 "몇 번 신고당했는지"가 사라진다.
+  마음이 바뀐 사용자는 **차단만 해제**하면 된다 (`DELETE /api/v1/blocks/{userId}`)
+- ⛔ **누적 신고 수로 자동 블라인드하지 말 것.** 여럿이 몰려가면 멀쩡한 글이 사라지는 조리돌림
+  도구가 된다. `reportCount` 는 운영자 큐의 우선순위 신호까지다
+- **차단은 양방향으로 가린다** (`UserBlockRlsRepository.findRelatedUserIds`). 단방향이면 차단당한
+  쪽이 상대 글에 계속 댓글을 달 수 있어 차단이 괴롭힘을 막지 못한다
+- ⛔ **차단 사실을 상대에게 알리지 말 것.** 에러도 방향 구분 없이 `POST_BLOCKED` 하나
+  ("내가 차단함"/"차단당함"을 구분하면 그게 보복의 신호가 된다). 목록에선 그냥 조용히 빠진다
+- **목록에서 빼는 것만으로 부족하다** — 알림·딥링크로 직접 들어오는 경로가 남아서
+  `getPost`/`createComment`/`toggleLike`/`listComments` 가 각각 `assertNotBlocked` 를 거친다
+- ⚠️ `findAllOrderedExcluding`/`findByCategoryOrderedExcluding` 는 **정렬이 필터 없는 버전과
+  완전히 같아야 한다**. 차단 유무로 피드 순서가 달라지면 사용자가 눈치챈다.
+  JPQL `NOT IN (:list)` 는 빈 리스트에서 터지므로 `hiddenUserIds()` 가 비면 필터 없는 쿼리로 분기
+- **블라인드는 삭제가 아니다.** `blinded_at`/`blinded_by` 는 `deleted_at` 과 **별개 컬럼**이다 —
+  삭제는 작성자가, 블라인드는 운영자가 한 일이라 분쟁 시 원문이 남아야 한다.
+  내용은 지우지 않고 **응답 DTO 의 `of()` 안에서만 치환**한다 (`BlindMask`).
+  ⛔ 서비스에서 엔티티 내용을 바꾸지 말 것 — 그대로 영속화돼 원문이 사라진다
+  - `@SQLRestriction` 은 `deleted_at` 만 보므로 **블라인드 행은 조회에 계속 잡힌다**(의도된 것).
+    블라인드된 댓글은 자리를 남긴다 — 대댓글이 달려 있으면 부모가 사라질 때 대화가 통째로 무너진다
+- **운영자 큐**: `GET/POST /api/v1/admin/reports/**`. 🚨 URL 로 보호되지 않으므로
+  메서드마다 `adminGuard.assertAnyRole(SUPER_ADMIN, MODERATOR)` 를 직접 호출한다
+- `ReportAction.SUSPEND` 는 **enum 에 자리만 있고 아직 거부한다**(계정 정지 상태를 들고 있을 곳이 없다).
+  조용히 아무것도 안 하는 대신 명시적으로 400 — 2단계
+- 만 14세 미만 가입은 **이것이 붙은 뒤에** 판단한다 (신고·차단 → 보호자 동의 → Play 가족 정책 순서)
+
+**앱 쪽 (`features/community`)**
+- `presentation/report_actions.dart` 가 신고·차단 진입점의 **단일 지점**이다.
+  게시글·댓글 어디서 열든 같은 두 줄(`신고하기` / `차단하기`)이 나온다 — 새 화면에서 직접 시트를 짜지 말 것
+- 신고 사유 라벨은 `GET /reports/reasons` 로 받는다. **앱에 박아두면 사유를 늘릴 때마다 스토어 심사를 기다려야 한다**
+- `post_detail_screen._showMenu` 는 `authStateProvider.id == post.userId` 로 갈린다 —
+  내 글이면 수정/삭제, 남의 글이면 신고/차단. ⚠️ 예전엔 소유자 판정 없이 수정/삭제를 보여줬다(서버는 403 이었지만 화면이 거짓말을 했다)
+- 차단 목록은 `/my/blocks`. **내가 차단한 사람만** 보여준다 — "나를 차단한 사람"은 만들지 말 것
+- `Post.isBlinded`/`PostComment.isBlinded` (서버 키는 `blinded`) 는 문구를 가리는 용도가 **아니다**
+  — 치환은 서버가 이미 했다. 앱은 회색 이탤릭 표시 + 좋아요·신고 버튼을 접는 데만 쓴다
+
 ### 가계도 부모 등록 (V53)
 - **부모는 항상 실존 개체(`pet_mst`) 참조.** 텍스트 직접 입력 없음. 폐사(DECEASED) 개체도 부모로 등록 가능
 - **소유자와 무관하게 등록 가능. 승인·차단 절차 없음** — 남의 개체를 내 가계도에 부모로 걸 수 있다
@@ -687,7 +729,7 @@ test → GHCR 이미지 빌드(**태그 = 커밋 SHA**) → SSH → `deploy/scri
 - 외부 시스템 영향(push·삭제·외부 API 호출)은 확인 후 진행
 - Flutter UI는 디자인 확정 전까지 **뼈대(Skeleton)만** 구현, 상세 UI는 별도 지시 대기
 - 새 Flyway 마이그레이션은 기존 파일 절대 수정 금지, 항상 다음 버전으로 신규 작성
-  (2026-08-19 스쿼시 이후 V2~V10 추가됨, **다음은 V11**. `V1__baseline_schema.sql` 수정 = 모든 DB 기동 불가)
+  (2026-08-19 스쿼시 이후 V2~V11 추가됨, **다음은 V12**. `V1__baseline_schema.sql` 수정 = 모든 DB 기동 불가)
 
 ---
 

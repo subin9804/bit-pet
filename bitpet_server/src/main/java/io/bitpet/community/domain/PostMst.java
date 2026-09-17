@@ -61,6 +61,19 @@ public class PostMst extends BaseSyncEntity {
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
+    /**
+     * 운영자가 가린 시각.
+     *
+     * <p>⛔ {@code deletedAt} 과 합치지 말 것. 삭제는 작성자가 한 일이고 블라인드는 운영자가 한 일이라
+     * 분쟁이 나면 원문이 남아 있어야 한다. 그래서 내용은 지우지 않고 <b>응답에서만 치환</b>하며,
+     * {@code @SQLRestriction} 도 {@code deleted_at} 만 보므로 조회 자체는 계속 된다.
+     */
+    @Column(name = "blinded_at")
+    private Instant blindedAt;
+
+    @Column(name = "blinded_by")
+    private Long blindedBy;
+
     @Builder
     private PostMst(Long userId, Long categoryId, String title, String content) {
         this.userId     = userId;
@@ -87,4 +100,12 @@ public class PostMst extends BaseSyncEntity {
     public void decrementCommentCount() { if (this.commentCount > 0) this.commentCount--; }
 
     public void softDelete() { this.deletedAt = Instant.now(); }
+
+    public boolean isBlinded() { return this.blindedAt != null; }
+
+    /** 운영자 블라인드 설정·해제. 해제하면 원문이 그대로 다시 보인다 */
+    public void setBlinded(boolean blinded, Long adminUserId) {
+        this.blindedAt = blinded ? Instant.now() : null;
+        this.blindedBy = blinded ? adminUserId : null;
+    }
 }

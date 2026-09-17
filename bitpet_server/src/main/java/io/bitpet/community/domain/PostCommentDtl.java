@@ -48,6 +48,13 @@ public class PostCommentDtl extends BaseSyncEntity {
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
+    /** 운영자가 가린 시각. 내용은 남기고 응답에서만 치환한다 (작성자 삭제는 {@code deletedAt}) */
+    @Column(name = "blinded_at")
+    private Instant blindedAt;
+
+    @Column(name = "blinded_by")
+    private Long blindedBy;
+
     @Builder
     private PostCommentDtl(Long postId, Long userId, Long parentCommentId, String content) {
         this.postId          = postId;
@@ -59,4 +66,12 @@ public class PostCommentDtl extends BaseSyncEntity {
     public void update(String content) { this.content = content; }
 
     public void softDelete() { this.deletedAt = Instant.now(); }
+
+    public boolean isBlinded() { return this.blindedAt != null; }
+
+    /** 운영자 블라인드 설정·해제. 해제하면 원문이 그대로 다시 보인다 */
+    public void setBlinded(boolean blinded, Long adminUserId) {
+        this.blindedAt = blinded ? Instant.now() : null;
+        this.blindedBy = blinded ? adminUserId : null;
+    }
 }

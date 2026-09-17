@@ -125,6 +125,16 @@ public enum ErrorCode {
     COMMENT_ACCESS_DENIED(HttpStatus.FORBIDDEN, "You do not own this comment"),
     POST_PHOTO_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "Post can have at most 5 photos"),
     CATEGORY_NOT_FOUND(HttpStatus.NOT_FOUND, "Category not found"),
+
+    // --- Report / Block ---
+    REPORT_SELF(HttpStatus.BAD_REQUEST, "자신의 글은 신고할 수 없습니다."),
+    REPORT_DUPLICATE(HttpStatus.CONFLICT, "이미 신고한 내용입니다."),
+    REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "신고를 찾을 수 없습니다."),
+    REPORT_ALREADY_HANDLED(HttpStatus.CONFLICT, "이미 처리된 신고입니다."),
+    BLOCK_SELF(HttpStatus.BAD_REQUEST, "자기 자신은 차단할 수 없습니다."),
+    BLOCK_NOT_FOUND(HttpStatus.NOT_FOUND, "차단하지 않은 사용자입니다."),
+    // 차단 관계는 양방향으로 가린다 — '차단당한 쪽'에게 이유를 알리지 않기 위해 메시지를 뭉뚱그린다
+    POST_BLOCKED(HttpStatus.FORBIDDEN, "볼 수 없는 게시글입니다."),
     ;
 
     private final HttpStatus status;

@@ -68,6 +68,7 @@ public class PostService {
     private final AdminGuard adminGuard;
     private final S3Service s3Service;
     private final NotificationService notificationService;
+    private final BlockService blockService;
 
     // -------------------------------------------------------------------------
     // Category
@@ -106,9 +107,21 @@ public class PostService {
     public Page<PostSummaryResponse> listPosts(Long userId, Long categoryId, Pageable pageable) {
         // 공지 우선 정렬은 @Query 에서 처리 → sort 제거하고 page/size 만 전달
         Pageable pageOnly = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
-        Page<PostMst> page = categoryId != null
-                ? postRepository.findByCategoryOrdered(categoryId, pageOnly)
-                : postRepository.findAllOrdered(pageOnly);
+
+        // 차단 관계가 하나도 없으면 필터 없는 쿼리로 간다.
+        // JPQL `NOT IN (:list)` 는 빈 리스트에서 터지기도 하고, 대부분의 사용자는 차단이 0건이다.
+        Set<Long> hidden = blockService.hiddenUserIds(userId);
+
+        Page<PostMst> page;
+        if (hidden.isEmpty()) {
+            page = categoryId != null
+                    ? postRepository.findByCategoryOrdered(categoryId, pageOnly)
+                    : postRepository.findAllOrdered(pageOnly);
+        } else {
+            page = categoryId != null
+                    ? postRepository.findByCategoryOrderedExcluding(categoryId, hidden, pageOnly)
+                    : postRepository.findAllOrderedExcluding(hidden, pageOnly);
+        }
         return toSummaryPage(userId, page);
     }
 
@@ -167,6 +180,7 @@ public class PostService {
     @Transactional
     public PostDetailResponse getPost(Long userId, Long postId) {
         PostMst post = findPost(postId);
+        assertNotBlocked(userId, post.getUserId());
         post.incrementViewCount();
 
         boolean likedByMe = likeRepository.existsByPostIdAndUserId(postId, userId);
@@ -266,9 +280,17 @@ public class PostService {
     // Comments
     // -------------------------------------------------------------------------
 
-    public List<CommentResponse> listComments(Long postId) {
+    public List<CommentResponse> listComments(Long userId, Long postId) {
         PostMst post = findPost(postId);
-        List<PostCommentDtl> all = commentRepository.findAllByPostIdOrderByCreatedAtAsc(postId);
+        assertNotBlocked(userId, post.getUserId());
+
+        // 차단한(혹은 나를 차단한) 사람의 댓글은 통째로 빠진다.
+        // ⚠️ 부모 댓글이 빠지면 그 대댓글도 함께 사라진다 — 트리를 만들 때 부모가 없으면
+        // 대댓글이 어디에도 붙지 못하기 때문이다. 대화 맥락이 반쪽만 남는 것보다 낫다.
+        Set<Long> hidden = blockService.hiddenUserIds(userId);
+        List<PostCommentDtl> all = commentRepository.findAllByPostIdOrderByCreatedAtAsc(postId)
+                .stream().filter(c -> !hidden.contains(c.getUserId())).toList();
+
         Map<Long, UserMst> authors = loadAuthors(
                 all.stream().map(PostCommentDtl::getUserId).collect(Collectors.toSet()));
         Long postAuthorId = post.getUserId();
@@ -291,6 +313,7 @@ public class PostService {
     @Transactional
     public CommentResponse createComment(Long userId, Long postId, CommentCreateRequest req) {
         PostMst post = findPost(postId);
+        assertNotBlocked(userId, post.getUserId());
 
         if (req.parentCommentId() != null) {
             commentRepository.findById(req.parentCommentId())
@@ -345,6 +368,7 @@ public class PostService {
     @Transactional
     public LikeToggleResponse toggleLike(Long userId, Long postId) {
         PostMst post = findPost(postId);
+        assertNotBlocked(userId, post.getUserId());
         Optional<PostLikeRls> existing = likeRepository.findByPostIdAndUserId(postId, userId);
 
         boolean liked;
@@ -408,6 +432,20 @@ public class PostService {
             throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND);
         }
         return comment;
+    }
+
+    /**
+     * 차단 관계면 글에 아예 닿지 못하게 한다.
+     *
+     * <p>목록에서 빼는 것만으로는 부족하다 — 알림·딥링크·검색 결과로 직접 들어오는 경로가 남는다.
+     *
+     * <p>⛔ 에러를 방향에 따라 다르게 내지 말 것. "당신이 차단했습니다" 와 "차단당했습니다" 를
+     * 구분하면 차단 사실이 상대에게 새어 나가고, 그게 곧 보복의 신호가 된다.
+     */
+    private void assertNotBlocked(Long userId, Long authorUserId) {
+        if (blockService.isHidden(userId, authorUserId)) {
+            throw new BusinessException(ErrorCode.POST_BLOCKED);
+        }
     }
 
     private void verifyPostOwner(PostMst post, Long userId) {
