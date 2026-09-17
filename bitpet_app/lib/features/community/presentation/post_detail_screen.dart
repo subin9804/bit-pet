@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/api/api_response.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -66,7 +67,15 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
       _commentCtrl.clear();
       ref.invalidate(commentsProvider(widget.postId));
       ref.invalidate(postDetailProvider(widget.postId)); // 댓글 수 갱신
-    } catch (_) {
+    } catch (e) {
+      // 조용히 삼키면 어린이 게시판 제한(CHILD_BOARD_ONLY)에 걸렸을 때
+      // 버튼만 되살아나고 아무 일도 안 일어난 것처럼 보인다.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(serverMessageOf(e) ?? '댓글을 남기지 못했어요.')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }

@@ -6,7 +6,6 @@
 //
 // ⛔ "차단했다"는 사실을 상대에게 알리는 화면은 만들지 말 것 — 알리는 순간
 //    차단이 보복의 방아쇠가 된다. 차단 목록은 내가 차단한 사람만 보여준다.
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_response.dart';
@@ -196,14 +195,7 @@ Future<void> confirmBlock({
 
 /// 서버가 내려준 사람 읽을 문구를 꺼낸다.
 /// 중복 신고(409)·자기 글 신고(400) 같은 건 서버 메시지가 그대로 가장 정확하다.
-String? _messageOf(Object e) {
-  if (e is ApiException) return e.message;
-  if (e is DioException) {
-    final data = e.response?.data;
-    if (data is Map<String, dynamic>) {
-      final error = data['error'];
-      if (error is Map<String, dynamic>) return error['message'] as String?;
-    }
-  }
-  return null;
-}
+///
+/// 구현은 `core/api/api_response.dart` 한 곳에 있다 — 화면마다 복사해두면
+/// 응답 포맷이 바뀔 때 한 군데만 고쳐지고 나머지는 조용히 fallback 문구로 떨어진다.
+String? _messageOf(Object e) => serverMessageOf(e);

@@ -1,3 +1,22 @@
+import 'package:dio/dio.dart';
+
+/// 서버가 내려준 사람이 읽을 문구를 꺼낸다. 못 꺼내면 null.
+///
+/// 4xx 는 대부분 **사용자가 고칠 수 있는 상황**(중복 신고, 어린이 게시판 제한,
+/// 자녀 계정 개수 초과)이라 서버 문장이 가장 정확하다. `e.toString()` 을 그대로
+/// 띄우면 `DioException [bad response]...` 가 사용자 앞에 뜬다.
+String? serverMessageOf(Object e) {
+  if (e is ApiException) return e.message;
+  if (e is DioException) {
+    final data = e.response?.data;
+    if (data is Map<String, dynamic>) {
+      final error = data['error'];
+      if (error is Map<String, dynamic>) return error['message'] as String?;
+    }
+  }
+  return null;
+}
+
 class ApiResponse<T> {
   final bool success;
   final T? data;

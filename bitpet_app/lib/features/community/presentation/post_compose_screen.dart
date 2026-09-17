@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/api/api_response.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_input_styles.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -71,8 +72,11 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
       }
     } catch (e) {
       if (mounted) {
+        // 어린이 게시판 제한(CHILD_BOARD_ONLY / KIDS_BOARD_FORBIDDEN)처럼
+        // 어디에 써야 하는지를 서버가 문장으로 알려주는 경우가 있다.
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
+          SnackBar(
+              content: Text(serverMessageOf(e) ?? '글을 저장하지 못했어요.')),
         );
       }
     }

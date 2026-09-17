@@ -105,6 +105,12 @@ class UserProfile {
   /// (이 값은 응답에 담겨 나온 뒤라 못 믿는다).
   final List<String> adminRoles;
 
+  /// 만 14세 미만인가 (서버가 생년월일로 조회 시점에 계산한다).
+  ///
+  /// 어린이 게시판에서만 글·댓글을 남길 수 있는 계정이다. **화면 안내용일 뿐**
+  /// 실제 차단은 서버(`KidsBoardPolicy`)가 매 요청 판정한다.
+  final bool isChild;
+
   const UserProfile({
     required this.id,
     required this.email,
@@ -114,6 +120,7 @@ class UserProfile {
     this.profileColor = 'peach',
     this.showNicknameInPedigree = true,
     this.adminRoles = const [],
+    this.isChild = false,
   });
 
   /// 등급 종류를 가리지 않는 운영자 여부. 공지 작성 UI 노출 기준이다
@@ -121,7 +128,7 @@ class UserProfile {
   bool get isAdmin => adminRoles.isNotEmpty;
 
   // 서버 UserResponse: id, email, nickname, userType, profileImageUrl,
-  //                    showNicknameInPedigree, adminRoles
+  //                    showNicknameInPedigree, adminRoles, isChild
   factory UserProfile.fromJson(Map<String, dynamic> json) => UserProfile(
         id: json['id'] as int,
         email: json['email'] as String,
@@ -134,6 +141,7 @@ class UserProfile {
         adminRoles: ((json['adminRoles'] as List<dynamic>?) ?? const [])
             .map((e) => e.toString())
             .toList(),
+        isChild: json['isChild'] as bool? ?? false,
       );
 }
 

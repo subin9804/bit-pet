@@ -95,6 +95,15 @@ class MyScreen extends ConsumerWidget {
               label: '차단 목록',
               onTap: () => context.push('/my/blocks'),
             ),
+            // 자녀 계정 — 만 14세 미만은 직접 가입할 수 없고 보호자가 여기서 만든다.
+            // 자녀 계정에는 보이지 않는다 (서버도 GUARDIAN_NOT_ELIGIBLE 로 막지만,
+            // 누를 수 있는 메뉴를 띄워놓고 에러를 주는 건 안내가 아니다)
+            if (user?.isChild != true)
+              _MenuItem(
+                icon: Icons.child_care_outlined,
+                label: '자녀 계정',
+                onTap: () => context.push('/my/children'),
+              ),
             _MenuItem(
               icon: Icons.info_outline,
               label: '앱 정보',
