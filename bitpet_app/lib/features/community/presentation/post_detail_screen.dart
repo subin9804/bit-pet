@@ -4,9 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../data/models/post_models.dart';
+import '../data/models/report_models.dart';
 import '../data/post_repository.dart';
 import '../providers/post_provider.dart';
+import 'report_actions.dart';
 
 Color _catBg(String? code) => switch (code?.toUpperCase()) {
       'FREE' => AppColors.commFreeBg,
@@ -69,66 +72,92 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     }
   }
 
+  /// 게시글 메뉴. 내 글이면 수정/삭제, 남의 글이면 신고/차단 — **섞이면 안 된다**.
+  /// (예전엔 소유자 판정 없이 수정/삭제를 보여줬다. 서버가 403 을 주긴 했지만
+  ///  남의 글에 삭제 버튼이 보이는 것 자체가 사고다.)
   void _showMenu(BuildContext context, Post post) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.card,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 8),
-            Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.paleLine,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 12),
-            ListTile(
-              leading: const Icon(Icons.edit_outlined,
-                  color: AppColors.primary),
-              title: const Text('수정'),
-              onTap: () {
-                Navigator.pop(context);
-                context.push('/community/${post.id}/edit');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete_outline,
-                  color: AppColors.commHot),
-              title: Text('삭제', style: TextStyle(color: AppColors.commHot)),
-              onTap: () async {
-                Navigator.pop(context);
-                final ok = await showDialog<bool>(
-                  context: context,
-                  builder: (_) => AlertDialog(
-                    title: const Text('게시글 삭제'),
-                    content: const Text('정말 삭제하시겠어요?'),
-                    actions: [
-                      TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text('취소')),
-                      TextButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text('삭제')),
-                    ],
-                  ),
-                );
-                if (ok == true && context.mounted) {
-                  await ref.read(postRepositoryProvider).deletePost(post.id);
+    final myId = ref.read(authStateProvider).valueOrNull?.id;
+    final isMine = myId != null && myId == post.userId;
+
+    showBitpetSheet(
+      context,
+      Column(
+        mainAxisSize: MainAxisSize.min,
+        children: isMine
+            ? _ownerTiles(context, post)
+            : reportBlockTiles(
+                context: context,
+                ref: ref,
+                targetType: ReportTargetType.post,
+                targetId: post.id,
+                authorUserId: post.userId,
+                authorName: post.authorName,
+                onDone: () {
+                  // 차단·신고 후에는 이 글이 더는 보이면 안 된다 → 목록으로 되돌린다
                   ref.invalidate(feedProvider);
-                  if (context.mounted) context.pop();
-                }
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
+                  if (mounted) context.pop();
+                },
+              ),
+      ),
+    );
+  }
+
+  List<Widget> _ownerTiles(BuildContext context, Post post) => [
+        ListTile(
+          leading: const Icon(Icons.edit_outlined, color: AppColors.primary),
+          title: const Text('수정'),
+          onTap: () {
+            Navigator.pop(context);
+            context.push('/community/${post.id}/edit');
+          },
+        ),
+        ListTile(
+          leading: const Icon(Icons.delete_outline, color: AppColors.commHot),
+          title: Text('삭제', style: TextStyle(color: AppColors.commHot)),
+          onTap: () async {
+            Navigator.pop(context);
+            final ok = await showDialog<bool>(
+              context: context,
+              builder: (_) => AlertDialog(
+                title: const Text('게시글 삭제'),
+                content: const Text('정말 삭제하시겠어요?'),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('취소')),
+                  TextButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('삭제')),
+                ],
+              ),
+            );
+            if (ok == true && context.mounted) {
+              await ref.read(postRepositoryProvider).deletePost(post.id);
+              ref.invalidate(feedProvider);
+              if (context.mounted) context.pop();
+            }
+          },
+        ),
+      ];
+
+  /// 댓글 메뉴. 내 댓글은 아직 앱에서 수정/삭제를 지원하지 않으므로
+  /// 남의 댓글일 때만 시트를 연다 (내 댓글은 아예 아이콘을 숨긴다).
+  void _showCommentMenu(BuildContext context, PostComment comment) {
+    showBitpetSheet(
+      context,
+      Column(
+        mainAxisSize: MainAxisSize.min,
+        children: reportBlockTiles(
+          context: context,
+          ref: ref,
+          targetType: ReportTargetType.comment,
+          targetId: comment.id,
+          authorUserId: comment.userId,
+          authorName: comment.authorName,
+          onDone: () {
+            ref.invalidate(commentsProvider(widget.postId));
+            ref.invalidate(feedProvider);
+          },
         ),
       ),
     );
@@ -222,7 +251,12 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                       post.content,
                       style: AppTextStyles.body.copyWith(
                         height: 1.7,
-                        color: AppColors.primary,
+                        color: post.isBlinded
+                            ? AppColors.paleInk3
+                            : AppColors.primary,
+                        fontStyle: post.isBlinded
+                            ? FontStyle.italic
+                            : FontStyle.normal,
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -238,8 +272,8 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                           ),
                         )),
 
-                    // 좋아요
-                    Row(
+                    // 좋아요 — 가려진 글에는 달지 않는다
+                    if (!post.isBlinded) Row(
                       children: [
                         Expanded(
                           child: GestureDetector(
@@ -320,7 +354,15 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                             )
                           : Column(
                               children: comments
-                                  .map((c) => _CommentItem(comment: c))
+                                  .map((c) => _CommentItem(
+                                        comment: c,
+                                        myUserId: ref
+                                            .watch(authStateProvider)
+                                            .valueOrNull
+                                            ?.id,
+                                        onMenu: (target) =>
+                                            _showCommentMenu(context, target),
+                                      ))
                                   .toList(),
                             ),
                     ),
@@ -514,7 +556,19 @@ class _Avatar extends StatelessWidget {
 
 class _CommentItem extends StatelessWidget {
   final PostComment comment;
-  const _CommentItem({required this.comment});
+  final int? myUserId;
+  final void Function(PostComment target) onMenu;
+
+  const _CommentItem({
+    required this.comment,
+    required this.myUserId,
+    required this.onMenu,
+  });
+
+  /// 내 댓글에는 신고·차단이 의미가 없으므로 메뉴 자체를 숨긴다.
+  /// 이미 가려진 댓글도 마찬가지 — 더 신고할 것이 없다.
+  bool _canReport(PostComment c) =>
+      !c.isBlinded && (myUserId == null || myUserId != c.userId);
 
   @override
   Widget build(BuildContext context) {
@@ -566,7 +620,12 @@ class _CommentItem extends StatelessWidget {
                   style: AppTextStyles.body.copyWith(
                     fontSize: 13,
                     height: 1.55,
-                    color: AppColors.primary,
+                    color: comment.isBlinded
+                        ? AppColors.paleInk3
+                        : AppColors.primary,
+                    fontStyle: comment.isBlinded
+                        ? FontStyle.italic
+                        : FontStyle.normal,
                   ),
                 ),
                 // 대댓글
@@ -602,12 +661,19 @@ class _CommentItem extends StatelessWidget {
                                 const SizedBox(height: 3),
                                 Text(r.content,
                                     style: AppTextStyles.body.copyWith(
-                                        fontSize: 13,
-                                        height: 1.55,
-                                        color: AppColors.primary)),
+                                      fontSize: 13,
+                                      height: 1.55,
+                                      color: r.isBlinded
+                                          ? AppColors.paleInk3
+                                          : AppColors.primary,
+                                      fontStyle: r.isBlinded
+                                          ? FontStyle.italic
+                                          : FontStyle.normal,
+                                    )),
                               ],
                             ),
                           ),
+                          if (_canReport(r)) _MenuDot(onTap: () => onMenu(r)),
                         ],
                       ),
                     ),
@@ -616,7 +682,28 @@ class _CommentItem extends StatelessWidget {
               ],
             ),
           ),
+          if (_canReport(comment)) _MenuDot(onTap: () => onMenu(comment)),
         ],
+      ),
+    );
+  }
+}
+
+/// 댓글 오른쪽의 작은 ⋯ — 신고·차단 진입점.
+/// 눌러야 알 수 있게 크게 두면 "신고하세요"처럼 보여서, 존재만 알 정도로 흐리게 둔다.
+class _MenuDot extends StatelessWidget {
+  final VoidCallback onTap;
+  const _MenuDot({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        child: Icon(Icons.more_horiz_rounded,
+            size: 16, color: AppColors.paleInk3),
       ),
     );
   }

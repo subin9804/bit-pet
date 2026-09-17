@@ -4,6 +4,7 @@ import '../../../core/api/api_client.dart';
 import '../../../core/api/api_response.dart';
 import '../../../core/upload/image_upload.dart';
 import 'models/post_models.dart';
+import 'models/report_models.dart';
 
 final postRepositoryProvider = Provider<PostRepository>((ref) {
   return PostRepository(
@@ -190,5 +191,54 @@ class PostRepository {
           message: apiRes.message ?? '댓글 작성 실패');
     }
     return apiRes.data!;
+  }
+
+  // ── 신고 ────────────────────────────────────────────────────────────
+  // 신고는 취소 API 가 없다(이력 보존). 마음이 바뀐 사용자는 차단만 해제한다.
+
+  Future<List<ReportReason>> getReportReasons() async {
+    final res = await _dio.get('/reports/reasons');
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => (d as List)
+          .map((e) => ReportReason.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+    return apiRes.data ?? [];
+  }
+
+  /// 신고 접수. 서버가 **작성자 차단까지 함께** 만든다.
+  Future<void> report({
+    required ReportTargetType targetType,
+    required int targetId,
+    required String reasonCd,
+    String? detail,
+  }) async {
+    await _dio.post('/reports', data: {
+      'targetType': targetType.code,
+      'targetId': targetId,
+      'reasonCd': reasonCd,
+      if (detail != null && detail.trim().isNotEmpty) 'detail': detail.trim(),
+    });
+  }
+
+  // ── 차단 ────────────────────────────────────────────────────────────
+  Future<List<BlockedUser>> getBlockedUsers() async {
+    final res = await _dio.get('/blocks');
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => (d as List)
+          .map((e) => BlockedUser.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+    return apiRes.data ?? [];
+  }
+
+  Future<void> blockUser(int userId) async {
+    await _dio.post('/blocks/$userId');
+  }
+
+  Future<void> unblockUser(int userId) async {
+    await _dio.delete('/blocks/$userId');
   }
 }

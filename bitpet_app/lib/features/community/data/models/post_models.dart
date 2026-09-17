@@ -37,6 +37,10 @@ class Post {
   final int commentCount;
   final bool isLiked;
   final bool isPinned;
+
+  /// 운영자가 가린 글. 서버가 제목·본문을 이미 치환해 내려주므로 **앱이 가릴 일은 없고**,
+  /// 이 값은 "가려진 글이다"라는 표시를 붙이고 좋아요·댓글 버튼을 접는 용도다.
+  final bool isBlinded;
   final String? thumbnailUrl;
   final List<String> photoUrls; // 상세 응답의 첨부 사진 URL
   final DateTime createdAt;
@@ -54,6 +58,7 @@ class Post {
     required this.commentCount,
     required this.isLiked,
     this.isPinned = false,
+    this.isBlinded = false,
     this.thumbnailUrl,
     this.photoUrls = const [],
     required this.createdAt,
@@ -72,6 +77,7 @@ class Post {
         commentCount: json['commentCount'] as int? ?? 0,
         isLiked: json['likedByMe'] as bool? ?? false,
         isPinned: json['pinned'] as bool? ?? false,
+        isBlinded: json['blinded'] as bool? ?? false,
         thumbnailUrl: json['thumbnailUrl'] as String?,
         photoUrls: ((json['photos'] as List<dynamic>?) ?? const [])
             .map((e) {
@@ -100,6 +106,7 @@ class Post {
         commentCount: commentCount,
         isLiked: isLiked ?? this.isLiked,
         isPinned: isPinned,
+        isBlinded: isBlinded,
         thumbnailUrl: thumbnailUrl,
         photoUrls: photoUrls,
         createdAt: createdAt,
@@ -115,6 +122,10 @@ class PostComment {
   final bool isPostAuthor; // 게시글 작성자가 단 댓글 → '작성자' 뱃지
   final int? parentCommentId;
   final String content;
+
+  /// 운영자가 가린 댓글. 서버가 본문을 치환해 내려주되 **자리는 남긴다** —
+  /// 대댓글이 달린 부모를 지우면 대화가 통째로 무너지기 때문이다.
+  final bool isBlinded;
   final List<PostComment> replies;
   final DateTime createdAt;
 
@@ -127,6 +138,7 @@ class PostComment {
     this.isPostAuthor = false,
     this.parentCommentId,
     required this.content,
+    this.isBlinded = false,
     this.replies = const [],
     required this.createdAt,
   });
@@ -140,6 +152,7 @@ class PostComment {
         isPostAuthor: json['postAuthor'] as bool? ?? false,
         parentCommentId: json['parentCommentId'] as int?,
         content: json['content'] as String,
+        isBlinded: json['blinded'] as bool? ?? false,
         replies: (json['replies'] as List<dynamic>?)
                 ?.map((e) => PostComment.fromJson(e as Map<String, dynamic>))
                 .toList() ??

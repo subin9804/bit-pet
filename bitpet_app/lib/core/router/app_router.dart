@@ -20,6 +20,7 @@ import '../../features/record/presentation/record_detail_screen.dart';
 import '../../features/community/presentation/community_feed_screen.dart';
 import '../../features/community/presentation/post_detail_screen.dart';
 import '../../features/community/presentation/post_compose_screen.dart';
+import '../../features/community/presentation/blocked_users_screen.dart';
 import '../../features/routine/presentation/routines_page.dart';
 import '../../features/routine/presentation/routine_form_screen.dart';
 import '../../features/pet/share/presentation/pet_share_screen.dart';
@@ -185,6 +186,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
               path: '/my/notifications',
               builder: (_, __) => const NotificationSettingsScreen()),
+          // 마이페이지 > 차단 목록 (내가 차단한 사람만 — 해제도 여기서)
+          GoRoute(
+              path: '/my/blocks',
+              builder: (_, __) => const BlockedUsersScreen()),
           // 마이페이지 > 앱 정보 (버전·약관·문의처)
           GoRoute(path: '/my/about', builder: (_, __) => const AboutScreen()),
           // 공유 허브 (공유코드·받은 초대·시작 안내)

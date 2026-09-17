@@ -89,6 +89,12 @@ class MyScreen extends ConsumerWidget {
               label: '내 게시글',
               onTap: () => context.push('/my/activity'),
             ),
+            // 차단 목록 — 내가 차단한 사람만. 신고로 생긴 차단도 여기서 푼다
+            _MenuItem(
+              icon: Icons.block,
+              label: '차단 목록',
+              onTap: () => context.push('/my/blocks'),
+            ),
             _MenuItem(
               icon: Icons.info_outline,
               label: '앱 정보',
