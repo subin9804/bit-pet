@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/toast_message.dart';
@@ -135,7 +136,7 @@ class _MyPostRow extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         decoration: const BoxDecoration(
           border: Border(bottom: BorderSide(color: AppColors.paleLineSoft)),
         ),
@@ -151,7 +152,7 @@ class _MyPostRow extends StatelessWidget {
                       if (categoryLabel != null) ...[
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 7, vertical: 2),
+                              horizontal: 8, vertical: 4),
                           color: AppColors.bg2,
                           child: Text(
                             categoryLabel!,
@@ -170,7 +171,7 @@ class _MyPostRow extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 8),
                   Text(
                     post.title,
                     style: AppTextStyles.bodyBold.copyWith(
@@ -184,10 +185,10 @@ class _MyPostRow extends StatelessWidget {
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      _Meta(icon: Icons.favorite_outline, value: post.likeCount),
+                      _Meta(icon: AppIcons.likeLine, value: post.likeCount),
                       const SizedBox(width: 12),
                       _Meta(
-                          icon: Icons.chat_bubble_outline,
+                          icon: AppIcons.comment,
                           value: post.commentCount),
                       const SizedBox(width: 12),
                       Text('조회 ${post.viewCount}',
@@ -291,7 +292,7 @@ class _MyCommentRow extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         decoration: const BoxDecoration(
           border: Border(bottom: BorderSide(color: AppColors.paleLineSoft)),
         ),
@@ -304,11 +305,11 @@ class _MyCommentRow extends StatelessWidget {
               children: [
                 if (comment.isReply) ...[
                   const Padding(
-                    padding: EdgeInsets.only(top: 2),
+                    padding: EdgeInsets.only(top: 4),
                     child: Icon(Icons.subdirectory_arrow_right,
-                        size: 14, color: AppColors.paleInk3),
+                        size: 16, color: AppColors.paleInk3),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 8),
                 ],
                 Expanded(
                   child: Text(
@@ -330,10 +331,10 @@ class _MyCommentRow extends StatelessWidget {
               children: [
                 Icon(
                   dimmed ? Icons.block : Icons.article_outlined,
-                  size: 13,
+                  size: 16,
                   color: AppColors.paleInk3,
                 ),
-                const SizedBox(width: 5),
+                const SizedBox(width: 4),
                 Expanded(
                   child: Text(
                     comment.postTitle,
@@ -363,7 +364,9 @@ class _MyCommentRow extends StatelessWidget {
 // ── 공용 조각 ────────────────────────────────────────────────────────────────
 
 class _Meta extends StatelessWidget {
-  final IconData icon;
+  /// [AppIcons] 의 SVG 경로. 하트와 말풍선이 한 줄에 붙는 자리라 한쪽만 Material 로
+  /// 두면 그 칩만 선 굵기가 달라 보인다.
+  final String icon;
   final int value;
   const _Meta({required this.icon, required this.value});
 
@@ -372,8 +375,8 @@ class _Meta extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 12, color: AppColors.paleInk3),
-        const SizedBox(width: 3),
+        AppIcon(icon, size: 16, color: AppColors.paleInk3),
+        const SizedBox(width: 4),
         Text('$value',
             style: AppTextStyles.monoXs.copyWith(color: AppColors.paleInk2)),
       ],
@@ -408,7 +411,7 @@ class _ErrorRetry extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text('목록을 불러오지 못했어요', style: AppTextStyles.body),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           TextButton(onPressed: onRetry, child: const Text('다시 시도')),
         ],
       ),

@@ -59,13 +59,13 @@ class _PasswordResetRequestScreenState
       appBar: passwordResetAppBar(context),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 28),
+          padding: const EdgeInsets.symmetric(horizontal: 32),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 32),
               const ResetGuideText('가입 시 사용한 이메일을 입력해 주세요.\n인증 코드를 보내드립니다.'),
-              const SizedBox(height: 28),
+              const SizedBox(height: 32),
               ResetInputField(
                 controller: _emailCtrl,
                 hintText: 'example@tailog.me',

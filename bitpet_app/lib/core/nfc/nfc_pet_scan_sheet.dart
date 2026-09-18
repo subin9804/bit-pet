@@ -8,6 +8,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import 'nfc_reader.dart';
 import 'pet_summary.dart';
+import '../../core/theme/app_dimens.dart';
 
 /// 태그를 찍어 개체 하나를 고르는 바텀시트. 고른 개체를 돌려주고, 취소하면 null.
 ///
@@ -142,7 +143,7 @@ class _NfcPetScanSheetState extends ConsumerState<NfcPetScanSheet> {
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -153,7 +154,7 @@ class _NfcPetScanSheetState extends ConsumerState<NfcPetScanSheet> {
                 widget.subtitle ?? '개체에 달린 이름표에 휴대폰 뒷면을 가까이 대주세요.',
                 style: AppTextStyles.caption,
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 32),
               Center(
                 child: Icon(
                   _nfcAvailable ? Icons.nfc : Icons.nfc_outlined,
@@ -184,13 +185,14 @@ class _NfcPetScanSheetState extends ConsumerState<NfcPetScanSheet> {
                   style: AppTextStyles.caption,
                 ),
               ],
-              const SizedBox(height: 28),
+              const SizedBox(height: 32),
               GestureDetector(
                 onTap: () => Navigator.of(context).pop(),
                 child: Container(
                   height: 48,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
+                    borderRadius: AppRadius.brMd,
                     border: Border.all(color: AppColors.paleLine),
                   ),
                   child: const Text(

@@ -7,6 +7,8 @@ import '../../../../core/theme/pale_palette.dart';
 import '../../../../core/widgets/app_buttons.dart';
 import '../../../record/data/models/record_models.dart';
 import '../../../record/providers/record_provider.dart';
+import '../../../../core/theme/app_icons.dart';
+import '../../../../core/theme/app_dimens.dart';
 
 // 캘린더 탭에서 표시하는 카테고리 (급여·체중·청소·메모)
 const _calendarCats = ['FEEDING', 'WEIGHT', 'CLEANING', 'MEMO'];
@@ -18,12 +20,6 @@ const _catLabel = {
   'MEMO': '메모',
 };
 
-const _catIcon = {
-  'FEEDING': Icons.restaurant_outlined,
-  'WEIGHT': Icons.monitor_weight_outlined,
-  'CLEANING': Icons.cleaning_services_outlined,
-  'MEMO': Icons.note_alt_outlined,
-};
 
 /// 개체 상세 — 캘린더 탭.
 /// 월별 캘린더에 급여/체중/메모 기록을 카테고리 아이콘으로 표시하고,
@@ -79,10 +75,11 @@ class _PetCalendarTabState extends ConsumerState<PetCalendarTab> {
         // ── 캘린더 카드 ─────────────────────────────────────
         Container(
           decoration: BoxDecoration(
+            borderRadius: AppRadius.brLg,
             color: AppColors.card,
             border: Border.all(color: AppColors.paleLine),
           ),
-          padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
           child: Column(
             children: [
               // ── 월 이동 헤더 ──
@@ -98,7 +95,7 @@ class _PetCalendarTabState extends ConsumerState<PetCalendarTab> {
                   AppNavButton(forward: true, onTap: () => _navMonth(1)),
                 ],
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
 
               // ── 캘린더 ──
               TableCalendar<String>(
@@ -164,7 +161,7 @@ class _PetCalendarTabState extends ConsumerState<PetCalendarTab> {
                   markerBuilder: (context, day, cats) {
                     if (cats.isEmpty) return null;
                     return Padding(
-                      padding: const EdgeInsets.only(bottom: 3),
+                      padding: const EdgeInsets.only(bottom: 4),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: cats
@@ -172,10 +169,11 @@ class _PetCalendarTabState extends ConsumerState<PetCalendarTab> {
                             .map((c) => Padding(
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 1),
-                                  child: Icon(
-                                    _catIcon[c] ?? Icons.circle,
+                                  child: RecordTypeIcon(
+                                    c,
                                     size: 11,
                                     color: PalePalette.catInk(c),
+                                    fallback: Icons.circle,
                                   ),
                                 ))
                             .toList(),
@@ -184,7 +182,7 @@ class _PetCalendarTabState extends ConsumerState<PetCalendarTab> {
                   },
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
 
               // ── 범례 ──
               Row(
@@ -195,7 +193,7 @@ class _PetCalendarTabState extends ConsumerState<PetCalendarTab> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(_catIcon[c],
+                              RecordTypeIcon(c,
                                   size: 12, color: PalePalette.catInk(c)),
                               const SizedBox(width: 4),
                               Text(_catLabel[c]!,
@@ -211,7 +209,7 @@ class _PetCalendarTabState extends ConsumerState<PetCalendarTab> {
             ],
           ),
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 20),
 
         // ── 선택일 기록 헤더 ─────────────────────────────────
         Row(
@@ -252,11 +250,11 @@ class _PetCalendarTabState extends ConsumerState<PetCalendarTab> {
   Widget _buildDayList(AsyncValue<List<TimelineItem>> dayAsync) {
     return dayAsync.when(
       loading: () => const Padding(
-        padding: EdgeInsets.symmetric(vertical: 22),
+        padding: EdgeInsets.symmetric(vertical: 20),
         child: Center(child: CircularProgressIndicator()),
       ),
       error: (_, __) => const Padding(
-        padding: EdgeInsets.symmetric(vertical: 22),
+        padding: EdgeInsets.symmetric(vertical: 20),
         child: Center(
           child: Text('기록을 불러올 수 없어요',
               style: TextStyle(fontSize: 13, color: AppColors.paleInk3)),
@@ -267,7 +265,7 @@ class _PetCalendarTabState extends ConsumerState<PetCalendarTab> {
             items.where((r) => _calendarCats.contains(r.category)).toList();
         if (filtered.isEmpty) {
           return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 22),
+            padding: EdgeInsets.symmetric(vertical: 20),
             child: Center(
               child: Text('이 날의 기록이 없어요',
                   style: TextStyle(
@@ -287,7 +285,7 @@ class _PetCalendarTabState extends ConsumerState<PetCalendarTab> {
                         bottom: BorderSide(color: AppColors.paleLineSoft))
                     : null,
               ),
-              padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 2),
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
               child: _DayRecordRow(item: e.value),
             );
           }).toList(),
@@ -317,12 +315,14 @@ class _DayRecordRow extends StatelessWidget {
           height: 28,
           decoration: BoxDecoration(
             color: PalePalette.catPale(cat),
-            borderRadius: BorderRadius.zero,
+            borderRadius: AppRadius.brMd,
           ),
-          child: Icon(_catIcon[cat] ?? Icons.circle_outlined,
-              size: 15, color: PalePalette.catInk(cat)),
+          child: RecordTypeIcon(cat,
+              size: 15,
+              color: PalePalette.catInk(cat),
+              fallback: Icons.circle_outlined),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 8),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

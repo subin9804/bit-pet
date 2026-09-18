@@ -11,6 +11,8 @@ import '../providers/record_provider.dart';
 import '../data/models/record_models.dart';
 import '../data/record_repository.dart';
 import 'widgets/feed_composer_fields.dart';
+import '../../../core/theme/app_icons.dart';
+import '../../../core/theme/app_dimens.dart';
 
 class RecordScreen extends ConsumerStatefulWidget {
   final int petId;
@@ -104,12 +106,12 @@ class _WeightList extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: AppColors.card,
-                borderRadius: BorderRadius.zero,
+                borderRadius: AppRadius.brLg,
                 border: Border.all(color: AppColors.border),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.monitor_weight_outlined,
+                  const AppIcon(AppIcons.weight,
                       color: AppColors.primary),
                   const SizedBox(width: 12),
                   Column(
@@ -177,12 +179,12 @@ class _FeedingList extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: AppColors.card,
-                borderRadius: BorderRadius.zero,
+                borderRadius: AppRadius.brLg,
                 border: Border.all(color: AppColors.border),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.restaurant_outlined,
+                  const AppIcon(AppIcons.feeding,
                       color: AppColors.secondary),
                   const SizedBox(width: 12),
                   Expanded(
@@ -238,12 +240,12 @@ class _CleaningList extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: AppColors.card,
-                borderRadius: BorderRadius.zero,
+                borderRadius: AppRadius.brLg,
                 border: Border.all(color: AppColors.border),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.cleaning_services_outlined,
+                  const AppIcon(AppIcons.cleaning,
                       color: AppColors.primary),
                   const SizedBox(width: 12),
                   Expanded(
@@ -299,7 +301,7 @@ class _MemoList extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: AppColors.card,
-                borderRadius: BorderRadius.zero,
+                borderRadius: AppRadius.brLg,
                 border: Border.all(color: AppColors.border),
               ),
               child: Column(
@@ -307,7 +309,7 @@ class _MemoList extends ConsumerWidget {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.note_alt_outlined,
+                      const AppIcon(AppIcons.memo,
                           color: AppColors.primary),
                       const SizedBox(width: 8),
                       if (r.tags.isNotEmpty)
@@ -365,12 +367,12 @@ class _MatingList extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: AppColors.card,
-                borderRadius: BorderRadius.zero,
+                borderRadius: AppRadius.brLg,
                 border: Border.all(color: AppColors.border),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.favorite_outline, color: AppColors.female),
+                  const AppIcon(AppIcons.likeLine, color: AppColors.female),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -425,12 +427,12 @@ class _LayingList extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: AppColors.card,
-                borderRadius: BorderRadius.zero,
+                borderRadius: AppRadius.brLg,
                 border: Border.all(color: AppColors.border),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.egg_outlined, color: AppColors.primary),
+                  const AppIcon(AppIcons.laying, color: AppColors.primary),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(

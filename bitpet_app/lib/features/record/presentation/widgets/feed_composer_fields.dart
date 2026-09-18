@@ -6,6 +6,7 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/app_buttons.dart';
 import '../../../../core/widgets/app_chip.dart';
 import '../../data/food_catalog.dart';
+import '../../../../core/theme/app_dimens.dart';
 
 export '../../data/food_catalog.dart' show FeedFormData, FoodType, FeedingSupplement, FoodInputMode;
 
@@ -73,7 +74,7 @@ class FeedComposerFields extends StatelessWidget {
         if (showMemo) ...[
           if (!refused) const SizedBox(height: 20),
           _Label('메모', optional: true),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           TextField(
             onChanged: (v) => onChanged(form.copyWith(memo: v)),
             maxLines: 2,
@@ -106,15 +107,15 @@ class FeedComposerFields extends StatelessWidget {
             hintStyle: TextStyle(fontSize: 14, color: AppColors.paleInk3, fontWeight: FontWeight.w500),
             contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
             border: UnderlineInputBorder(
-              borderRadius: BorderRadius.zero,
+              borderRadius: AppRadius.brMd,
               borderSide: const BorderSide(color: AppColors.paleLine),
             ),
             enabledBorder: UnderlineInputBorder(
-              borderRadius: BorderRadius.zero,
+              borderRadius: AppRadius.brMd,
               borderSide: const BorderSide(color: AppColors.paleLine),
             ),
             focusedBorder: UnderlineInputBorder(
-              borderRadius: BorderRadius.zero,
+              borderRadius: AppRadius.brMd,
               borderSide: BorderSide(color: bandColor, width: 1.5),
             ),
           ),
@@ -131,12 +132,12 @@ class FeedComposerFields extends StatelessWidget {
 
         // ── 서브 입력 ───────────────────────────────────────
         if (form.foodType != null) ...[
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           _SubInput(form: form, onChanged: onChanged, bandColor: bandColor),
         ],
 
         // ── 영양제 ──────────────────────────────────────────
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         _Label('영양제', optional: true),
         const SizedBox(height: 8),
         Wrap(
@@ -153,7 +154,7 @@ class FeedComposerFields extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: sel ? AppColors.petLilac : AppColors.card,
                   border: Border.all(color: sel ? Colors.transparent : AppColors.paleLine),
-                  borderRadius: BorderRadius.zero,
+                  borderRadius: AppRadius.brPill,
                 ),
                 child: Text(s.label,
                     style: TextStyle(
@@ -191,18 +192,18 @@ class RefusedCheckbox extends StatelessWidget {
     behavior: HitTestBehavior.opaque,
     child: AnimatedContainer(
       duration: const Duration(milliseconds: 140),
-      padding: const EdgeInsets.fromLTRB(8, 6, 11, 6),
+      padding: const EdgeInsets.fromLTRB(8, 8, 12, 8),
       decoration: BoxDecoration(
         color: active ? bandColor : AppColors.card,
         border: Border.all(color: active ? Colors.transparent : AppColors.paleLine),
-        borderRadius: BorderRadius.zero,
+        borderRadius: AppRadius.brPill,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(active ? Icons.check_box : Icons.check_box_outline_blank,
               size: 16, color: active ? AppColors.primary : AppColors.paleInk3),
-          const SizedBox(width: 6),
+          const SizedBox(width: 8),
           Text('거식',
               style: TextStyle(
                 fontSize: 12.5, fontWeight: FontWeight.w700,
@@ -231,13 +232,13 @@ class _AddButton extends StatelessWidget {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: enabled ? bandColor : AppColors.paleBgAlt,
-        borderRadius: BorderRadius.zero,
+        borderRadius: AppRadius.brLg,
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.add, size: 15, color: enabled ? AppColors.primary : AppColors.paleInk3),
-          const SizedBox(width: 6),
+          Icon(Icons.add, size: 16, color: enabled ? AppColors.primary : AppColors.paleInk3),
+          const SizedBox(width: 8),
           Text('추가하기',
             style: TextStyle(
               fontSize: 13, fontWeight: FontWeight.w700,
@@ -259,7 +260,7 @@ class _Label extends StatelessWidget {
   Widget build(BuildContext context) => Row(children: [
     Text(text, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary, letterSpacing: -0.2)),
     if (optional) ...[
-      const SizedBox(width: 6),
+      const SizedBox(width: 8),
       Text('OPTIONAL', style: AppTextStyles.mono(9, FontWeight.w700, color: AppColors.paleInk3)),
     ],
   ]);
@@ -343,7 +344,7 @@ class _MlOrVolumeInput extends StatelessWidget {
           _ModeToggle(label: '용량 선택', active: !form.useMl, color: bandColor,
               onTap: () => onChanged(form.copyWith(useMl: false, mlAmount: null, sizeLabel: null))),
         ]),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         if (form.useMl)
           _MlInput(ml: form.mlAmount, onChanged: (v) => onChanged(form.copyWith(mlAmount: v)))
         else
@@ -378,7 +379,7 @@ class _VolumeInput extends StatelessWidget {
         _ModeToggle(label: '직접입력', active: form.useCustomAmount, color: bandColor,
             onTap: () => onChanged(form.copyWith(useCustomAmount: true, sizeLabel: null))),
       ]),
-      const SizedBox(height: 10),
+      const SizedBox(height: 8),
       if (form.useCustomAmount)
         _AmountTextInput(
           // 칩↔직접입력을 오갈 때 이전 글자가 남지 않도록 모드를 키에 넣는다
@@ -423,10 +424,10 @@ class _CustomTextInput extends StatelessWidget {
           decoration: InputDecoration(
             hintText: '이름 직접 입력',
             counterText: '',
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-            border: UnderlineInputBorder(borderRadius: BorderRadius.zero,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            border: UnderlineInputBorder(borderRadius: AppRadius.brMd,
                 borderSide: const BorderSide(color: AppColors.paleLine)),
-            enabledBorder: UnderlineInputBorder(borderRadius: BorderRadius.zero,
+            enabledBorder: UnderlineInputBorder(borderRadius: AppRadius.brMd,
                 borderSide: const BorderSide(color: AppColors.paleLine)),
           ),
         ),
@@ -473,10 +474,10 @@ class _AmountTextInput extends StatelessWidget {
     decoration: InputDecoration(
       hintText: hintText,
       counterText: '',
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-      border: UnderlineInputBorder(borderRadius: BorderRadius.zero,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      border: UnderlineInputBorder(borderRadius: AppRadius.brMd,
           borderSide: const BorderSide(color: AppColors.paleLine)),
-      enabledBorder: UnderlineInputBorder(borderRadius: BorderRadius.zero,
+      enabledBorder: UnderlineInputBorder(borderRadius: AppRadius.brMd,
           borderSide: const BorderSide(color: AppColors.paleLine)),
     ),
   );
@@ -496,7 +497,7 @@ class _CountStepper extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.paleBg,
           border: Border.all(color: AppColors.paleLine),
-          borderRadius: BorderRadius.zero,
+          borderRadius: AppRadius.brMd,
         ),
         child: Row(children: [
           AppStepperButton('−',
@@ -538,10 +539,10 @@ class _MlInput extends StatelessWidget {
     decoration: InputDecoration(
       hintText: '용량 (ml)',
       suffixText: 'ml',
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-      border: UnderlineInputBorder(borderRadius: BorderRadius.zero,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      border: UnderlineInputBorder(borderRadius: AppRadius.brMd,
           borderSide: const BorderSide(color: AppColors.paleLine)),
-      enabledBorder: UnderlineInputBorder(borderRadius: BorderRadius.zero,
+      enabledBorder: UnderlineInputBorder(borderRadius: AppRadius.brMd,
           borderSide: const BorderSide(color: AppColors.paleLine)),
     ),
     onChanged: (v) => onChanged(double.tryParse(v)),
@@ -583,11 +584,11 @@ class _ModeToggle extends StatelessWidget {
     onTap: onTap,
     child: AnimatedContainer(
       duration: const Duration(milliseconds: 140),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         color: active ? color : AppColors.card,
         border: Border.all(color: active ? Colors.transparent : AppColors.paleLine),
-        borderRadius: BorderRadius.zero,
+        borderRadius: AppRadius.brPill,
       ),
       child: Text(label, style: TextStyle(
         fontSize: 12, fontWeight: FontWeight.w700,

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/api_response.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/pale_palette.dart';
 import '../../../core/widgets/confirm_modal.dart';
 import '../../../core/widgets/skeleton_loader.dart';
 import '../../../core/widgets/toast_message.dart';
@@ -16,6 +15,7 @@ import 'widgets/pet_info_grid.dart';
 import 'widgets/record_tab.dart';
 import 'widgets/pet_calendar_tab.dart';
 import 'widgets/gallery_tab.dart';
+import '../../../core/theme/app_dimens.dart';
 
 class PetDetailScreen extends ConsumerStatefulWidget {
   final int petId;
@@ -71,7 +71,6 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
         loading: () => const _LoadingSkeleton(),
         error:   (e, _) => Center(child: Text(e.toString())),
         data:    (pet) {
-          final paletteKey = PalePalette.keyFromHex(pet.colorCode);
           return Column(
             children: [
               // ── TopBar (SafeArea 포함) ──────────────────────
@@ -93,21 +92,21 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
                     children: [
                       // 히어로 프로필 카드
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 22),
-                        child: PetHeroCard(pet: pet, paletteKey: paletteKey),
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: PetHeroCard(pet: pet),
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 16),
 
                       // 기본 정보 카드
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 22),
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
                         child: PetInfoGrid(pet: pet, petId: widget.petId),
                       ),
-                      const SizedBox(height: 22),
+                      const SizedBox(height: 20),
 
                       // 탭 바 (3등분)
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 22),
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
                         child: Row(
                           children: List.generate(_tabs.length, (i) {
                             final active = _tabIndex == i;
@@ -116,9 +115,10 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
                                 onTap: () => setState(() => _tabIndex = i),
                                 child: Container(
                                   margin: EdgeInsets.only(
-                                      right: i < _tabs.length - 1 ? 6 : 0),
-                                  padding: const EdgeInsets.symmetric(vertical: 11),
+                                      right: i < _tabs.length - 1 ? 8 : 0),
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
                                   decoration: BoxDecoration(
+                                    borderRadius: AppRadius.brLg,
                                     color: active
                                         ? AppColors.primary
                                         : AppColors.card,
@@ -143,22 +143,18 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
                           }),
                         ),
                       ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 20),
 
                       // 탭 콘텐츠
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 22),
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
                         child: IndexedStack(
                           index: _tabIndex,
                           children: [
-                            RecordTab(
-                              petId: widget.petId,
-                              paletteKey: paletteKey,
-                            ),
+                            RecordTab(petId: widget.petId),
                             PetCalendarTab(petId: widget.petId),
                             GalleryTab(
                               petId: widget.petId,
-                              paletteKey: paletteKey,
                               profilePhotoId: pet.profilePhotoId,
                             ),
                           ],
@@ -197,7 +193,7 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
       color: AppColors.card,
       elevation: 0,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.zero,
+        borderRadius: AppRadius.brMd,
         side: BorderSide(color: AppColors.paleLine),
       ),
       items: pet.isOwner ? _ownerMenuItems(pet) : _keeperMenuItems(pet),
@@ -299,7 +295,7 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
           height: 34,
           child: Row(
             children: [
-              Icon(Icons.group_outlined, size: 14, color: AppColors.paleInk3),
+              Icon(Icons.group_outlined, size: 16, color: AppColors.paleInk3),
               SizedBox(width: 8),
               Text('공유받은 개체',
                   style: TextStyle(fontSize: 12, color: AppColors.paleInk3)),
@@ -413,7 +409,7 @@ class _TopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
       child: Row(
         children: [
           // 뒤로가기 버튼 36×36 원형
@@ -445,7 +441,7 @@ class _TopBar extends StatelessWidget {
                   size: 16, color: AppColors.primary),
             ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 8),
           // 더보기 (이별하기 · 삭제)
           Builder(
             builder: (anchorContext) => GestureDetector(
@@ -476,16 +472,16 @@ class _LoadingSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(22),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SkeletonBox(width: double.infinity, height: 130),
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
             SkeletonBox(width: double.infinity, height: 130),
-            const SizedBox(height: 22),
+            const SizedBox(height: 20),
             SkeletonBox(width: double.infinity, height: 44),
-            const SizedBox(height: 18),
+            const SizedBox(height: 20),
             SkeletonBox(width: double.infinity, height: 200),
           ],
         ),

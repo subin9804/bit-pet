@@ -4,9 +4,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_dimens.dart';
+import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_input_styles.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../../core/theme/pale_palette.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../../record/presentation/widgets/feed_items_editor.dart';
 import '../data/models/routine_models.dart';
@@ -14,7 +15,6 @@ import '../data/routine_repository.dart';
 import '../providers/routine_provider.dart';
 import 'widgets/confirm_accordion.dart';
 import '../../record/providers/record_invalidation.dart';
-import '../../record/providers/record_provider.dart';
 
 class BulkConfirmSheet extends ConsumerStatefulWidget {
   final TodayRoutine routine;
@@ -57,13 +57,6 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
         RoutineType.CUSTOM   => AppColors.petLilac,
       };
 
-  IconData get _icon => switch (widget.routine.routineType) {
-        RoutineType.FEEDING  => Icons.restaurant_outlined,
-        RoutineType.CLEANING => Icons.cleaning_services_outlined,
-        RoutineType.WEIGHT   => Icons.monitor_weight_outlined,
-        RoutineType.CUSTOM   => Icons.star_outline,
-      };
-
   Future<void> _confirm() async {
     final pending = widget.routine.petStatuses.where((s) => !s.isCompleted).toList();
     if (pending.isEmpty) { Navigator.of(context).pop(); return; }
@@ -97,9 +90,6 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
         invalidatePetRecords(ref, pet.petId);
       }
       ref.invalidate(routineTodayStatusProvider(widget.routine.id));
-      final ym = DateTime.now();
-      ref.invalidate(homeCalendarProvider(
-          '${ym.year}-${ym.month.toString().padLeft(2, '0')}'));
       if (mounted) {
         Navigator.of(context).pop();
         showToast(context, '${pending.length}마리 완료 처리됐어요', type: ToastType.success);
@@ -138,7 +128,7 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
             padding: EdgeInsets.only(bottom: keyboardH),
             child: Center(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 26),
+              padding: const EdgeInsets.symmetric(horizontal: 24),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 380),
                 child: SizedBox(
@@ -151,16 +141,16 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
                       // 헤더 밴드
                       Container(
                         color: _accent,
-                        padding: const EdgeInsets.fromLTRB(22, 20, 22, 18),
+                        padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
                         child: Row(
                           children: [
                             Container(
                               width: 48, height: 48,
                               color: Colors.white.withValues(alpha: 0.62),
-                              child: Icon(_icon, size: 24,
-                                  color: AppColors.textPrimary),
+                              child: RecordTypeIcon(widget.routine.routineType.name,
+                                  size: 24, color: AppColors.textPrimary),
                             ),
-                            const SizedBox(width: 13),
+                            const SizedBox(width: 12),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -170,7 +160,7 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
                                     style: AppTextStyles.mono(10, FontWeight.w700,
                                         color: AppColors.textSecondary),
                                   ),
-                                  const SizedBox(height: 3),
+                                  const SizedBox(height: 4),
                                   Text(
                                     routine.title,
                                     style: const TextStyle(
@@ -189,7 +179,7 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
                       // 본문 (스크롤)
                       Flexible(
                         child: SingleChildScrollView(
-                          padding: const EdgeInsets.fromLTRB(22, 22, 22, 22),
+                          padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -218,7 +208,7 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
                                           .toList(),
                                     ),
                                     if (done > 0) ...[
-                                      const SizedBox(height: 10),
+                                      const SizedBox(height: 8),
                                       Text.rich(
                                         TextSpan(
                                           style: const TextStyle(
@@ -250,16 +240,16 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
 
                               // 몸무게 입력 (WEIGHT 타입 — 개체별 필수)
                               if (_isWeight) ...[
-                                const SizedBox(height: 14),
+                                const SizedBox(height: 16),
                                 Text('몸무게 (g) *',
                                     style: TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w700,
                                         color: AppColors.paleInk2)),
-                                const SizedBox(height: 10),
+                                const SizedBox(height: 8),
                                 ...pets.where((s) => !s.isCompleted).map(
                                   (pet) => Padding(
-                                    padding: const EdgeInsets.only(bottom: 10),
+                                    padding: const EdgeInsets.only(bottom: 8),
                                     child: Row(
                                       children: [
                                         SizedBox(
@@ -345,15 +335,16 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
                           color: AppColors.bg,
                           border: Border(top: BorderSide(color: AppColors.divider)),
                         ),
-                        padding: const EdgeInsets.fromLTRB(22, 14, 22, 22),
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
                         child: Row(
                           children: [
                             GestureDetector(
                               onTap: () => Navigator.of(context).pop(),
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 22, vertical: 14),
+                                    horizontal: 20, vertical: 16),
                                 decoration: BoxDecoration(
+                                  borderRadius: AppRadius.brMd,
                                   color: AppColors.bg2,
                                   border: Border.all(color: AppColors.border),
                                 ),
@@ -369,7 +360,7 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
                                 onTap: _saving ? null : _confirm,
                                 child: Container(
                                   padding:
-                                      const EdgeInsets.symmetric(vertical: 14),
+                                      const EdgeInsets.symmetric(vertical: 16),
                                   alignment: Alignment.center,
                                   color: AppColors.primary,
                                   child: _saving
@@ -431,7 +422,7 @@ class _QuestionText extends StatelessWidget {
           WidgetSpan(
             alignment: PlaceholderAlignment.middle,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
               color: accent,
               child: Text("'$title'",
                   style: const TextStyle(
@@ -454,13 +445,16 @@ class _NameChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final done = status.isCompleted;
-    final pale = PalePalette.pale(PalePalette.keyFromHex(status.colorCode));
+    // 예전엔 '안 끝남'이 개체별 파스텔이었다. 개체색을 걷어내면 완료/미완료가
+    // 같은 회색이 되므로, 남은 것에 브랜드색을 준다 — 여기서 색이 나르는 정보는
+    // '누구냐'가 아니라 '아직 할 일이 남았냐'다.
     return Opacity(
       opacity: done ? 0.55 : 1,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(5, 4, 10, 4),
+        padding: const EdgeInsets.fromLTRB(4, 4, 8, 4),
         decoration: BoxDecoration(
-          color: done ? AppColors.bg2 : pale,
+          color: done ? AppColors.bg2 : AppColors.brandTint,
+          borderRadius: AppRadius.brPill,
           border: Border.all(
               color: done ? AppColors.border : Colors.transparent),
         ),
@@ -474,11 +468,11 @@ class _NameChip extends StatelessWidget {
                   color: Colors.white.withValues(alpha: 0.6)),
               child: status.imageUrl != null
                   ? Image.network(status.imageUrl!, fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Icon(Icons.pets,
-                          size: 12, color: AppColors.textPrimary))
-                  : Icon(Icons.pets, size: 12, color: AppColors.textPrimary),
+                      errorBuilder: (_, __, ___) => AppIcon(AppIcons.petLine,
+                          size: 16, color: AppColors.textPrimary))
+                  : AppIcon(AppIcons.petLine, size: 16, color: AppColors.textPrimary),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 8),
             Text(
               status.petName,
               style: TextStyle(
@@ -492,7 +486,7 @@ class _NameChip extends StatelessWidget {
             ),
             if (done) ...[
               const SizedBox(width: 4),
-              const Icon(Icons.check, size: 13, color: AppColors.textDisabled),
+              const Icon(Icons.check, size: 16, color: AppColors.textDisabled),
             ],
           ],
         ),

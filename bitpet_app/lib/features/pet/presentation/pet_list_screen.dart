@@ -12,6 +12,8 @@ import '../data/models/pet_models.dart';
 import '../providers/pet_provider.dart';
 import '../share/data/models/share_models.dart';
 import '../share/presentation/bulk_share_sheet.dart';
+import '../../../core/theme/app_icons.dart';
+import '../../../core/theme/app_dimens.dart';
 
 /// 개체 다중 선택 모드 on/off (함께 키우기·분양 보내기용)
 final petSelectionModeProvider = StateProvider.autoDispose<bool>((_) => false);
@@ -115,7 +117,7 @@ class PetListScreen extends ConsumerWidget {
         TextButton.icon(
           onPressed: () =>
               ref.read(petSelectionModeProvider.notifier).state = true,
-          icon: const Icon(Icons.group_add, size: 15),
+          icon: const Icon(Icons.group_add, size: 16),
           label: const Text('공유·분양'),
           style: TextButton.styleFrom(
             foregroundColor: AppColors.primary,
@@ -127,7 +129,7 @@ class PetListScreen extends ConsumerWidget {
         ),
         IconButton(
           onPressed: () => context.push('/pets/bulk-new'),
-          icon: const Icon(Icons.library_add_outlined, size: 19),
+          icon: const Icon(Icons.library_add_outlined, size: 20),
           color: AppColors.paleInk2,
           tooltip: '개체 일괄 등록',
           visualDensity: VisualDensity.compact,
@@ -142,7 +144,7 @@ class PetListScreen extends ConsumerWidget {
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
               minimumSize: const Size(0, 36),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
               textStyle: AppTextStyles.bodyBold.copyWith(fontSize: 13),
             ),
           ),
@@ -165,7 +167,7 @@ class PetListScreen extends ConsumerWidget {
         IconButton(
           onPressed:
               count == 0 ? null : () => _confirmAndDelete(context, ref, count),
-          icon: const Icon(Icons.delete_outline, size: 21),
+          icon: const Icon(Icons.delete_outline, size: 20),
           color: AppColors.error,
           disabledColor: AppColors.textDisabled,
           tooltip: '선택한 개체 삭제',
@@ -210,7 +212,7 @@ class _ShareActionBar extends ConsumerWidget {
     final hasSelection = ref.watch(selectedPetIdsProvider).isNotEmpty;
     return SafeArea(
       child: Container(
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
         decoration: const BoxDecoration(
           color: AppColors.surface,
           border: Border(top: BorderSide(color: AppColors.paleLine)),
@@ -289,13 +291,13 @@ class _SelectionAction extends StatelessWidget {
                   ? (fg ?? AppColors.primary).withValues(alpha: 0.28)
                   : (enabled ? AppColors.primary : AppColors.paleLine),
             ),
-            borderRadius: BorderRadius.zero,
+            borderRadius: AppRadius.brMd,
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 17, color: content),
-              const SizedBox(width: 6),
+              Icon(icon, size: 20, color: content),
+              const SizedBox(width: 8),
               Text(label,
                   style: TextStyle(
                       fontSize: 13.5,
@@ -345,7 +347,7 @@ class _PetTabState extends ConsumerState<_PetTab> {
             decoration: const InputDecoration(
               hintText: '이름 또는 종 검색...',
               prefixIcon: Icon(Icons.search, size: 20),
-              contentPadding: EdgeInsets.symmetric(vertical: 10),
+              contentPadding: EdgeInsets.symmetric(vertical: 8),
             ),
           ),
         ),
@@ -486,16 +488,16 @@ class _SharedHiddenNotice extends StatelessWidget {
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: AppColors.paleBgAlt,
         border: Border.all(color: AppColors.paleLineSoft),
-        borderRadius: BorderRadius.zero,
+        borderRadius: AppRadius.brMd,
       ),
       child: Row(
         children: [
-          const Icon(Icons.info_outline, size: 14, color: AppColors.paleInk3),
-          const SizedBox(width: 7),
+          const Icon(Icons.info_outline, size: 16, color: AppColors.paleInk3),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
               '공유받은 $count마리는 소유자만 관리할 수 있어 목록에서 뺐어요.',
@@ -534,12 +536,9 @@ class _PetCard extends ConsumerWidget {
   const _PetCard({required this.pet});
 
   Color get _bgColor {
-    if (pet.colorCode == null) return AppColors.petColorMint;
-    try {
-      return Color(int.parse(pet.colorCode!.replaceFirst('#', '0xFF')));
-    } catch (_) {
-      return AppColors.petColorMint;
-    }
+    // 개체 지정색은 걷어냈다 — 저장된 hex 를 그대로 칠하던 자리다.
+    // 자세한 이유는 core/theme/pale_palette.dart 주석 참고.
+    return AppColors.bgAlt;
   }
 
   IconData get _genderIcon => switch (pet.gender) {
@@ -566,7 +565,11 @@ class _PetCard extends ConsumerWidget {
       onLongPress:
           selecting ? null : () => _enterSelectionWith(context, ref, pet),
       child: Container(
+        // 카드 위쪽 절반이 사진으로 꽉 차는 구조라, 자르지 않으면 사진이
+        // 둥근 모서리를 그대로 뚫고 나온다 — 테두리만 둥글고 내용은 각진 모양이 된다.
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
+          borderRadius: AppRadius.brLg,
           color: AppColors.surface,
           border: Border.all(
             color: selected ? AppColors.primary : AppColors.border,
@@ -607,7 +610,7 @@ class _PetCard extends ConsumerWidget {
                         color: AppColors.surface.withValues(alpha: 0.85),
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(_genderIcon, size: 14, color: _genderColor),
+                      child: Icon(_genderIcon, size: 16, color: _genderColor),
                     ),
                   ),
                 ],
@@ -616,7 +619,7 @@ class _PetCard extends ConsumerWidget {
             Expanded(
               flex: 4,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 8, 10, 6),
+                padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -648,8 +651,10 @@ class _PetCard extends ConsumerWidget {
     );
   }
 
+  // 사진 없는 카드는 그 개체의 종 실루엣으로 메운다. 전부 도마뱀이면
+  // 뱀만 키우는 사람의 목록이 통째로 거짓말을 한다.
   Widget _spriteIcon() => Center(
-      child: Icon(Icons.pets,
+      child: AppIcon(AppIcons.species(pet.speciesSubcategory),
           size: 48, color: AppColors.primary.withValues(alpha: 0.3)));
 }
 
@@ -671,7 +676,7 @@ class _CheckBadge extends StatelessWidget {
             width: 1.5),
       ),
       child: selected
-          ? const Icon(Icons.check, size: 14, color: Colors.white)
+          ? const Icon(Icons.check, size: 16, color: Colors.white)
           : null,
     );
   }
@@ -731,12 +736,9 @@ class _PetAvatarSmall extends StatelessWidget {
   const _PetAvatarSmall({required this.pet});
 
   Color get _color {
-    if (pet.colorCode == null) return AppColors.petColorMint;
-    try {
-      return Color(int.parse(pet.colorCode!.replaceFirst('#', '0xFF')));
-    } catch (_) {
-      return AppColors.petColorMint;
-    }
+    // 개체 지정색은 걷어냈다 — 저장된 hex 를 그대로 칠하던 자리다.
+    // 자세한 이유는 core/theme/pale_palette.dart 주석 참고.
+    return AppColors.bgAlt;
   }
 
   @override
@@ -748,11 +750,12 @@ class _PetAvatarSmall extends StatelessWidget {
       child: pet.profileImageUrl != null
           ? ClipOval(
               child: Image.network(pet.profileImageUrl!, fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Icon(Icons.pets,
+                  errorBuilder: (_, __, ___) => AppIcon(
+                      AppIcons.species(pet.speciesSubcategory),
                       color: AppColors.primary.withValues(alpha: 0.4),
-                      size: 22)))
-          : Icon(Icons.pets,
-              color: AppColors.primary.withValues(alpha: 0.4), size: 22),
+                      size: 20)))
+          : AppIcon(AppIcons.species(pet.speciesSubcategory),
+              color: AppColors.primary.withValues(alpha: 0.4), size: 20),
     );
   }
 }

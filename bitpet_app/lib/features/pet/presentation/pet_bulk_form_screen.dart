@@ -10,6 +10,8 @@ import '../data/pet_repository.dart';
 import '../providers/pet_provider.dart';
 import 'widgets/species_bottom_sheet.dart';
 import 'widgets/parent_pet_bottom_sheet.dart';
+import '../../../core/theme/app_icons.dart';
+import '../../../core/theme/app_dimens.dart';
 
 // ════════════════════════════════════════════════════════════════
 // 개체 일괄 등록 화면
@@ -158,7 +160,7 @@ class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
           children: [
             // ── 상단 바 ──────────────────────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 10, 16, 4),
+              padding: const EdgeInsets.fromLTRB(8, 8, 16, 4),
               child: Row(
                 children: [
                   SizedBox(
@@ -227,7 +229,7 @@ class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
 
                     // 종 선택
                     _FieldLabel(label: '종', required: true),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     _TapField(
                       value: _species?.nameKo,
                       placeholder: '종을 선택하세요',
@@ -238,7 +240,7 @@ class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
 
                     // 마리수
                     _FieldLabel(label: '마리수', required: true),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     _CountStepper(
                       value: _count,
                       onChanged: (v) => setState(() => _count = v),
@@ -251,9 +253,10 @@ class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
 
                     // 이름 접두어
                     _FieldLabel(label: '이름 접두어', required: false),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     Container(
                       decoration: BoxDecoration(
+                        borderRadius: AppRadius.brLg,
                         color: AppColors.surface,
                         border: Border.all(color: AppColors.paleLine),
                       ),
@@ -273,7 +276,7 @@ class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
                               fontWeight: FontWeight.w500,
                               color: AppColors.paleInk3),
                           contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 13),
+                              horizontal: 16, vertical: 12),
                           border: InputBorder.none,
                         ),
                       ),
@@ -293,7 +296,7 @@ class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
 
                     // 성별
                     _FieldLabel(label: '성별', required: false),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     _GenderPicker(
                       value: _gender,
                       onChanged: (v) => setState(() => _gender = v),
@@ -302,7 +305,7 @@ class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
 
                     // 해칭일
                     _FieldLabel(label: '해칭일', required: false),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     _TapField(
                       value: _hatchDate != null ? _fmtDate(_hatchDate!) : null,
                       placeholder: '해칭일 선택 (선택)',
@@ -320,7 +323,7 @@ class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
 
                     // 입양일
                     _FieldLabel(label: '입양일', required: false),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     _TapField(
                       value: _adoptDate != null ? _fmtDate(_adoptDate!) : null,
                       placeholder: '입양일 선택 (선택)',
@@ -338,7 +341,7 @@ class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
 
                     // 부모 개체
                     _FieldLabel(label: '부모 개체', required: false),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     Row(
                       children: [
                         Expanded(
@@ -357,7 +360,7 @@ class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
                                 : null,
                           ),
                         ),
-                        const SizedBox(width: 10),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: _TapField(
                             value: _motherPet?.name,
@@ -384,7 +387,7 @@ class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
 
             // ── 등록 버튼 ─────────────────────────────────────────────────────
             Container(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 26),
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
               decoration: const BoxDecoration(
                 color: AppColors.paleBg,
                 border: Border(top: BorderSide(color: AppColors.paleLineSoft)),
@@ -394,7 +397,7 @@ class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                   decoration: BoxDecoration(
                     color: _canSubmit ? AppColors.primary : AppColors.paleLine,
                   ),
@@ -488,7 +491,7 @@ class _FieldLabel extends StatelessWidget {
         if (required) ...[
           const SizedBox(width: 4),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: AppColors.petCoralInk.withValues(alpha: 0.12),
             ),
@@ -528,8 +531,9 @@ class _TapField extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
         decoration: BoxDecoration(
+          borderRadius: AppRadius.brLg,
           color: AppColors.surface,
           border: Border.all(
             color: hasValue ? AppColors.primary.withValues(alpha: 0.25) : AppColors.paleLine,
@@ -540,7 +544,7 @@ class _TapField extends StatelessWidget {
             Icon(icon,
                 size: 16,
                 color: hasValue ? AppColors.primary : AppColors.paleInk3),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             Expanded(
               child: Text(
                 hasValue ? value! : placeholder,
@@ -553,7 +557,7 @@ class _TapField extends StatelessWidget {
               ),
             ),
             if (trailing != null) trailing!
-            else const Icon(Icons.chevron_right,
+            else const AppIcon(AppIcons.chevronRight,
                 size: 16, color: AppColors.paleInk3),
           ],
         ),
@@ -571,6 +575,7 @@ class _CountStepper extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
+        borderRadius: AppRadius.brLg,
         color: AppColors.surface,
         border: Border.all(color: AppColors.paleLine),
       ),
@@ -673,6 +678,7 @@ class _GenderPicker extends StatelessWidget {
                 duration: const Duration(milliseconds: 150),
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
+                  borderRadius: AppRadius.brLg,
                   color: on ? ink.withValues(alpha: 0.12) : AppColors.surface,
                   border: Border.all(
                     color: on ? ink : AppColors.paleLine,

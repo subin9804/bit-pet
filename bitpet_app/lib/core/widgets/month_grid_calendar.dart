@@ -72,7 +72,7 @@ class MonthGridCalendar extends StatelessWidget {
       children: [
         // ── 월 이동 ──────────────────────────────────────────
         Padding(
-          padding: const EdgeInsets.fromLTRB(22, 0, 22, 10),
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
           child: Row(
             children: [
               AppNavButton(
@@ -104,7 +104,7 @@ class MonthGridCalendar extends StatelessWidget {
               bottom: BorderSide(color: AppColors.paleLine),
             ),
           ),
-          padding: const EdgeInsets.symmetric(vertical: 6),
+          padding: const EdgeInsets.symmetric(vertical: 8),
           child: Row(
             children: List.generate(7, (i) {
               return Expanded(
@@ -218,7 +218,7 @@ class _DayCell extends StatelessWidget {
                 : BorderSide.none,
           ),
         ),
-        padding: const EdgeInsets.fromLTRB(3, 3, 3, 2),
+        padding: const EdgeInsets.fromLTRB(4, 4, 4, 4),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -241,7 +241,7 @@ class _DayCell extends StatelessWidget {
                                 color: AppColors.paleBg)),
                       )
                     : Padding(
-                        padding: const EdgeInsets.only(left: 2),
+                        padding: const EdgeInsets.only(left: 4),
                         child: Text('$day',
                             style: AppTextStyles.mono(12, FontWeight.w600,
                                 color: numColor)),
@@ -290,7 +290,7 @@ class CalendarCellLine extends StatelessWidget {
           Container(
             width: 4,
             height: 4,
-            margin: const EdgeInsets.only(right: 3),
+            margin: const EdgeInsets.only(right: 4),
             decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
           ),
           Expanded(
@@ -319,7 +319,7 @@ class CalendarCellMore extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(left: 7),
+        padding: const EdgeInsets.only(left: 8),
         child: Text('+$count',
             style: AppTextStyles.mono(8, FontWeight.w700,
                 color: AppColors.paleInk3)),

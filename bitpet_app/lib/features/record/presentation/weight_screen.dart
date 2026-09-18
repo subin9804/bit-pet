@@ -15,6 +15,8 @@ import '../data/record_repository.dart';
 import '../providers/record_invalidation.dart';
 import '../providers/record_provider.dart';
 import '../../pet/providers/pet_provider.dart';
+import '../../../core/theme/app_icons.dart';
+import '../../../core/theme/app_dimens.dart';
 
 class WeightScreen extends ConsumerStatefulWidget {
   final int petId;
@@ -72,8 +74,6 @@ class _WeightScreenState extends ConsumerState<WeightScreen> {
               loading: () => const SkeletonCardList(),
               error:   (e, _) => Center(child: Text(e.toString())),
               data:    (records) {
-                final paletteKey = PalePalette.keyFromHex(
-                    petAsync.whenOrNull(data: (p) => p.colorCode));
                 return _WeightBody(
                   petId:      widget.petId,
                   records:    records,
@@ -83,7 +83,6 @@ class _WeightScreenState extends ConsumerState<WeightScreen> {
                   entryDate:  _entryDate,
                   onPickDate: _pickDate,
                   saving:     _saving,
-                  paletteKey: paletteKey,
                   onSave:     _save,
                   onDelete:   _delete,
                 );
@@ -148,7 +147,7 @@ class _TopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
       child: Row(
         children: [
           GestureDetector(
@@ -193,7 +192,6 @@ class _WeightBody extends StatelessWidget {
   final DateTime entryDate;
   final VoidCallback onPickDate;
   final bool saving;
-  final PetPaletteKey paletteKey;
   final Future<void> Function(List<WeightRecord>) onSave;
   final Future<void> Function(int id) onDelete;
 
@@ -206,7 +204,6 @@ class _WeightBody extends StatelessWidget {
     required this.entryDate,
     required this.onPickDate,
     required this.saving,
-    required this.paletteKey,
     required this.onSave,
     required this.onDelete,
   });
@@ -238,11 +235,14 @@ class _WeightBody extends StatelessWidget {
     final avg  = data.isEmpty ? 0.0 : data.map((d) => d.weightG).reduce((a,b)=>a+b)/data.length;
     final delta = data.length >= 2 ? data.last.weightG - data.first.weightG : 0.0;
 
-    final pale    = PalePalette.pale(paletteKey);
-    final paleInk = PalePalette.ink(paletteKey);
+    // 차트 색은 개체가 아니라 **'체중'이라는 기록 종류**에 속한다. 개체별 색이던
+    // 시절엔 같은 체중 그래프가 개체마다 다른 색이라, 두 개체를 번갈아 보면
+    // 그래프가 다른 지표처럼 보였다. 기록 탭의 체중 카드와 같은 색을 쓴다.
+    final pale    = PalePalette.catPale('WEIGHT');
+    final paleInk = PalePalette.catInk('WEIGHT');
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(22, 6, 22, 110),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 110),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -256,23 +256,23 @@ class _WeightBody extends StatelessWidget {
               ),
               const SizedBox(width: 4),
               Padding(
-                padding: const EdgeInsets.only(bottom: 6),
+                padding: const EdgeInsets.only(bottom: 8),
                 child: Text('g',
                     style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600,
                         color: AppColors.paleInk2)),
               ),
               if (data.length >= 2) ...[
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Padding(
                   padding: const EdgeInsets.only(bottom: 4),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
+                        horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: delta >= 0
                           ? AppColors.petSage
                           : AppColors.petCoral,
-                      borderRadius: BorderRadius.zero,
+                      borderRadius: AppRadius.brPill,
                     ),
                     child: Text(
                       '${delta >= 0 ? '▲' : '▼'} ${formatWeight(delta.abs())}g',
@@ -317,7 +317,7 @@ class _WeightBody extends StatelessWidget {
             _StatCard(label: '최소',
                 value: data.isEmpty ? '-' : '${formatWeight(minW)}g'),
           ]),
-          const SizedBox(height: 22),
+          const SizedBox(height: 20),
 
           // 새 기록 인라인 입력
           _SectionHeader(
@@ -328,9 +328,9 @@ class _WeightBody extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppColors.card,
               border: Border.all(color: AppColors.paleLine),
-              borderRadius: BorderRadius.zero,
+              borderRadius: AppRadius.brMd,
             ),
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -338,18 +338,18 @@ class _WeightBody extends StatelessWidget {
                 GestureDetector(
                   onTap: onPickDate,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                     decoration: BoxDecoration(
                       color: AppColors.paleBgAlt,
                       border: Border.all(color: AppColors.paleLine),
-                      borderRadius: BorderRadius.zero,
+                      borderRadius: AppRadius.brPill,
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const Icon(Icons.calendar_today_outlined,
-                            size: 13, color: AppColors.paleInk2),
-                        const SizedBox(width: 6),
+                            size: 16, color: AppColors.paleInk2),
+                        const SizedBox(width: 8),
                         Text(
                           _fmtDate(entryDate),
                           style: AppTextStyles.mono(12, FontWeight.w600,
@@ -357,7 +357,7 @@ class _WeightBody extends StatelessWidget {
                         ),
                         const SizedBox(width: 4),
                         const Icon(Icons.keyboard_arrow_down,
-                            size: 14, color: AppColors.paleInk3),
+                            size: 16, color: AppColors.paleInk3),
                       ],
                     ),
                   ),
@@ -397,7 +397,7 @@ class _WeightBody extends StatelessWidget {
                               ],
                             ),
                           ),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 8),
                           Text(
                             latest != null
                                 ? '직전 기록 ${formatWeight(latest.weightG)}g'
@@ -440,7 +440,7 @@ class _WeightBody extends StatelessWidget {
                             horizontal: 16, vertical: 12),
                         decoration: BoxDecoration(
                           color: AppColors.primary,
-                          borderRadius: BorderRadius.zero,
+                          borderRadius: AppRadius.brLg,
                         ),
                         child: saving
                             ? const SizedBox(
@@ -462,7 +462,7 @@ class _WeightBody extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 20),
 
           // 기록 히스토리
           _SectionHeader(
@@ -472,15 +472,15 @@ class _WeightBody extends StatelessWidget {
           if (records.isEmpty)
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 28),
+              padding: const EdgeInsets.symmetric(vertical: 32),
               decoration: BoxDecoration(
                 color: AppColors.card,
                 border: Border.all(color: AppColors.paleLine),
-                borderRadius: BorderRadius.zero,
+                borderRadius: AppRadius.brLg,
               ),
               child: const Column(
                 children: [
-                  Icon(Icons.monitor_weight_outlined,
+                  AppIcon(AppIcons.weight,
                       size: 28, color: AppColors.paleInk3),
                   SizedBox(height: 8),
                   Text('저장된 기록이 없어요',
@@ -494,7 +494,7 @@ class _WeightBody extends StatelessWidget {
               decoration: BoxDecoration(
                 color: AppColors.card,
                 border: Border.all(color: AppColors.paleLine),
-                borderRadius: BorderRadius.zero,
+                borderRadius: AppRadius.brMd,
               ),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: Column(
@@ -520,7 +520,7 @@ class _WeightBody extends StatelessWidget {
                           Container(
                             width: 8, height: 8,
                             decoration: BoxDecoration(
-                              color: pale, borderRadius: BorderRadius.zero,
+                              color: pale, borderRadius: AppRadius.brSm,
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -556,14 +556,14 @@ class _WeightBody extends StatelessWidget {
                           GestureDetector(
                             onTap: () => onDelete(r.id),
                             child: Container(
-                              padding: const EdgeInsets.all(6),
+                              padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
                                 color: AppColors.paleBgAlt,
-                                borderRadius: BorderRadius.zero,
+                                borderRadius: AppRadius.brPill,
                                 border: Border.all(color: AppColors.paleLine),
                               ),
                               child: const Icon(Icons.delete_outline,
-                                  size: 14, color: AppColors.paleInk3),
+                                  size: 16, color: AppColors.paleInk3),
                             ),
                           ),
                         ],
@@ -650,7 +650,7 @@ class _BigWeightChartState extends State<_BigWeightChart> {
       decoration: BoxDecoration(
         color: AppColors.card,
         border: Border.all(color: AppColors.paleLine),
-        borderRadius: BorderRadius.zero,
+        borderRadius: AppRadius.brMd,
       ),
       padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
       child: SizedBox(
@@ -677,8 +677,8 @@ class _BigWeightChartState extends State<_BigWeightChart> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(Icons.show_chart,
-                            size: 26, color: AppColors.paleInk3),
-                        SizedBox(height: 6),
+                            size: 24, color: AppColors.paleInk3),
+                        SizedBox(height: 8),
                         Text('이 기간에 기록이 없어요',
                             style: TextStyle(
                                 fontSize: 13,
@@ -973,9 +973,9 @@ class _Segment extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.paleBgAlt,
         border: Border.all(color: AppColors.paleLine),
-        borderRadius: BorderRadius.zero,
+        borderRadius: AppRadius.brMd,
       ),
-      padding: const EdgeInsets.all(3),
+      padding: const EdgeInsets.all(4),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: options.map((o) {
@@ -984,11 +984,11 @@ class _Segment extends StatelessWidget {
             onTap: () => onChange(o),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 120),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
                 color: active ? AppColors.card : Colors.transparent,
                 border: active ? const Border(bottom: BorderSide(color: AppColors.paleInk2, width: 1.5)) : null,
-                borderRadius: BorderRadius.zero,
+                borderRadius: AppRadius.brPill,
               ),
               child: Text(
                 o,
@@ -1014,11 +1014,11 @@ class _StatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
         decoration: BoxDecoration(
           color: AppColors.card,
           border: Border.all(color: AppColors.paleLine),
-          borderRadius: BorderRadius.zero,
+          borderRadius: AppRadius.brMd,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1043,7 +1043,7 @@ class _SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [

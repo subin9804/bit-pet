@@ -1,11 +1,13 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../providers/auth_provider.dart';
+import '../../../core/theme/app_dimens.dart';
 
 /// 소셜 로그인 노출 여부.
 ///
@@ -17,14 +19,18 @@ import '../providers/auth_provider.dart';
 /// (리다이렉트 URI 등록에 `tailog.me` 도메인이 필요해서 서버 배포 이후 순서다)
 const bool kSocialLoginEnabled = false;
 
-// ─── 교체 가능한 상단 아이콘 ────────────────────────────────────────────────
-// ✏️ 아이콘 변경 시 이 위젯만 수정하세요.
-//    예: Image.asset('assets/images/login_icon.png', width: 72, height: 72)
-Widget get _loginIcon => Container(
-      width: 72,
-      height: 72,
-      color: AppColors.bg2,
-      child: const Icon(Icons.cruelty_free_outlined, size: 36, color: AppColors.textSecondary),
+// ─── 상단 로고 ──────────────────────────────────────────────────────────────
+//
+// 예전엔 회색 네모 안에 Material 아이콘(`cruelty_free_outlined`)을 넣고 그 아래
+// 'tailog' 를 픽셀 글꼴로 따로 찍었다. 자리를 채워두려고 만든 임시 조합인데,
+// 그 사이 진짜 로고(`assets/branding/logo.svg` — 심볼과 워드마크가 한 벌)가
+// 나왔다. 앱을 처음 여는 화면에서 로고가 아닌 걸 보여줄 이유가 없다.
+//
+// 원본 833×240 비율 그대로 폭만 맞춘다.
+Widget get _logo => SvgPicture.asset(
+      'assets/branding/logo.svg',
+      width: 208,
+      semanticsLabel: 'tailog',
     );
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -75,38 +81,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 28),
+            padding: const EdgeInsets.symmetric(horizontal: 32),
             child: Form(
               key: _formKey,
               child: Column(
                 children: [
                   const SizedBox(height: 56),
 
-                  // ── 상단 아이콘 (교체 가능) ──────────────────────────
-                  _loginIcon,
+                  // ── 로고 (심볼 + 워드마크) ───────────────────────────
+                  _logo,
 
-                  const SizedBox(height: 18),
-
-                  // ── 로고 ────────────────────────────────────────────
-                  Text(
-                    'tailog',
-                    style: GoogleFonts.vt323(
-                      fontSize: 36,
-                      color: AppColors.textPrimary,
-                      letterSpacing: 2,
-                    ),
-                  ),
-
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 12),
 
                   // ── 슬로건 ──────────────────────────────────────────
                   Text(
                     '작은 친구들을 위한 사육 노트',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textDisabled,
-                      letterSpacing: 0.3,
-                    ),
+                    style: AppTextStyles.caption
+                        .copyWith(color: AppColors.textDisabled),
                   ),
 
                   const SizedBox(height: 36),
@@ -125,7 +116,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     },
                   ),
 
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
 
                   // ── P/W 입력 ────────────────────────────────────────
                   _InputField(
@@ -151,7 +142,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     },
                   ),
 
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
 
                   // ── 로그인 상태 유지 + 비밀번호 찾기 ─────────────────
                   Row(
@@ -161,8 +152,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             setState(() => _keepLoggedIn = !_keepLoggedIn),
                         child: Row(
                           children: [
-                            _PixelCheckbox(checked: _keepLoggedIn),
-                            const SizedBox(width: 6),
+                            _CheckBox(checked: _keepLoggedIn),
+                            const SizedBox(width: 8),
                             Text(
                               '로그인 상태 유지',
                               style: TextStyle(
@@ -194,7 +185,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ],
                   ),
 
-                  const SizedBox(height: 22),
+                  const SizedBox(height: 20),
 
                   // ── 이메일로 로그인 버튼 ─────────────────────────────
                   _FullButton(
@@ -220,11 +211,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 12),
                           child: Text(
                             'OR',
-                            style: GoogleFonts.vt323(
-                              fontSize: 14,
-                              color: AppColors.textDisabled,
-                              letterSpacing: 2,
-                            ),
+                            style: AppTextStyles.label
+                                .copyWith(color: AppColors.textDisabled),
                           ),
                         ),
                         const Expanded(
@@ -246,7 +234,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       onPressed: () {},
                     ),
 
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
 
                     // ── 네이버 ─────────────────────────────────────────
                     _SocialButton(
@@ -257,16 +245,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       // iconPath: 'assets/icons/naver.png',
                       fallbackIcon: Text(
                         'N',
-                        style: GoogleFonts.vt323(
-                          fontSize: 20,
+                        style: AppTextStyles.subheading.copyWith(
                           color: Colors.white,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                       onPressed: () {},
                     ),
 
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
 
                     // ── Google ─────────────────────────────────────────
                     _SocialButton(
@@ -278,17 +265,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       // iconPath: 'assets/icons/google.png',
                       fallbackIcon: Text(
                         'G',
-                        style: GoogleFonts.vt323(
-                          fontSize: 20,
+                        style: AppTextStyles.subheading.copyWith(
                           color: const Color(0xFF4285F4),
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                       onPressed: () {},
                     ),
                   ],
 
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 32),
 
                   // ── 처음이신가요? 회원가입 ────────────────────────────
                   Row(
@@ -322,13 +308,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   const SizedBox(height: 20),
 
                   // ── 버전 푸터 ────────────────────────────────────────
+                  // 양옆의 ▼ 는 픽셀 컨셉 시절의 장식이었다. 로고가 제대로 들어간
+                  // 화면에서는 같은 자리에서 두 개의 다른 톤이 부딪힌다.
                   Text(
-                    '▼ tailog v0.2 ▼',
-                    style: GoogleFonts.vt323(
-                      fontSize: 12,
-                      color: AppColors.textDisabled,
-                      letterSpacing: 1,
-                    ),
+                    'tailog v0.2',
+                    style: AppTextStyles.label
+                        .copyWith(color: AppColors.textDisabled),
                   ),
 
                   const SizedBox(height: 40),
@@ -342,10 +327,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 }
 
-// ─── 픽셀 체크박스 ────────────────────────────────────────────────────────────
-class _PixelCheckbox extends StatelessWidget {
+// ─── 체크박스 ────────────────────────────────────────────────────────────
+class _CheckBox extends StatelessWidget {
   final bool checked;
-  const _PixelCheckbox({required this.checked});
+  const _CheckBox({required this.checked});
 
   @override
   Widget build(BuildContext context) {
@@ -355,10 +340,10 @@ class _PixelCheckbox extends StatelessWidget {
       decoration: BoxDecoration(
         color: checked ? AppColors.primary : Colors.transparent,
         border: Border.all(color: AppColors.textPrimary, width: 1.5),
-        borderRadius: BorderRadius.zero,
+        borderRadius: AppRadius.brSm,
       ),
       child: checked
-          ? const Icon(Icons.check, size: 13, color: Colors.white)
+          ? const Icon(Icons.check, size: 16, color: Colors.white)
           : null,
     );
   }
@@ -391,13 +376,10 @@ class _InputField extends StatelessWidget {
       children: [
         Text(
           label,
-          style: GoogleFonts.vt323(
-            fontSize: 13,
-            color: AppColors.textDisabled,
-            letterSpacing: 2,
-          ),
+          style: AppTextStyles.label
+              .copyWith(color: AppColors.textDisabled, letterSpacing: 1),
         ),
-        const SizedBox(height: 5),
+        const SizedBox(height: 4),
         TextFormField(
           controller: controller,
           keyboardType: keyboardType,
@@ -408,7 +390,7 @@ class _InputField extends StatelessWidget {
           cursorColor: AppColors.textPrimary,
           decoration: InputDecoration(
             contentPadding:
-                const EdgeInsets.symmetric(horizontal: 4, vertical: 14),
+                const EdgeInsets.symmetric(horizontal: 4, vertical: 16),
             suffixIcon: suffixIcon != null
                 ? Padding(
                     padding: const EdgeInsets.only(right: 12),
@@ -465,7 +447,7 @@ class _FullButton extends StatelessWidget {
           foregroundColor: textColor,
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.zero,
+            borderRadius: AppRadius.brMd,
           ),
         ),
         child: isLoading
@@ -531,7 +513,7 @@ class _SocialButton extends StatelessWidget {
           foregroundColor: textColor,
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.zero,
+            borderRadius: AppRadius.brMd,
             side: hasBorder
                 ? const BorderSide(color: AppColors.border)
                 : BorderSide.none,

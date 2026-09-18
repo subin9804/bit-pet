@@ -106,13 +106,13 @@ class _PasswordResetVerifyScreenState
       appBar: passwordResetAppBar(context),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 28),
+          padding: const EdgeInsets.symmetric(horizontal: 32),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 32),
               ResetGuideText('${state.email}로 발송된\n6자리 코드를 입력해 주세요.'),
-              const SizedBox(height: 28),
+              const SizedBox(height: 32),
 
               // ── 코드 입력 + 타이머 ──────────────────────────
               ResetInputField(

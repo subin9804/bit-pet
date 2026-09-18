@@ -149,7 +149,7 @@ class _GalleryPhotoViewerState extends State<GalleryPhotoViewer> {
               child: SafeArea(
                 bottom: false,
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 6, 8, 18),
+                  padding: const EdgeInsets.fromLTRB(8, 8, 8, 20),
                   child: Row(
                     children: [
                       IconButton(
@@ -196,14 +196,14 @@ class _GalleryPhotoViewerState extends State<GalleryPhotoViewer> {
                       if (isProfile) ...[
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 7, vertical: 3),
+                              horizontal: 8, vertical: 4),
                           color: Colors.white,
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: const [
                               Icon(Icons.star,
-                                  size: 11, color: AppColors.primary),
-                              SizedBox(width: 3),
+                                  size: 12, color: AppColors.primary),
+                              SizedBox(width: 4),
                               Text('대표',
                                   style: TextStyle(
                                       fontSize: 11,

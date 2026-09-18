@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'app_colors.dart';
+import './app_dimens.dart';
 
 /// 단순 단일행 입력은 전역 테마(InputDecorationTheme)의 밑줄(border-bottom)을 그대로 쓰고,
 /// 여러 줄(textarea) 입력만 이 데코레이션으로 전체 테두리를 표시한다.
@@ -22,15 +23,15 @@ abstract final class AppInputStyles {
       isDense: true,
       contentPadding: contentPadding,
       border: const OutlineInputBorder(
-          borderRadius: BorderRadius.zero, borderSide: _side),
+          borderRadius: AppRadius.brMd, borderSide: _side),
       enabledBorder: const OutlineInputBorder(
-          borderRadius: BorderRadius.zero, borderSide: _side),
+          borderRadius: AppRadius.brMd, borderSide: _side),
       focusedBorder: const OutlineInputBorder(
-          borderRadius: BorderRadius.zero, borderSide: _focusedSide),
+          borderRadius: AppRadius.brMd, borderSide: _focusedSide),
       errorBorder: const OutlineInputBorder(
-          borderRadius: BorderRadius.zero, borderSide: _errorSide),
+          borderRadius: AppRadius.brMd, borderSide: _errorSide),
       focusedErrorBorder: const OutlineInputBorder(
-          borderRadius: BorderRadius.zero, borderSide: _errorSide),
+          borderRadius: AppRadius.brMd, borderSide: _errorSide),
     );
   }
 }

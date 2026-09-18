@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/pet/providers/pet_provider.dart';
+import '../theme/app_icons.dart';
 
 /// 개체 선택 자리에 쓰는 정사각 썸네일.
 /// 대표사진이 있으면 사진을, 없거나 로드 실패 시 [fallback](기본 발바닥 아이콘)을 보여준다.
@@ -12,6 +13,10 @@ class PetAvatar extends StatelessWidget {
   final Widget? fallback;
   final BoxBorder? border;
 
+  /// 개체의 `species.subcategory`. 주면 사진 없는 자리에 그 종의 실루엣이 뜬다.
+  /// 모르면 발바닥 대신 도마뱀으로 떨어진다([AppIcons.species]).
+  final String? subcategory;
+
   const PetAvatar({
     super.key,
     required this.imageUrl,
@@ -20,12 +25,18 @@ class PetAvatar extends StatelessWidget {
     required this.iconColor,
     this.fallback,
     this.border,
+    this.subcategory,
   });
 
   @override
   Widget build(BuildContext context) {
     final placeholder = Center(
-      child: fallback ?? Icon(Icons.pets, size: size * 0.48, color: iconColor),
+      child: fallback ??
+          AppIcon(
+            subcategory != null ? AppIcons.species(subcategory) : AppIcons.petLine,
+            size: size * 0.48,
+            color: iconColor,
+          ),
     );
     return Container(
       width: size,
@@ -68,10 +79,12 @@ class PetAvatarById extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final pets = ref.watch(petListProvider).valueOrNull;
     String? url;
+    String? sub;
     if (pets != null) {
       for (final p in pets) {
         if (p.id == petId) {
           url = p.profileImageUrl;
+          sub = p.speciesSubcategory;
           break;
         }
       }
@@ -83,6 +96,7 @@ class PetAvatarById extends ConsumerWidget {
       iconColor: iconColor,
       fallback: fallback,
       border: border,
+      subcategory: sub,
     );
   }
 }

@@ -8,6 +8,7 @@ import '../../../../core/widgets/toast_message.dart';
 import '../data/models/share_models.dart';
 import '../data/share_repository.dart';
 import '../providers/share_provider.dart';
+import '../../../../core/theme/app_dimens.dart';
 
 /// 개체별 공유 관리 (소유자 전용).
 /// - 공유코드로 사육자 초대 / 입분양
@@ -34,7 +35,7 @@ class PetShareScreen extends ConsumerWidget {
           padding: const EdgeInsets.all(16),
           children: [
             _InviteBox(petId: petId),
-            const SizedBox(height: 28),
+            const SizedBox(height: 32),
 
             // 현재 사육자
             Text('현재 사육자', style: AppTextStyles.h3),
@@ -49,7 +50,7 @@ class PetShareScreen extends ConsumerWidget {
                     .toList(),
               ),
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 32),
 
             // 대기중 초대
             Text('대기중 초대', style: AppTextStyles.h3),
@@ -139,6 +140,7 @@ class _InviteBoxState extends ConsumerState<_InviteBox> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
+        borderRadius: AppRadius.brLg,
         color: AppColors.card,
         border: Border.all(color: AppColors.paleLine),
       ),
@@ -170,7 +172,7 @@ class _InviteBoxState extends ConsumerState<_InviteBox> {
                   onTap: () => setState(() => _type = ShareInviteType.share),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
                 child: _TypeChoice(
                   label: '입분양',
@@ -181,7 +183,7 @@ class _InviteBoxState extends ConsumerState<_InviteBox> {
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
             child: FilledButton(
@@ -215,6 +217,7 @@ class _TypeChoice extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
         decoration: BoxDecoration(
+          borderRadius: AppRadius.brLg,
           color: selected ? AppColors.primary.withValues(alpha: 0.08) : AppColors.bg,
           border: Border.all(
             color: selected ? AppColors.primary : AppColors.paleLine,
@@ -229,7 +232,7 @@ class _TypeChoice extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                   color: selected ? AppColors.primary : AppColors.textPrimary,
                 )),
-            const SizedBox(height: 2),
+            const SizedBox(height: 4),
             Text(desc, style: AppTextStyles.label),
           ],
         ),
@@ -254,7 +257,7 @@ class _KeeperRow extends ConsumerWidget {
           const CircleAvatar(
             radius: 18,
             backgroundColor: AppColors.bg2,
-            child: Icon(Icons.person, size: 18, color: AppColors.textSecondary),
+            child: Icon(Icons.person, size: 20, color: AppColors.textSecondary),
           ),
           const SizedBox(width: 12),
           Expanded(

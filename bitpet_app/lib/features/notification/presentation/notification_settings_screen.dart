@@ -178,17 +178,17 @@ class _ToggleRow extends StatelessWidget {
   Widget build(BuildContext context) => InkWell(
         onTap: () => onChanged(!value),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           child: Row(
             children: [
               Icon(icon, size: 20, color: AppColors.textSecondary),
-              const SizedBox(width: 14),
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(label, style: AppTextStyles.body),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 4),
                     Text(description, style: AppTextStyles.caption),
                   ],
                 ),
@@ -220,17 +220,17 @@ class _FixedOnRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         child: Row(
           children: [
             Icon(icon, size: 20, color: AppColors.textSecondary),
-            const SizedBox(width: 14),
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(label, style: AppTextStyles.body),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                   Text(description, style: AppTextStyles.caption),
                 ],
               ),
@@ -258,7 +258,7 @@ class _OsPermissionBanner extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(12),
           child: Padding(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(16),
             child: Row(
               children: [
                 const Icon(Icons.notifications_off_outlined,
@@ -270,7 +270,7 @@ class _OsPermissionBanner extends StatelessWidget {
                     children: [
                       Text('휴대폰 알림이 꺼져 있어요',
                           style: AppTextStyles.bodyBold),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 4),
                       Text('아래 설정과 상관없이 알림이 오지 않아요. 눌러서 켜주세요.',
                           style: AppTextStyles.caption),
                     ],

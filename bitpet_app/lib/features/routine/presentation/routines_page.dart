@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import 'routine_screen.dart';
+import '../../../core/theme/app_dimens.dart';
 
 /// 루틴 탭 최상위 페이지 — BottomAppBar 탭에서 진입.
 class RoutinesPage extends StatelessWidget {
@@ -47,9 +48,9 @@ class RoutinesPage extends StatelessWidget {
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
                 minimumSize: const Size(0, 36),
-                padding: const EdgeInsets.symmetric(horizontal: 14),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 shape: const RoundedRectangleBorder(
-                    borderRadius: BorderRadius.zero),
+                    borderRadius: AppRadius.brMd),
                 textStyle: const TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 13,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_dimens.dart';
 
 /// 공용 좌우 이동(chevron) 버튼 — 32×32 직사각형 테두리.
 /// 날짜·페이지 네비게이션에 사용. 스타일 변경 시 여기 한 곳만 수정.
@@ -19,11 +20,11 @@ class AppNavButton extends StatelessWidget {
         margin: EdgeInsets.only(right: forward ? 0 : 8, left: forward ? 8 : 0),
         decoration: BoxDecoration(
           border: Border.all(color: AppColors.paleLine),
-          borderRadius: BorderRadius.zero,
+          borderRadius: AppRadius.brMd,
         ),
         child: Icon(
           forward ? Icons.chevron_right : Icons.chevron_left,
-          size: 18,
+          size: 20,
           color: AppColors.primary,
         ),
       ),
@@ -87,7 +88,7 @@ class AppStepperButton extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppColors.card,
               border: Border.all(color: AppColors.paleLine),
-              borderRadius: BorderRadius.zero,
+              borderRadius: AppRadius.brMd,
             ),
             child: Text(label,
                 style: const TextStyle(

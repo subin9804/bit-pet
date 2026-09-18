@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../data/models/pet_models.dart';
 import '../providers/pet_provider.dart';
+import '../../../core/theme/app_icons.dart';
+import '../../../core/theme/app_dimens.dart';
 
 /// 남의 공개 개체 화면 — 가계도 카드에서 공개 개체를 눌렀을 때.
 ///
@@ -46,12 +48,9 @@ class _Body extends StatelessWidget {
   const _Body({required this.card});
 
   Color get _identityColor {
-    if (card.colorCode == null) return AppColors.bg2;
-    try {
-      return Color(int.parse(card.colorCode!.replaceFirst('#', '0xFF')));
-    } catch (_) {
-      return AppColors.bg2;
-    }
+    // 개체 지정색은 걷어냈다 — 저장된 hex 를 그대로 칠하던 자리다.
+    // 자세한 이유는 core/theme/pale_palette.dart 주석 참고.
+    return AppColors.bg2;
   }
 
   String get _genderLabel => switch (card.gender) {
@@ -79,17 +78,18 @@ class _Body extends StatelessWidget {
         Container(
           height: 200,
           decoration: BoxDecoration(
+            borderRadius: AppRadius.brMd,
             color: _identityColor,
             border: Border.all(color: AppColors.paleLine),
           ),
           clipBehavior: Clip.hardEdge,
           child: card.profileImageUrl != null
               ? Image.network(card.profileImageUrl!, fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const Center(
-                      child: Text('🦎', style: TextStyle(fontSize: 48))))
-              : const Center(child: Text('🦎', style: TextStyle(fontSize: 48))),
+                  errorBuilder: (_, __, ___) => Center(
+                      child: AppIcon(AppIcons.species(card.speciesSubcategory), size: 48, color: AppColors.paleInk2)))
+              : Center(child: AppIcon(AppIcons.species(card.speciesSubcategory), size: 48, color: AppColors.paleInk2)),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         Text(card.name,
             style: const TextStyle(
                 fontSize: 22,
@@ -114,13 +114,13 @@ class _Body extends StatelessWidget {
                       behavior: HitTestBehavior.opaque,
                       onTap: () => context.push('/users/${owner.userId}'),
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        padding: const EdgeInsets.symmetric(vertical: 4),
                         child: Text('@${owner.nickname ?? ''}',
                             style: const TextStyle(
                                 fontSize: 12, color: AppColors.textSecondary)),
                       ),
                     ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 20),
         _Row(label: '일련번호', value: card.serialNo.isEmpty ? '-' : card.serialNo),
         _Row(label: '종', value: card.speciesName.isEmpty ? '-' : card.speciesName),
         _Row(label: '모프', value: card.morphLabel.isEmpty ? '-' : card.morphLabel),

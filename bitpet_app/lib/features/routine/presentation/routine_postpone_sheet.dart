@@ -9,6 +9,7 @@ import '../../../core/widgets/toast_message.dart';
 import '../data/models/routine_models.dart';
 import '../data/routine_repository.dart';
 import '../providers/routine_provider.dart';
+import '../../../core/theme/app_dimens.dart';
 
 /// 미루기 시트를 띄운다. 미뤘으면 true 를 돌려준다.
 Future<bool> showRoutinePostponeSheet(
@@ -153,7 +154,7 @@ class _RoutinePostponeSheetState extends ConsumerState<RoutinePostponeSheet> {
                   children: [
                     const Icon(Icons.info_outline,
                         size: 16, color: AppColors.textSecondary),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         '이 루틴에 연결된 ${pets.length}마리 모두 미뤄져요',
@@ -165,7 +166,7 @@ class _RoutinePostponeSheetState extends ConsumerState<RoutinePostponeSheet> {
                   ],
                 ),
                 if (petNames.isNotEmpty) ...[
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 8),
                   Text(
                     petNames.length > 6
                         ? '${petNames.take(6).join(', ')} 외 ${petNames.length - 6}마리'
@@ -173,7 +174,7 @@ class _RoutinePostponeSheetState extends ConsumerState<RoutinePostponeSheet> {
                     style: AppTextStyles.caption,
                   ),
                 ],
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
                 Text('개체별로 따로 미룰 수는 없어요. 한 마리만 건너뛴다면 그 개체를 미완료로 기록해 주세요.',
                     style: AppTextStyles.caption
                         .copyWith(color: AppColors.textDisabled)),
@@ -260,6 +261,7 @@ class _OptionTile extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
+          borderRadius: AppRadius.brLg,
           color: selected ? AppColors.bg2 : AppColors.surface,
           border: Border.all(
             color: selected ? AppColors.primary : AppColors.border,
@@ -269,16 +271,16 @@ class _OptionTile extends StatelessWidget {
           children: [
             Icon(
               selected ? Icons.radio_button_checked : Icons.radio_button_off,
-              size: 18,
+              size: 20,
               color: selected ? AppColors.primary : AppColors.textDisabled,
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(title, style: AppTextStyles.bodyBold),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                   Text(subtitle, style: AppTextStyles.caption),
                 ],
               ),

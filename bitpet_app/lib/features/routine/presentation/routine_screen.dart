@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_chip.dart';
 import '../../../core/widgets/app_toggle.dart';
@@ -16,6 +17,7 @@ import '../providers/routine_provider.dart';
 import '../../pet/data/models/pet_models.dart';
 import '../../pet/providers/pet_provider.dart';
 import 'routine_form_screen.dart';
+import '../../../core/theme/app_dimens.dart';
 
 // ── 루틴 타입 색·아이콘·라벨 ────────────────────────────────────────
 
@@ -33,12 +35,6 @@ Color _rtypeInk(RoutineType t) => switch (t) {
       RoutineType.CUSTOM   => AppColors.petLilacInk,
     };
 
-IconData _rtypeIcon(RoutineType t) => switch (t) {
-      RoutineType.FEEDING  => Icons.restaurant_outlined,
-      RoutineType.CLEANING => Icons.cleaning_services_outlined,
-      RoutineType.WEIGHT   => Icons.monitor_weight_outlined,
-      RoutineType.CUSTOM   => Icons.star_outline,
-    };
 
 String _rtypeLabel(RoutineType t) => switch (t) {
       RoutineType.FEEDING  => '급여',
@@ -147,7 +143,7 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
             color: AppColors.bg2,
             border: Border(bottom: BorderSide(color: AppColors.divider)),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: TextField(
             controller: _searchCtrl,
             onChanged: (v) => setState(() => _query = v),
@@ -157,7 +153,7 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
               hintStyle: const TextStyle(
                   color: AppColors.textDisabled, fontSize: 13),
               prefixIcon: const Icon(Icons.search,
-                  size: 18, color: AppColors.textSecondary),
+                  size: 20, color: AppColors.textSecondary),
               suffixIcon: _query.isNotEmpty
                   ? GestureDetector(
                       onTap: () {
@@ -169,7 +165,7 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
                     )
                   : null,
               contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 4, vertical: 11),
+                  horizontal: 4, vertical: 12),
               border: const UnderlineInputBorder(
                 borderSide: BorderSide(color: AppColors.border),
               ),
@@ -203,7 +199,7 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
                     label: label,
                     count: count,
                     selected: _filterType == type,
-                    margin: const EdgeInsets.only(right: 6),
+                    margin: const EdgeInsets.only(right: 8),
                     onTap: () => setState(() => _filterType = type),
                   );
                 }).toList(),
@@ -239,7 +235,7 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
               }
 
               return ListView.builder(
-                padding: const EdgeInsets.only(bottom: 110),
+                padding: const EdgeInsets.only(top: 12, bottom: 110),
                 itemCount: visible.length,
                 itemBuilder: (_, i) => _RoutineCard(
                   routine: visible[i],
@@ -279,25 +275,27 @@ class _RoutineCard extends ConsumerWidget {
     final bg  = _rtypeBg(r.routineType);
     final ink = _rtypeInk(r.routineType);
 
-    // 리스트 아이템 + 구분선 구조
+    // 카드 한 장 = 루틴 하나. 예전엔 바닥선으로만 나눈 리스트 아이템이었는데,
+    // 한 장 안에 정보 행 + 액션 행 4개가 들어 있어서 어디까지가 한 루틴인지가
+    // 선 하나로는 안 읽혔다. 라운드와 옅은 그림자가 그 경계를 대신한다.
     return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.card,
-        border: Border(bottom: BorderSide(color: AppColors.divider)),
-      ),
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      clipBehavior: Clip.antiAlias, // 액션 행이 카드 아래 모서리를 넘지 않게
+      decoration: AppDecor.cardRaised,
       child: Column(
         children: [
           // ── 루틴 정보 행 ────────────────────────────────────────
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
             child: Row(
               children: [
-                // 타입 아이콘 — 직각 컨테이너
                 Container(
                   width: 36,
                   height: 36,
-                  color: bg,
-                  child: Icon(_rtypeIcon(r.routineType),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                      color: bg, borderRadius: AppRadius.brMd),
+                  child: RecordTypeIcon(r.routineType.name,
                       size: 18, color: ink),
                 ),
                 const SizedBox(width: 12),
@@ -319,43 +317,57 @@ class _RoutineCard extends ConsumerWidget {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          const SizedBox(width: 7),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
-                            color: AppColors.bg2,
-                            child: Text(
-                              _cycleLabel(r),
-                              style: const TextStyle(
-                                fontFamily: 'monospace',
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.textSecondary,
+                          const SizedBox(width: 8),
+                          // 제목이 Flexible 이라 먼저 줄어들지만, 다 줄어든 뒤엔
+                          // 배지 차례다. '365일마다' 처럼 긴 주기가 큰 글자와
+                          // 겹치면 배지가 줄을 넘긴다.
+                          Flexible(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              decoration: const BoxDecoration(
+                                  color: AppColors.bg2,
+                                  borderRadius: AppRadius.brSm),
+                              child: Text(
+                                _cycleLabel(r),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textSecondary,
+                                ),
                               ),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 3),
+                      const SizedBox(height: 4),
                       Row(
                         children: [
                           Icon(
                             Icons.notifications_outlined,
-                            size: 12,
+                            size: 16,
                             color: routineOn
                                 ? AppColors.textSecondary
                                 : AppColors.textDisabled,
                           ),
                           const SizedBox(width: 4),
-                          Text(
-                            '${r.alarmTime ?? '시간 미설정'} · 다음 ${_nextLabel(r)}',
-                            style: TextStyle(
-                              fontFamily: 'monospace',
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w700,
-                              color: routineOn
-                                  ? AppColors.textSecondary
-                                  : AppColors.textDisabled,
+                          // Expanded 가 없으면 '시간 미설정 · 다음 D-14' 같은 긴
+                          // 조합에서 가로로 넘친다. 제목과 달리 이 줄은 줄일 수
+                          // 있는 정보라 말줄임이 맞다.
+                          Expanded(
+                            child: Text(
+                              '${r.alarmTime ?? '시간 미설정'} · 다음 ${_nextLabel(r)}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: routineOn
+                                    ? AppColors.textSecondary
+                                    : AppColors.textDisabled,
+                              ),
                             ),
                           ),
                         ],
@@ -472,19 +484,25 @@ class _CardAction extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 11),
+          padding: const EdgeInsets.symmetric(vertical: 12),
           alignment: Alignment.center,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 14, color: c),
+              Icon(icon, size: 16, color: c),
               const SizedBox(width: 4),
-              Text(label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: c,
-                  )),
+              // 넷이 한 줄을 나눠 쓰는 자리라, 시스템 글자 크기를 키운 기기에서
+              // 라벨이 칸을 넘긴다. 아이콘은 남기고 글자만 줄인다.
+              Flexible(
+                child: Text(label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: c,
+                    )),
+              ),
             ],
           ),
         ),
@@ -542,21 +560,21 @@ class _CalendarSheetState extends ConsumerState<_CalendarSheet> {
           Center(
             child: Container(
               width: 40, height: 4,
-              margin: const EdgeInsets.only(top: 10, bottom: 14),
+              margin: const EdgeInsets.only(top: 8, bottom: 16),
               decoration: BoxDecoration(color: AppColors.paleLine,
                   borderRadius: BorderRadius.circular(2)),
             ),
           ),
           // 헤더
           Padding(
-            padding: const EdgeInsets.fromLTRB(22, 0, 22, 12),
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text('CALENDAR',
                     style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
                         color: AppColors.paleInk2, letterSpacing: 0.4)),
-                const SizedBox(height: 3),
+                const SizedBox(height: 4),
                 Text('${widget.routine.title} · 수행 캘린더',
                     style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700,
                         color: AppColors.primary, letterSpacing: -0.4)),
@@ -567,7 +585,7 @@ class _CalendarSheetState extends ConsumerState<_CalendarSheet> {
           // 스크롤 영역 — Flexible로 남은 공간 채우되 내용 적으면 줄어듦
           Flexible(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(22, 16, 22, 32),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
               child: logsAsync.when(
                 loading: () => const Center(
                     child: Padding(padding: EdgeInsets.all(40),
@@ -636,11 +654,11 @@ class _CalendarSheetState extends ConsumerState<_CalendarSheet> {
                         ),
                         GestureDetector(
                           onTap: isCurMonth ? null : _nextMonth,
-                          child: Icon(Icons.chevron_right, size: 20,
+                          child: AppIcon(AppIcons.chevronRight, size: 20,
                               color: isCurMonth ? AppColors.paleLine : AppColors.paleInk2),
                         ),
                       ]),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 8),
                       // 요일 헤더
                       Row(
                         children: _wk.map((w) => Expanded(
@@ -649,7 +667,7 @@ class _CalendarSheetState extends ConsumerState<_CalendarSheet> {
                                   fontWeight: FontWeight.w700, color: AppColors.paleInk3)),
                         )).toList(),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 8),
                       // 날짜 그리드
                       GridView.count(
                         crossAxisCount: 7,
@@ -688,7 +706,7 @@ class _CalendarSheetState extends ConsumerState<_CalendarSheet> {
                               onTap: () => setState(() => _selDay = sel ? null : d),
                               child: Container(
                                 decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.zero,
+                                  borderRadius: AppRadius.brMd,
                                   color: bgColor,
                                   border: border,
                                 ),
@@ -705,7 +723,7 @@ class _CalendarSheetState extends ConsumerState<_CalendarSheet> {
                           }),
                         ],
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 8),
                       // 범례
                       Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                         _Leg(color: ink, label: '전체 완료'),
@@ -715,7 +733,7 @@ class _CalendarSheetState extends ConsumerState<_CalendarSheet> {
 
                       // ── 선택일 개체 리스트 ──
                       if (_selDay != null) ...[
-                        const SizedBox(height: 28),
+                        const SizedBox(height: 32),
                         _PetStatusSection(
                           selDay: _selDay!,
                           month: _month,
@@ -777,7 +795,7 @@ class _PetStatusSection extends StatelessWidget {
             Text(dateStr,
                 style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700,
                     color: AppColors.primary, letterSpacing: -0.3)),
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
 
             if (completedPets.isNotEmpty || notCompletedPets.isNotEmpty) ...[
               _StatusLabel(label: '완료', color: AppColors.primary, count: completedPets.length),
@@ -825,7 +843,7 @@ class _StatusLabel extends StatelessWidget {
         width: 8, height: 8,
         decoration: BoxDecoration(color: color, shape: BoxShape.circle),
       ),
-      const SizedBox(width: 6),
+      const SizedBox(width: 8),
       Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color)),
       const SizedBox(width: 4),
       Text('$count마리',
@@ -842,21 +860,18 @@ class _PetChip extends StatelessWidget {
   const _PetChip({required this.pet, required this.done, required this.ink});
 
   Color get _bg {
-    if (pet.colorCode == null) return AppColors.paleBgAlt;
-    try {
-      return Color(int.parse(pet.colorCode!.replaceFirst('#', '0xFF')));
-    } catch (_) {
-      return AppColors.paleBgAlt;
-    }
+    // 개체 지정색은 걷어냈다 — 저장된 hex 를 그대로 칠하던 자리다.
+    // 자세한 이유는 core/theme/pale_palette.dart 주석 참고.
+    return AppColors.paleBgAlt;
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
         color: done ? AppColors.primary.withValues(alpha: 0.08) : AppColors.paleBgAlt,
-        borderRadius: BorderRadius.zero,
+        borderRadius: AppRadius.brPill,
         border: Border.all(
           color: done ? AppColors.primary.withValues(alpha: 0.25) : AppColors.paleLine,
         ),
@@ -873,7 +888,7 @@ class _PetChip extends StatelessWidget {
                     errorBuilder: (_, __, ___) => const SizedBox.shrink())
                 : null,
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 8),
           Text(pet.name,
               style: TextStyle(
                 fontSize: 13, fontWeight: FontWeight.w600,
@@ -903,7 +918,7 @@ class _Leg extends StatelessWidget {
           border: outlined ? Border.all(color: color, width: 1.5) : null,
         ),
       ),
-      const SizedBox(width: 5),
+      const SizedBox(width: 4),
       Text(label, style: const TextStyle(
           fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.paleInk2)),
     ]);
@@ -935,12 +950,9 @@ class _RoutinePetPickerSheetState
   }
 
   Color _petBg(Pet p) {
-    if (p.colorCode == null) return AppColors.paleBgAlt;
-    try {
-      return Color(int.parse(p.colorCode!.replaceFirst('#', '0xFF')));
-    } catch (_) {
-      return AppColors.paleBgAlt;
-    }
+    // 개체 지정색은 걷어냈다 — 저장된 hex 를 그대로 칠하던 자리다.
+    // 자세한 이유는 core/theme/pale_palette.dart 주석 참고.
+    return AppColors.paleBgAlt;
   }
 
   Future<void> _save() async {
@@ -985,7 +997,7 @@ class _RoutinePetPickerSheetState
           Center(
             child: Container(
               width: 40, height: 4,
-              margin: const EdgeInsets.only(top: 10, bottom: 14),
+              margin: const EdgeInsets.only(top: 8, bottom: 16),
               decoration: BoxDecoration(
                 color: AppColors.paleLine,
                 borderRadius: BorderRadius.circular(2),
@@ -994,19 +1006,19 @@ class _RoutinePetPickerSheetState
           ),
           // ── 헤더 ──
           Padding(
-            padding: const EdgeInsets.fromLTRB(22, 0, 22, 12),
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
             child: Row(
               children: [
                 Container(
                   width: 34, height: 34,
                   decoration: BoxDecoration(
                     color: bg,
-                    borderRadius: BorderRadius.zero,
+                    borderRadius: AppRadius.brPill,
                   ),
-                  child: Icon(_rtypeIcon(widget.routine.routineType),
+                  child: RecordTypeIcon(widget.routine.routineType.name,
                       size: 18, color: AppColors.primary),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1024,10 +1036,10 @@ class _RoutinePetPickerSheetState
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 6),
+                      horizontal: 8, vertical: 8),
                   decoration: BoxDecoration(
                     color: bg,
-                    borderRadius: BorderRadius.zero,
+                    borderRadius: AppRadius.brPill,
                   ),
                   child: Text(
                     '${_selectedIds.length}마리',
@@ -1075,7 +1087,7 @@ class _RoutinePetPickerSheetState
                 return GridView.builder(
                   shrinkWrap: true,
                   padding:
-                      const EdgeInsets.fromLTRB(22, 14, 22, 14),
+                      const EdgeInsets.fromLTRB(20, 16, 20, 16),
                   gridDelegate:
                       const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 3,
@@ -1096,6 +1108,7 @@ class _RoutinePetPickerSheetState
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 130),
                         decoration: BoxDecoration(
+                          borderRadius: AppRadius.brMd,
                           color: on ? bg : AppColors.bg2,
                           border: Border.all(
                             color: on ? ink : AppColors.border,
@@ -1103,7 +1116,7 @@ class _RoutinePetPickerSheetState
                           ),
                         ),
                         padding:
-                            const EdgeInsets.fromLTRB(8, 12, 8, 10),
+                            const EdgeInsets.fromLTRB(8, 12, 8, 8),
                         child: Column(
                           children: [
                             Stack(
@@ -1116,8 +1129,7 @@ class _RoutinePetPickerSheetState
                                       ? Colors.white.withValues(alpha: 0.55)
                                       : petColor,
                                   iconColor: ink,
-                                  fallback: const Text('🦎',
-                                      style: TextStyle(fontSize: 22)),
+                                  subcategory: p.speciesSubcategory,
                                 ),
                                 if (on)
                                   Positioned(
@@ -1129,13 +1141,13 @@ class _RoutinePetPickerSheetState
                                         shape: BoxShape.circle,
                                       ),
                                       child: const Icon(Icons.check,
-                                          size: 11,
+                                          size: 12,
                                           color: Colors.white),
                                     ),
                                   ),
                               ],
                             ),
-                            const SizedBox(height: 7),
+                            const SizedBox(height: 8),
                             Text(
                               p.name,
                               style: const TextStyle(
@@ -1169,15 +1181,16 @@ class _RoutinePetPickerSheetState
             decoration: const BoxDecoration(
               border: Border(top: BorderSide(color: AppColors.divider)),
             ),
-            padding: const EdgeInsets.fromLTRB(22, 12, 22, 30),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
             child: Row(
               children: [
                 GestureDetector(
                   onTap: () => Navigator.pop(context),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 14),
+                        horizontal: 20, vertical: 16),
                     decoration: BoxDecoration(
+                      borderRadius: AppRadius.brMd,
                       color: AppColors.bg2,
                       border: Border.all(color: AppColors.border),
                     ),
@@ -1197,7 +1210,7 @@ class _RoutinePetPickerSheetState
                       duration: const Duration(milliseconds: 150),
                       alignment: Alignment.center,
                       padding:
-                          const EdgeInsets.symmetric(vertical: 14),
+                          const EdgeInsets.symmetric(vertical: 16),
                       color: _saving
                           ? AppColors.textDisabled
                           : AppColors.primary,
@@ -1219,10 +1232,10 @@ class _RoutinePetPickerSheetState
                                       fontSize: 14,
                                       color: Colors.white,
                                     )),
-                                const SizedBox(width: 6),
+                                const SizedBox(width: 8),
                                 Container(
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 7, vertical: 2),
+                                      horizontal: 8, vertical: 4),
                                   color: Colors.white.withValues(alpha: 0.18),
                                   child: Text(
                                     '${_selectedIds.length}마리',

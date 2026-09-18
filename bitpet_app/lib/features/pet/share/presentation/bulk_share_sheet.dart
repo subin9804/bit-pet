@@ -6,6 +6,7 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/toast_message.dart';
 import '../data/models/share_models.dart';
 import '../data/share_repository.dart';
+import '../../../../core/theme/app_dimens.dart';
 
 /// 여러 개체를 한 번에 공유(SHARE)·입분양(TRANSFER)하는 바텀시트.
 /// 성공 시 true 를 반환한다.
@@ -99,13 +100,13 @@ class _BulkShareSheetState extends ConsumerState<_BulkShareSheet> {
             Row(
               children: [
                 Icon(_isTransfer ? Icons.swap_horiz : Icons.group_add,
-                    color: accent, size: 22),
+                    color: accent, size: 20),
                 const SizedBox(width: 8),
                 Text(title, style: AppTextStyles.h2),
                 const SizedBox(width: 8),
                 Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: accent.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
@@ -143,6 +144,7 @@ class _BulkShareSheetState extends ConsumerState<_BulkShareSheet> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
+                  borderRadius: AppRadius.brMd,
                   color: AppColors.error.withValues(alpha: 0.06),
                   border: Border.all(
                       color: AppColors.error.withValues(alpha: 0.3)),
@@ -150,7 +152,7 @@ class _BulkShareSheetState extends ConsumerState<_BulkShareSheet> {
                 child: Row(
                   children: [
                     const Icon(Icons.warning_amber_rounded,
-                        color: AppColors.error, size: 18),
+                        color: AppColors.error, size: 20),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text('입분양은 소유권 이전이에요. 신중히 진행해주세요.',
@@ -161,7 +163,7 @@ class _BulkShareSheetState extends ConsumerState<_BulkShareSheet> {
                 ),
               ),
             ],
-            const SizedBox(height: 18),
+            const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
               child: FilledButton(

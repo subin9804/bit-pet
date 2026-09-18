@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_icons.dart';
 import '../../../core/widgets/app_toggle.dart';
 import '../../../core/widgets/pet_avatar.dart';
 import '../../../core/widgets/step_shell.dart';
@@ -12,6 +13,7 @@ import '../../pet/providers/pet_provider.dart';
 import '../data/models/routine_models.dart';
 import '../data/routine_repository.dart';
 import '../providers/routine_provider.dart';
+import '../../../core/theme/app_dimens.dart';
 
 // ════════════════════════════════════════════════════════════════
 // 02ds · 루틴 등록 — 5단계 스텝 위저드
@@ -39,13 +41,6 @@ const _rtypeLabel = {
   RoutineType.CLEANING: '청소',
   RoutineType.WEIGHT:   '체중',
   RoutineType.CUSTOM:   '사용자 정의',
-};
-
-const _rtypeIcon = {
-  RoutineType.FEEDING:  Icons.restaurant_outlined,
-  RoutineType.CLEANING: Icons.cleaning_services_outlined,
-  RoutineType.WEIGHT:   Icons.monitor_weight_outlined,
-  RoutineType.CUSTOM:   Icons.star_outline,
 };
 
 const _rtypeDefaultTitle = {
@@ -244,10 +239,10 @@ class _RoutineFormScreenState extends ConsumerState<RoutineFormScreen> {
                     onTap: () => _pickType(ty),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 150),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
                         color: on ? _rtypeBg[ty]! : AppColors.surface,
-                        borderRadius: BorderRadius.zero,
+                        borderRadius: AppRadius.brMd,
                         border: Border.all(
                           color: on ? _rtypeInk[ty]! : AppColors.paleLine,
                           width: on ? 1.5 : 1,
@@ -260,11 +255,11 @@ class _RoutineFormScreenState extends ConsumerState<RoutineFormScreen> {
                             height: 32,
                             decoration: BoxDecoration(
                               color: on ? AppColors.surface : _rtypeBg[ty]!,
-                              borderRadius: BorderRadius.zero,
+                              borderRadius: AppRadius.brMd,
                             ),
-                            child: Icon(_rtypeIcon[ty]!, size: 16, color: AppColors.primary),
+                            child: RecordTypeIcon(ty.name, size: 16, color: AppColors.primary),
                           ),
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 8),
                           Text(
                             _rtypeLabel[ty]!,
                             style: const TextStyle(
@@ -365,10 +360,10 @@ class _RoutineFormScreenState extends ConsumerState<RoutineFormScreen> {
           // 미리보기 카드
           Container(
             margin: const EdgeInsets.only(bottom: 16),
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
             decoration: BoxDecoration(
               color: AppColors.surface,
-              borderRadius: BorderRadius.zero,
+              borderRadius: AppRadius.brLg,
               border: Border.all(color: AppColors.paleLine),
             ),
             child: Row(
@@ -378,9 +373,9 @@ class _RoutineFormScreenState extends ConsumerState<RoutineFormScreen> {
                   height: 42,
                   decoration: BoxDecoration(
                     color: _typeBg,
-                    borderRadius: BorderRadius.zero,
+                    borderRadius: AppRadius.brLg,
                   ),
-                  child: Icon(_rtypeIcon[_type]!, color: AppColors.primary, size: 20),
+                  child: RecordTypeIcon(_type.name, color: AppColors.primary, size: 20),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -396,17 +391,17 @@ class _RoutineFormScreenState extends ConsumerState<RoutineFormScreen> {
                       Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
                               color: _typeBg,
-                              borderRadius: BorderRadius.zero,
+                              borderRadius: AppRadius.brPill,
                             ),
                             child: Text(
                               '${_petIds.length}마리',
                               style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.primary),
                             ),
                           ),
-                          const SizedBox(width: 6),
+                          const SizedBox(width: 8),
                           Text(
                             '$_cycleSummaryFull · $_alarmTime',
                             style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: _typeInk),
@@ -508,9 +503,9 @@ class _PetSelectorStep extends ConsumerWidget {
   }
 
   Color _petBg(Pet p) {
-    if (p.colorCode == null) return AppColors.paleBgAlt;
-    try { return Color(int.parse(p.colorCode!.replaceFirst('#', '0xFF'))); }
-    catch (_) { return AppColors.paleBgAlt; }
+    // 개체 지정색은 걷어냈다 — 저장된 hex 를 그대로 칠하던 자리다.
+    // 자세한 이유는 core/theme/pale_palette.dart 주석 참고.
+    return AppColors.paleBgAlt;
   }
 
   @override
@@ -549,17 +544,17 @@ class _PetSelectorStep extends ConsumerWidget {
             children: [
               // 검색창
               Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
                   color: AppColors.surface,
-                  borderRadius: BorderRadius.zero,
+                  borderRadius: AppRadius.brMd,
                   border: Border.all(color: AppColors.paleLine),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.search, color: AppColors.paleInk2, size: 18),
-                    const SizedBox(width: 10),
+                    const Icon(Icons.search, color: AppColors.paleInk2, size: 20),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: TextField(
                         onChanged: onQueryChanged,
@@ -584,15 +579,15 @@ class _PetSelectorStep extends ConsumerWidget {
                     final (id, label) = f;
                     final active = petFilter == id;
                     return Padding(
-                      padding: const EdgeInsets.only(right: 6, bottom: 10),
+                      padding: const EdgeInsets.only(right: 8, bottom: 8),
                       child: GestureDetector(
                         onTap: () => onFilterChanged(id),
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 150),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           decoration: BoxDecoration(
                             color: active ? AppColors.primary : AppColors.surface,
-                            borderRadius: BorderRadius.zero,
+                            borderRadius: AppRadius.brPill,
                             border: active ? null : Border.all(color: AppColors.paleLine),
                           ),
                           child: Text(
@@ -613,7 +608,7 @@ class _PetSelectorStep extends ConsumerWidget {
               GestureDetector(
                 onTap: visible.isEmpty ? null : toggleAll,
                 child: Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.only(bottom: 8),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -623,17 +618,17 @@ class _PetSelectorStep extends ConsumerWidget {
                         height: 18,
                         decoration: BoxDecoration(
                           color: allOn ? AppColors.primary : AppColors.surface,
-                          borderRadius: BorderRadius.zero,
+                          borderRadius: AppRadius.brSm,
                           border: Border.all(
                             color: allOn ? AppColors.primary : AppColors.paleLine,
                             width: 1.5,
                           ),
                         ),
                         child: allOn
-                            ? const Icon(Icons.check, size: 12, color: AppColors.paleBg)
+                            ? const Icon(Icons.check, size: 16, color: AppColors.paleBg)
                             : null,
                       ),
-                      const SizedBox(width: 7),
+                      const SizedBox(width: 8),
                       Text(
                         petFilter == 'all' && petQuery.isEmpty ? '전체 선택' : '보이는 개체 모두 선택',
                         style: const TextStyle(
@@ -676,13 +671,13 @@ class _PetSelectorStep extends ConsumerWidget {
                         duration: const Duration(milliseconds: 150),
                         decoration: BoxDecoration(
                           color: on ? bg : AppColors.surface,
-                          borderRadius: BorderRadius.zero,
+                          borderRadius: AppRadius.brMd,
                           border: Border.all(
                             color: on ? bg.withValues(alpha: 0.5) : AppColors.paleLine,
                             width: on ? 1.5 : 1,
                           ),
                         ),
-                        padding: const EdgeInsets.fromLTRB(8, 14, 8, 12),
+                        padding: const EdgeInsets.fromLTRB(8, 16, 8, 12),
                         child: Column(
                           children: [
                             Stack(
@@ -693,7 +688,7 @@ class _PetSelectorStep extends ConsumerWidget {
                                   size: 46,
                                   background: on ? AppColors.surface.withValues(alpha: 0.55) : bg,
                                   iconColor: AppColors.paleInk2,
-                                  fallback: const Text('🦎', style: TextStyle(fontSize: 22)),
+                                  subcategory: p.speciesSubcategory,
                                 ),
                                 if (on)
                                   Positioned(
@@ -706,12 +701,12 @@ class _PetSelectorStep extends ConsumerWidget {
                                         color: AppColors.primary,
                                         shape: BoxShape.circle,
                                       ),
-                                      child: const Icon(Icons.check, size: 11, color: AppColors.paleBg),
+                                      child: const Icon(Icons.check, size: 12, color: AppColors.paleBg),
                                     ),
                                   ),
                               ],
                             ),
-                            const SizedBox(height: 7),
+                            const SizedBox(height: 8),
                             Text(
                               p.name,
                               style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5, color: AppColors.primary),
@@ -808,10 +803,10 @@ class _CycleStep extends StatelessWidget {
           },
           child: Container(
             margin: const EdgeInsets.only(bottom: 8),
-            padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
             decoration: BoxDecoration(
               color: AppColors.surface,
-              borderRadius: BorderRadius.zero,
+              borderRadius: AppRadius.brLg,
               border: Border.all(color: AppColors.paleLine),
             ),
             child: Row(
@@ -819,7 +814,7 @@ class _CycleStep extends StatelessWidget {
                 Container(
                   width: 34,
                   height: 34,
-                  decoration: BoxDecoration(color: typeBg, borderRadius: BorderRadius.zero),
+                  decoration: BoxDecoration(color: typeBg, borderRadius: AppRadius.brMd),
                   child: const Icon(Icons.calendar_today_outlined, size: 16, color: AppColors.primary),
                 ),
                 const SizedBox(width: 12),
@@ -836,7 +831,7 @@ class _CycleStep extends StatelessWidget {
                     ],
                   ),
                 ),
-                const Icon(Icons.chevron_right, color: AppColors.paleInk3, size: 18),
+                const AppIcon(AppIcons.chevronRight, color: AppColors.paleInk3, size: 20),
               ],
             ),
           ),
@@ -849,15 +844,15 @@ class _CycleStep extends StatelessWidget {
                 final iso = _todayOffset(entry.key);
                 final on = startDate == iso;
                 return Padding(
-                  padding: const EdgeInsets.only(right: 6),
+                  padding: const EdgeInsets.only(right: 8),
                   child: GestureDetector(
                     onTap: () => onStartDateChanged(iso),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 120),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
                         color: on ? typeBg : AppColors.surface,
-                        borderRadius: BorderRadius.zero,
+                        borderRadius: AppRadius.brPill,
                         border: on ? null : Border.all(color: AppColors.paleLine),
                       ),
                       child: Text(entry.value, style: const TextStyle(
@@ -880,7 +875,7 @@ class _CycleStep extends StatelessWidget {
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
             color: AppColors.paleBgAlt,
-            borderRadius: BorderRadius.zero,
+            borderRadius: AppRadius.brPill,
           ),
           child: Row(
             children: [
@@ -894,10 +889,10 @@ class _CycleStep extends StatelessWidget {
                     onTap: () => onCycleModeChanged(entry.key),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 150),
-                      padding: const EdgeInsets.symmetric(vertical: 9),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
                       decoration: BoxDecoration(
                         color: cycleMode == entry.key ? AppColors.surface : Colors.transparent,
-                        borderRadius: BorderRadius.zero,
+                        borderRadius: AppRadius.brMd,
                         border: cycleMode == entry.key ? Border.all(color: AppColors.paleLine) : null,
                       ),
                       child: Text(
@@ -915,7 +910,7 @@ class _CycleStep extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         // 주기 컨텐츠
         if (cycleMode == _CycleMode.interval)
           _IntervalPicker(interval: interval, typeBg: typeBg, onChanged: onIntervalChanged)
@@ -943,7 +938,7 @@ class _IntervalPicker extends StatelessWidget {
         Container(
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.zero,
+            borderRadius: AppRadius.brMd,
             border: Border.all(color: AppColors.paleLine),
           ),
           child: Row(
@@ -969,7 +964,7 @@ class _IntervalPicker extends StatelessWidget {
                     Text('$interval', style: const TextStyle(
                       fontSize: 22, fontWeight: FontWeight.w700, color: AppColors.primary,
                     )),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 8),
                     const Text('일마다', style: TextStyle(
                       fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.paleInk2,
                     )),
@@ -1002,10 +997,10 @@ class _IntervalPicker extends StatelessWidget {
               onTap: () => onChanged(p.$1),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 120),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   color: on ? typeBg : AppColors.surface,
-                  borderRadius: BorderRadius.zero,
+                  borderRadius: AppRadius.brPill,
                   border: on ? null : Border.all(color: AppColors.paleLine),
                 ),
                 child: Text(p.$2, style: const TextStyle(
@@ -1041,11 +1036,11 @@ class _WeekdayPicker extends StatelessWidget {
             onTap: () => onToggle(d),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 150),
-              margin: EdgeInsets.only(right: d < 6 ? 6 : 0),
-              padding: const EdgeInsets.symmetric(vertical: 14),
+              margin: EdgeInsets.only(right: d < 8 ? 8 : 0),
+              padding: const EdgeInsets.symmetric(vertical: 16),
               decoration: BoxDecoration(
                 color: on ? AppColors.primary : AppColors.surface,
-                borderRadius: BorderRadius.zero,
+                borderRadius: AppRadius.brLg,
                 border: Border.all(color: on ? AppColors.primary : AppColors.paleLine),
               ),
               child: Text(
@@ -1101,7 +1096,7 @@ class _MonthdayPicker extends StatelessWidget {
                 duration: const Duration(milliseconds: 120),
                 decoration: BoxDecoration(
                   color: on ? AppColors.primary : AppColors.surface,
-                  borderRadius: BorderRadius.zero,
+                  borderRadius: AppRadius.brMd,
                   border: Border.all(color: on ? AppColors.primary : AppColors.paleLine),
                 ),
                 child: Center(
@@ -1121,10 +1116,10 @@ class _MonthdayPicker extends StatelessWidget {
           onTap: () => onToggle(32),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 150),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: monthDays.contains(32) ? typeBg : AppColors.surface,
-              borderRadius: BorderRadius.zero,
+              borderRadius: AppRadius.brMd,
               border: Border.all(
                 color: monthDays.contains(32) ? Colors.transparent : AppColors.paleLine,
               ),
@@ -1137,10 +1132,10 @@ class _MonthdayPicker extends StatelessWidget {
                   height: 22,
                   decoration: BoxDecoration(
                     color: monthDays.contains(32) ? AppColors.primary : AppColors.paleBgAlt,
-                    borderRadius: BorderRadius.zero,
+                    borderRadius: AppRadius.brSm,
                   ),
                   child: monthDays.contains(32)
-                      ? const Icon(Icons.check, size: 14, color: AppColors.paleBg)
+                      ? const Icon(Icons.check, size: 16, color: AppColors.paleBg)
                       : null,
                 ),
                 const SizedBox(width: 8),
@@ -1157,7 +1152,7 @@ class _MonthdayPicker extends StatelessWidget {
         ),
         // 선택 요약 칩
         if (monthDays.isNotEmpty) ...[
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Wrap(
             spacing: 6,
             runSpacing: 6,
@@ -1167,10 +1162,10 @@ class _MonthdayPicker extends StatelessWidget {
                 fontSize: 11, color: AppColors.paleInk3, fontWeight: FontWeight.w700,
               )),
               ...( monthDays.toList()..sort()).map((d) => Container(
-                padding: const EdgeInsets.fromLTRB(9, 3, 4, 3),
+                padding: const EdgeInsets.fromLTRB(8, 4, 4, 4),
                 decoration: BoxDecoration(
                   color: typeBg,
-                  borderRadius: BorderRadius.zero,
+                  borderRadius: AppRadius.brPill,
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -1178,10 +1173,10 @@ class _MonthdayPicker extends StatelessWidget {
                     Text(d == 32 ? '말일' : '$d일', style: const TextStyle(
                       fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primary,
                     )),
-                    const SizedBox(width: 3),
+                    const SizedBox(width: 4),
                     GestureDetector(
                       onTap: () => onToggle(d),
-                      child: const Icon(Icons.close, size: 13, color: AppColors.paleInk2),
+                      child: const Icon(Icons.close, size: 16, color: AppColors.paleInk2),
                     ),
                   ],
                 ),
@@ -1228,10 +1223,10 @@ class _AlarmStep extends StatelessWidget {
         SField(
           label: '알림 시간',
           child: Container(
-            padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
             decoration: BoxDecoration(
               color: AppColors.surface,
-              borderRadius: BorderRadius.zero,
+              borderRadius: AppRadius.brLg,
               border: Border.all(color: AppColors.paleLine),
             ),
             child: Column(
@@ -1253,7 +1248,7 @@ class _AlarmStep extends StatelessWidget {
                       },
                     ),
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
                       child: Text(':', style: TextStyle(
                         fontSize: 40, fontWeight: FontWeight.w700,
                         color: AppColors.primary, height: 0.9,
@@ -1290,10 +1285,10 @@ class _AlarmStep extends StatelessWidget {
                         },
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 120),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           decoration: BoxDecoration(
                             color: on ? typeBg : AppColors.paleBg,
-                            borderRadius: BorderRadius.zero,
+                            borderRadius: AppRadius.brPill,
                             border: on ? null : Border.all(color: AppColors.paleLine),
                           ),
                           child: Text(tp, style: TextStyle(
@@ -1313,10 +1308,10 @@ class _AlarmStep extends StatelessWidget {
         GestureDetector(
           onTap: onAlarmToggled,
           child: Container(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
             decoration: BoxDecoration(
               color: AppColors.surface,
-              borderRadius: BorderRadius.zero,
+              borderRadius: AppRadius.brLg,
               border: Border.all(color: AppColors.paleLine),
             ),
             child: Row(
@@ -1325,9 +1320,9 @@ class _AlarmStep extends StatelessWidget {
                   width: 34, height: 34,
                   decoration: BoxDecoration(
                     color: alarmOn ? typeBg : AppColors.paleBgAlt,
-                    borderRadius: BorderRadius.zero,
+                    borderRadius: AppRadius.brLg,
                   ),
-                  child: Icon(Icons.notifications_outlined, size: 18,
+                  child: Icon(Icons.notifications_outlined, size: 20,
                       color: alarmOn ? AppColors.primary : AppColors.paleInk3),
                 ),
                 const SizedBox(width: 12),
@@ -1446,7 +1441,7 @@ class _TimeSpinnerState extends State<_TimeSpinner> {
               color: _editing
                   ? widget.typeBg.withValues(alpha: 0.25)
                   : AppColors.paleBgAlt,
-              borderRadius: BorderRadius.zero,
+              borderRadius: AppRadius.brPill,
               border: Border.all(
                 color: _editing ? widget.typeBg : Colors.transparent,
                 width: 2,

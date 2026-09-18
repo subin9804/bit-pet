@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_input_styles.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../../core/theme/pale_palette.dart';
 import '../../../core/widgets/pet_avatar.dart';
 import '../../../core/widgets/step_dots.dart';
 import '../../../core/widgets/toast_message.dart';
@@ -19,6 +18,8 @@ import '../providers/record_provider.dart';
 import '../providers/record_invalidation.dart';
 import 'widgets/feed_items_editor.dart';
 import 'widgets/selected_pet_row.dart';
+import '../../../core/theme/app_icons.dart';
+import '../../../core/theme/app_dimens.dart';
 
 // ── 플로우 단계 ────────────────────────────────────────────────
 enum _FabStep {
@@ -47,18 +48,19 @@ class _RecordType {
   final String ko;
   final String en;
   final String ex;
-  final IconData icon;
+  /// [AppIcons] 의 SVG 경로. `en` 이 CLEAN/NOTE 라 코드로 되짚을 수 없어 직접 건다.
+  final String icon;
   final Color color;
   const _RecordType(this.id, this.ko, this.en, this.ex, this.icon, this.color);
 }
 
 const _recordTypes = [
-  _RecordType('feed',  '급여',   'FEEDING', '종류·시간·양',     Icons.restaurant_outlined,       AppColors.feedBand),
-  _RecordType('scale', '몸무게', 'WEIGHT',  '측정 기록',        Icons.monitor_weight_outlined,   AppColors.petSage),
-  _RecordType('clean', '청소',   'CLEAN',   '바닥재·환기',       Icons.cleaning_services_outlined, AppColors.petSky),
-  _RecordType('note',  '메모',   'NOTE',    '병원·관찰·증상',    Icons.note_alt_outlined,          AppColors.petLilac),
-  _RecordType('mate',  '메이팅', 'MATING',  '합방·관찰',        Icons.favorite_outline,           AppColors.petCoral),
-  _RecordType('lay',   '산란',   'LAYING',  '알 수·인큐베이션', Icons.egg_outlined,               AppColors.petButter),
+  _RecordType('feed',  '급여',   'FEEDING', '종류·시간·양',     AppIcons.feeding,  AppColors.feedBand),
+  _RecordType('scale', '몸무게', 'WEIGHT',  '측정 기록',        AppIcons.weight,   AppColors.petSage),
+  _RecordType('clean', '청소',   'CLEAN',   '바닥재·환기',       AppIcons.cleaning, AppColors.petSky),
+  _RecordType('note',  '메모',   'NOTE',    '병원·관찰·증상',    AppIcons.memo,     AppColors.petLilac),
+  _RecordType('mate',  '메이팅', 'MATING',  '합방·관찰',        AppIcons.mating,   AppColors.petCoral),
+  _RecordType('lay',   '산란',   'LAYING',  '알 수·인큐베이션', AppIcons.laying,   AppColors.petButter),
 ];
 
 // ── 메인 위젯 ──────────────────────────────────────────────────
@@ -316,10 +318,10 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
           // 그랩 핸들
           Container(
             width: 44, height: 4,
-            margin: const EdgeInsets.fromLTRB(0, 8, 0, 10),
+            margin: const EdgeInsets.fromLTRB(0, 8, 0, 8),
             decoration: BoxDecoration(
               color: AppColors.paleLine,
-              borderRadius: BorderRadius.zero,
+              borderRadius: AppRadius.brPill,
             ),
           ),
           // 단계별 본문
@@ -364,7 +366,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
           Text('NEW RECORD',
               style: AppTextStyles.mono(11, FontWeight.w700,
                   color: AppColors.paleInk2)),
-          const SizedBox(height: 3),
+          const SizedBox(height: 4),
           Text(
             lockedPet == null ? '무엇을 기록할까요?' : '${lockedPet.name} · 무엇을 기록할까요?',
             maxLines: 1,
@@ -373,13 +375,13 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                 fontSize: 20, fontWeight: FontWeight.w700,
                 color: AppColors.primary, letterSpacing: -0.4),
           ),
-          const SizedBox(height: 3),
+          const SizedBox(height: 4),
           Text(
             _petLocked ? '종류를 고르면 바로 입력해요' : '종류를 고르면 대상 개체를 선택해요',
             style: const TextStyle(fontSize: 11.5, color: AppColors.paleInk3,
                 fontWeight: FontWeight.w500),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
 
           // 기록 종류 — 3×2 컴팩트 그리드
           GridView.count(
@@ -409,9 +411,9 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
               decoration: BoxDecoration(
                 color: AppColors.paleBgAlt,
                 border: Border.all(color: AppColors.paleLine),
-                borderRadius: BorderRadius.zero,
+                borderRadius: AppRadius.brMd,
               ),
-              padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
               child: Row(
                 children: [
                   Container(
@@ -419,7 +421,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                     decoration: BoxDecoration(
                       color: AppColors.card,
                       border: Border.all(color: AppColors.paleLine),
-                      borderRadius: BorderRadius.zero,
+                      borderRadius: AppRadius.brMd,
                     ),
                     child: const Icon(Icons.add,
                         size: 20, color: AppColors.primary),
@@ -442,7 +444,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                       ],
                     ),
                   ),
-                  const Icon(Icons.chevron_right,
+                  const AppIcon(AppIcons.chevronRight,
                       size: 16, color: AppColors.paleInk2),
                 ],
               ),
@@ -471,7 +473,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
       children: [
         // 헤더
         Padding(
-          padding: const EdgeInsets.fromLTRB(22, 4, 22, 12),
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -482,7 +484,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                 const SizedBox(width: 8),
                 const StepDots(step: 2),
               ]),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               const Text('어떻게 입력할까요?',
                   style: TextStyle(
                       fontSize: 20, fontWeight: FontWeight.w700,
@@ -495,13 +497,13 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         ),
         if (pets.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.fromLTRB(22, 0, 22, 12),
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
             child: SelectedPetRow(pets: pets),
           ),
         // 선택 카드
         Flexible(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 22),
+            padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Column(
               children: [
                 _ChoiceCard(
@@ -514,7 +516,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                   selected: _feedMode == _FeedMode.bulk,
                   onTap: () => setState(() => _feedMode = _FeedMode.bulk),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 _ChoiceCard(
                   icon: Icons.view_list_outlined,
                   en: 'PER-PET',
@@ -548,7 +550,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
       children: [
         // 헤더
         Padding(
-          padding: const EdgeInsets.fromLTRB(22, 4, 22, 6),
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -561,7 +563,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                 const SizedBox(width: 8),
                 const StepDots(step: 3),
               ]),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               const Text('급여 기록',
                   style: TextStyle(
                       fontSize: 20, fontWeight: FontWeight.w700,
@@ -571,11 +573,11 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         ),
         if (pets.isNotEmpty) ...[
           Padding(
-            padding: const EdgeInsets.fromLTRB(22, 0, 22, 2),
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
             child: SelectedPetRow(pets: pets),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(22, 4, 22, 0),
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
             child: Text(
               '아래 급여 목록을 모든 개체에 동일하게 기록해요',
               textAlign: TextAlign.right,
@@ -587,7 +589,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         Flexible(
           child: SingleChildScrollView(
             padding: EdgeInsets.fromLTRB(
-                22, 8, 22, MediaQuery.of(context).viewInsets.bottom + 14),
+                20, 8, 20, MediaQuery.of(context).viewInsets.bottom + 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -630,10 +632,10 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
 
     final activePet = pets[_activePerPetIdx];
     final entry     = _perPetForms[activePet.id]!;
-    final pale      = PalePalette.pale(
-        PalePalette.keyFromHex(activePet.colorCode));
-    final paleInk   = PalePalette.ink(
-        PalePalette.keyFromHex(activePet.colorCode));
+    // 개체별 색은 걷어냈다 — 이 화면에서 색이 나르는 정보는 '누구냐'가 아니라
+    // **'지금 이걸 작성 중이다'** 이므로 선택 상태 = 브랜드색이다.
+    const pale      = AppColors.brandTint;
+    const paleInk   = AppColors.brandAction;
     final allFilled = _filledCount == pets.length;
 
     return Column(
@@ -641,7 +643,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
       children: [
         // 헤더
         Padding(
-          padding: const EdgeInsets.fromLTRB(22, 4, 22, 6),
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -656,7 +658,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                       const SizedBox(width: 8),
                       const StepDots(step: 3),
                     ]),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     const Text('급여 기록',
                         style: TextStyle(
                             fontSize: 20, fontWeight: FontWeight.w700,
@@ -666,13 +668,13 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
               ),
               // 완료 카운트 pill
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: allFilled ? AppColors.feedBand : AppColors.card,
                   border: allFilled
                       ? null
                       : Border.all(color: AppColors.paleLine),
-                  borderRadius: BorderRadius.zero,
+                  borderRadius: AppRadius.brPill,
                 ),
                 child: Text(
                   '$_filledCount / ${pets.length}',
@@ -693,44 +695,42 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
           ),
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.fromLTRB(22, 4, 22, 4),
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 4),
             itemCount: pets.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 6),
+            separatorBuilder: (_, __) => const SizedBox(width: 8),
             itemBuilder: (_, i) {
               final p       = pets[i];
               final active  = i == _activePerPetIdx;
-              final pKey    = PalePalette.keyFromHex(p.colorCode);
-              final pPale   = PalePalette.pale(pKey);
-              final pInk    = PalePalette.ink(pKey);
+              const pPale   = AppColors.brandTint;
+              const pInk    = AppColors.brandAction;
               final isFilled = _perPetForms[p.id]?.filled ?? false;
               return GestureDetector(
                 onTap: () => setState(() => _activePerPetIdx = i),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 6),
+                      horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: active ? pPale : AppColors.card,
                     border: Border.all(
                         color: active ? pInk : AppColors.paleLine,
                         width: active ? 1.5 : 1),
-                    borderRadius: BorderRadius.zero,
+                    borderRadius: AppRadius.brPill,
                   ),
                   child: Row(
                     children: [
                       PetAvatar(
                         imageUrl: p.profileImageUrl,
                         size: 22,
-                        background: active
-                            ? Colors.white.withValues(alpha: 0.55)
-                            : pPale,
-                        iconColor: AppColors.primary,
+                        background: active ? AppColors.bg : AppColors.bgAlt,
+                        iconColor: AppColors.ink2,
+                        subcategory: p.speciesSubcategory,
                       ),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 8),
                       Text(p.name,
                           style: const TextStyle(
                               fontSize: 13, fontWeight: FontWeight.w700,
                               color: AppColors.primary)),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 8),
                       isFilled
                           ? Container(
                               width: 14, height: 14,
@@ -738,7 +738,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                                   color: AppColors.primary,
                                   shape: BoxShape.circle),
                               child: const Icon(Icons.check,
-                                  size: 9, color: Colors.white))
+                                  size: 12, color: Colors.white))
                           : Container(
                               width: 14, height: 14,
                               decoration: BoxDecoration(
@@ -759,16 +759,16 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         Flexible(
           child: SingleChildScrollView(
             padding: EdgeInsets.fromLTRB(
-                22, 10, 22, MediaQuery.of(context).viewInsets.bottom + 14),
+                20, 8, 20, MediaQuery.of(context).viewInsets.bottom + 16),
             child: Column(
               children: [
                 // 개체 히어로
                 Container(
                   decoration: BoxDecoration(
                     color: pale,
-                    borderRadius: BorderRadius.zero,
+                    borderRadius: AppRadius.brMd,
                   ),
-                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                   child: Row(
                     children: [
                       PetAvatar(
@@ -776,6 +776,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                         size: 44,
                         background: Colors.white.withValues(alpha: 0.55),
                         iconColor: AppColors.primary,
+                        subcategory: activePet.speciesSubcategory,
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -787,7 +788,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                                     fontSize: 16, fontWeight: FontWeight.w700,
                                     color: AppColors.primary,
                                     letterSpacing: -0.3)),
-                            const SizedBox(height: 2),
+                            const SizedBox(height: 4),
                             Text(
                               '${activePet.speciesName}${activePet.latestWeightG != null ? ' · ${activePet.latestWeightG!.toStringAsFixed(0)}g' : ''}',
                               style: TextStyle(
@@ -803,31 +804,31 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                             width: 30, height: 30,
                             decoration: BoxDecoration(
                               color: Colors.white.withValues(alpha: 0.55),
-                              borderRadius: BorderRadius.zero,
+                              borderRadius: AppRadius.brMd,
                             ),
                             child: const Icon(Icons.chevron_left,
-                                size: 18, color: AppColors.primary),
+                                size: 20, color: AppColors.primary),
                           ),
                         ),
                       if (_activePerPetIdx < pets.length - 1) ...[
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 8),
                         GestureDetector(
                           onTap: () => setState(() => _activePerPetIdx++),
                           child: Container(
                             width: 30, height: 30,
                             decoration: BoxDecoration(
                               color: Colors.white.withValues(alpha: 0.55),
-                              borderRadius: BorderRadius.zero,
+                              borderRadius: AppRadius.brMd,
                             ),
-                            child: const Icon(Icons.chevron_right,
-                                size: 18, color: AppColors.primary),
+                            child: const AppIcon(AppIcons.chevronRight,
+                                size: 20, color: AppColors.primary),
                           ),
                         ),
                       ],
                     ],
                   ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 16),
 
                 // FeedItemsEditor (개체별 — 목록에 추가)
                 FeedItemsEditor(
@@ -835,7 +836,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                   bandColor: pale,
                   onChanged: (list) => setState(() => entry.items = list),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 16),
                 const _MemoLabel(),
                 const SizedBox(height: 8),
                 TextField(
@@ -847,7 +848,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                       fontSize: 13, color: AppColors.primary),
                   decoration: AppInputStyles.textarea(hintText: '특이사항 (선택)'),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 16),
 
                 // 완료 / 저장됨 액션
                 if (entry.filled)
@@ -866,13 +867,13 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                         : null,
                     child: Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
                         color: entry.items.isNotEmpty
                             ? AppColors.primary
                             : AppColors.paleLine,
-                        borderRadius: BorderRadius.zero,
+                        borderRadius: AppRadius.brLg,
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -910,11 +911,11 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                             onTap: () => setState(() => _activePerPetIdx--),
                             child: Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 12),
+                                  horizontal: 16, vertical: 12),
                               decoration: BoxDecoration(
                                 color: AppColors.card,
                                 border: Border.all(color: AppColors.paleLine),
-                                borderRadius: BorderRadius.zero,
+                                borderRadius: AppRadius.brLg,
                               ),
                               child: Row(
                                 children: [
@@ -938,13 +939,13 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                             onTap: () => setState(() => _activePerPetIdx++),
                             child: Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 12),
+                                  horizontal: 16, vertical: 12),
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
                                 color: AppColors.card,
                                 border: Border.all(
                                     color: AppColors.paleLine, width: 1.5),
-                                borderRadius: BorderRadius.zero,
+                                borderRadius: AppRadius.brLg,
                               ),
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -952,9 +953,10 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                                   PetAvatar(
                                     imageUrl: pets[_activePerPetIdx + 1].profileImageUrl,
                                     size: 22,
-                                    background: PalePalette.pale(PalePalette
-                                        .keyFromHex(pets[_activePerPetIdx + 1].colorCode)),
-                                    iconColor: AppColors.primary,
+                                    background: AppColors.bgAlt,
+                                    iconColor: AppColors.ink2,
+                                    subcategory: pets[_activePerPetIdx + 1]
+                                        .speciesSubcategory,
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
@@ -963,7 +965,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                                         fontSize: 13, fontWeight: FontWeight.w700,
                                         color: AppColors.primary),
                                   ),
-                                  const Icon(Icons.chevron_right,
+                                  const AppIcon(AppIcons.chevronRight,
                                       size: 16, color: AppColors.primary),
                                 ],
                               ),
@@ -1143,7 +1145,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
       children: [
         // 헤더
         Padding(
-          padding: const EdgeInsets.fromLTRB(22, 4, 22, 6),
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1154,7 +1156,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                 const SizedBox(width: 8),
                 const StepDots(step: 3),
               ]),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Text('${rt.ko} 기록',
                   style: const TextStyle(
                       fontSize: 20, fontWeight: FontWeight.w700,
@@ -1164,14 +1166,14 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         ),
         if (pets.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.fromLTRB(22, 0, 22, 2),
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
             child: SelectedPetRow(pets: pets),
           ),
         // 본문
         Flexible(
           child: SingleChildScrollView(
             padding: EdgeInsets.fromLTRB(
-                22, 10, 22, MediaQuery.of(context).viewInsets.bottom + 14),
+                20, 8, 20, MediaQuery.of(context).viewInsets.bottom + 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1195,15 +1197,15 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
 
   Widget _buildSimpleFields(List<Pet> pets) {
     final inputDec = InputDecoration(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       border: UnderlineInputBorder(
-          borderRadius: BorderRadius.zero,
+          borderRadius: AppRadius.brMd,
           borderSide: const BorderSide(color: AppColors.paleLine)),
       enabledBorder: UnderlineInputBorder(
-          borderRadius: BorderRadius.zero,
+          borderRadius: AppRadius.brMd,
           borderSide: const BorderSide(color: AppColors.paleLine)),
       focusedBorder: UnderlineInputBorder(
-          borderRadius: BorderRadius.zero,
+          borderRadius: AppRadius.brMd,
           borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
     );
 
@@ -1227,7 +1229,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
               ),
               onChanged: (_) => setState(() {}),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 20),
             _FieldLabel('메모', required: false),
             const SizedBox(height: 8),
             TextField(
@@ -1242,15 +1244,15 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
       // ── 청소 ──────────────────────────────────────────────────
       case 'clean':
         const types = [
-          ('FULL',         '전체 청소',  Icons.cleaning_services_outlined),
-          ('PARTIAL',      '부분 청소',  Icons.brush_outlined),
-          ('WATER_CHANGE', '물 교체',    Icons.water_drop_outlined),
+          ('FULL',         '전체 청소',  AppIcons.cleanFull),
+          ('PARTIAL',      '부분 청소',  AppIcons.cleanPartial),
+          ('WATER_CHANGE', '물 교체',    AppIcons.cleanWater),
         ];
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _FieldLabel('청소 종류', required: true),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             Row(
               children: types.map((t) {
                 final sel = _cleaningType == t.$1;
@@ -1267,13 +1269,13 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                           border: Border.all(
                               color: sel ? AppColors.petSkyInk : AppColors.paleLine,
                               width: sel ? 1.5 : 1),
-                          borderRadius: BorderRadius.zero,
+                          borderRadius: AppRadius.brLg,
                         ),
                         child: Column(
                           children: [
-                            Icon(t.$3, size: 20,
+                            AppIcon(t.$3, size: 20,
                                 color: sel ? AppColors.petSkyInk : AppColors.paleInk2),
-                            const SizedBox(height: 5),
+                            const SizedBox(height: 4),
                             Text(t.$2,
                                 style: TextStyle(
                                     fontSize: 12, fontWeight: FontWeight.w700,
@@ -1286,7 +1288,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                 );
               }).toList(),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 20),
             _FieldLabel('메모', required: false),
             const SizedBox(height: 8),
             TextField(
@@ -1327,34 +1329,21 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                                 ? AppColors.petLilacInk
                                 : AppColors.paleLine,
                             width: sel ? 1.5 : 1),
-                        borderRadius: BorderRadius.zero,
+                        borderRadius: AppRadius.brMd,
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // 라디오 원형 표시
-                          Container(
-                            width: 16, height: 16,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                  color: sel
-                                      ? AppColors.petLilacInk
-                                      : AppColors.paleLine,
-                                  width: 1.5),
-                            ),
-                            child: sel
-                                ? Center(
-                                    child: Container(
-                                      width: 8, height: 8,
-                                      decoration: const BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: AppColors.petLilacInk),
-                                    ),
-                                  )
-                                : null,
+                          // 라디오 원 대신 태그 그림. 선택 여부는 칩의 배경·테두리가
+                          // 이미 말하고 있어서 원을 하나 더 그릴 필요가 없다.
+                          AppIcon(
+                            AppIcons.memoTag(t.code),
+                            size: 16,
+                            color: sel
+                                ? AppColors.petLilacInk
+                                : AppColors.paleInk2,
                           ),
-                          const SizedBox(width: 7),
+                          const SizedBox(width: 8),
                           Text(t.labelKo,
                               style: TextStyle(
                                   fontSize: 12.5,
@@ -1427,7 +1416,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             if (_partnerExternal) ...[
               // 일련번호 검색
               Row(
@@ -1439,7 +1428,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                       textCapitalization: TextCapitalization.characters,
                       decoration: inputDec.copyWith(
                         hintText: '일련번호 입력 (예: AB12CD34)',
-                        prefixIcon: const Icon(Icons.search, size: 18, color: AppColors.paleInk2),
+                        prefixIcon: const Icon(Icons.search, size: 20, color: AppColors.paleInk2),
                       ),
                       onChanged: (_) => setState(() { _searchedPartner = null; _searchError = null; }),
                       onSubmitted: (_) => _searchPartnerBySerial(selectedSpeciesName),
@@ -1453,7 +1442,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                       width: 44, height: 44,
                       decoration: BoxDecoration(
                         color: AppColors.paleLine,
-                        borderRadius: BorderRadius.zero,
+                        borderRadius: AppRadius.brMd,
                       ),
                       child: const Icon(Icons.qr_code_scanner,
                           size: 20, color: AppColors.paleInk3),
@@ -1477,7 +1466,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                   foregroundColor: Colors.white,
                   minimumSize: const Size(double.infinity, 42),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.zero),
+                      borderRadius: AppRadius.brMd),
                   textStyle: const TextStyle(
                       fontSize: 13, fontWeight: FontWeight.w600),
                 ),
@@ -1488,7 +1477,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                     style: const TextStyle(fontSize: 12, color: AppColors.warning)),
               ],
               if (_searchedPartner != null) ...[
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 _PartnerResultCard(pet: _searchedPartner!,
                     onClear: () => setState(() { _searchedPartner = null; _partnerExtCtrl.clear(); })),
               ],
@@ -1498,7 +1487,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                 decoration: BoxDecoration(
                   color: AppColors.card,
                   border: Border.all(color: AppColors.paleLine),
-                  borderRadius: BorderRadius.zero,
+                  borderRadius: AppRadius.brMd,
                 ),
                 constraints: const BoxConstraints(maxHeight: 180),
                 child: sameSpesPets.isEmpty
@@ -1517,22 +1506,24 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                         itemBuilder: (_, i) {
                           final p   = sameSpesPets[i];
                           final sel = _partnerPet?.id == p.id;
-                          final key = PalePalette.keyFromHex(p.colorCode);
                           return GestureDetector(
                             onTap: () => setState(() => _partnerPet = sel ? null : p),
                             child: Container(
-                              color: sel ? PalePalette.pale(key) : Colors.transparent,
+                              color: sel
+                                  ? AppColors.brandTintSoft
+                                  : Colors.transparent,
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 10),
+                                  horizontal: 16, vertical: 8),
                               child: Row(
                                 children: [
                                   PetAvatar(
                                     imageUrl: p.profileImageUrl,
                                     size: 32,
-                                    background: PalePalette.pale(key),
-                                    iconColor: AppColors.primary,
+                                    background: AppColors.bgAlt,
+                                    iconColor: AppColors.ink2,
+                                    subcategory: p.speciesSubcategory,
                                   ),
-                                  const SizedBox(width: 10),
+                                  const SizedBox(width: 8),
                                   Expanded(
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1558,7 +1549,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                                           color: AppColors.primary,
                                           shape: BoxShape.circle),
                                       child: const Icon(Icons.check,
-                                          size: 12, color: Colors.white),
+                                          size: 16, color: Colors.white),
                                     ),
                                 ],
                               ),
@@ -1568,7 +1559,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                       ),
               ),
             ],
-            const SizedBox(height: 18),
+            const SizedBox(height: 20),
             _FieldLabel('메모', required: false),
             const SizedBox(height: 8),
             TextField(
@@ -1599,7 +1590,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
               ),
               onChanged: (_) => setState(() {}),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
             _FieldLabel('유정란 수', required: false),
             const SizedBox(height: 8),
             TextField(
@@ -1612,7 +1603,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                 suffixStyle: const TextStyle(fontSize: 14, color: AppColors.paleInk2),
               ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 20),
             _FieldLabel('메모', required: false),
             const SizedBox(height: 8),
             TextField(
@@ -1633,7 +1624,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
   Widget _buildDone() {
     return Padding(
       padding: EdgeInsets.fromLTRB(
-          22, 32, 22, MediaQuery.of(context).padding.bottom + 32),
+          20, 32, 20, MediaQuery.of(context).padding.bottom + 32),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -1663,11 +1654,11 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
             onTap: () => Navigator.of(context).pop(),
             child: Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 14),
+              padding: const EdgeInsets.symmetric(vertical: 16),
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: AppColors.primary,
-                borderRadius: BorderRadius.zero,
+                borderRadius: AppRadius.brLg,
               ),
               child: Text('닫기',
                   style: TextStyle(
@@ -1741,7 +1732,7 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
       children: [
         // 헤더
         Padding(
-          padding: const EdgeInsets.fromLTRB(22, 4, 22, 10),
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -1757,7 +1748,7 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
                         style: TextStyle(
                             fontSize: 20, fontWeight: FontWeight.w700,
                             color: AppColors.primary, letterSpacing: -0.4)),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 4),
                     Text('여러 개체에 같은 기록을 한 번에 남길 수 있어요',
                         style: TextStyle(
                             fontSize: 12, color: AppColors.paleInk2)),
@@ -1766,7 +1757,7 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
               ),
               Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: _selected.isNotEmpty
                       ? AppColors.feedBand
@@ -1774,7 +1765,7 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
                   border: _selected.isNotEmpty
                       ? null
                       : Border.all(color: AppColors.paleLine),
-                  borderRadius: BorderRadius.zero,
+                  borderRadius: AppRadius.brMd,
                 ),
                 child: Text(
                   '${_selected.length} / ${allPets.length}',
@@ -1790,19 +1781,19 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
 
         // 검색창
         Padding(
-          padding: const EdgeInsets.fromLTRB(22, 0, 22, 10),
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
           child: Container(
             decoration: BoxDecoration(
               color: AppColors.card,
               border: Border.all(color: AppColors.paleLine),
-              borderRadius: BorderRadius.zero,
+              borderRadius: AppRadius.brPill,
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
               children: [
                 const Icon(Icons.search,
-                    size: 18, color: AppColors.paleInk2),
-                const SizedBox(width: 10),
+                    size: 20, color: AppColors.paleInk2),
+                const SizedBox(width: 8),
                 Expanded(
                   child: TextField(
                     onChanged: (v) => setState(() => _query = v),
@@ -1830,7 +1821,7 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
           height: 36,
           child: ListView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.fromLTRB(22, 0, 22, 0),
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
             children: _filters.map((f) {
               final active = _filter == f.$1;
               final count  = allPets.where((p) => switch (f.$1) {
@@ -1845,15 +1836,15 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
               return GestureDetector(
                 onTap: () => setState(() => _filter = f.$1),
                 child: Container(
-                  margin: const EdgeInsets.only(right: 6),
+                  margin: const EdgeInsets.only(right: 8),
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: active ? AppColors.primary : AppColors.card,
                     border: active
                         ? null
                         : Border.all(color: AppColors.paleLine),
-                    borderRadius: BorderRadius.zero,
+                    borderRadius: AppRadius.brPill,
                   ),
                   child: Row(
                     children: [
@@ -1863,7 +1854,7 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
                               color: active
                                   ? AppColors.paleBg
                                   : AppColors.primary)),
-                      const SizedBox(width: 5),
+                      const SizedBox(width: 4),
                       Text('$count',
                           style: AppTextStyles.mono(10, FontWeight.w700,
                               color: active
@@ -1876,11 +1867,11 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
             }).toList(),
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
 
         // 전체선택/해제 바
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
           decoration: BoxDecoration(
             color: AppColors.card,
             border: Border(
@@ -1904,7 +1895,7 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
                   for (final p in filtered) _selected.add(p.id);
                 }),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 8),
               _SelectBarBtn(
                 icon: Icons.close,
                 label: '전체해제',
@@ -1929,16 +1920,15 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
               : GridView.count(
                   shrinkWrap: true,
                   physics: const ClampingScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(22, 10, 22, 10),
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
                   crossAxisCount: 3,
                   crossAxisSpacing: 8,
                   mainAxisSpacing: 8,
                   childAspectRatio: 0.78,
                   children: filtered.map((p) {
                     final isOn  = _selected.contains(p.id);
-                    final key   = PalePalette.keyFromHex(p.colorCode);
-                    final pale  = PalePalette.pale(key);
-                    final pInk  = PalePalette.ink(key);
+                    const pale  = AppColors.brandTint;
+                    const pInk  = AppColors.brandAction;
                     return GestureDetector(
                       onTap: () => setState(() {
                         if (isOn) _selected.remove(p.id);
@@ -1951,18 +1941,17 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
                           border: Border.all(
                               color: isOn ? pInk : AppColors.paleLine,
                               width: isOn ? 1.5 : 1),
-                          borderRadius: BorderRadius.zero,
+                          borderRadius: AppRadius.brMd,
                         ),
-                        padding: const EdgeInsets.fromLTRB(10, 12, 10, 10),
+                        padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
                         child: Column(
                           children: [
                             PetAvatar(
                               imageUrl: p.profileImageUrl,
                               size: 52,
-                              background: isOn
-                                  ? Colors.white.withValues(alpha: 0.55)
-                                  : pale,
-                              iconColor: AppColors.primary,
+                              background: isOn ? AppColors.bg : AppColors.bgAlt,
+                              iconColor: AppColors.ink2,
+                              subcategory: p.speciesSubcategory,
                             ),
                             const SizedBox(height: 8),
                             Text(p.name,
@@ -1971,7 +1960,7 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
                                     color: AppColors.primary,
                                     letterSpacing: -0.2),
                                 overflow: TextOverflow.ellipsis),
-                            const SizedBox(height: 2),
+                            const SizedBox(height: 4),
                             Text(p.speciesName,
                                 style: TextStyle(
                                     fontSize: 10, color: AppColors.paleInk2,
@@ -2022,9 +2011,9 @@ class _CompactTypeCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.card,
           border: Border.all(color: AppColors.paleLine),
-          borderRadius: BorderRadius.zero,
+          borderRadius: AppRadius.brMd,
         ),
-        padding: const EdgeInsets.fromLTRB(6, 12, 6, 10),
+        padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -2033,11 +2022,11 @@ class _CompactTypeCard extends StatelessWidget {
               height: 42,
               decoration: BoxDecoration(
                 color: type.color,
-                borderRadius: BorderRadius.zero,
+                borderRadius: AppRadius.brLg,
               ),
-              child: Icon(type.icon, size: 20, color: AppColors.primary),
+              child: AppIcon(type.icon, size: 20, color: AppColors.primary),
             ),
-            const SizedBox(height: 7),
+            const SizedBox(height: 8),
             Text(type.ko,
                 style: const TextStyle(
                     fontWeight: FontWeight.w700,
@@ -2085,9 +2074,9 @@ class _ChoiceCard extends StatelessWidget {
           border: Border.all(
               color: selected ? AppColors.primary : AppColors.paleLine,
               width: selected ? 1.5 : 1),
-          borderRadius: BorderRadius.zero,
+          borderRadius: AppRadius.brMd,
         ),
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -2095,11 +2084,11 @@ class _ChoiceCard extends StatelessWidget {
               width: 44, height: 44,
               decoration: BoxDecoration(
                 color: AppColors.feedBand,
-                borderRadius: BorderRadius.zero,
+                borderRadius: AppRadius.brLg,
               ),
-              child: Icon(icon, size: 22, color: AppColors.primary),
+              child: Icon(icon, size: 20, color: AppColors.primary),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -2110,13 +2099,13 @@ class _ChoiceCard extends StatelessWidget {
                           style: AppTextStyles.mono(9, FontWeight.w700,
                               color: AppColors.paleInk2)),
                       if (recommended) ...[
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
+                              horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
                             color: AppColors.feedBand,
-                            borderRadius: BorderRadius.zero,
+                            borderRadius: AppRadius.brPill,
                           ),
                           child: Text('RECOMMENDED',
                               style: AppTextStyles.mono(9, FontWeight.w700)),
@@ -2124,7 +2113,7 @@ class _ChoiceCard extends StatelessWidget {
                       ],
                     ],
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 4),
                   Text(title,
                       style: const TextStyle(
                           fontSize: 16, fontWeight: FontWeight.w700,
@@ -2140,11 +2129,11 @@ class _ChoiceCard extends StatelessWidget {
                     runSpacing: 4,
                     children: examples.map((e) => Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 2),
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: AppColors.paleBgAlt,
                         border: Border.all(color: AppColors.paleLineSoft),
-                        borderRadius: BorderRadius.zero,
+                        borderRadius: AppRadius.brPill,
                       ),
                       child: Text(e,
                           style: AppTextStyles.mono(10, FontWeight.w700,
@@ -2154,7 +2143,7 @@ class _ChoiceCard extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right,
+            const AppIcon(AppIcons.chevronRight,
                 size: 16, color: AppColors.paleInk3),
           ],
         ),
@@ -2183,18 +2172,18 @@ class _SavedBanner extends StatelessWidget {
       decoration: BoxDecoration(
         color: pale,
         border: Border.all(color: paleInk, width: 1.5),
-        borderRadius: BorderRadius.zero,
+        borderRadius: AppRadius.brMd,
       ),
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       child: Row(
         children: [
           Container(
             width: 26, height: 26,
             decoration: BoxDecoration(color: paleInk, shape: BoxShape.circle),
             alignment: Alignment.center,
-            child: const Icon(Icons.check, color: Colors.white, size: 14),
+            child: const Icon(Icons.check, color: Colors.white, size: 16),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2203,7 +2192,7 @@ class _SavedBanner extends StatelessWidget {
                     style: const TextStyle(
                         fontSize: 13, fontWeight: FontWeight.w700,
                         color: AppColors.primary)),
-                const SizedBox(height: 2),
+                const SizedBox(height: 4),
                 Text('수정하려면 미완료로 되돌린 뒤 다시 완료하세요',
                     style: TextStyle(fontSize: 11, color: AppColors.paleInk2)),
               ],
@@ -2216,7 +2205,7 @@ class _SavedBanner extends StatelessWidget {
               decoration: BoxDecoration(
                 color: AppColors.card,
                 border: Border.all(color: AppColors.paleLine),
-                borderRadius: BorderRadius.zero,
+                borderRadius: AppRadius.brPill,
               ),
               child: const Text('미완료',
                   style: TextStyle(
@@ -2254,7 +2243,7 @@ class _Footer extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.fromLTRB(
-          22, 12, 22, MediaQuery.of(context).padding.bottom + 16),
+          20, 12, 20, MediaQuery.of(context).padding.bottom + 16),
       decoration: const BoxDecoration(
         color: AppColors.paleBg,
         border: Border(top: BorderSide(color: AppColors.paleLineSoft)),
@@ -2266,16 +2255,16 @@ class _Footer extends StatelessWidget {
               onTap: onBack,
               child: Container(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 18, vertical: 14),
+                    horizontal: 20, vertical: 16),
                 decoration: BoxDecoration(
                   color: AppColors.card,
                   border: Border.all(color: AppColors.paleLine),
-                  borderRadius: BorderRadius.zero,
+                  borderRadius: AppRadius.brLg,
                 ),
                 child: Row(
                   children: [
                     const Icon(Icons.arrow_back_ios,
-                        size: 13, color: AppColors.primary),
+                        size: 16, color: AppColors.primary),
                     const SizedBox(width: 4),
                     const Text('뒤로',
                         style: TextStyle(
@@ -2291,11 +2280,11 @@ class _Footer extends StatelessWidget {
             child: GestureDetector(
               onTap: nextEnabled && !loading ? onNext : null,
               child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 14),
+                padding: const EdgeInsets.symmetric(vertical: 16),
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: nextEnabled ? AppColors.primary : AppColors.paleLine,
-                  borderRadius: BorderRadius.zero,
+                  borderRadius: AppRadius.brLg,
                 ),
                 child: loading
                     ? const SizedBox(
@@ -2323,12 +2312,12 @@ class _Footer extends StatelessWidget {
                             const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 2),
+                                  horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
                                 color: nextEnabled
                                     ? Colors.white.withValues(alpha: 0.18)
                                     : Colors.transparent,
-                                borderRadius: BorderRadius.zero,
+                                borderRadius: AppRadius.brPill,
                               ),
                               child: Text(nextBadge!,
                                   style: AppTextStyles.mono(11, FontWeight.w700,
@@ -2359,7 +2348,7 @@ class _MemoLabel extends StatelessWidget {
           style: TextStyle(
               fontSize: 13, fontWeight: FontWeight.w700,
               color: AppColors.primary)),
-      const SizedBox(width: 6),
+      const SizedBox(width: 8),
       Text('OPTIONAL', style: AppTextStyles.mono(9, FontWeight.w700,
           color: AppColors.paleInk3)),
     ],
@@ -2386,7 +2375,7 @@ class _FieldLabel extends StatelessWidget {
           const Text('*', style: TextStyle(fontSize: 12,
               fontWeight: FontWeight.w700, color: AppColors.error)),
         ] else ...[
-          const SizedBox(width: 6),
+          const SizedBox(width: 8),
           Text('선택', style: AppTextStyles.mono(9, FontWeight.w700,
               color: AppColors.paleInk3)),
         ],
@@ -2409,13 +2398,13 @@ class _TypeToggle extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 120),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: active ? AppColors.primary : AppColors.card,
           border: Border.all(
               color: active ? AppColors.primary : AppColors.paleLine,
               width: active ? 1.5 : 1),
-          borderRadius: BorderRadius.zero,
+          borderRadius: AppRadius.brMd,
         ),
         child: Text(label,
             style: TextStyle(
@@ -2445,16 +2434,16 @@ class _SelectBarBtn extends StatelessWidget {
     return GestureDetector(
       onTap: disabled ? null : onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         decoration: BoxDecoration(
           color: AppColors.paleBg,
           border: Border.all(color: AppColors.paleLine),
-          borderRadius: BorderRadius.zero,
+          borderRadius: AppRadius.brPill,
         ),
         child: Row(
           children: [
             Icon(icon,
-                size: 13,
+                size: 16,
                 color: disabled ? AppColors.paleInk3 : AppColors.primary),
             const SizedBox(width: 4),
             Text(label,
@@ -2476,23 +2465,19 @@ class _PartnerResultCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final key = PalePalette.keyFromHex(pet.colorCode);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: PalePalette.pale(key),
-        borderRadius: BorderRadius.zero,
-        border: Border.all(color: PalePalette.ink(key).withOpacity(0.2)),
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: AppDecor.cardSelected,
       child: Row(
         children: [
           PetAvatar(
             imageUrl: pet.profileImageUrl,
             size: 36,
-            background: PalePalette.ink(key).withOpacity(0.15),
-            iconColor: PalePalette.ink(key),
+            background: AppColors.bg,
+            iconColor: AppColors.brandAction,
+            subcategory: pet.speciesSubcategory,
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2511,7 +2496,7 @@ class _PartnerResultCard extends StatelessWidget {
           ),
           GestureDetector(
             onTap: onClear,
-            child: const Icon(Icons.close, size: 18, color: AppColors.paleInk3),
+            child: const Icon(Icons.close, size: 20, color: AppColors.paleInk3),
           ),
         ],
       ),

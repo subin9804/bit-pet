@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_dimens.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/upload/image_upload.dart';
 import '../../../core/widgets/confirm_modal.dart';
@@ -10,6 +11,7 @@ import '../../../core/widgets/user_avatar.dart';
 import '../../auth/data/models/auth_models.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../pet/share/providers/share_provider.dart';
+import '../../../core/theme/app_icons.dart';
 
 class MyScreen extends ConsumerWidget {
   const MyScreen({super.key});
@@ -45,13 +47,13 @@ class MyScreen extends ConsumerWidget {
                     children: [
                       Text(user?.name ?? '사용자',
                           style: AppTextStyles.h3),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 4),
                       Text(user?.email ?? '',
                           style: AppTextStyles.caption),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 7, vertical: 2),
+                            horizontal: 8, vertical: 4),
                         color: AppColors.bg2,
                         child: Text(
                           user?.userType == 'BREEDER' ? 'BREEDER' : 'GENERAL',
@@ -161,13 +163,13 @@ class _ShareManageItem extends ConsumerWidget {
           children: [
             const Icon(Icons.handshake_outlined,
                 size: 20, color: AppColors.textSecondary),
-            const SizedBox(width: 14),
+            const SizedBox(width: 16),
             Expanded(child: Text('공유 관리', style: AppTextStyles.body)),
             if (count > 0)
               Container(
                 margin: const EdgeInsets.only(right: 8),
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: AppColors.error,
                   borderRadius: BorderRadius.circular(20),
@@ -175,8 +177,8 @@ class _ShareManageItem extends ConsumerWidget {
                 child: Text('$count',
                     style: AppTextStyles.label.copyWith(color: Colors.white)),
               ),
-            const Icon(Icons.chevron_right,
-                size: 18, color: AppColors.textDisabled),
+            const AppIcon(AppIcons.chevronRight,
+                size: 20, color: AppColors.textDisabled),
           ],
         ),
       ),
@@ -231,16 +233,17 @@ class _ProfileAvatarState extends ConsumerState<_ProfileAvatar> {
             right: 0,
             bottom: 0,
             child: Container(
-              padding: const EdgeInsets.all(3),
+              padding: const EdgeInsets.all(4),
               color: AppColors.primary,
               child: _uploading
+                  // 카메라 배지 자리를 대신 차지하므로 아이콘과 같은 크기여야 한다.
                   ? const SizedBox(
-                      width: 10,
-                      height: 10,
+                      width: AppIconSize.badge,
+                      height: AppIconSize.badge,
                       child: CircularProgressIndicator(
                           strokeWidth: 1.5, color: Colors.white),
                     )
-                  : const Icon(Icons.camera_alt, size: 10, color: Colors.white),
+                  : const Icon(Icons.camera_alt, size: 12, color: Colors.white),
             ),
           ),
         ],
@@ -335,31 +338,31 @@ class _SharedPetChoiceSheetState extends State<_SharedPetChoiceSheet> {
               child: Container(
                 width: 40,
                 height: 4,
-                margin: const EdgeInsets.only(top: 10, bottom: 16),
+                margin: const EdgeInsets.only(top: 8, bottom: 16),
                 decoration: BoxDecoration(
                     color: AppColors.paleLine,
                     borderRadius: BorderRadius.circular(2)),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(22, 0, 22, 4),
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
               child: Text('함께 보는 개체가 ${pets.length}마리 있어요',
                   style: AppTextStyles.h3),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(22, 0, 22, 14),
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
               child: Text('탈퇴하면 이 개체들은 어떻게 할까요?',
                   style: AppTextStyles.caption),
             ),
             Flexible(
               child: ListView.builder(
                 shrinkWrap: true,
-                padding: const EdgeInsets.symmetric(horizontal: 22),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
                 itemCount: pets.length,
                 itemBuilder: (_, i) {
                   final p = pets[i];
                   return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 5),
+                    padding: const EdgeInsets.symmetric(vertical: 4),
                     child: Row(
                       children: [
                         const Text('🦎', style: TextStyle(fontSize: 15)),
@@ -384,7 +387,7 @@ class _SharedPetChoiceSheetState extends State<_SharedPetChoiceSheet> {
                 },
               ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
             _ChoiceRow(
               selected: _handOver,
               label: '함께 보던 사육자에게 넘기기',
@@ -399,7 +402,7 @@ class _SharedPetChoiceSheetState extends State<_SharedPetChoiceSheet> {
               onTap: () => setState(() => _handOver = false),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(22, 16, 22, 20),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
               child: Row(
                 children: [
                   Expanded(
@@ -408,7 +411,7 @@ class _SharedPetChoiceSheetState extends State<_SharedPetChoiceSheet> {
                       child: const Text('취소'),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: FilledButton(
                       onPressed: () => Navigator.pop(context, _handOver),
@@ -445,7 +448,7 @@ class _ChoiceRow extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -465,7 +468,7 @@ class _ChoiceRow extends StatelessWidget {
                       style: AppTextStyles.body.copyWith(
                           fontWeight:
                               selected ? FontWeight.w700 : FontWeight.w400)),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                   Text(caption, style: AppTextStyles.caption),
                 ],
               ),
@@ -510,18 +513,18 @@ class _PedigreeNicknameToggleState
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       child: Row(
         children: [
           const Icon(Icons.account_tree_outlined,
               size: 20, color: AppColors.textSecondary),
-          const SizedBox(width: 14),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('가계도에 닉네임 공개', style: AppTextStyles.body),
-                const SizedBox(height: 2),
+                const SizedBox(height: 4),
                 Text('끄면 남의 가계도에서 내 닉네임이 “비공개”로 표시돼요',
                     style: AppTextStyles.caption),
               ],
@@ -561,13 +564,13 @@ class _MenuItem extends StatelessWidget {
             Icon(icon,
                 size: 20,
                 color: labelColor ?? AppColors.textSecondary),
-            const SizedBox(width: 14),
+            const SizedBox(width: 16),
             Expanded(
               child: Text(label,
                   style: AppTextStyles.body.copyWith(color: labelColor)),
             ),
-            const Icon(Icons.chevron_right,
-                size: 18, color: AppColors.textDisabled),
+            const AppIcon(AppIcons.chevronRight,
+                size: 20, color: AppColors.textDisabled),
           ],
         ),
       ),

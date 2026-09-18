@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_dimens.dart';
 import '../../../../core/theme/app_text_styles.dart';
-import '../../../../core/theme/pale_palette.dart';
 import '../../../../core/upload/image_upload.dart';
 import '../../../../core/widgets/confirm_modal.dart';
 import '../../../../core/widgets/toast_message.dart';
@@ -12,16 +12,15 @@ import '../../data/photo_repository.dart';
 import '../../providers/pet_provider.dart';
 import '../../providers/photo_provider.dart';
 import 'gallery_photo_viewer.dart';
+import '../../../../core/theme/app_icons.dart';
 
 class GalleryTab extends ConsumerStatefulWidget {
   final int petId;
-  final PetPaletteKey paletteKey;
   final int? profilePhotoId;
 
   const GalleryTab({
     super.key,
     required this.petId,
-    required this.paletteKey,
     this.profilePhotoId,
   });
 
@@ -137,7 +136,6 @@ class _GalleryTabState extends ConsumerState<GalleryTab> {
   @override
   Widget build(BuildContext context) {
     final photosAsync = ref.watch(petPhotosProvider(widget.petId));
-    final bg = PalePalette.pale(widget.paletteKey);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -158,7 +156,7 @@ class _GalleryTabState extends ConsumerState<GalleryTab> {
           error: (_, __) => const SizedBox.shrink(),
           data: (photos) {
             if (photos.isEmpty) {
-              return _EmptyGallery(paletteKey: widget.paletteKey);
+              return const _EmptyGallery();
             }
             return GridView.builder(
               shrinkWrap: true,
@@ -171,7 +169,6 @@ class _GalleryTabState extends ConsumerState<GalleryTab> {
               itemCount: photos.length,
               itemBuilder: (_, i) => _PhotoTile(
                 photo: photos[i],
-                bg: bg,
                 isProfile: widget.profilePhotoId == photos[i].id,
                 onTap: () => _openViewer(photos, i),
                 onLongPress: () => _onTileMenu(photos[i]),
@@ -179,15 +176,16 @@ class _GalleryTabState extends ConsumerState<GalleryTab> {
             );
           },
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
 
         // 사진 추가 버튼
         GestureDetector(
           onTap: _uploading ? null : _addPhoto,
           child: Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 14),
+            padding: const EdgeInsets.symmetric(vertical: 16),
             decoration: BoxDecoration(
+              borderRadius: AppRadius.brLg,
               color: AppColors.card,
               border: Border.all(color: AppColors.paleLine, width: 1.5),
             ),
@@ -195,14 +193,16 @@ class _GalleryTabState extends ConsumerState<GalleryTab> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 if (_uploading)
+                  // 아이콘 자리를 대신 차지하므로 크기가 아이콘과 같아야 한다 —
+                  // 다르면 업로드가 시작되는 순간 줄 전체가 덜컥 움직인다.
                   const SizedBox(
-                    width: 16, height: 16,
+                    width: AppIconSize.md, height: AppIconSize.md,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 else
                   const Icon(Icons.camera_alt_outlined,
-                      size: 18, color: AppColors.paleInk2),
-                const SizedBox(width: 6),
+                      size: 20, color: AppColors.paleInk2),
+                const SizedBox(width: 8),
                 Text(_uploading ? '업로드 중…' : '사진 추가',
                     style: const TextStyle(
                         fontSize: 13,
@@ -219,14 +219,12 @@ class _GalleryTabState extends ConsumerState<GalleryTab> {
 
 class _PhotoTile extends StatelessWidget {
   final PetPhoto photo;
-  final Color bg;
   final bool isProfile;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
 
   const _PhotoTile({
     required this.photo,
-    required this.bg,
     required this.isProfile,
     required this.onTap,
     required this.onLongPress,
@@ -244,8 +242,9 @@ class _PhotoTile extends StatelessWidget {
             photo.url,
             fit: BoxFit.cover,
             errorBuilder: (_, __, ___) => Container(
-              color: bg,
-              child: const Icon(Icons.pets, color: AppColors.primary, size: 28),
+              color: AppColors.bgAlt,
+              child: const AppIcon(AppIcons.petLine,
+                  color: AppColors.ink3, size: 28),
             ),
             loadingBuilder: (_, child, progress) => progress == null
                 ? child
@@ -258,16 +257,16 @@ class _PhotoTile extends StatelessWidget {
             Positioned(
               top: 4, left: 4,
               child: Container(
-                padding: const EdgeInsets.all(3),
+                padding: const EdgeInsets.all(4),
                 decoration: const BoxDecoration(color: AppColors.primary),
-                child: const Icon(Icons.star, size: 10, color: Colors.white),
+                child: const Icon(Icons.star, size: 12, color: Colors.white),
               ),
             ),
           if (photo.tag != null)
             Positioned(
               bottom: 4, left: 4,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.7),
                 ),
@@ -293,14 +292,12 @@ class _PhotoTile extends StatelessWidget {
 }
 
 class _EmptyGallery extends StatelessWidget {
-  final PetPaletteKey paletteKey;
-
-  const _EmptyGallery({required this.paletteKey});
+  const _EmptyGallery();
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 22),
+      padding: const EdgeInsets.symmetric(vertical: 20),
       child: Center(
         child: Column(
           children: [

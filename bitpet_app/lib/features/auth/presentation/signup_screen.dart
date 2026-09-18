@@ -11,6 +11,8 @@ import '../../../core/widgets/toast_message.dart';
 import '../../../core/widgets/user_avatar.dart';
 import '../data/auth_repository.dart';
 import '../providers/auth_provider.dart';
+import '../../../core/theme/app_icons.dart';
+import '../../../core/theme/app_dimens.dart';
 
 // ════════════════════════════════════════════════════════════════
 // 11s · 회원가입 — 4단계 스텝 위저드
@@ -256,7 +258,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         localBytes: _profileImage?.bytes,
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     GestureDetector(
                       onTap: _profileImage == null
                           ? _pickProfileImage
@@ -286,7 +288,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                           letterSpacing: 0.3,
                         ),
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 8),
                       _PalettePicker(
                         value: _colorKey,
                         palette: _palette,
@@ -299,7 +301,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 22),
+            const SizedBox(height: 20),
             // 닉네임
             SField(
               label: '닉네임',
@@ -328,10 +330,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         onTap: _nickCheckable ? _checkNickname : null,
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 13),
+                              horizontal: 16, vertical: 12),
                           decoration: BoxDecoration(
                             color: AppColors.surface,
-                            borderRadius: BorderRadius.zero,
+                            borderRadius: AppRadius.brLg,
                             border: Border.all(color: AppColors.paleLine),
                           ),
                           child: _nickChecking
@@ -357,7 +359,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   ),
                   if (_nickCheckedFor != null &&
                       _nickCheckedFor == _nickText) ...[
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     Text(
                       _nickAvailable == true
                           ? '✓ 사용 가능한 닉네임입니다'
@@ -372,7 +374,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     ),
                   ] else if (_nickText.length >= 2) ...[
                     // 확인 전에는 왜 다음으로 못 넘어가는지 알려준다.
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     const Text(
                       '중복확인을 눌러 주세요',
                       style: TextStyle(
@@ -435,10 +437,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                           onTap: _emailValid ? _checkEmail : null,
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 13),
+                                horizontal: 16, vertical: 12),
                             decoration: BoxDecoration(
                               color: AppColors.surface,
-                              borderRadius: BorderRadius.zero,
+                              borderRadius: AppRadius.brLg,
                               border: Border.all(color: AppColors.paleLine),
                             ),
                             child: _emailChecking
@@ -464,7 +466,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     ),
                     if (_emailCheckedFor != null &&
                         _emailCheckedFor == _emailCtrl.text.trim()) ...[
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 8),
                       Text(
                         _emailAvailable == true
                             ? '✓ 사용 가능한 이메일입니다'
@@ -500,7 +502,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                                 ? Icons.visibility_off_outlined
                                 : Icons.visibility_outlined,
                             color: AppColors.paleInk3,
-                            size: 18,
+                            size: 20,
                           ),
                         ),
                       ),
@@ -554,13 +556,13 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                                 ? Icons.visibility_off_outlined
                                 : Icons.visibility_outlined,
                             color: AppColors.paleInk3,
-                            size: 18,
+                            size: 20,
                           ),
                         ),
                       ),
                     ),
                     if (_pw2Ctrl.text.isNotEmpty) ...[
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 8),
                       Text(
                         _pw2Match ? '✓ 일치합니다' : '✗ 비밀번호가 다릅니다',
                         style: TextStyle(
@@ -589,7 +591,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       render: (ctx) => Container(
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.zero,
+          borderRadius: AppRadius.brMd,
           border: Border.all(color: AppColors.paleLine),
         ),
         child: Column(
@@ -728,7 +730,7 @@ class _PalettePicker extends StatelessWidget {
               ),
             ),
             child: sel
-                ? Icon(Icons.check, size: 14, color: ink)
+                ? Icon(Icons.check, size: 16, color: ink)
                 : null,
           ),
         );
@@ -766,9 +768,9 @@ class _TermsItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.zero,
+      borderRadius: AppRadius.brMd,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           border: hasBorder
               ? const Border(bottom: BorderSide(color: AppColors.paleLineSoft))
@@ -779,7 +781,7 @@ class _TermsItem extends StatelessWidget {
         child: Row(
           children: [
             _PaleCheckbox(checked: checked, large: isBold),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             Expanded(
               child: Row(
                 children: [
@@ -814,9 +816,9 @@ class _TermsItem extends StatelessWidget {
             if (onView != null)
               InkWell(
                 onTap: onView,
-                borderRadius: BorderRadius.zero,
+                borderRadius: AppRadius.brMd,
                 child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -830,8 +832,8 @@ class _TermsItem extends StatelessWidget {
                           decorationColor: AppColors.paleInk3,
                         ),
                       ),
-                      SizedBox(width: 2),
-                      Icon(Icons.chevron_right,
+                      SizedBox(width: 4),
+                      AppIcon(AppIcons.chevronRight,
                           size: 16, color: AppColors.paleInk3),
                     ],
                   ),

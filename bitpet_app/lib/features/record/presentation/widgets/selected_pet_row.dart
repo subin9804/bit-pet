@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
-import '../../../../core/theme/pale_palette.dart';
 import '../../../../core/widgets/pet_avatar.dart';
 import '../../../pet/data/models/pet_models.dart';
+import '../../../../core/theme/app_dimens.dart';
 
 /// 선택된 개체 요약 행.
 /// 급여 밴드색 배경, 겹침 아바타(최대 5개) + "SELECTED·N" + 이름 join.
@@ -20,9 +20,9 @@ class SelectedPetRow extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: bandColor,
-        borderRadius: BorderRadius.zero,
+        borderRadius: AppRadius.brMd,
       ),
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       child: Row(
         children: [
           // 겹침 아바타 (최대 5개, -8px overlap)
@@ -33,21 +33,23 @@ class SelectedPetRow extends StatelessWidget {
               children: pets.take(5).toList().asMap().entries.map((e) {
                 final i   = e.key;
                 final pet = e.value;
-                final key = PalePalette.keyFromHex(pet.colorCode);
                 return Positioned(
                   left: i * 22.0,
                   child: PetAvatar(
                     imageUrl: pet.profileImageUrl,
                     size: 30,
-                    background: Colors.white.withValues(alpha: 0.55),
-                    iconColor: PalePalette.ink(key),
+                    // 밴드색(급여·체중 등 기록 종류)은 남긴다 — 그건 정보다.
+                    // 개체별 색만 걷어냈으므로 아바타는 전부 같은 중립색이다.
+                    background: AppColors.bg,
+                    iconColor: AppColors.ink2,
                     border: Border.all(color: bandColor, width: 1.5),
+                    subcategory: pet.speciesSubcategory,
                   ),
                 );
               }).toList(),
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -57,7 +59,7 @@ class SelectedPetRow extends StatelessWidget {
                   style: AppTextStyles.mono(9, FontWeight.w700,
                       color: AppColors.paleInk2),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 4),
                 Text(
                   pets.map((p) => p.name).join(' · '),
                   style: const TextStyle(

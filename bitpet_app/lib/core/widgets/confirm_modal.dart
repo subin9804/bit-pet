@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
+import '../theme/app_dimens.dart';
 
 class ConfirmModal extends StatefulWidget {
   final String title;
@@ -92,9 +93,10 @@ class _ConfirmModalState extends State<ConfirmModal> {
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: AppColors.bg,
-      elevation: 0,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 26, vertical: 24),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+      // elevation 을 여기서 지정하지 않는다 — dialogTheme 의 8 을 그대로 받는다.
+      // 예전엔 0 이라, 다이얼로그가 내용 위에 떠 있는 게 아니라 화면에 박힌 것처럼 보였다.
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      shape: const RoundedRectangleBorder(borderRadius: AppRadius.brLg),
       clipBehavior: Clip.antiAlias,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 320),
@@ -105,16 +107,16 @@ class _ConfirmModalState extends State<ConfirmModal> {
             // ── 헤더 밴드 ──
             Container(
               color: _bandColor,
-              padding: const EdgeInsets.fromLTRB(22, 20, 22, 18),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
               child: Row(
                 children: [
                   Container(
                     width: 44,
                     height: 44,
                     color: Colors.white.withValues(alpha: 0.62),
-                    child: Icon(_icon, size: 22, color: _bandInk),
+                    child: Icon(_icon, size: 20, color: _bandInk),
                   ),
-                  const SizedBox(width: 13),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -124,7 +126,7 @@ class _ConfirmModalState extends State<ConfirmModal> {
                           style: AppTextStyles.mono(10, FontWeight.w700,
                               color: _bandInk),
                         ),
-                        const SizedBox(height: 3),
+                        const SizedBox(height: 4),
                         Text(
                           widget.title,
                           style: const TextStyle(
@@ -145,7 +147,7 @@ class _ConfirmModalState extends State<ConfirmModal> {
             // ── 본문 ──
             Flexible(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(22, 20, 22, 20),
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -159,7 +161,7 @@ class _ConfirmModalState extends State<ConfirmModal> {
                       ),
                     ),
                     if (_requiresText) ...[
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 20),
                       Text.rich(
                         TextSpan(
                           style: const TextStyle(
@@ -190,15 +192,15 @@ class _ConfirmModalState extends State<ConfirmModal> {
                           contentPadding: EdgeInsets.symmetric(
                               horizontal: 12, vertical: 12),
                           border: OutlineInputBorder(
-                              borderRadius: BorderRadius.zero,
+                              borderRadius: AppRadius.brMd,
                               borderSide:
                                   BorderSide(color: AppColors.paleLine)),
                           enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.zero,
+                              borderRadius: AppRadius.brMd,
                               borderSide:
                                   BorderSide(color: AppColors.paleLine)),
                           focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.zero,
+                              borderRadius: AppRadius.brMd,
                               borderSide: BorderSide(
                                   color: AppColors.primary, width: 1.5)),
                         ),
@@ -214,15 +216,16 @@ class _ConfirmModalState extends State<ConfirmModal> {
               decoration: const BoxDecoration(
                 border: Border(top: BorderSide(color: AppColors.divider)),
               ),
-              padding: const EdgeInsets.fromLTRB(22, 14, 22, 20),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
               child: Row(
                 children: [
                   GestureDetector(
                     onTap: () => Navigator.pop(context, false),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 22, vertical: 14),
+                          horizontal: 20, vertical: 16),
                       decoration: BoxDecoration(
+                        borderRadius: AppRadius.brMd,
                         color: AppColors.bg2,
                         border: Border.all(color: AppColors.border),
                       ),
@@ -243,7 +246,7 @@ class _ConfirmModalState extends State<ConfirmModal> {
                           : null,
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 120),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
                         alignment: Alignment.center,
                         color: _canConfirm
                             ? _confirmColor

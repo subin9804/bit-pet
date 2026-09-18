@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_dimens.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../data/models/pet_models.dart';
 import '../../data/pet_repository.dart';
@@ -194,14 +195,14 @@ class _MorphPickerSheetState extends ConsumerState<MorphPickerSheet> {
             suffixIcon: _query.isEmpty
                 ? null
                 : IconButton(
-                    icon: const Icon(Icons.close, size: 18),
+                    icon: const Icon(Icons.close, size: 20),
                     onPressed: () => setState(() {
                       _searchCtrl.clear();
                       _query = '';
                     }),
                   ),
             contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           ),
         ),
       );
@@ -211,14 +212,14 @@ class _MorphPickerSheetState extends ConsumerState<MorphPickerSheet> {
   Widget _buildSelectedStrip() {
     if (_selected.isEmpty) {
       return Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
         child: Text('아직 선택한 모프가 없어요', style: AppTextStyles.caption),
       );
     }
     return Container(
       width: double.infinity,
       constraints: const BoxConstraints(maxHeight: 132),
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -283,7 +284,7 @@ class _MorphPickerSheetState extends ConsumerState<MorphPickerSheet> {
 
         if (filtered.isEmpty && !showAddTile)
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 28),
+            padding: const EdgeInsets.symmetric(vertical: 32),
             child: Center(
               child: Text(
                 q.isEmpty ? '등록된 모프가 없어요' : "'$q' 와 맞는 모프가 없어요",
@@ -351,8 +352,9 @@ class _SelectedChip extends StatelessWidget {
     return GestureDetector(
       onTap: onRemove,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(12, 7, 8, 7),
+        padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
         decoration: BoxDecoration(
+          borderRadius: AppRadius.brMd,
           color: AppColors.primary,
           border: Border.all(color: AppColors.primary),
         ),
@@ -372,14 +374,14 @@ class _SelectedChip extends StatelessWidget {
               const SizedBox(width: 4),
               Icon(
                 Icons.warning_amber_rounded,
-                size: 13,
+                size: 16,
                 color: AppColors.paleBg.withValues(alpha: 0.85),
               ),
             ],
             const SizedBox(width: 4),
             Icon(
               Icons.close,
-              size: 14,
+              size: 16,
               color: AppColors.paleBg.withValues(alpha: 0.8),
             ),
           ],
@@ -417,7 +419,7 @@ class _MorphRow extends StatelessWidget {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 11),
+        padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: const BoxDecoration(
           border: Border(bottom: BorderSide(color: AppColors.paleLine)),
         ),
@@ -429,7 +431,7 @@ class _MorphRow extends StatelessWidget {
               size: 20,
               color: selected ? AppColors.primary : AppColors.paleInk3,
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -448,7 +450,7 @@ class _MorphRow extends StatelessWidget {
                         ),
                       ),
                       if (morph.nameEn != null && morph.nameEn!.isNotEmpty) ...[
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 8),
                         Flexible(
                           child: Text(
                             morph.nameEn!,
@@ -461,10 +463,10 @@ class _MorphRow extends StatelessWidget {
                         ),
                       ],
                       if (morph.isUserDefined) ...[
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 5, vertical: 1),
+                              horizontal: 4, vertical: 1),
                           decoration:
                               BoxDecoration(color: AppColors.bg2),
                           child: const Text(
@@ -478,12 +480,12 @@ class _MorphRow extends StatelessWidget {
                         ),
                       ],
                       if (morph.hasHealthConcern) ...[
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 8),
                         const Tooltip(
                           message: '건강 우려 모프',
                           child: Icon(
                             Icons.warning_amber_rounded,
-                            size: 14,
+                            size: 16,
                             color: Color(0xFFCC8800),
                           ),
                         ),
@@ -492,7 +494,7 @@ class _MorphRow extends StatelessWidget {
                   ),
                   if (matchedAliases.isNotEmpty)
                     Padding(
-                      padding: const EdgeInsets.only(top: 2),
+                      padding: const EdgeInsets.only(top: 4),
                       child: Text(
                         '별칭: ${matchedAliases.join(', ')}',
                         style: const TextStyle(
@@ -532,20 +534,22 @@ class _AddCustomTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
+          borderRadius: AppRadius.brMd,
           color: AppColors.bg2,
           border: Border.all(color: AppColors.border),
         ),
         child: Row(
           children: [
             if (busy)
+              // 아래 아이콘 자리를 대신 차지하므로 같은 크기여야 한다.
               const SizedBox(
-                width: 16,
-                height: 16,
+                width: AppIconSize.md,
+                height: AppIconSize.md,
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
             else
-              const Icon(Icons.add, size: 18, color: AppColors.primary),
-            const SizedBox(width: 10),
+              const Icon(Icons.add, size: 20, color: AppColors.primary),
+            const SizedBox(width: 8),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -557,7 +561,7 @@ class _AddCustomTile extends StatelessWidget {
                       color: AppColors.primary,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                   Text(
                     '카탈로그에 없는 조합 모프예요. 나에게만 보여요.',
                     style: AppTextStyles.caption,

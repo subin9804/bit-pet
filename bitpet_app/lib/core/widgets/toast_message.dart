@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
+import '../theme/app_dimens.dart';
 
 enum ToastType { success, error, info, warning }
 
@@ -37,7 +38,7 @@ class ToastMessage {
           content: Row(
             children: [
               Icon(icon, color: color, size: 20),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(message,
                     style: AppTextStyles.body.copyWith(color: Colors.white)),
@@ -47,7 +48,7 @@ class ToastMessage {
           backgroundColor: AppColors.textPrimary, // 0xFF14140F 다크 브라운
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.zero,
+            borderRadius: AppRadius.brMd,
             side: BorderSide(color: color.withValues(alpha: 0.5)),
           ),
           duration: const Duration(seconds: 3),

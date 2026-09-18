@@ -1,5 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../../core/theme/app_dimens.dart';
 
 class SkeletonBox extends StatefulWidget {
   final double width;
@@ -68,6 +69,7 @@ class SkeletonCardList extends StatelessWidget {
       itemBuilder: (_, __) => Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
+          borderRadius: AppRadius.brLg,
           color: AppColors.card,
           border: Border.all(color: AppColors.border),
         ),

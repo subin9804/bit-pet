@@ -7,6 +7,7 @@ import '../../../../core/widgets/toast_message.dart';
 import '../data/models/share_models.dart';
 import '../data/share_repository.dart';
 import '../providers/share_provider.dart';
+import '../../../../core/theme/app_dimens.dart';
 
 /// 받은 공유·입분양 초대함.
 /// 여러 개체를 한 번에 받은 경우 배치 카드로 묶어 "○○님이 N마리 초대"로 표시,
@@ -105,6 +106,7 @@ class _BatchCardState extends ConsumerState<_BatchCard> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
+        borderRadius: AppRadius.brLg,
         color: AppColors.card,
         border: Border.all(color: AppColors.paleLine),
       ),
@@ -131,7 +133,7 @@ class _BatchCardState extends ConsumerState<_BatchCard> {
                 : '${b.inviterName}님이 $count마리를 함께 관리하자고 초대했어요.',
             style: AppTextStyles.caption,
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
 
           // 개체 목록 (기본 접힘, 3마리 이하는 전체 표시)
           _PetChips(
@@ -146,7 +148,7 @@ class _BatchCardState extends ConsumerState<_BatchCard> {
                 style: AppTextStyles.label
                     .copyWith(color: AppColors.textDisabled)),
           ],
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           Row(
             children: [
               Expanded(
@@ -155,7 +157,7 @@ class _BatchCardState extends ConsumerState<_BatchCard> {
                   child: Text(count > 1 ? '전체 거절' : '거절'),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
                 child: FilledButton(
                   onPressed: _busy ? null : () => _respond(accept: true),
@@ -194,7 +196,7 @@ class _PetChips extends StatelessWidget {
       runSpacing: 6,
       children: [
         ...visible.map((p) => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: AppColors.bg2,
                 borderRadius: BorderRadius.circular(20),
@@ -205,7 +207,7 @@ class _PetChips extends StatelessWidget {
           GestureDetector(
             onTap: onToggle,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 border: Border.all(color: AppColors.paleLine),
                 borderRadius: BorderRadius.circular(20),
@@ -229,7 +231,7 @@ class _TypeBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       color: isTransfer ? AppColors.primary : AppColors.bg2,
       child: Text(
         isTransfer ? '입분양' : '공유',

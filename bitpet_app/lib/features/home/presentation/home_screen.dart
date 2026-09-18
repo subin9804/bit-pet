@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../record/presentation/fab_record_sheet.dart';
 import '../../notification/providers/notification_provider.dart';
@@ -73,10 +74,11 @@ class HomeScreen extends ConsumerWidget {
               height: 50,
               child: FloatingActionButton(
                 heroTag: 'fab-record',
-                elevation: 0,
+                // elevation 은 테마(6)를 그대로 받는다. FAB 는 앱에서 유일하게
+                // 내용 위에 상시로 떠 있는 것이라 그림자가 곧 '누를 수 있음'의 신호다.
                 tooltip: '기록 추가',
                 onPressed: () => _onFabPressed(context),
-                child: const Icon(Icons.add, size: 26),
+                child: const Icon(Icons.add, size: 24),
               ),
             )
           : null,
@@ -88,41 +90,44 @@ class HomeScreen extends ConsumerWidget {
         child: SafeArea(
           top: false,
           child: SizedBox(
-            height: 56,
+            // 58 = 세로 패딩 12 + 아이콘 20 + 간격 2 + 라벨 한 줄(약 12).
+            // 56 이던 시절엔 내용물 합이 55 라 여유가 1px 뿐이었고, 시스템 글자
+            // 크기를 한 단계만 올려도 바가 터졌다. 배율 상한은 아래 _NavBtn 에서 건다.
+            height: 58,
             child: Row(
               children: [
                 _NavBtn(
-                  icon: Icons.home_outlined,
-                  activeIcon: Icons.home,
+                  icon: AppIcons.homeLine,
+                  activeIcon: AppIcons.homeFill,
                   label: '홈',
                   active: _currentIndex == 0,
                   badge: unreadCount > 0 && _currentIndex == 0 ? unreadCount : 0,
                   onTap: () => context.go('/home'),
                 ),
                 _NavBtn(
-                  icon: Icons.pets,
-                  activeIcon: Icons.pets,
+                  icon: AppIcons.petLine,
+                  activeIcon: AppIcons.petFill,
                   label: '내 개체',
                   active: _currentIndex == 1,
                   onTap: () => context.go('/pets'),
                 ),
                 _NavBtn(
-                  icon: Icons.schedule_outlined,
-                  activeIcon: Icons.schedule,
+                  icon: AppIcons.routineLine,
+                  activeIcon: AppIcons.routineFill,
                   label: '루틴',
                   active: _currentIndex == 2,
                   onTap: () => context.go('/routines'),
                 ),
                 _NavBtn(
-                  icon: Icons.forum_outlined,
-                  activeIcon: Icons.forum,
+                  icon: AppIcons.communityLine,
+                  activeIcon: AppIcons.communityFill,
                   label: '커뮤니티',
                   active: _currentIndex == 3,
                   onTap: () => context.go('/community'),
                 ),
                 _NavBtn(
-                  icon: Icons.person_outline,
-                  activeIcon: Icons.person,
+                  icon: AppIcons.myLine,
+                  activeIcon: AppIcons.myFill,
                   label: '마이',
                   active: _currentIndex == 4,
                   onTap: () => context.go('/my'),
@@ -137,8 +142,10 @@ class HomeScreen extends ConsumerWidget {
 }
 
 class _NavBtn extends StatelessWidget {
-  final IconData icon;
-  final IconData activeIcon;
+  /// 비활성 상태의 선 아이콘 (`AppIcons` 의 SVG 경로)
+  final String icon;
+  /// 활성 상태의 채움 아이콘
+  final String activeIcon;
   final String label;
   final bool active;
   final int badge;
@@ -166,10 +173,11 @@ class _NavBtn extends StatelessWidget {
               Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  Icon(
+                  AppIcon(
                     active ? activeIcon : icon,
                     color: active ? AppColors.primary : AppColors.textDisabled,
-                    size: 22,
+                    size: 20,
+                    semanticLabel: label,
                   ),
                   if (badge > 0)
                     Positioned(
@@ -189,9 +197,18 @@ class _NavBtn extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                // 탭 바는 높이가 고정된 자리라 시스템 글자 배율을 그대로 받으면
+                // 무조건 넘친다. 라벨은 아이콘의 보조 설명이므로 여기서만 상한을
+                // 건다 — 본문은 접근성 설정을 그대로 따른다.
+                textScaler: TextScaler.linear(
+                  MediaQuery.textScalerOf(context).scale(1.0).clamp(1.0, 1.15),
+                ),
                 style: AppTextStyles.label.copyWith(
                   color: active ? AppColors.primary : AppColors.textDisabled,
-                  fontSize: 10,
+                  fontSize: 11,
+                  height: 1.1,
                   letterSpacing: 0,
                 ),
               ),

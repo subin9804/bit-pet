@@ -20,7 +20,7 @@ class StepDots extends StatelessWidget {
           duration: const Duration(milliseconds: 150),
           width:  active ? 18 : 6,
           height: 4,
-          margin: EdgeInsets.only(right: i < 3 ? 4 : 0),
+          margin: EdgeInsets.only(right: i < 4 ? 4 : 0),
           color: (active || done) ? AppColors.primary : AppColors.paleLine,
         );
       }).toList(),

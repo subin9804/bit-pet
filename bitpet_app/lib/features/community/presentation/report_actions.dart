@@ -138,7 +138,7 @@ Future<void> showReportSheet({
           (r) => ListTile(
             title: Text(r.label, style: AppTextStyles.body),
             trailing: const Icon(Icons.chevron_right_rounded,
-                size: 18, color: AppColors.paleInk3),
+                size: 20, color: AppColors.paleInk3),
             onTap: () => Navigator.pop(context, r),
           ),
         ),

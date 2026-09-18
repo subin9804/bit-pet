@@ -6,6 +6,8 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../data/models/pet_models.dart';
 import '../../data/pet_repository.dart';
 import '../../providers/pet_provider.dart';
+import '../../../../core/theme/app_icons.dart';
+import '../../../../core/theme/app_dimens.dart';
 
 /// 부모 개체 선택 바텀시트.
 ///
@@ -174,7 +176,7 @@ class _ParentPetBottomSheetState
             hintText: '이름 · 종 · 일련번호',
             prefixIcon: Icon(Icons.search, size: 20),
             contentPadding:
-                EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           ),
         ),
       );
@@ -188,7 +190,7 @@ class _ParentPetBottomSheetState
           behavior: HitTestBehavior.opaque,
           child: Row(
             children: [
-              const Icon(Icons.nfc, size: 18, color: AppColors.primary),
+              const Icon(Icons.nfc, size: 20, color: AppColors.primary),
               const SizedBox(width: 8),
               Text('이름표로 찾기',
                   style: AppTextStyles.body.copyWith(
@@ -246,7 +248,7 @@ class _ParentPetBottomSheetState
         // 일련번호 검색 결과 / 검색 유도 — 내 목록에 없을 때가 정확히 남의 개체를 거는 상황이다
         if (_remoteFound != null) ...[
           Text('찾은 개체', style: AppTextStyles.caption),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           _PetListCard(
             card: _remoteFound!,
             isSelected: _selectedPet?.petId == _remoteFound!.petId,
@@ -256,7 +258,7 @@ class _ParentPetBottomSheetState
           const SizedBox(height: 12),
         ] else if (q.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.only(bottom: 8),
             child: _SerialSearchTile(
               query: _query.trim().toUpperCase(),
               searching: _searching,
@@ -269,7 +271,7 @@ class _ParentPetBottomSheetState
         const SizedBox(height: 8),
         if (filtered.isEmpty)
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 28),
+            padding: const EdgeInsets.symmetric(vertical: 32),
             child: Center(
               child: Text(
                 '조건에 맞는 $_genderKo 개체가 없어요',
@@ -350,6 +352,7 @@ class _SerialSearchTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
+          borderRadius: AppRadius.brMd,
           color: AppColors.bg2,
           border: Border.all(color: AppColors.border),
         ),
@@ -361,8 +364,8 @@ class _SerialSearchTile extends StatelessWidget {
                   height: 16,
                   child: CircularProgressIndicator(strokeWidth: 2))
             else
-              const Icon(Icons.travel_explore, size: 18, color: AppColors.paleInk2),
-            const SizedBox(width: 10),
+              const Icon(Icons.travel_explore, size: 20, color: AppColors.paleInk2),
+            const SizedBox(width: 8),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -376,7 +379,7 @@ class _SerialSearchTile extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   if (error != null) ...[
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 4),
                     Text(error!,
                         style: const TextStyle(
                             fontSize: 11, color: AppColors.female)),
@@ -407,13 +410,9 @@ class _PetListCard extends StatelessWidget {
   });
 
   Color get _identityColor {
-    if (card.colorCode == null) return AppColors.bg2;
-    try {
-      return Color(
-          int.parse(card.colorCode!.replaceFirst('#', '0xFF')));
-    } catch (_) {
-      return AppColors.bg2;
-    }
+    // 개체 지정색은 걷어냈다 — 저장된 hex 를 그대로 칠하던 자리다.
+    // 자세한 이유는 core/theme/pale_palette.dart 주석 참고.
+    return AppColors.bg2;
   }
 
   @override
@@ -427,6 +426,7 @@ class _PetListCard extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
+          borderRadius: AppRadius.brLg,
           color: AppColors.surface,
           border: Border.all(
             color: isSelected
@@ -442,16 +442,16 @@ class _PetListCard extends StatelessWidget {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
+                borderRadius: AppRadius.brMd,
                 color: _identityColor,
                 border: Border.all(color: AppColors.border),
               ),
               clipBehavior: Clip.hardEdge,
               child: card.profileImageUrl != null
                   ? Image.network(card.profileImageUrl!, fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const Center(
-                          child: Text('🦎', style: TextStyle(fontSize: 24))))
-                  : const Center(
-                      child: Text('🦎', style: TextStyle(fontSize: 24))),
+                      errorBuilder: (_, __, ___) => Center(
+                          child: AppIcon(AppIcons.species(card.speciesSubcategory), size: 24, color: AppColors.paleInk2)))
+                  : Center(child: AppIcon(AppIcons.species(card.speciesSubcategory), size: 24, color: AppColors.paleInk2)),
             ),
             const SizedBox(width: 12),
             // 개체 정보
@@ -480,7 +480,7 @@ class _PetListCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                   Text(
                     card.serialNo,
                     style: AppTextStyles.caption

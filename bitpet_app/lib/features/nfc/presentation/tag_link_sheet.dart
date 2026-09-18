@@ -10,6 +10,7 @@ import '../../pet/providers/pet_provider.dart';
 import '../data/models/tag_models.dart';
 import '../data/tag_repository.dart';
 import '../providers/tag_provider.dart';
+import '../../../core/theme/app_dimens.dart';
 
 /// "어느 개체에 연결할까요?" — 첫 스캔 시 뜨는 연결 모달.
 ///
@@ -90,7 +91,7 @@ class _TagLinkSheetState extends ConsumerState<TagLinkSheet> {
           children: [
             // ── 헤더 ──────────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.fromLTRB(22, 22, 22, 6),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -161,7 +162,7 @@ class _TagLinkSheetState extends ConsumerState<TagLinkSheet> {
 
             // ── 액션 ─────────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.fromLTRB(22, 20, 22, 20),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
               child: Row(
                 children: [
                   Expanded(
@@ -171,6 +172,7 @@ class _TagLinkSheetState extends ConsumerState<TagLinkSheet> {
                         height: 48,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
+                          borderRadius: AppRadius.brMd,
                           border: Border.all(color: AppColors.paleLine),
                         ),
                         child: const Text('나중에',
@@ -233,9 +235,10 @@ class _PetRow extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 22, vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
+          borderRadius: AppRadius.brLg,
           color: selected ? AppColors.bg2 : AppColors.card,
           border: Border.all(
               color: selected ? AppColors.primary : AppColors.paleLine),
@@ -247,6 +250,7 @@ class _PetRow extends StatelessWidget {
               size: 36,
               background: AppColors.paleBgAlt,
               iconColor: AppColors.primary,
+              subcategory: pet.speciesSubcategory,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -254,7 +258,7 @@ class _PetRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(pet.name, style: AppTextStyles.bodyBold),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                   Text('${pet.speciesName} · ${pet.serialNo}',
                       style: AppTextStyles.caption),
                 ],

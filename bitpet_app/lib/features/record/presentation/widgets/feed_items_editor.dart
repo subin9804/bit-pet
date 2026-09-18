@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../data/food_catalog.dart';
 import 'feed_composer_fields.dart';
+import '../../../../core/theme/app_dimens.dart';
 
 export '../../data/food_catalog.dart' show FeedFormData, FoodType, FeedingSupplement;
 
@@ -84,7 +85,7 @@ class _FeedItemsEditorState extends State<FeedItemsEditor> {
         if (!_hasRefused && widget.items.isNotEmpty) ...[
           const SizedBox(height: 24),
           const _SectionLabel('추가된 급여'),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           ...widget.items.asMap().entries.map((e) => Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: _ItemRow(
@@ -128,11 +129,11 @@ class _ItemRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final label = item.summary.isNotEmpty ? item.summary : (item.foodType?.label ?? '');
     return Container(
-      padding: const EdgeInsets.fromLTRB(10, 8, 8, 8),
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
       decoration: BoxDecoration(
         color: AppColors.card,
         border: Border.all(color: AppColors.paleLine),
-        borderRadius: BorderRadius.zero,
+        borderRadius: AppRadius.brPill,
       ),
       child: Row(
         children: [
@@ -153,7 +154,7 @@ class _ItemRow extends StatelessWidget {
             onTap: onRemove,
             child: Padding(
               padding: const EdgeInsets.all(4),
-              child: const Icon(Icons.close, size: 14, color: AppColors.paleInk3),
+              child: const Icon(Icons.close, size: 16, color: AppColors.paleInk3),
             ),
           ),
         ],

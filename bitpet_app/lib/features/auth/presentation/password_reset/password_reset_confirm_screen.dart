@@ -72,13 +72,13 @@ class _PasswordResetConfirmScreenState
       appBar: passwordResetAppBar(context),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 28),
+          padding: const EdgeInsets.symmetric(horizontal: 32),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 32),
               const ResetGuideText('새 비밀번호를 입력해 주세요.'),
-              const SizedBox(height: 28),
+              const SizedBox(height: 32),
 
               // ── 새 비밀번호 ─────────────────────────────────
               ResetInputField(

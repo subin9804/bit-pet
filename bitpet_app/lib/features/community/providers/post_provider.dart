@@ -22,10 +22,22 @@ const kHiddenCategoryCodes = {'INFO', 'ADOPTION'};
 /// 앱에 박아두면 개발 DB 에서만 맞는 화면이 된다. 서버도 같은 기준으로 막는다.
 const kNoticeCategoryCode = 'NOTICE';
 
+/// 어린이 게시판. NOTICE 와 같은 이유로 id(6)가 아니라 code 로 판정한다.
+const kKidsCategoryCode = 'KIDS';
+
 // 탭에 노출할 카테고리 (INFO·분양 제외). 공지사항은 **모두에게 보인다** — 읽는 건 누구나 한다
 final visibleCategoriesProvider = Provider<List<PostCategory>>((ref) {
   final all = ref.watch(categoriesProvider).valueOrNull ?? const <PostCategory>[];
-  return all.where((c) => !kHiddenCategoryCodes.contains(c.code)).toList();
+  final me = ref.watch(authStateProvider).valueOrNull;
+  // 어린이 게시판은 **아동 본인과 운영자에게만** 보인다.
+  // 성인에게는 읽기조차 열지 않는다 — 읽을 수 있으면 그 자체가 아동에게 닿는 통로다.
+  // 서버도 KIDS_BOARD_FORBIDDEN 으로 막지만, 탭이 보이는 채로 누를 때마다 에러를 띄우면
+  // 있는 게시판을 못 들어가는 것처럼 읽힌다. 아예 없는 것이 맞다.
+  final canSeeKids = (me?.isChild ?? false) || (me?.isAdmin ?? false);
+  return all
+      .where((c) => !kHiddenCategoryCodes.contains(c.code))
+      .where((c) => canSeeKids || c.code != kKidsCategoryCode)
+      .toList();
 });
 
 /// 글쓰기 화면에서 고를 수 있는 카테고리. 운영자가 아니면 공지사항이 빠진다.
@@ -34,10 +46,21 @@ final visibleCategoriesProvider = Provider<List<PostCategory>>((ref) {
 /// 거절하면 사용자는 글을 다 쓰고 나서 못 올린다는 걸 알게 된다.
 final composableCategoriesProvider = Provider<List<PostCategory>>((ref) {
   final visible = ref.watch(visibleCategoriesProvider);
-  final isAdmin =
-      ref.watch(authStateProvider).valueOrNull?.isAdmin ?? false;
-  if (isAdmin) return visible;
-  return visible.where((c) => c.code != kNoticeCategoryCode).toList();
+  final me = ref.watch(authStateProvider).valueOrNull;
+
+  // 아동은 어린이 게시판에만 쓸 수 있다 (서버 CHILD_BOARD_ONLY).
+  // 고를 수 있는 곳이 한 군데뿐이니 선택지를 그것만 남긴다.
+  if (me?.isChild ?? false) {
+    return visible.where((c) => c.code == kKidsCategoryCode).toList();
+  }
+
+  // 운영자도 어린이 게시판에는 **쓰지 못한다** — 쓰기를 열면 '글쓴이 전원이 아동'이라는
+  // 이 게시판의 안전 전제가 깨진다. 읽기만 열려 있다.
+  final withoutKids =
+      visible.where((c) => c.code != kKidsCategoryCode).toList();
+  final isAdmin = me?.isAdmin ?? false;
+  if (isAdmin) return withoutKids;
+  return withoutKids.where((c) => c.code != kNoticeCategoryCode).toList();
 });
 
 // ── 피드 (무한 스크롤) ────────────────────────────────────────────────

@@ -6,6 +6,7 @@ import '../../../core/legal/legal_document_sheet.dart';
 import '../../../core/legal/legal_documents.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/theme/app_icons.dart';
 
 /// 앱 정보 — 버전·약관·문의처.
 ///
@@ -57,7 +58,7 @@ class _AboutScreenState extends State<AboutScreen> {
         children: [
           const SizedBox(height: 24),
           _AppIdentity(version: _version),
-          const SizedBox(height: 28),
+          const SizedBox(height: 32),
 
           const _SectionLabel('약관·정책'),
           for (final doc in legalDocuments)
@@ -122,9 +123,9 @@ class _AppIdentity extends StatelessWidget {
           height: 64,
           alignment: Alignment.center,
           color: AppColors.bg2,
-          child: const Icon(Icons.pets, size: 30, color: AppColors.primary),
+          child: const AppIcon(AppIcons.petLine, size: 30, color: AppColors.primary),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         Text('tailog', style: AppTextStyles.h3),
         const SizedBox(height: 4),
         // 읽는 중에는 자리만 잡아둔다. 스피너를 돌리면 버전 한 줄 때문에
@@ -169,7 +170,7 @@ class _Row extends StatelessWidget {
   Widget build(BuildContext context) => InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           child: Row(
             children: [
               Expanded(child: Text(label, style: AppTextStyles.body)),
@@ -179,10 +180,10 @@ class _Row extends StatelessWidget {
                   style: AppTextStyles.caption
                       .copyWith(color: AppColors.textDisabled),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 8),
               ],
-              const Icon(Icons.chevron_right,
-                  size: 18, color: AppColors.textDisabled),
+              const AppIcon(AppIcons.chevronRight,
+                  size: 20, color: AppColors.textDisabled),
             ],
           ),
         ),

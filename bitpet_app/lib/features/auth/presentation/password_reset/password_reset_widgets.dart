@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_dimens.dart';
 
 // ════════════════════════════════════════════════════════════════
 // 비밀번호 재설정 플로우 공통 위젯 — 로그인 화면과 같은 룩앤필
@@ -16,7 +17,7 @@ PreferredSizeWidget passwordResetAppBar(BuildContext context) {
     centerTitle: true,
     leading: IconButton(
       icon: const Icon(Icons.arrow_back_ios_new,
-          size: 18, color: AppColors.textPrimary),
+          size: 20, color: AppColors.textPrimary),
       onPressed: () => Navigator.of(context).maybePop(),
     ),
     title: const Text(
@@ -99,7 +100,7 @@ class ResetInputField extends StatelessWidget {
         counterText: '',
         errorText: errorText,
         contentPadding:
-            const EdgeInsets.symmetric(horizontal: 4, vertical: 14),
+            const EdgeInsets.symmetric(horizontal: 4, vertical: 16),
         suffixIcon: suffixIcon != null
             ? Padding(
                 padding: const EdgeInsets.only(right: 12),
@@ -151,7 +152,7 @@ class ResetFullButton extends StatelessWidget {
           disabledBackgroundColor: AppColors.border,
           disabledForegroundColor: AppColors.textDisabled,
           elevation: 0,
-          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+          shape: const RoundedRectangleBorder(borderRadius: AppRadius.brMd),
         ),
         child: isLoading
             ? const SizedBox(

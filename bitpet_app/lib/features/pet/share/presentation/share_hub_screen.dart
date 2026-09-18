@@ -6,6 +6,8 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/toast_message.dart';
 import '../providers/share_provider.dart';
+import '../../../../core/theme/app_icons.dart';
+import '../../../../core/theme/app_dimens.dart';
 
 /// 공유 허브 — 공유코드·받은 초대·시작 안내를 한 곳에 모은 진입 화면.
 /// 마이페이지 '공유 관리'에서 진입.
@@ -39,7 +41,7 @@ class ShareHubScreen extends ConsumerWidget {
             const SizedBox(height: 4),
             Text('상대방이 이 코드로 나를 공유·입분양 대상으로 지정해요.',
                 style: AppTextStyles.caption),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             const _ShareCodeCard(),
             const SizedBox(height: 24),
 
@@ -59,6 +61,7 @@ class _StartCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
+        borderRadius: AppRadius.brMd,
         color: AppColors.primary.withValues(alpha: 0.06),
         border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
       ),
@@ -78,12 +81,12 @@ class _StartCard extends StatelessWidget {
             '내 개체 관리에서 개체를 선택한 뒤 "함께 키우기" 또는 "분양 보내기"를 누르면, 여러 마리를 한 번에 보낼 수 있어요.',
             style: AppTextStyles.caption,
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
               onPressed: () => context.go('/pets'),
-              icon: const Icon(Icons.pets, size: 18),
+              icon: const AppIcon(AppIcons.petLine, size: 20),
               label: const Text('내 개체 관리로 이동'),
             ),
           ),
@@ -105,6 +108,7 @@ class _InboxRow extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         decoration: BoxDecoration(
+          borderRadius: AppRadius.brLg,
           color: AppColors.surface,
           border: Border.all(color: AppColors.paleLine),
         ),
@@ -112,13 +116,13 @@ class _InboxRow extends StatelessWidget {
           children: [
             const Icon(Icons.mail_outline,
                 size: 20, color: AppColors.textSecondary),
-            const SizedBox(width: 14),
+            const SizedBox(width: 16),
             Expanded(child: Text('받은 공유 초대', style: AppTextStyles.body)),
             if (count > 0)
               Container(
                 margin: const EdgeInsets.only(right: 8),
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: AppColors.error,
                   borderRadius: BorderRadius.circular(20),
@@ -126,8 +130,8 @@ class _InboxRow extends StatelessWidget {
                 child: Text('$count',
                     style: AppTextStyles.label.copyWith(color: Colors.white)),
               ),
-            const Icon(Icons.chevron_right,
-                size: 18, color: AppColors.textDisabled),
+            const AppIcon(AppIcons.chevronRight,
+                size: 20, color: AppColors.textDisabled),
           ],
         ),
       ),
@@ -146,6 +150,7 @@ class _ShareCodeCard extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
+        borderRadius: AppRadius.brMd,
         color: AppColors.bg2,
         border: Border.all(color: AppColors.paleLine),
       ),
@@ -165,7 +170,7 @@ class _ShareCodeCard extends ConsumerWidget {
           const Spacer(),
           codeAsync.maybeWhen(
             data: (code) => IconButton(
-              icon: const Icon(Icons.copy, size: 18),
+              icon: const Icon(Icons.copy, size: 20),
               color: AppColors.textSecondary,
               onPressed: () async {
                 await Clipboard.setData(ClipboardData(text: code));

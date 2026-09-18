@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../data/models/pet_models.dart';
 import '../../providers/pet_provider.dart';
+import '../../../../core/theme/app_dimens.dart';
 
 // ── subcategory 코드 → 한글 라벨 (DB: GECKO/LIZARD/CHAMELEON/SNAKE/TURTLE/FROG/NEWT/SMALL_MAMMAL)
 // ⚠️ 여기 없는 subcategory 의 종은 레일에 안 떠서 검색으로만 찾을 수 있다
@@ -95,7 +96,7 @@ class _SpeciesBottomSheetState extends ConsumerState<SpeciesBottomSheet> {
 
   // ── 헤더
   Widget _buildHeader() => Padding(
-        padding: const EdgeInsets.fromLTRB(22, 10, 22, 0),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
         child: Row(
           children: [
             Expanded(
@@ -111,7 +112,7 @@ class _SpeciesBottomSheetState extends ConsumerState<SpeciesBottomSheet> {
                       letterSpacing: 1.5,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                   const Text(
                     '종 선택',
                     style: TextStyle(
@@ -125,8 +126,9 @@ class _SpeciesBottomSheetState extends ConsumerState<SpeciesBottomSheet> {
             ),
             if (_selectedSpecies != null)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
+                  borderRadius: AppRadius.brMd,
                   color: AppColors.paleBgAlt,
                   border: Border.all(color: AppColors.paleLine),
                 ),
@@ -145,9 +147,10 @@ class _SpeciesBottomSheetState extends ConsumerState<SpeciesBottomSheet> {
 
   // ── 검색 필드
   Widget _buildSearchField() => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
         child: Container(
           decoration: BoxDecoration(
+            borderRadius: AppRadius.brLg,
             color: AppColors.surface,
             border: Border.all(color: AppColors.paleLine),
           ),
@@ -158,8 +161,8 @@ class _SpeciesBottomSheetState extends ConsumerState<SpeciesBottomSheet> {
             decoration: const InputDecoration(
               hintText: '종 이름 검색…',
               hintStyle: TextStyle(color: AppColors.paleInk3, fontSize: 13),
-              prefixIcon: Icon(Icons.search, size: 18, color: AppColors.paleInk2),
-              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+              prefixIcon: Icon(Icons.search, size: 20, color: AppColors.paleInk2),
+              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               border: InputBorder.none,
             ),
           ),
@@ -271,7 +274,7 @@ class _SpeciesBottomSheetState extends ConsumerState<SpeciesBottomSheet> {
             // 오른쪽: 종 목록
             Expanded(
               child: ListView.builder(
-                padding: const EdgeInsets.symmetric(vertical: 6),
+                padding: const EdgeInsets.symmetric(vertical: 8),
                 itemCount: currentSpecies.length,
                 itemBuilder: (_, i) => _SpeciesRow(
                   species: currentSpecies[i],
@@ -301,8 +304,9 @@ class _SpeciesBottomSheetState extends ConsumerState<SpeciesBottomSheet> {
                 child: GestureDetector(
                   onTap: () => Navigator.pop(context),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                     decoration: BoxDecoration(
+                      borderRadius: AppRadius.brLg,
                       color: AppColors.surface,
                       border: Border.all(color: AppColors.paleLine),
                     ),
@@ -319,7 +323,7 @@ class _SpeciesBottomSheetState extends ConsumerState<SpeciesBottomSheet> {
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
                 child: GestureDetector(
                   onTap: _selectedSpecies == null
@@ -327,7 +331,7 @@ class _SpeciesBottomSheetState extends ConsumerState<SpeciesBottomSheet> {
                       : () => Navigator.pop(context, _selectedSpecies),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 150),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                     decoration: BoxDecoration(
                       color: _selectedSpecies != null
                           ? AppColors.primary
@@ -389,7 +393,7 @@ class _SubcategoryRail extends StatelessWidget {
             behavior: HitTestBehavior.opaque,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 150),
-              padding: const EdgeInsets.fromLTRB(14, 14, 10, 14),
+              padding: const EdgeInsets.fromLTRB(16, 16, 8, 16),
               decoration: BoxDecoration(
                 color: isSel ? AppColors.surface : Colors.transparent,
                 border: Border(
@@ -410,7 +414,7 @@ class _SubcategoryRail extends StatelessWidget {
                       color: isSel ? AppColors.primary : AppColors.paleInk2,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                   Text(
                     '$count종',
                     style: const TextStyle(
@@ -450,8 +454,8 @@ class _SpeciesRow extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           color: isSelected ? AppColors.primary : Colors.transparent,
         ),
@@ -472,10 +476,11 @@ class _SpeciesRow extends StatelessWidget {
                         ),
                       ),
                       if (subcategoryLabel != null) ...[
-                        const SizedBox(width: 7),
+                        const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
+                            borderRadius: AppRadius.brMd,
                             color: isSelected
                                 ? AppColors.paleBg.withValues(alpha: 0.18)
                                 : AppColors.paleBgAlt,

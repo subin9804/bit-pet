@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/api_response.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../data/models/post_models.dart';
@@ -11,6 +12,7 @@ import '../data/models/report_models.dart';
 import '../data/post_repository.dart';
 import '../providers/post_provider.dart';
 import 'report_actions.dart';
+import '../../../core/theme/app_dimens.dart';
 
 Color _catBg(String? code) => switch (code?.toUpperCase()) {
       'FREE' => AppColors.commFreeBg,
@@ -213,7 +215,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.more_horiz_rounded,
-                          size: 18, color: AppColors.primary),
+                          size: 20, color: AppColors.primary),
                     ),
                   ),
                 ),
@@ -221,10 +223,10 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
               Expanded(
                 child: ListView(
                   controller: _scrollCtrl,
-                  padding: const EdgeInsets.fromLTRB(22, 4, 22, 100),
+                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 100),
                   children: [
                     _CategoryPill(code: code, label: label),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
                     Text(
                       post.title,
                       style: AppTextStyles.h2
@@ -236,7 +238,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                     Row(
                       children: [
                         _Avatar(size: 36, imageUrl: post.authorImageUrl),
-                        const SizedBox(width: 10),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -292,24 +294,24 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                                 .toggleLike(),
                             child: Container(
                               padding:
-                                  const EdgeInsets.symmetric(vertical: 10),
+                                  const EdgeInsets.symmetric(vertical: 8),
                               decoration: BoxDecoration(
                                 color: post.isLiked
                                     ? AppColors.commLikeBg
                                     : AppColors.commLikeBg.withAlpha(100),
-                                borderRadius: BorderRadius.zero,
+                                borderRadius: AppRadius.brMd,
                               ),
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(
+                                  AppIcon(
                                     post.isLiked
-                                        ? Icons.favorite
-                                        : Icons.favorite_outline,
+                                        ? AppIcons.like
+                                        : AppIcons.likeLine,
                                     size: 16,
                                     color: AppColors.commLikeInk,
                                   ),
-                                  const SizedBox(width: 6),
+                                  const SizedBox(width: 8),
                                   Text(
                                     '좋아요 ${post.likeCount}',
                                     style: AppTextStyles.bodyBold.copyWith(
@@ -382,10 +384,10 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
               // 댓글 입력바
               Container(
                 padding: EdgeInsets.fromLTRB(
-                    16, 10, 16,
+                    16, 8, 16,
                     MediaQuery.of(context).viewInsets.bottom +
                         MediaQuery.of(context).padding.bottom +
-                        10),
+                        8),
                 decoration: const BoxDecoration(
                   color: AppColors.paleBg,
                   border:
@@ -412,7 +414,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                                 color: AppColors.primary, width: 1.5),
                           ),
                           contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 4, vertical: 10),
+                              horizontal: 4, vertical: 8),
                         ),
                       ),
                     ),
@@ -438,7 +440,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                                 ),
                               )
                             : const Icon(Icons.check_rounded,
-                                color: AppColors.paleBg, size: 18),
+                                color: AppColors.paleBg, size: 20),
                       ),
                     ),
                   ],
@@ -470,7 +472,7 @@ class _TopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
       color: AppColors.paleBg,
       child: Row(
         children: [
@@ -485,7 +487,7 @@ class _TopBar extends StatelessWidget {
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.arrow_back_ios_new_rounded,
-                  size: 14, color: AppColors.primary),
+                  size: 16, color: AppColors.primary),
             ),
           ),
           Expanded(
@@ -519,10 +521,10 @@ class _CategoryPill extends StatelessWidget {
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
           color: _catBg(code),
-          borderRadius: BorderRadius.zero,
+          borderRadius: AppRadius.brPill,
         ),
         child: Text(
           label,
@@ -582,12 +584,12 @@ class _CommentItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.only(bottom: 16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _Avatar(size: 32, imageUrl: comment.authorImageUrl),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -603,10 +605,10 @@ class _CommentItem extends StatelessWidget {
                     if (comment.isPostAuthor)
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 5, vertical: 1),
+                            horizontal: 4, vertical: 1),
                         decoration: BoxDecoration(
                           color: AppColors.commSellBg,
-                          borderRadius: BorderRadius.zero,
+                          borderRadius: AppRadius.brPill,
                         ),
                         child: Text(
                           '작성자',
@@ -623,7 +625,7 @@ class _CommentItem extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 4),
                 Text(
                   comment.content,
                   style: AppTextStyles.body.copyWith(
@@ -667,7 +669,7 @@ class _CommentItem extends StatelessWidget {
                                         style: AppTextStyles.monoXs),
                                   ],
                                 ),
-                                const SizedBox(height: 3),
+                                const SizedBox(height: 4),
                                 Text(r.content,
                                     style: AppTextStyles.body.copyWith(
                                       fontSize: 13,
@@ -710,7 +712,7 @@ class _MenuDot extends StatelessWidget {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
         child: Icon(Icons.more_horiz_rounded,
             size: 16, color: AppColors.paleInk3),
       ),

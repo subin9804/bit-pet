@@ -16,6 +16,8 @@ import '../providers/photo_provider.dart';
 import 'widgets/species_bottom_sheet.dart';
 import 'widgets/parent_pet_bottom_sheet.dart';
 import 'widgets/morph_picker_sheet.dart';
+import '../../../core/theme/app_icons.dart';
+import '../../../core/theme/app_dimens.dart';
 
 // ════════════════════════════════════════════════════════════════
 // 03s · 개체 등록 — 6단계 스텝 위저드
@@ -31,20 +33,16 @@ class PetFormScreen extends ConsumerStatefulWidget {
 }
 
 class _PetFormScreenState extends ConsumerState<PetFormScreen> {
-  // ── 팔레트 ──────────────────────────────────────────────────────────────────
-  static const _palette = <(String, Color, Color, String)>[
-    ('sage',   AppColors.petSage,   AppColors.petSageInk,   '#E8F2DC'),
-    ('peach',  AppColors.petPeach,  AppColors.petPeachInk,  '#FFE3CE'),
-    ('sky',    AppColors.petSky,    AppColors.petSkyInk,    '#D5F0FF'),
-    ('lilac',  AppColors.petLilac,  AppColors.petLilacInk,  '#F1E5FF'),
-    ('butter', AppColors.petButter, AppColors.petButterInk, '#FCF2CD'),
-    ('coral',  AppColors.petCoral,  AppColors.petCoralInk,  '#FFD8D4'),
-  ];
-
   // ── 상태 ────────────────────────────────────────────────────────────────────
+  //
+  // ℹ️ 여기엔 원래 '식별색' 팔레트(6색)와 고른 색을 서버로 보내는 필드가 있었다.
+  //    고른 색이 화면 어디에도 안 나가게 됐으므로 피커째로 걷어냈다 —
+  //    고를 수는 있는데 아무 데도 안 보이는 설정이 제일 나쁘다.
+  //    이유는 core/theme/pale_palette.dart 주석 참고.
+  //    ℹ️ `pet_mst.color_code` 컬럼과 모델의 `colorCode` 는 **남겨뒀다.**
+  //    보내지 않을 뿐이라, 되살리기로 하면 마이그레이션 없이 돌아올 수 있다.
   bool _initialized = false; // 수정 모드에서 기존 데이터 로딩 완료 여부
 
-  String _colorKey = 'coral';
   final _nameCtrl   = TextEditingController();
   final _weightCtrl = TextEditingController();
   final _memoCtrl   = TextEditingController();
@@ -64,23 +62,19 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
   PetCard? _fatherPet;
   PetCard? _motherPet;
   bool _isPublic = false; // 검색 허용 여부 (기본 비공개)
-  PickedImage? _pickedProfile; // 선택한 프로필 사진 (저장 시 업로드)
+  PickedImage? _pickedProfile; // 새로 고른 프로필 사진 (저장 시 업로드)
 
-  // ── 팔레트 헬퍼 ──────────────────────────────────────────────────────────────
-  Color get _selectedBg {
-    for (final (k, bg, _, __) in _palette) { if (k == _colorKey) return bg; }
-    return AppColors.petCoral;
-  }
+  /// 수정 모드에서 이미 올라가 있는 대표 사진. 이게 없으면 화면이 "사진 없음"처럼
+  /// 보여서, 사진이 멀쩡히 있는데도 내릴 방법이 없었다.
+  String? _existingProfileUrl;
+  int? _existingProfilePhotoId;
 
-  Color get _selectedInk {
-    for (final (k, _, ink, __) in _palette) { if (k == _colorKey) return ink; }
-    return AppColors.petCoralInk;
-  }
+  /// '내리기'를 눌렀지만 아직 저장 전인 상태. 실제 삭제는 저장 시점에 한 번만 한다 —
+  /// 여기서 바로 지우면 수정을 취소하고 나가도 사진이 이미 사라져 있다.
+  bool _removeProfile = false;
 
-  String get _selectedHex {
-    for (final (k, _, __, hex) in _palette) { if (k == _colorKey) return hex; }
-    return '#FFD8D4';
-  }
+  bool get _hasProfilePhoto =>
+      _pickedProfile != null || (!_removeProfile && _existingProfileUrl != null);
 
   @override
   void initState() {
@@ -110,13 +104,6 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
       if (!mounted) return;
 
       setState(() {
-        // 식별색
-        for (final (k, _, __, hex) in _palette) {
-          if (hex.toLowerCase() == (pet.colorCode ?? '').toLowerCase()) {
-            _colorKey = k;
-            break;
-          }
-        }
         // 이름
         _nameCtrl.text = pet.name;
         // 종 (스텁)
@@ -147,6 +134,9 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
         _memoCtrl.text = pet.description ?? '';
         // 검색 허용
         _isPublic = pet.privateYn == 'N';
+        // 대표 사진
+        _existingProfileUrl = pet.profileImageUrl;
+        _existingProfilePhotoId = pet.profilePhotoId;
 
         _initialized = true;
       });
@@ -210,8 +200,9 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
       behavior: HitTestBehavior.opaque,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
+          borderRadius: AppRadius.brLg,
           color: AppColors.surface,
           border: Border.all(color: AppColors.paleLine),
         ),
@@ -225,8 +216,9 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
                 children: _selectedMorphs
                     .map((m) => Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 6),
+                              horizontal: 8, vertical: 8),
                           decoration: BoxDecoration(
+                            borderRadius: AppRadius.brMd,
                             color: AppColors.primary,
                             border: Border.all(color: AppColors.primary),
                           ),
@@ -245,7 +237,7 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
                                 const SizedBox(width: 4),
                                 Icon(
                                   Icons.warning_amber_rounded,
-                                  size: 13,
+                                  size: 16,
                                   color:
                                       AppColors.paleBg.withValues(alpha: 0.85),
                                 ),
@@ -255,7 +247,7 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
                         ))
                     .toList(),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
             ],
             Row(
               children: [
@@ -264,7 +256,7 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
                   size: 16,
                   color: disabled ? AppColors.paleInk3 : AppColors.primary,
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 8),
                 Text(
                   disabled
                       ? '종을 먼저 선택하세요'
@@ -283,7 +275,7 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: const [
                   Icon(Icons.warning_amber_rounded,
-                      size: 12, color: Color(0xFFCC8800)),
+                      size: 16, color: Color(0xFFCC8800)),
                   SizedBox(width: 4),
                   Text(
                     '건강 우려 모프가 포함되어 있어요',
@@ -367,7 +359,30 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
 
   Future<void> _pickProfileImage() async {
     final picked = await ref.read(imageUploadServiceProvider).pickFromGallery();
-    if (picked != null && mounted) setState(() => _pickedProfile = picked);
+    if (picked != null && mounted) {
+      // 새로 골랐으면 '내리기'는 없던 일이 된다
+      setState(() {
+        _pickedProfile = picked;
+        _removeProfile = false;
+      });
+    }
+  }
+
+  /// '내리기'로 표시된 대표 사진을 실제로 지운다.
+  ///
+  /// 서버의 `DELETE /photos/{id}` 가 PET 사진이면 `profile_photo_id` 까지 같이
+  /// 비우므로, 대표 지정을 따로 해제할 필요가 없다.
+  Future<void> _removeProfilePhoto(int petId) async {
+    final photoId = _existingProfilePhotoId;
+    if (!_removeProfile || photoId == null) return;
+    try {
+      await ref.read(photoRepositoryProvider).deletePhoto(photoId);
+      ref.invalidate(petPhotosProvider(petId));
+    } catch (e) {
+      if (mounted) {
+        ToastMessage.show(context, '사진을 내리지 못했어요: $e', type: ToastType.error);
+      }
+    }
   }
 
   /// 선택한 프로필 사진을 갤러리에 업로드하고 대표 사진으로 지정
@@ -423,7 +438,6 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
         'name': _nameCtrl.text.trim(),
         'speciesId': _species!.id,
         'gender': genderCode,
-        'colorCode': _selectedHex,
         if (_selectedMorphIds.isNotEmpty) 'morphIds': _selectedMorphIds,
         'privateYn': _isPublic ? 'N' : 'Y',
         if (hatchingDate != null) 'hatchingDate': hatchingDate,
@@ -434,6 +448,8 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
         'description': _memoCtrl.text.trim().isEmpty ? null : _memoCtrl.text.trim(),
       };
       await ref.read(petListProvider.notifier).update(widget.petId!, data);
+      // 내리기가 먼저다 — 둘 다 걸린 경우 새로 올린 대표 지정을 지우면 안 된다
+      await _removeProfilePhoto(widget.petId!);
       await _uploadProfile(widget.petId!);
       ref.invalidate(petDetailProvider(widget.petId!));
       if (mounted) {
@@ -446,7 +462,6 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
           speciesId: _species!.id,
           name: _nameCtrl.text.trim(),
           gender: genderCode,
-          colorCode: _selectedHex,
           morphIds: List.from(_selectedMorphIds),
           hatchingDate: hatchingDate,
           hatchingDatePrecision: hatchingDatePrecision,
@@ -483,7 +498,7 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
     // ── Step 1: 사진+이름 ────────────────────────────────────────────────────
     StepConfig(
       title: '사진과 이름',
-      desc: '식별 색을 고르고 이름을 지어주세요.',
+      desc: '사진을 올리고 이름을 지어주세요.',
       valid: () => _nameCtrl.text.trim().isNotEmpty,
       render: (_) => ListenableBuilder(
         listenable: _nameCtrl,
@@ -500,13 +515,45 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
                       width: 92,
                       height: 92,
                       clipBehavior: Clip.hardEdge,
-                      decoration: BoxDecoration(color: _selectedBg),
+                      decoration: const BoxDecoration(color: AppColors.bgAlt),
                       child: _pickedProfile != null
                           ? Image.memory(_pickedProfile!.bytes, fit: BoxFit.cover)
-                          : const Center(
-                              child: Text('🦎', style: TextStyle(fontSize: 40)),
-                            ),
+                          : (!_removeProfile && _existingProfileUrl != null)
+                              ? Image.network(_existingProfileUrl!,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => const Center(
+                                      child: AppIcon(AppIcons.petLine,
+                                          size: 40,
+                                          color: AppColors.paleInk2)))
+                              : const Center(
+                                  child: AppIcon(AppIcons.petLine,
+                                      size: 40, color: AppColors.paleInk2),
+                                ),
                     ),
+                    // 사진이 있을 때만 뜨는 내리기. 카메라 버튼 반대쪽에 둬서
+                    // '바꾸기'와 '내리기'를 손가락으로도 헷갈리지 않게 갈랐다.
+                    if (_hasProfilePhoto)
+                      Positioned(
+                        bottom: -4,
+                        left: -4,
+                        child: GestureDetector(
+                          onTap: () => setState(() {
+                            _pickedProfile = null;
+                            _removeProfile = true;
+                          }),
+                          child: Container(
+                            width: 30,
+                            height: 30,
+                            decoration: BoxDecoration(
+                              color: AppColors.surface,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: AppColors.paleLine),
+                            ),
+                            child: const Icon(Icons.close,
+                                size: 16, color: AppColors.paleInk2),
+                          ),
+                        ),
+                      ),
                     Positioned(
                       bottom: -4,
                       right: -4,
@@ -520,33 +567,16 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
                             shape: BoxShape.circle,
                             border: Border.all(color: AppColors.paleLine),
                           ),
-                          child: const Icon(Icons.camera_alt_outlined, size: 14, color: AppColors.paleInk2),
+                          child: const Icon(Icons.camera_alt_outlined, size: 16, color: AppColors.paleInk2),
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'IDENTITY COLOR',
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.paleInk2, letterSpacing: 0.3),
-                      ),
-                      const SizedBox(height: 10),
-                      _PalettePicker(
-                        value: _colorKey,
-                        palette: _palette,
-                        onChanged: (k) => setState(() => _colorKey = k),
-                      ),
-                    ],
-                  ),
-                ),
+                // 여기 오른쪽에 'IDENTITY COLOR' 팔레트가 있었다. 걷어냈다.
               ],
             ),
-            const SizedBox(height: 22),
+            const SizedBox(height: 20),
             SField(
               label: '이름',
               child: PaleTextField(
@@ -572,8 +602,9 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
             child: GestureDetector(
               onTap: _openSpeciesSheet,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
+                  borderRadius: AppRadius.brLg,
                   color: AppColors.surface,
                   border: Border.all(color: AppColors.paleLine),
                 ),
@@ -589,7 +620,7 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
                         ),
                       ),
                     ),
-                    const Icon(Icons.chevron_right, color: AppColors.paleInk3, size: 20),
+                    const AppIcon(AppIcons.chevronRight, color: AppColors.paleInk3, size: 20),
                   ],
                 ),
               ),
@@ -671,6 +702,7 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
                 Expanded(
                   child: Container(
                     decoration: BoxDecoration(
+                      borderRadius: AppRadius.brLg,
                       color: AppColors.surface,
                       border: Border.all(color: AppColors.paleLine),
                     ),
@@ -683,7 +715,7 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
                       decoration: InputDecoration(
                         hintText: '0',
                         hintStyle: const TextStyle(color: AppColors.paleInk3),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         border: InputBorder.none,
                         suffixText: _weightUnit,
                         suffixStyle: const TextStyle(fontSize: 13, color: AppColors.paleInk2, fontWeight: FontWeight.w500),
@@ -691,7 +723,7 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 _WeightUnitToggle(
                   selected: _weightUnit,
                   onChanged: (u) => setState(() => _weightUnit = u),
@@ -734,6 +766,7 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
             label: '메모',
             child: Container(
               decoration: BoxDecoration(
+                borderRadius: AppRadius.brLg,
                 color: AppColors.surface,
                 border: Border.all(color: AppColors.paleLine),
               ),
@@ -745,7 +778,7 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
                 decoration: const InputDecoration(
                   hintText: '예: 온도 26°C · 습도 70%\n2024.11.18 — 첫 동물병원 검진 (이상 없음)',
                   hintStyle: TextStyle(color: AppColors.paleInk3, fontSize: 13),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   border: InputBorder.none,
                 ),
               ),
@@ -754,8 +787,9 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
           const SizedBox(height: 16),
           // 검색 허용 토글
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
+              borderRadius: AppRadius.brLg,
               color: AppColors.surface,
               border: Border.all(color: AppColors.paleLine),
             ),
@@ -770,7 +804,7 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
                               color: AppColors.primary)),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 4),
                       Text('공개 시 다른 사용자가 일련번호로 이 개체를 검색할 수 있어요.',
                           style: const TextStyle(
                               fontSize: 12,
@@ -798,7 +832,6 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
         groups: [
           StepSummaryGroup(label: '기본', step: 0, rows: [
             StepSummaryRow(k: '이름', v: _nameCtrl.text),
-            StepSummaryRow(k: '식별색', v: _colorKey),
           ]),
           StepSummaryGroup(label: '종·모프', step: 1, rows: [
             StepSummaryRow(k: '종', v: _species?.nameKo ?? ''),
@@ -865,7 +898,9 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
       body: SafeArea(
         child: StepShell(
           headerTitle: widget.petId == null ? '개체 등록' : '개체 수정',
-          accentInk: _selectedInk,
+          // 단계 진행 강조는 개체색이 아니라 브랜드색이다 — 이건 '누구냐'가
+          // 아니라 '어디까지 왔냐'라서.
+          accentInk: AppColors.brandAction,
           steps: _steps,
           doneLabel: widget.petId == null ? '개체 저장' : '수정 완료',
           onDone: _submit,
@@ -879,47 +914,6 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
 }
 
 // ── 팔레트 피커 ────────────────────────────────────────────────────────────────
-
-class _PalettePicker extends StatelessWidget {
-  final String value;
-  final List<(String, Color, Color, String)> palette;
-  final void Function(String) onChanged;
-
-  const _PalettePicker({
-    required this.value,
-    required this.palette,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: palette.map((entry) {
-        final (key, bg, ink, _) = entry;
-        final sel = value == key;
-        return GestureDetector(
-          onTap: () => onChanged(key),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            width: 30,
-            height: 30,
-            decoration: BoxDecoration(
-              color: bg,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: sel ? ink : AppColors.paleLine,
-                width: sel ? 2 : 1,
-              ),
-            ),
-            child: sel ? Icon(Icons.check, size: 14, color: ink) : null,
-          ),
-        );
-      }).toList(),
-    );
-  }
-}
 
 // ── 날짜 필드 ──────────────────────────────────────────────────────────────────
 
@@ -945,8 +939,9 @@ class _DateField extends StatelessWidget {
         GestureDetector(
           onTap: unknown ? null : onTap,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
+              borderRadius: AppRadius.brLg,
               color: unknown ? AppColors.paleBgAlt : AppColors.surface,
               border: Border.all(color: AppColors.paleLine),
             ),
@@ -954,10 +949,10 @@ class _DateField extends StatelessWidget {
               children: [
                 Icon(
                   Icons.calendar_today_outlined,
-                  size: 15,
+                  size: 16,
                   color: unknown ? AppColors.paleInk3 : AppColors.paleInk2,
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Text(
                   date != null ? fmtDate(date!) : '날짜 선택',
                   style: TextStyle(
@@ -981,6 +976,7 @@ class _DateField extends StatelessWidget {
                 width: 18,
                 height: 18,
                 decoration: BoxDecoration(
+                  borderRadius: AppRadius.brLg,
                   color: unknown ? AppColors.primary : AppColors.surface,
                   border: Border.all(
                     color: unknown ? AppColors.primary : AppColors.paleLine,
@@ -988,7 +984,7 @@ class _DateField extends StatelessWidget {
                   ),
                 ),
                 child: unknown
-                    ? const Icon(Icons.check, size: 12, color: AppColors.paleBg)
+                    ? const Icon(Icons.check, size: 16, color: AppColors.paleBg)
                     : null,
               ),
               const SizedBox(width: 8),
@@ -1016,10 +1012,11 @@ class _WeightUnitToggle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
+        borderRadius: AppRadius.brMd,
         color: AppColors.paleBgAlt,
         border: Border.all(color: AppColors.paleLine),
       ),
-      padding: const EdgeInsets.all(3),
+      padding: const EdgeInsets.all(4),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: ['g', 'kg'].map((u) {
@@ -1028,7 +1025,7 @@ class _WeightUnitToggle extends StatelessWidget {
             onTap: () => onChanged(u),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 150),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
                 color: sel ? AppColors.surface : Colors.transparent,
               ),
@@ -1064,9 +1061,9 @@ class _ParentTile extends StatelessWidget {
   });
 
   Color _bgOf(PetCard p) {
-    if (p.colorCode == null) return AppColors.paleBgAlt;
-    try { return Color(int.parse(p.colorCode!.replaceFirst('#', '0xFF'))); }
-    catch (_) { return AppColors.paleBgAlt; }
+    // 개체 지정색은 걷어냈다 — 저장된 hex 를 그대로 칠하던 자리다.
+    // 자세한 이유는 core/theme/pale_palette.dart 주석 참고.
+    return AppColors.paleBgAlt;
   }
 
   @override
@@ -1075,8 +1072,9 @@ class _ParentTile extends StatelessWidget {
       return GestureDetector(
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
+            borderRadius: AppRadius.brLg,
             color: AppColors.surface,
             border: Border.all(color: AppColors.paleLine),
           ),
@@ -1124,6 +1122,7 @@ class _ParentTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
+        borderRadius: AppRadius.brLg,
         color: AppColors.surface,
         border: Border.all(color: AppColors.primary.withValues(alpha: 0.35), width: 1.2),
       ),
@@ -1134,7 +1133,7 @@ class _ParentTile extends StatelessWidget {
             size: 42,
             background: _bgOf(pet!),
             iconColor: AppColors.primary,
-            fallback: const Text('🦎', style: TextStyle(fontSize: 20)),
+            subcategory: pet!.speciesSubcategory,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -1165,7 +1164,7 @@ class _ParentTile extends StatelessWidget {
           ),
           IconButton(
             onPressed: onClear,
-            icon: const Icon(Icons.close, size: 18),
+            icon: const Icon(Icons.close, size: 20),
             color: AppColors.paleInk3,
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
@@ -1223,10 +1222,11 @@ class _HatchDateField extends StatelessWidget {
         // 정밀도 토글
         Container(
           decoration: BoxDecoration(
+            borderRadius: AppRadius.brMd,
             color: AppColors.paleBgAlt,
             border: Border.all(color: AppColors.paleLine),
           ),
-          padding: const EdgeInsets.all(3),
+          padding: const EdgeInsets.all(4),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1243,20 +1243,21 @@ class _HatchDateField extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         // 날짜 선택 버튼
         GestureDetector(
           onTap: precision == 'MONTH' ? onPickYearMonth : onPickDay,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
+              borderRadius: AppRadius.brLg,
               color: AppColors.surface,
               border: Border.all(color: AppColors.paleLine),
             ),
             child: Row(
               children: [
-                const Icon(Icons.calendar_today_outlined, size: 15, color: AppColors.paleInk2),
-                const SizedBox(width: 10),
+                const Icon(Icons.calendar_today_outlined, size: 16, color: AppColors.paleInk2),
+                const SizedBox(width: 8),
                 Text(
                   _displayText,
                   style: TextStyle(
@@ -1280,6 +1281,7 @@ class _HatchDateField extends StatelessWidget {
                 width: 18,
                 height: 18,
                 decoration: BoxDecoration(
+                  borderRadius: AppRadius.brLg,
                   color: approximate ? AppColors.primary : AppColors.surface,
                   border: Border.all(
                     color: approximate ? AppColors.primary : AppColors.paleLine,
@@ -1287,7 +1289,7 @@ class _HatchDateField extends StatelessWidget {
                   ),
                 ),
                 child: approximate
-                    ? const Icon(Icons.check, size: 12, color: AppColors.paleBg)
+                    ? const Icon(Icons.check, size: 16, color: AppColors.paleBg)
                     : null,
               ),
               const SizedBox(width: 8),
@@ -1316,7 +1318,7 @@ class _PrecisionTab extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 130),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: active ? AppColors.surface : Colors.transparent,
         ),
@@ -1395,13 +1397,13 @@ class _YearMonthPickerSheetState extends State<_YearMonthPickerSheet> {
           Center(
             child: Container(
               width: 40, height: 4,
-              margin: const EdgeInsets.only(top: 10, bottom: 16),
+              margin: const EdgeInsets.only(top: 8, bottom: 16),
               decoration: BoxDecoration(color: AppColors.paleLine, borderRadius: BorderRadius.circular(2)),
             ),
           ),
           // 헤더
           Padding(
-            padding: const EdgeInsets.fromLTRB(22, 0, 22, 16),
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
             child: Row(
               children: [
                 const Text(
@@ -1413,7 +1415,7 @@ class _YearMonthPickerSheetState extends State<_YearMonthPickerSheet> {
           ),
           // 연도 선택
           Padding(
-            padding: const EdgeInsets.fromLTRB(22, 0, 22, 16),
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
             child: Row(
               children: [
                 GestureDetector(
@@ -1442,7 +1444,7 @@ class _YearMonthPickerSheetState extends State<_YearMonthPickerSheet> {
                           border: InputBorder.none,
                           contentPadding: EdgeInsets.zero,
                           suffixText: '년',
-                          suffixStyle: TextStyle(fontSize: 15, color: AppColors.paleInk2, fontWeight: FontWeight.w600),
+                          suffixStyle: TextStyle(fontSize: 16, color: AppColors.paleInk2, fontWeight: FontWeight.w600),
                         ),
                       ),
                     ),
@@ -1450,7 +1452,7 @@ class _YearMonthPickerSheetState extends State<_YearMonthPickerSheet> {
                 ),
                 GestureDetector(
                   onTap: _year < now.year ? () => setState(() { _year++; _yearCtrl.text = '$_year'; }) : null,
-                  child: Icon(Icons.chevron_right, size: 28,
+                  child: AppIcon(AppIcons.chevronRight, size: 28,
                       color: _year < now.year ? AppColors.primary : AppColors.paleLine),
                 ),
               ],
@@ -1458,7 +1460,7 @@ class _YearMonthPickerSheetState extends State<_YearMonthPickerSheet> {
           ),
           // 월 그리드
           Padding(
-            padding: const EdgeInsets.fromLTRB(22, 0, 22, 8),
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
             child: GridView.count(
               crossAxisCount: 4,
               shrinkWrap: true,
@@ -1475,6 +1477,7 @@ class _YearMonthPickerSheetState extends State<_YearMonthPickerSheet> {
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 120),
                     decoration: BoxDecoration(
+                      borderRadius: AppRadius.brLg,
                       color: selected
                           ? AppColors.primary
                           : isFuture
@@ -1505,12 +1508,12 @@ class _YearMonthPickerSheetState extends State<_YearMonthPickerSheet> {
           ),
           // 확인 버튼
           Padding(
-            padding: const EdgeInsets.fromLTRB(22, 8, 22, 28),
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
             child: GestureDetector(
               onTap: () => Navigator.pop(context, (_year, _month)),
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 14),
+                padding: const EdgeInsets.symmetric(vertical: 16),
                 decoration: BoxDecoration(
                   color: AppColors.primary,
                 ),

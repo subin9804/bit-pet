@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_dimens.dart';
 
 /// 공용 선택 칩 — 직사각형(라운드 없음), 필터·옵션 선택에 사용.
 /// 앱 전체 칩은 이 위젯만 사용한다 (스타일 변경 시 여기 한 곳만 수정).
@@ -63,7 +64,7 @@ class AppChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: bg,
         border: Border.all(color: borderColor),
-        borderRadius: BorderRadius.zero,
+        borderRadius: AppRadius.brMd,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -75,7 +76,7 @@ class AppChip extends StatelessWidget {
                 color: fg,
               )),
           if (count != null) ...[
-            const SizedBox(width: 5),
+            const SizedBox(width: 4),
             Text('$count',
                 style: TextStyle(
                   fontFamily: 'monospace',

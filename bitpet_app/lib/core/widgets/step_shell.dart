@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_icons.dart';
+import '../theme/app_dimens.dart';
 
 // ── Step configuration ──────────────────────────────────────────────────────
 
@@ -125,7 +127,7 @@ class _StepShellState extends State<StepShell> {
           confirmOnCancel: widget.confirmOnCancel,
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(22, 12, 22, 0),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -135,7 +137,7 @@ class _StepShellState extends State<StepShell> {
                 accentInk: widget.accentInk,
                 onJump: (i) { if (i < _idx) setState(() => _idx = i); },
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
               Text(
                 _step.title,
                 style: const TextStyle(
@@ -177,7 +179,7 @@ class _StepShellState extends State<StepShell> {
             child: KeyedSubtree(
               key: ValueKey(_idx),
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(22, 4, 22, 20),
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
                 child: _step.render(ctx),
               ),
             ),
@@ -224,7 +226,7 @@ class _StepTopBar extends StatelessWidget {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+          shape: const RoundedRectangleBorder(borderRadius: AppRadius.brMd),
           title: const Text(
             '입력 내용을 삭제할까요?',
             style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
@@ -252,7 +254,7 @@ class _StepTopBar extends StatelessWidget {
     final VoidCallback backAction = () => handleCancel();
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 10, 16, 4),
+      padding: const EdgeInsets.fromLTRB(8, 8, 16, 4),
       child: Row(
         children: [
           SizedBox(
@@ -331,7 +333,7 @@ class StepProgressDots extends StatelessWidget {
           onTap: isDone && onJump != null ? () => onJump!(i) : null,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 250),
-            margin: EdgeInsets.only(right: i < count - 1 ? 6 : 0),
+            margin: EdgeInsets.only(right: i < count - 1 ? 8 : 0),
             width: isCur ? 24 : 6,
             height: 4,
             color: isCur
@@ -368,7 +370,7 @@ class _StepFooter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(22, 12, 22, 26),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
       decoration: const BoxDecoration(
         color: AppColors.paleBg,
         border: Border(top: BorderSide(color: AppColors.paleLineSoft)),
@@ -379,7 +381,7 @@ class _StepFooter extends StatelessWidget {
             GestureDetector(
               onTap: onPrev,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 decoration: const BoxDecoration(
                   color: AppColors.surface,
                   border: Border.fromBorderSide(BorderSide(color: AppColors.paleLine)),
@@ -401,7 +403,7 @@ class _StepFooter extends StatelessWidget {
               onTap: canNext ? onNext : null,
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(vertical: 14),
+                padding: const EdgeInsets.symmetric(vertical: 16),
                 decoration: BoxDecoration(
                   color: canNext ? AppColors.primary : AppColors.paleLine,
                 ),
@@ -475,7 +477,7 @@ class StepSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: groups.map((g) => Padding(
-        padding: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.only(bottom: 8),
         child: Container(
           decoration: const BoxDecoration(
             color: AppColors.surface,
@@ -486,7 +488,7 @@ class StepSummary extends StatelessWidget {
               InkWell(
                 onTap: () => goEdit(g.step),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: const BoxDecoration(
                     color: AppColors.paleBgAlt,
                     border: Border(bottom: BorderSide(color: AppColors.paleLineSoft)),
@@ -500,19 +502,19 @@ class StepSummary extends StatelessWidget {
                       const Text('수정 ', style: TextStyle(
                         fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary,
                       )),
-                      const Icon(Icons.chevron_right, size: 14, color: AppColors.paleInk2),
+                      const AppIcon(AppIcons.chevronRight, size: 16, color: AppColors.paleInk2),
                     ],
                   ),
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
                   children: g.rows.asMap().entries.map((entry) {
                     final i = entry.key;
                     final r = entry.value;
                     return Container(
-                      padding: const EdgeInsets.symmetric(vertical: 11),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                       decoration: BoxDecoration(
                         border: i < g.rows.length - 1
                             ? const Border(bottom: BorderSide(color: AppColors.paleLineSoft))
@@ -642,8 +644,8 @@ class PaleTextField extends StatelessWidget {
           color: AppColors.paleInk3,
         ),
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: 2,
-          vertical: 13,
+          horizontal: 4,
+          vertical: 12,
         ),
         suffixIcon: suffixIcon,
         border: const UnderlineInputBorder(
@@ -677,7 +679,7 @@ class PaleSegment extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(3),
+      padding: const EdgeInsets.all(4),
       decoration: const BoxDecoration(
         color: AppColors.paleBgAlt,
         border: Border.fromBorderSide(BorderSide(color: AppColors.paleLine)),
@@ -690,7 +692,7 @@ class PaleSegment extends StatelessWidget {
               onTap: () => onChange(o),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 150),
-                padding: const EdgeInsets.symmetric(vertical: 9),
+                padding: const EdgeInsets.symmetric(vertical: 8),
                 decoration: BoxDecoration(
                   color: sel ? AppColors.surface : Colors.transparent,
                   border: sel

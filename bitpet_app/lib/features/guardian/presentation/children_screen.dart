@@ -104,10 +104,10 @@ class ChildrenScreen extends ConsumerWidget {
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => const Icon(
                               Icons.child_care_rounded,
-                              size: 18,
+                              size: 20,
                               color: AppColors.paleInk2))
                       : const Icon(Icons.child_care_rounded,
-                          size: 18, color: AppColors.paleInk2),
+                          size: 20, color: AppColors.paleInk2),
                 ),
                 title: Text(c.nickname,
                     style: AppTextStyles.bodyBold.copyWith(fontSize: 13)),
@@ -134,7 +134,7 @@ class ChildrenScreen extends ConsumerWidget {
                   );
                   if (created == true) ref.invalidate(childrenProvider);
                 },
-                icon: const Icon(Icons.add_rounded, size: 18),
+                icon: const Icon(Icons.add_rounded, size: 20),
                 label: const Text('자녀 계정 만들기'),
               ),
             ),

@@ -8,6 +8,7 @@ import '../../data/pet_repository.dart';
 import '../../providers/pet_provider.dart';
 import 'parent_pet_bottom_sheet.dart';
 import 'pedigree_parent_card.dart';
+import '../../../../core/theme/app_dimens.dart';
 
 class PetInfoGrid extends ConsumerStatefulWidget {
   final Pet pet;
@@ -70,10 +71,11 @@ class _PetInfoGridState extends ConsumerState<PetInfoGrid> {
 
     return Container(
       decoration: BoxDecoration(
+        borderRadius: AppRadius.brLg,
         color: AppColors.card,
         border: Border.all(color: AppColors.paleLine),
       ),
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       child: Column(
         children: [
           // 2열 그리드
@@ -119,8 +121,8 @@ class _PetInfoGridState extends ConsumerState<PetInfoGrid> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: const [
-                          Icon(Icons.edit_outlined, size: 13, color: AppColors.paleInk3),
-                          SizedBox(width: 3),
+                          Icon(Icons.edit_outlined, size: 16, color: AppColors.paleInk3),
+                          SizedBox(width: 4),
                           Text('수정',
                               style: TextStyle(
                                   fontSize: 11,
@@ -131,7 +133,7 @@ class _PetInfoGridState extends ConsumerState<PetInfoGrid> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 5),
+                const SizedBox(height: 4),
                 if (father != null) PedigreeParentCard(card: father),
                 if (father != null && mother != null) const SizedBox(height: 8),
                 if (mother != null) PedigreeParentCard(card: mother),
@@ -180,7 +182,7 @@ class _Cell extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label, style: AppTextStyles.paleGridLabel),
-          const SizedBox(height: 3),
+          const SizedBox(height: 4),
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -193,10 +195,11 @@ class _Cell extends StatelessWidget {
                 ),
               ),
               if (chip != null) ...[
-                const SizedBox(width: 5),
+                const SizedBox(width: 4),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
+                    borderRadius: AppRadius.brMd,
                     color: AppColors.petPeach,
                     border: Border.all(color: AppColors.petPeachInk.withValues(alpha: 0.3)),
                   ),
@@ -341,21 +344,21 @@ class _ParentEditSheetState extends ConsumerState<_ParentEditSheet> {
           Center(
             child: Container(
               width: 40, height: 4,
-              margin: const EdgeInsets.only(top: 10, bottom: 16),
+              margin: const EdgeInsets.only(top: 8, bottom: 16),
               decoration: BoxDecoration(
                   color: AppColors.paleLine, borderRadius: BorderRadius.circular(2)),
             ),
           ),
           // 헤더
           Padding(
-            padding: const EdgeInsets.fromLTRB(22, 0, 22, 16),
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: const [
                 Text('PARENT',
                     style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
                         color: AppColors.paleInk2, letterSpacing: 0.4)),
-                SizedBox(height: 3),
+                SizedBox(height: 4),
                 Text('부모 개체 수정',
                     style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700,
                         color: AppColors.primary, letterSpacing: -0.4)),
@@ -364,7 +367,7 @@ class _ParentEditSheetState extends ConsumerState<_ParentEditSheet> {
           ),
           const SizedBox(height: 12),
           Padding(
-            padding: const EdgeInsets.fromLTRB(22, 18, 22, 8),
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
             child: Column(
               children: [
                 _ParentRow(
@@ -391,14 +394,15 @@ class _ParentEditSheetState extends ConsumerState<_ParentEditSheet> {
           ),
           // 버튼 행
           Padding(
-            padding: const EdgeInsets.fromLTRB(22, 8, 22, 30),
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
             child: Row(
               children: [
                 GestureDetector(
                   onTap: () => Navigator.pop(context),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                     decoration: BoxDecoration(
+                      borderRadius: AppRadius.brLg,
                       color: AppColors.card,
                       border: Border.all(color: AppColors.paleLine),
                     ),
@@ -414,7 +418,7 @@ class _ParentEditSheetState extends ConsumerState<_ParentEditSheet> {
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 150),
                       alignment: Alignment.center,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
                       decoration: BoxDecoration(
                         color: _saving ? AppColors.paleLine : AppColors.primary,
                       ),
@@ -458,6 +462,7 @@ class _ParentRow extends StatelessWidget {
         Container(
           width: 32, height: 32,
           decoration: BoxDecoration(
+            borderRadius: AppRadius.brMd,
             color: isFather ? AppColors.petSky : AppColors.petPeach,
             border: Border.all(
               color: (isFather ? AppColors.petSkyInk : AppColors.petCoralInk)
@@ -474,7 +479,7 @@ class _ParentRow extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 8),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -501,7 +506,7 @@ class _ParentRow extends StatelessWidget {
           GestureDetector(
             onTap: onClear,
             child: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 6),
+              padding: EdgeInsets.symmetric(horizontal: 8),
               child: Icon(Icons.close, size: 16, color: AppColors.paleInk3),
             ),
           ),
@@ -510,13 +515,14 @@ class _ParentRow extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
+              borderRadius: AppRadius.brMd,
               color: AppColors.paleBgAlt,
               border: Border.all(color: AppColors.paleLine),
             ),
             child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.search, size: 13, color: AppColors.paleInk2),
+                Icon(Icons.search, size: 16, color: AppColors.paleInk2),
                 SizedBox(width: 4),
                 Text('변경', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
                     color: AppColors.paleInk2)),

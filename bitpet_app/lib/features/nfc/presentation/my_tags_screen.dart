@@ -75,9 +75,9 @@ class _StoreCta extends StatelessWidget {
       ),
       padding: EdgeInsets.fromLTRB(
         20,
-        14,
+        16,
         20,
-        14 + MediaQuery.of(context).padding.bottom,
+        16 + MediaQuery.of(context).padding.bottom,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -87,25 +87,25 @@ class _StoreCta extends StatelessWidget {
             '개체 이름을 새긴 NFC 이름표를 주문할 수 있어요.',
             style: AppTextStyles.caption,
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           InkWell(
             onTap: () =>
                 openExternalLink(context, ExternalLinks.smartStore),
             child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
               color: AppColors.primary,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Icon(Icons.storefront_outlined,
-                      size: 17, color: Colors.white),
+                      size: 20, color: Colors.white),
                   const SizedBox(width: 8),
                   Text(
                     '이름표 주문하기',
                     style: AppTextStyles.bodyBold.copyWith(color: Colors.white),
                   ),
-                  const SizedBox(width: 6),
-                  const Icon(Icons.open_in_new, size: 14, color: Colors.white70),
+                  const SizedBox(width: 8),
+                  const Icon(Icons.open_in_new, size: 16, color: Colors.white70),
                 ],
               ),
             ),
@@ -126,7 +126,7 @@ class _TagRow extends ConsumerWidget {
     return InkWell(
       onTap: tag.petId == null ? null : () => context.push('/pets/${tag.petId}'),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         child: Row(
           children: [
             Expanded(
@@ -137,7 +137,7 @@ class _TagRow extends ConsumerWidget {
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 7, vertical: 2),
+                            horizontal: 8, vertical: 4),
                         color: AppColors.bg2,
                         child: Text(
                           tag.tagCd,
@@ -188,7 +188,7 @@ class _TagRow extends ConsumerWidget {
           children: [
             ListTile(
               dense: true,
-              leading: const Icon(Icons.link_off, size: 18, color: AppColors.error),
+              leading: const Icon(Icons.link_off, size: 20, color: AppColors.error),
               title: Text('연결 해제',
                   style: AppTextStyles.body.copyWith(color: AppColors.error)),
               onTap: () => Navigator.of(context).pop('unlink'),

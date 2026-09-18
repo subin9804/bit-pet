@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import 'legal_documents.dart';
+import '../theme/app_dimens.dart';
 
 /// 약관 전문 뷰어.
 ///
@@ -12,7 +13,7 @@ Future<void> showLegalDocument(BuildContext context, LegalDocument doc) {
     context: context,
     isScrollControlled: true,
     backgroundColor: AppColors.surface,
-    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+    shape: const RoundedRectangleBorder(borderRadius: AppRadius.brMd),
     builder: (_) => _LegalDocumentSheet(doc: doc),
   );
 }
@@ -33,7 +34,7 @@ class _LegalDocumentSheet extends StatelessWidget {
         children: [
           // 헤더
           Container(
-            padding: const EdgeInsets.fromLTRB(20, 18, 8, 14),
+            padding: const EdgeInsets.fromLTRB(20, 20, 8, 16),
             decoration: const BoxDecoration(
               border: Border(bottom: BorderSide(color: AppColors.paleLine)),
             ),
@@ -52,7 +53,7 @@ class _LegalDocumentSheet extends StatelessWidget {
                           color: AppColors.primary,
                         ),
                       ),
-                      const SizedBox(height: 3),
+                      const SizedBox(height: 4),
                       Text(
                         '시행일 ${doc.effectiveDate}',
                         style: const TextStyle(
@@ -76,7 +77,7 @@ class _LegalDocumentSheet extends StatelessWidget {
           // 본문
           Flexible(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
               child: SelectableText(
                 doc.body.trim(),
                 style: const TextStyle(
@@ -92,7 +93,7 @@ class _LegalDocumentSheet extends StatelessWidget {
           Padding(
             padding: EdgeInsets.fromLTRB(
               20,
-              10,
+              8,
               20,
               12 + MediaQuery.of(context).padding.bottom,
             ),
@@ -104,9 +105,9 @@ class _LegalDocumentSheet extends StatelessWidget {
                   backgroundColor: AppColors.bg2,
                   foregroundColor: AppColors.primary,
                   shape: const RoundedRectangleBorder(
-                    borderRadius: BorderRadius.zero,
+                    borderRadius: AppRadius.brMd,
                   ),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
                 child: const Text(
                   '확인',

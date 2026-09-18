@@ -81,6 +81,9 @@ class Pet {
   final String serialNo;
   final int speciesId;
   final String speciesName;
+  /// GECKO / LIZARD / SNAKE / TURTLE / FROG / … — 종별 아이콘을 고르는 데 쓴다.
+  /// 종 이름만으로는 무엇을 그릴지 알 수 없어 서버가 따로 내려준다.
+  final String? speciesSubcategory;
   final String? morphName; // 모프명 (백엔드에서 제공 시, 단일 하위호환용)
   final List<Morph> morphs;
   final String name;
@@ -115,6 +118,7 @@ class Pet {
     required this.serialNo,
     required this.speciesId,
     required this.speciesName,
+    this.speciesSubcategory,
     this.morphName,
     List<Morph>? morphs,
     required this.name,
@@ -153,6 +157,7 @@ class Pet {
         serialNo: json['serialNo'] as String? ?? '',
         speciesId: (json['speciesId'] as num?)?.toInt() ?? 0,
         speciesName: (json['speciesNameKo'] ?? json['speciesName']) as String? ?? '',
+        speciesSubcategory: json['speciesSubcategory'] as String?,
         morphName: json['morphName'] as String?,
         morphs: (() {
           try {
@@ -234,6 +239,8 @@ class PetCard {
   final String gender;
   final int? speciesId;
   final String speciesName;
+  /// GECKO / LIZARD / SNAKE / TURTLE / FROG / … — 종별 아이콘용. [Pet.speciesSubcategory] 와 같다.
+  final String? speciesSubcategory;
   final List<Morph> morphs;
   final DateTime? hatchingDate;
   final String hatchingDatePrecision;
@@ -259,6 +266,7 @@ class PetCard {
     this.gender = 'UNKNOWN',
     this.speciesId,
     this.speciesName = '',
+    this.speciesSubcategory,
     this.morphs = const [],
     this.hatchingDate,
     this.hatchingDatePrecision = 'DAY',
@@ -285,6 +293,7 @@ class PetCard {
         gender: pet.gender,
         speciesId: pet.speciesId,
         speciesName: pet.speciesName,
+        speciesSubcategory: pet.speciesSubcategory,
         morphs: pet.morphs,
         hatchingDate: pet.hatchingDate,
         hatchingDatePrecision: pet.hatchingDatePrecision,
@@ -309,6 +318,7 @@ class PetCard {
         gender: json['gender'] as String? ?? 'UNKNOWN',
         speciesId: (json['speciesId'] as num?)?.toInt(),
         speciesName: json['speciesNameKo'] as String? ?? '',
+        speciesSubcategory: json['speciesSubcategory'] as String?,
         morphs: (json['morphs'] as List<dynamic>? ?? [])
             .map((e) => Morph.fromJson(e as Map<String, dynamic>))
             .toList(),

@@ -8,6 +8,7 @@ import '../../../core/theme/app_input_styles.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/upload/image_upload.dart';
 import '../providers/post_provider.dart';
+import '../../../core/theme/app_dimens.dart';
 
 class PostComposeScreen extends ConsumerStatefulWidget {
   final int? postId; // null → 새 글, non-null → 수정
@@ -104,8 +105,8 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
             Expanded(
               child: ListView(
                 padding: EdgeInsets.fromLTRB(
-                    22, 8, 22,
-                    MediaQuery.of(context).viewInsets.bottom + 30),
+                    20, 8, 20,
+                    MediaQuery.of(context).viewInsets.bottom + 32),
                 children: [
                   // ── 게시판 선택 ────────────────────────────────
                   _Field(
@@ -122,7 +123,7 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
                               .setCategory(c.id),
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 8),
+                                horizontal: 16, vertical: 8),
                             decoration: BoxDecoration(
                               color: active
                                   ? AppColors.primary
@@ -132,7 +133,7 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
                                     ? Colors.transparent
                                     : AppColors.paleLine,
                               ),
-                              borderRadius: BorderRadius.zero,
+                              borderRadius: AppRadius.brMd,
                             ),
                             child: Text(
                               c.nameKo,
@@ -178,7 +179,7 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
                         hintStyle: AppTextStyles.body
                             .copyWith(color: AppColors.paleInk3),
                         contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 14),
+                            horizontal: 12, vertical: 16),
                       ),
                     ),
                   ),
@@ -210,10 +211,10 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
                                         .read(composeProvider.notifier)
                                         .removeImage(e.key),
                                     child: Container(
-                                      padding: const EdgeInsets.all(2),
+                                      padding: const EdgeInsets.all(4),
                                       color: Colors.black54,
                                       child: const Icon(Icons.close,
-                                          size: 13, color: Colors.white),
+                                          size: 16, color: Colors.white),
                                     ),
                                   ),
                                 ),
@@ -235,6 +236,7 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
                               width: 78,
                               height: 78,
                               decoration: BoxDecoration(
+                                borderRadius: AppRadius.brLg,
                                 color: AppColors.card,
                                 border: Border.all(
                                     color: AppColors.paleLine, width: 1.5),
@@ -243,7 +245,7 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   const Icon(Icons.camera_alt_outlined,
-                                      size: 22, color: AppColors.paleInk2),
+                                      size: 20, color: AppColors.paleInk2),
                                   const SizedBox(height: 4),
                                   Text('${state.images.length}/5',
                                       style: AppTextStyles.monoXs.copyWith(
@@ -286,14 +288,14 @@ class _TopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
       color: AppColors.paleBg,
       child: Row(
         children: [
           GestureDetector(
             onTap: onCancel,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
               child: Text(
                 '취소',
                 style: AppTextStyles.bodyBold.copyWith(
@@ -322,10 +324,10 @@ class _TopBar extends StatelessWidget {
             onTap: canSubmit ? onSubmit : null,
             child: Container(
               padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
                 color: canSubmit ? AppColors.primary : AppColors.paleLine,
-                borderRadius: BorderRadius.zero,
+                borderRadius: AppRadius.brPill,
               ),
               child: isSubmitting
                   ? const SizedBox(
@@ -365,7 +367,7 @@ class _Field extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14),
+      padding: const EdgeInsets.symmetric(vertical: 16),
       decoration: const BoxDecoration(
         border: Border(
             bottom: BorderSide(color: AppColors.paleLineSoft)),
@@ -397,7 +399,7 @@ class _Field extends StatelessWidget {
           const SizedBox(height: 8),
           child,
           if (hint != null) ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Text(hint!,
                 style: AppTextStyles.caption
                     .copyWith(color: AppColors.paleInk3)),

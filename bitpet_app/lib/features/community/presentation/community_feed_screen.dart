@@ -2,12 +2,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_chip.dart';
 import '../data/models/post_models.dart';
 import '../providers/post_provider.dart';
+import '../../../core/theme/app_dimens.dart';
 
 Color _catBg(String? code) => switch (code?.toUpperCase()) {
       'NOTICE' => AppColors.commNoticeBg,
@@ -92,7 +93,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
               children: [
                 // ── 헤더 ──────────────────────────────────────────
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(22, 18, 22, 12),
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
@@ -101,12 +102,10 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                         children: [
                           Text(
                             'community',
-                            style: GoogleFonts.pressStart2p(
-                              fontSize: 11,
-                              color: AppColors.paleInk2,
-                            ),
+                            style: AppTextStyles.label
+                                .copyWith(color: AppColors.paleInk2),
                           ),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 8),
                           Text(
                             '커뮤니티',
                             style: AppTextStyles.h1.copyWith(
@@ -127,16 +126,16 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                           }
                         },
                         child: const Icon(Icons.search_rounded,
-                            size: 18, color: AppColors.primary),
+                            size: 20, color: AppColors.primary),
                       ),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 8),
                       Stack(
                         clipBehavior: Clip.none,
                         children: [
                           _CircleBtn(
                             onTap: () => context.push('/notifications'),
                             child: const Icon(Icons.notifications_none_rounded,
-                                size: 18, color: AppColors.primary),
+                                size: 20, color: AppColors.primary),
                           ),
                           Positioned(
                             top: 8,
@@ -159,12 +158,12 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                 // ── 검색바 (토글) ─────────────────────────────────
                 if (_showSearch)
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(22, 0, 22, 10),
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
                     child: Container(
                       decoration: BoxDecoration(
                         color: AppColors.card,
                         border: Border.all(color: AppColors.paleLine),
-                        borderRadius: BorderRadius.zero,
+                        borderRadius: AppRadius.brMd,
                       ),
                       child: TextField(
                         controller: _searchCtrl,
@@ -176,10 +175,10 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                           hintStyle: AppTextStyles.body
                               .copyWith(color: AppColors.paleInk3),
                           prefixIcon: const Icon(Icons.search_rounded,
-                              size: 18, color: AppColors.paleInk3),
+                              size: 20, color: AppColors.paleInk3),
                           border: InputBorder.none,
                           contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 12),
+                              horizontal: 16, vertical: 12),
                         ),
                         onChanged: (v) =>
                             ref.read(postSearchProvider.notifier).state = v,
@@ -213,7 +212,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                   height: 50,
                   decoration: const BoxDecoration(
                     color: AppColors.primary,
-                    borderRadius: BorderRadius.zero,
+                    borderRadius: AppRadius.brMd,
                   ),
                   child: const Icon(Icons.edit_outlined,
                       color: AppColors.paleBg, size: 24),
@@ -324,9 +323,9 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
     ];
     return ListView.separated(
       scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.fromLTRB(22, 0, 22, 12),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
       itemCount: tabs.length,
-      separatorBuilder: (_, __) => const SizedBox(width: 6),
+      separatorBuilder: (_, __) => const SizedBox(width: 8),
       itemBuilder: (_, i) {
         final tab = tabs[i];
         return AppChip(
@@ -381,7 +380,7 @@ class _PostRow extends StatelessWidget {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         decoration: BoxDecoration(
           // 고정된 글은 바탕을 깔아 "맨 위에 있는 최신 글"이 아니라 "고정된 글"로 읽히게 한다.
           // 이게 없으면 며칠 지난 공지가 매번 새 글처럼 보인다.
@@ -401,9 +400,9 @@ class _PostRow extends StatelessWidget {
                     children: [
                       _CategoryPill(code: code, label: label),
                       if (post.isPinned) ...[
-                        const SizedBox(width: 5),
+                        const SizedBox(width: 4),
                         const Icon(Icons.push_pin,
-                            size: 12, color: AppColors.paleInk2),
+                            size: 16, color: AppColors.paleInk2),
                       ],
                       const Spacer(),
                       Text(
@@ -413,7 +412,7 @@ class _PostRow extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 8),
                   Text(
                     post.title,
                     style: AppTextStyles.bodyBold.copyWith(
@@ -429,23 +428,23 @@ class _PostRow extends StatelessWidget {
                   Row(
                     children: [
                       _AuthorAvatar(imageUrl: post.authorImageUrl, size: 16),
-                      const SizedBox(width: 5),
+                      const SizedBox(width: 4),
                       Text(post.authorName,
                           style: AppTextStyles.caption
                               .copyWith(fontSize: 11)),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 8),
                       Text('·',
                           style: AppTextStyles.caption
                               .copyWith(color: AppColors.paleInk3)),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 8),
                       _MetaIcon(
-                          icon: Icons.favorite_outline,
+                          icon: AppIcons.likeLine,
                           value: post.likeCount),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 8),
                       _MetaIcon(
-                          icon: Icons.chat_bubble_outline,
+                          icon: AppIcons.comment,
                           value: post.commentCount),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 8),
                       Text(
                         '조회 ${post.viewCount}',
                         style: AppTextStyles.monoXs
@@ -464,7 +463,7 @@ class _PostRow extends StatelessWidget {
                 height: 64,
                 decoration: BoxDecoration(
                   color: _catBg(code).withAlpha(216),
-                  borderRadius: BorderRadius.zero,
+                  borderRadius: AppRadius.brMd,
                 ),
                 clipBehavior: Clip.hardEdge,
                 child: Image.network(
@@ -492,10 +491,10 @@ class _CategoryPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: _catBg(code),
-        borderRadius: BorderRadius.zero,
+        borderRadius: AppRadius.brPill,
       ),
       child: Text(
         label,
@@ -509,7 +508,9 @@ class _CategoryPill extends StatelessWidget {
 }
 
 class _MetaIcon extends StatelessWidget {
-  final IconData icon;
+  /// [AppIcons] 의 SVG 경로. 하트와 말풍선이 한 줄에 붙어 서는 자리라
+  /// 한쪽만 Material 로 두면 그 칩만 선 굵기가 달라 보인다.
+  final String icon;
   final int value;
   const _MetaIcon({required this.icon, required this.value});
 
@@ -518,8 +519,8 @@ class _MetaIcon extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 13, color: AppColors.paleInk2),
-        const SizedBox(width: 3),
+        AppIcon(icon, size: 16, color: AppColors.paleInk2),
+        const SizedBox(width: 4),
         Text(
           '$value',
           style: AppTextStyles.monoXs.copyWith(color: AppColors.paleInk2),

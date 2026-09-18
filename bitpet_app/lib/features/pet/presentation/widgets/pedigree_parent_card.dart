@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../data/models/pet_models.dart';
+import '../../../../core/theme/app_icons.dart';
+import '../../../../core/theme/app_dimens.dart';
 
 /// 가계도 부모 카드 — 좌측 썸네일 + 우측 2줄.
 ///
@@ -21,12 +23,9 @@ class PedigreeParentCard extends StatelessWidget {
   const PedigreeParentCard({super.key, required this.card});
 
   Color get _identityColor {
-    if (card.colorCode == null) return AppColors.bg2;
-    try {
-      return Color(int.parse(card.colorCode!.replaceFirst('#', '0xFF')));
-    } catch (_) {
-      return AppColors.bg2;
-    }
+    // 개체 지정색은 걷어냈다 — 저장된 hex 를 그대로 칠하던 자리다.
+    // 자세한 이유는 core/theme/pale_palette.dart 주석 참고.
+    return AppColors.bg2;
   }
 
   void _openPet(BuildContext context) {
@@ -48,16 +47,17 @@ class PedigreeParentCard extends StatelessWidget {
     final showOwnerLine = !owner.isMe;
 
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
+        borderRadius: AppRadius.brLg,
         color: AppColors.card,
         border: Border.all(color: AppColors.paleLine),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          _Thumbnail(url: card.profileImageUrl, color: _identityColor),
-          const SizedBox(width: 10),
+          _Thumbnail(url: card.profileImageUrl, color: _identityColor, subcategory: card.speciesSubcategory),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -65,14 +65,14 @@ class PedigreeParentCard extends StatelessWidget {
               children: [
                 if (showOwnerLine) ...[
                   _OwnerLine(owner: owner),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                 ],
                 // 2줄 — 개체명. 탭 타겟은 이 줄에만 걸린다
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: () => _openPet(context),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    padding: const EdgeInsets.symmetric(vertical: 4),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -98,7 +98,7 @@ class PedigreeParentCard extends StatelessWidget {
                           ),
                         ),
                         if (card.isDeceased) ...[
-                          const SizedBox(width: 5),
+                          const SizedBox(width: 4),
                           const Text('🕊',
                               style: TextStyle(fontSize: 11)),
                         ],
@@ -145,7 +145,7 @@ class _OwnerLine extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       onTap: () => context.push('/users/${owner.userId}'),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
+        padding: const EdgeInsets.symmetric(vertical: 4),
         child: Text('@${owner.nickname ?? ''}',
             style: style, overflow: TextOverflow.ellipsis),
       ),
@@ -156,7 +156,10 @@ class _OwnerLine extends StatelessWidget {
 class _Thumbnail extends StatelessWidget {
   final String? url;
   final Color color;
-  const _Thumbnail({required this.url, required this.color});
+
+  /// 사진이 없을 때 그 종의 실루엣을 그리기 위한 것. 없으면 도마뱀으로 떨어진다.
+  final String? subcategory;
+  const _Thumbnail({required this.url, required this.color, this.subcategory});
 
   @override
   Widget build(BuildContext context) {
@@ -164,24 +167,27 @@ class _Thumbnail extends StatelessWidget {
       width: 44,
       height: 44,
       decoration: BoxDecoration(
+        borderRadius: AppRadius.brMd,
         color: color,
         border: Border.all(color: AppColors.paleLine),
       ),
       clipBehavior: Clip.hardEdge,
       child: url != null
           ? Image.network(url!, fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => const _ThumbFallback())
-          : const _ThumbFallback(),
+              errorBuilder: (_, __, ___) => _ThumbFallback(subcategory))
+          : _ThumbFallback(subcategory),
     );
   }
 }
 
 class _ThumbFallback extends StatelessWidget {
-  const _ThumbFallback();
+  final String? subcategory;
+  const _ThumbFallback(this.subcategory);
 
   @override
-  Widget build(BuildContext context) =>
-      const Center(child: Text('🦎', style: TextStyle(fontSize: 20)));
+  Widget build(BuildContext context) => Center(
+      child: AppIcon(AppIcons.species(subcategory),
+          size: 20, color: AppColors.paleInk2));
 }
 
 /// 비공개 개체용 최소 정보 시트 — 개체명·종·모프·성별·해칭일이 전부다.
@@ -230,13 +236,13 @@ class _PetCardSheet extends StatelessWidget {
             Container(
               width: 40,
               height: 4,
-              margin: const EdgeInsets.only(top: 10, bottom: 16),
+              margin: const EdgeInsets.only(top: 8, bottom: 16),
               decoration: BoxDecoration(
                   color: AppColors.paleLine,
                   borderRadius: BorderRadius.circular(2)),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(22, 0, 22, 6),
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -246,7 +252,7 @@ class _PetCardSheet extends StatelessWidget {
                           fontWeight: FontWeight.w700,
                           color: AppColors.paleInk2,
                           letterSpacing: 0.4)),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 4),
                   Text(card.name,
                       style: const TextStyle(
                           fontSize: 19,
@@ -257,14 +263,14 @@ class _PetCardSheet extends StatelessWidget {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(22, 10, 22, 24),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
               child: Column(
                 children: [
                   _SheetRow(label: '종', value: card.speciesName.isEmpty ? '-' : card.speciesName),
                   _SheetRow(label: '모프', value: card.morphLabel.isEmpty ? '-' : card.morphLabel),
                   _SheetRow(label: '성별', value: _genderLabel),
                   _SheetRow(label: '해칭일', value: _hatchLabel),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 16),
                   const Text(
                     '비공개 개체라 여기까지만 볼 수 있어요',
                     style: TextStyle(fontSize: 12, color: AppColors.paleInk3),
@@ -287,7 +293,7 @@ class _SheetRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 7),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

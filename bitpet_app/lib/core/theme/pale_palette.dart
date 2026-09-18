@@ -1,83 +1,21 @@
 import 'package:flutter/material.dart';
 import 'app_colors.dart';
 
-// Pet 색상 팔레트 키 — 6가지 PALE 색상
-enum PetPaletteKey { sage, peach, sky, lilac, butter, coral }
-
+/// 기록 **종류**의 색.
+///
+/// ⚠️ 이 파일에는 원래 개체별 지정색(`PetPaletteKey` 6종 + hex→키 추정)도 있었는데
+/// **전부 걷어냈다.** 개체색은 만들 때 아무거나 고른 값이라 아무 정보도 나르지 않으면서
+/// 히어로 카드·갤러리·기록 시트의 넓은 면을 칠하고 있었고, 브랜드색과 계속 서로 당겼다.
+/// 개체의 정체성은 사진과 이름이 한다.
+///
+/// 여기 남은 카테고리 색은 **정보다** — 캘린더의 점 하나, 기록 목록의 배지가 무슨
+/// 기록인지를 색으로만 구분한다. 지우면 캘린더가 회색 점 밭이 된다.
+/// ⛔ 그러니 이 색들을 '개체를 구분하는 용도'로 되살려 쓰지 말 것.
+///
+/// 선택 상태(고른 개체·작성 중인 개체·오늘 할 일)에는 `AppColors.brandTint` /
+/// `brandAction` 을 쓴다. 그건 '누구냐'가 아니라 '상태'라서 브랜드색이 맞다.
 abstract final class PalePalette {
-  // 팔레트 키 → pale 배경색
-  static Color pale(PetPaletteKey key) => switch (key) {
-        PetPaletteKey.sage   => AppColors.petSage,
-        PetPaletteKey.peach  => AppColors.petPeach,
-        PetPaletteKey.sky    => AppColors.petSky,
-        PetPaletteKey.lilac  => AppColors.petLilac,
-        PetPaletteKey.butter => AppColors.petButter,
-        PetPaletteKey.coral  => AppColors.petCoral,
-      };
-
-  // 팔레트 키 → ink 색상 (텍스트/점)
-  static Color ink(PetPaletteKey key) => switch (key) {
-        PetPaletteKey.sage   => AppColors.petSageInk,
-        PetPaletteKey.peach  => AppColors.petPeachInk,
-        PetPaletteKey.sky    => AppColors.petSkyInk,
-        PetPaletteKey.lilac  => AppColors.petLilacInk,
-        PetPaletteKey.butter => AppColors.petButterInk,
-        PetPaletteKey.coral  => AppColors.petCoralInk,
-      };
-
-  // hex colorCode → 가장 가까운 팔레트 키 (순서대로 기본값 fallback)
-  static PetPaletteKey keyFromHex(String? hex) {
-    if (hex == null) return PetPaletteKey.sage;
-    final norm = hex.toUpperCase().replaceAll('#', '');
-    // 등록된 팔레트 hex → 키 매핑 (구버전 + 신버전 모두 인식)
-    const knownMap = {
-      // 구 팔레트
-      'E2F5ED': PetPaletteKey.sage,
-      'E8F2DC': PetPaletteKey.sage,
-      'FBE4D8': PetPaletteKey.peach,
-      'FFE3CE': PetPaletteKey.peach,
-      'D8F3FF': PetPaletteKey.sky,
-      'D5F0FF': PetPaletteKey.sky,
-      'EAE2FF': PetPaletteKey.lilac,
-      'F1E5FF': PetPaletteKey.lilac,
-      'FFF7D8': PetPaletteKey.butter,
-      'FCF2CD': PetPaletteKey.butter,
-      'FFD8D8': PetPaletteKey.coral,
-      'FFD8D4': PetPaletteKey.coral,
-      // 신 팔레트 (muted)
-      'EAEEEA': PetPaletteKey.sage,
-      'EEECE6': PetPaletteKey.peach,
-      'E6EEF5': PetPaletteKey.sky,
-      'EDE9F5': PetPaletteKey.lilac,
-      'F0EFEA': PetPaletteKey.butter,
-      'F0EAE7': PetPaletteKey.coral,
-    };
-    if (knownMap.containsKey(norm)) return knownMap[norm]!;
-    // 알 수 없는 hex → 채도 기반으로 가장 가까운 색상 추정
-    return _nearestByHue(_parseHex(hex));
-  }
-
-  static Color _parseHex(String hex) {
-    try {
-      final v = int.parse(hex.replaceFirst('#', ''), radix: 16);
-      return Color(v | 0xFF000000);
-    } catch (_) {
-      return AppColors.petSage;
-    }
-  }
-
-  // 간단 hue 기반 nearest-palette
-  static PetPaletteKey _nearestByHue(Color c) {
-    final h = HSVColor.fromColor(c).hue; // 0–360
-    if (h >= 100 && h < 165) return PetPaletteKey.sage;
-    if (h >= 165 && h < 255) return PetPaletteKey.sky;
-    if (h >= 255 && h < 330) return PetPaletteKey.lilac;
-    if (h >= 40 && h < 70)   return PetPaletteKey.butter;
-    if (h >= 15 && h < 40)   return PetPaletteKey.peach;
-    return PetPaletteKey.coral; // 0–15 and 330–360
-  }
-
-  // 카테고리 코드 → pale 배경
+  /// 카테고리 코드 → 배경색
   static Color catPale(String cat) => switch (cat.toUpperCase()) {
         'WEIGHT'  => AppColors.catWeight,
         'FEEDING' => AppColors.catFeed,
@@ -85,10 +23,10 @@ abstract final class PalePalette {
         'MEMO'    => AppColors.catMemo,
         'MATING'  => AppColors.catMating,
         'LAYING'  => AppColors.catLaying,
-        _         => AppColors.petSage,
+        _         => AppColors.bgAlt,
       };
 
-  // 카테고리 코드 → ink 색상
+  /// 카테고리 코드 → 잉크색 (텍스트·아이콘·선)
   static Color catInk(String cat) => switch (cat.toUpperCase()) {
         'WEIGHT'  => AppColors.catWeightInk,
         'FEEDING' => AppColors.catFeedInk,
@@ -96,9 +34,6 @@ abstract final class PalePalette {
         'MEMO'    => AppColors.catMemoInk,
         'MATING'  => AppColors.catMatingInk,
         'LAYING'  => AppColors.catLayingInk,
-        _         => AppColors.petSageInk,
+        _         => AppColors.ink2,
       };
-
-  // 전체 팔레트 컬러 목록 (팔레트 피커 등 사용)
-  static const List<PetPaletteKey> all = PetPaletteKey.values;
 }

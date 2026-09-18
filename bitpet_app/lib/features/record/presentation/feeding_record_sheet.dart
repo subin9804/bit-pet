@@ -17,6 +17,8 @@ import '../../routine/providers/routine_provider.dart';
 import '../data/record_repository.dart';
 import '../providers/record_invalidation.dart';
 import 'widgets/feed_items_editor.dart';
+import '../../../core/theme/app_icons.dart';
+import '../../../core/theme/app_dimens.dart';
 
 class FeedingRecordSheet extends ConsumerStatefulWidget {
   final TodayRoutine routine;
@@ -110,12 +112,9 @@ class _FeedingRecordSheetState extends ConsumerState<FeedingRecordSheet> {
   }
 
   Color _petBg(TodayPetStatus s) {
-    if (s.colorCode == null) return AppColors.petColorMint;
-    try {
-      return Color(int.parse(s.colorCode!.replaceFirst('#', '0xFF')));
-    } catch (_) {
-      return AppColors.petColorMint;
-    }
+    // 개체 지정색은 걷어냈다 — 저장된 hex 를 그대로 칠하던 자리다.
+    // 자세한 이유는 core/theme/pale_palette.dart 주석 참고.
+    return AppColors.bgAlt;
   }
 
   @override
@@ -140,7 +139,7 @@ class _FeedingRecordSheetState extends ConsumerState<FeedingRecordSheet> {
                 height: 4,
                 decoration: BoxDecoration(
                   color: AppColors.border,
-                  borderRadius: BorderRadius.zero,
+                  borderRadius: AppRadius.brPill,
                 ),
               ),
             ),
@@ -163,10 +162,10 @@ class _FeedingRecordSheetState extends ConsumerState<FeedingRecordSheet> {
                   const Spacer(),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
+                        horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: AppColors.petColorPeach,
-                      borderRadius: BorderRadius.zero,
+                      borderRadius: AppRadius.brPill,
                     ),
                     child: Text(
                       '${_currentIndex + 1} / ${_pets.length}',
@@ -196,13 +195,13 @@ class _FeedingRecordSheetState extends ConsumerState<FeedingRecordSheet> {
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 150),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
+                          horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
                         color: isActive
                             ? _petBg(s)
                             : AppColors.bg2,
                         borderRadius:
-                            BorderRadius.zero,
+                            AppRadius.brPill,
                         border: Border.all(
                           color: isActive
                               ? _petBg(s).withValues(alpha: 0.6)
@@ -229,7 +228,7 @@ class _FeedingRecordSheetState extends ConsumerState<FeedingRecordSheet> {
                             isSaved
                                 ? Icons.check_circle
                                 : Icons.circle_outlined,
-                            size: 12,
+                            size: 16,
                             color: isSaved
                                 ? AppColors.primary
                                 : AppColors.border,
@@ -261,7 +260,7 @@ class _FeedingRecordSheetState extends ConsumerState<FeedingRecordSheet> {
                       bandColor: AppColors.petPeach,
                       onChanged: (list) => setState(() => _items[_current.petId] = list),
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 16),
                     TextField(
                       onChanged: (v) => _memos[_current.petId] = v,
                       maxLines: 2,
@@ -293,7 +292,7 @@ class _FeedingRecordSheetState extends ConsumerState<FeedingRecordSheet> {
                                       : '완료 (${_currentItems.length}종 저장)'),
                             ),
                           ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
                     // 다음 개체
                     if (_currentIndex < _pets.length - 1)
                       SizedBox(
@@ -306,14 +305,14 @@ class _FeedingRecordSheetState extends ConsumerState<FeedingRecordSheet> {
                             mainAxisAlignment:
                                 MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.pets,
+                              AppIcon(AppIcons.petLine,
                                   size: 16,
                                   color: AppColors.textSecondary),
-                              const SizedBox(width: 6),
+                              const SizedBox(width: 8),
                               Text(
                                   '다음 · ${_pets[_currentIndex + 1].petName}'),
                               const SizedBox(width: 4),
-                              const Icon(Icons.chevron_right,
+                              const AppIcon(AppIcons.chevronRight,
                                   size: 16),
                             ],
                           ),
@@ -351,7 +350,7 @@ class _FeedingRecordSheetState extends ConsumerState<FeedingRecordSheet> {
                           mainAxisAlignment:
                               MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.arrow_back_ios, size: 12),
+                            Icon(Icons.arrow_back_ios, size: 16),
                             Text('뒤로'),
                           ],
                         ),
@@ -392,10 +391,10 @@ class _CurrentPetCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: bgColor.withValues(alpha: 0.35),
-        borderRadius: BorderRadius.zero,
+        borderRadius: AppRadius.brLg,
       ),
       child: Row(
         children: [
@@ -404,20 +403,19 @@ class _CurrentPetCard extends StatelessWidget {
             height: 44,
             decoration: BoxDecoration(
               color: bgColor,
-              borderRadius: BorderRadius.zero,
+              borderRadius: AppRadius.brLg,
             ),
             child: status.imageUrl != null
                 ? ClipRRect(
-                    borderRadius: BorderRadius.zero,
+                    borderRadius: AppRadius.brLg,
                     child: Image.network(status.imageUrl!,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Icon(
-                            Icons.pets,
-                            size: 22,
+                        errorBuilder: (_, __, ___) => AppIcon(AppIcons.petLine,
+                            size: 20,
                             color: AppColors.primary.withValues(alpha: 0.4))),
                   )
-                : Icon(Icons.pets,
-                    size: 22,
+                : AppIcon(AppIcons.petLine,
+                    size: 20,
                     color: AppColors.primary.withValues(alpha: 0.4)),
           ),
           const SizedBox(width: 12),
@@ -433,7 +431,7 @@ class _CurrentPetCard extends StatelessWidget {
             ),
           ),
           Icon(Icons.chevron_left,
-              size: 18, color: AppColors.textDisabled),
+              size: 20, color: AppColors.textDisabled),
         ],
       ),
     );
@@ -453,10 +451,11 @@ class _SavedStatusRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(
-          horizontal: 14, vertical: 12),
+          horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: AppColors.petColorMint,
-        borderRadius: BorderRadius.zero,
+        // '저장됨'은 상태다 — 개체색 팔레트에서 빌려 쓰던 자리라 브랜드색으로 옮겼다.
+        color: AppColors.brandTint,
+        borderRadius: AppRadius.brLg,
       ),
       child: Row(
         children: [
@@ -470,7 +469,7 @@ class _SavedStatusRow extends StatelessWidget {
             child: const Icon(Icons.check,
                 size: 16, color: Colors.white),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -491,12 +490,12 @@ class _SavedStatusRow extends StatelessWidget {
             style: TextButton.styleFrom(
               minimumSize: const Size(0, 0),
               padding: const EdgeInsets.symmetric(
-                  horizontal: 10, vertical: 6),
+                  horizontal: 8, vertical: 8),
               backgroundColor: AppColors.surface,
               foregroundColor: AppColors.textPrimary,
               side: const BorderSide(color: AppColors.border),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.zero),
+                  borderRadius: AppRadius.brMd),
             ),
             child: const Text('미완료',
                 style: TextStyle(fontSize: 12)),

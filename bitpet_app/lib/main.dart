@@ -3,7 +3,6 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'core/db/app_database.dart';
 import 'core/mock/mock_config.dart';
 import 'core/mock/mock_repositories.dart';
@@ -14,7 +13,6 @@ import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  GoogleFonts.config.allowRuntimeFetching = false;
 
   // Firebase 초기화 실패(설정 누락 등)가 앱 기동 자체를 막지 않도록 격리한다.
   try {

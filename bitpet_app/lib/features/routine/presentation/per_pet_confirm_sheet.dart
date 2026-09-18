@@ -7,9 +7,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_input_styles.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../../core/theme/pale_palette.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../../record/presentation/widgets/feed_items_editor.dart';
 import '../data/models/routine_models.dart';
@@ -17,7 +17,7 @@ import '../data/routine_repository.dart';
 import '../providers/routine_provider.dart';
 import 'widgets/confirm_accordion.dart';
 import '../../record/providers/record_invalidation.dart';
-import '../../record/providers/record_provider.dart';
+import '../../../core/theme/app_dimens.dart';
 
 // ── 개체별 입력 상태 ──────────────────────────────────────────────
 class _PerPetRec {
@@ -72,13 +72,6 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
         RoutineType.CLEANING => AppColors.petSky,
         RoutineType.WEIGHT   => AppColors.petSage,
         RoutineType.CUSTOM   => AppColors.petLilac,
-      };
-
-  IconData get _icon => switch (widget.routine.routineType) {
-        RoutineType.FEEDING  => Icons.restaurant_outlined,
-        RoutineType.CLEANING => Icons.cleaning_services_outlined,
-        RoutineType.WEIGHT   => Icons.monitor_weight_outlined,
-        RoutineType.CUSTOM   => Icons.star_outline,
       };
 
   @override
@@ -192,6 +185,8 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
     rec.dirty = false;
     ref.read(todayRoutinesProvider.notifier)
         .updatePetStatus(widget.routine.id, pet.petId, completed);
+    // 종료 버튼으로 나가야만 갱신되면, X 로 닫은 사람은 캘린더가 옛 값인 채로 남는다
+    invalidatePetRecords(ref, pet.petId);
   }
 
   // ── 완료 취소 (완료됨 버튼 → 로그 삭제) ───────────────────────────
@@ -211,6 +206,7 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
       rec.savedLogId = null;
       ref.read(todayRoutinesProvider.notifier)
           .updatePetStatus(widget.routine.id, pet.petId, false);
+      invalidatePetRecords(ref, pet.petId);
       if (mounted) setState(() => rec.done = false);
     } catch (e) {
       if (mounted) showToast(context, '취소 실패: $e', type: ToastType.error);
@@ -260,14 +256,13 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
     // 종료 시 현재 개체의 입력·수정도 반드시 저장하고 닫는다
     _saveIfNeeded(_pets[_idx]).then((_) {
       if (!mounted) return;
-      Navigator.of(context).pop();
+      // ⚠️ 무효화를 pop 보다 먼저 한다. 닫고 나서 부르면 이 시트의 ref 가 이미
+      // 버려진 뒤라, 던지는 순간 뒤따르는 무효화가 통째로 건너뛰어진다.
       ref.invalidate(routineTodayStatusProvider(routine.id));
       for (final p in _pets) {
         invalidatePetRecords(ref, p.petId);
       }
-      final ym = DateTime.now();
-      ref.invalidate(homeCalendarProvider(
-          '${ym.year}-${ym.month.toString().padLeft(2, '0')}'));
+      Navigator.of(context).pop();
       if (_completedCount > 0) {
         showToast(context, '$_completedCount마리 완료 처리됐어요',
             type: ToastType.success);
@@ -307,7 +302,7 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
             padding: EdgeInsets.only(bottom: keyboardH),
             child: Center(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 26),
+              padding: const EdgeInsets.symmetric(horizontal: 24),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 380),
                 child: SizedBox(
@@ -315,7 +310,7 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
                   child: Container(
                     decoration: BoxDecoration(
                       color: AppColors.paleBg,
-                      borderRadius: BorderRadius.zero,
+                      borderRadius: AppRadius.brMd,
                       border: Border.all(color: AppColors.paleLine),
                     ),
                     clipBehavior: Clip.antiAlias,
@@ -324,18 +319,19 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
                         // ── 헤더 밴드 ──────────────────────────────
                         Container(
                           color: _accent,
-                          padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+                          padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
                           child: Row(
                             children: [
                               Container(
                                 width: 42, height: 42,
                                 decoration: BoxDecoration(
                                   color: Colors.white.withValues(alpha: 0.62),
-                                  borderRadius: BorderRadius.zero,
+                                  borderRadius: AppRadius.brLg,
                                 ),
-                                child: Icon(_icon, size: 21, color: AppColors.primary),
+                                child: RecordTypeIcon(widget.routine.routineType.name,
+                                    size: 21, color: AppColors.primary),
                               ),
-                              const SizedBox(width: 11),
+                              const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -345,7 +341,7 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
                                       style: AppTextStyles.mono(10, FontWeight.w700,
                                           color: AppColors.paleInk2),
                                     ),
-                                    const SizedBox(height: 2),
+                                    const SizedBox(height: 4),
                                     Text(
                                       routine.title,
                                       style: const TextStyle(
@@ -359,10 +355,10 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
                               ),
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 10, vertical: 4),
+                                    horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
                                   color: Colors.white.withValues(alpha: 0.6),
-                                  borderRadius: BorderRadius.zero,
+                                  borderRadius: AppRadius.brPill,
                                 ),
                                 child: Text.rich(
                                   TextSpan(
@@ -457,7 +453,7 @@ class _PetPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -467,17 +463,17 @@ class _PetPage extends StatelessWidget {
                 Container(
                   width: 50, height: 50,
                   decoration: BoxDecoration(
-                    color: PalePalette.pale(PalePalette.keyFromHex(pet.colorCode)),
-                    borderRadius: BorderRadius.zero,
+                    color: AppColors.bgAlt,
+                    borderRadius: AppRadius.brLg,
                   ),
                   child: pet.imageUrl != null
                       ? ClipRRect(
-                          borderRadius: BorderRadius.zero,
+                          borderRadius: AppRadius.brLg,
                           child: Image.network(pet.imageUrl!,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Icon(Icons.pets,
+                              errorBuilder: (_, __, ___) => AppIcon(AppIcons.petLine,
                                   size: 24, color: AppColors.primary)))
-                      : Icon(Icons.pets, size: 24, color: AppColors.primary),
+                      : AppIcon(AppIcons.petLine, size: 24, color: AppColors.primary),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -500,17 +496,17 @@ class _PetPage extends StatelessWidget {
                 ),
                 // 대기/완료 칩
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: rec.done ? AppColors.primary : AppColors.paleBgAlt,
-                    borderRadius: BorderRadius.zero,
+                    borderRadius: AppRadius.brPill,
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (rec.done) ...[
-                        const Icon(Icons.check, size: 12, color: AppColors.paleBg),
-                        const SizedBox(width: 3),
+                        const Icon(Icons.check, size: 16, color: AppColors.paleBg),
+                        const SizedBox(width: 4),
                       ],
                       Text(rec.done ? '완료' : '대기',
                           style: TextStyle(
@@ -523,7 +519,7 @@ class _PetPage extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 20),
 
             // 완료/미완료 버튼
             GestureDetector(
@@ -534,13 +530,13 @@ class _PetPage extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: rec.done ? AppColors.paleBgAlt : AppColors.primary,
                   border: rec.done ? Border.all(color: AppColors.paleLine) : null,
-                  borderRadius: BorderRadius.zero,
+                  borderRadius: AppRadius.brMd,
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(rec.done ? Icons.check_circle_outline : Icons.check,
-                        size: 17,
+                        size: 20,
                         color: rec.done ? AppColors.paleInk2 : AppColors.paleBg),
                     const SizedBox(width: 8),
                     Text(
@@ -566,11 +562,11 @@ class _PetPage extends StatelessWidget {
                     color: AppColors.paleInk3),
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
 
             // 몸무게 입력 (WEIGHT 루틴 — 필수)
             if (isWeight) ...[
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Text('몸무게 (g) *',
                   style: TextStyle(
                       fontSize: 12, fontWeight: FontWeight.w700,
@@ -669,7 +665,7 @@ class _Footer extends StatelessWidget {
         color: AppColors.paleBg,
         border: Border(top: BorderSide(color: AppColors.paleLineSoft)),
       ),
-      padding: const EdgeInsets.fromLTRB(18, 12, 18, 20),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
       child: Row(
         children: [
           if (!isLast) ...[
@@ -687,13 +683,13 @@ class _Footer extends StatelessWidget {
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
                         color: AppColors.primary,
-                        borderRadius: BorderRadius.zero,
+                        borderRadius: AppRadius.brMd,
                       ),
                       child: const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(Icons.check, size: 16, color: AppColors.paleBg),
-                          SizedBox(width: 7),
+                          SizedBox(width: 8),
                           Text('종료',
                               style: TextStyle(
                                   fontSize: 14, fontWeight: FontWeight.w700,
@@ -710,7 +706,7 @@ class _Footer extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: AppColors.card,
                         border: Border.all(color: AppColors.paleLine),
-                        borderRadius: BorderRadius.zero,
+                        borderRadius: AppRadius.brMd,
                       ),
                       child: const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -720,7 +716,7 @@ class _Footer extends StatelessWidget {
                                   fontSize: 14, fontWeight: FontWeight.w700,
                                   color: AppColors.primary)),
                           SizedBox(width: 4),
-                          Icon(Icons.chevron_right,
+                          AppIcon(AppIcons.chevronRight,
                               size: 16, color: AppColors.paleInk2),
                         ],
                       ),
@@ -752,7 +748,7 @@ class _FooterBtn extends StatelessWidget {
           decoration: BoxDecoration(
             color: AppColors.card,
             border: Border.all(color: AppColors.paleLine),
-            borderRadius: BorderRadius.zero,
+            borderRadius: AppRadius.brMd,
           ),
           child: Text(label,
               style: const TextStyle(

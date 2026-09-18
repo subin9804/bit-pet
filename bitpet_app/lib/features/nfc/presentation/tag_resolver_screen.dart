@@ -176,7 +176,7 @@ class _TagMessage extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(icon, size: 40, color: AppColors.textDisabled),
-              const SizedBox(height: 18),
+              const SizedBox(height: 20),
               Text(title, style: AppTextStyles.h3),
               const SizedBox(height: 8),
               Text(
@@ -185,7 +185,7 @@ class _TagMessage extends StatelessWidget {
                 style: AppTextStyles.caption,
               ),
               if (detail != null) ...[
-                const SizedBox(height: 14),
+                const SizedBox(height: 16),
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -197,7 +197,7 @@ class _TagMessage extends StatelessWidget {
                   ),
                 ),
               ],
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
               Text(
                 tagCd,
                 style: AppTextStyles.mono(11, FontWeight.w700,

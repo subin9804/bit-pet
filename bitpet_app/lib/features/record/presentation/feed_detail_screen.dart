@@ -14,6 +14,7 @@ import '../providers/feed_provider.dart';
 import '../providers/record_invalidation.dart';
 import 'widgets/feed_items_editor.dart';
 import '../../pet/providers/pet_provider.dart';
+import '../../../core/theme/app_dimens.dart';
 
 // ── 먹이 종류 → 색상 매핑 ──────────────────────────────────
 const _foodColorKey = {
@@ -161,7 +162,7 @@ class _FeedDetailScreenState extends ConsumerState<FeedDetailScreen> {
               ),
               // 세그먼트 탭
               Padding(
-                padding: const EdgeInsets.fromLTRB(22, 2, 22, 12),
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
                 child: _FeedSegment(
                   index: _tabIndex,
                   onChanged: (i) => setState(() => _tabIndex = i),
@@ -224,7 +225,7 @@ class _TopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
       child: Row(
         children: [
           GestureDetector(
@@ -255,7 +256,7 @@ class _TopBar extends StatelessWidget {
               height: 36, padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
                 color: AppColors.primary,
-                borderRadius: BorderRadius.zero,
+                borderRadius: AppRadius.brMd,
               ),
               child: Row(
                 children: [
@@ -286,7 +287,7 @@ class _FeedSegment extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.paleBgAlt,
-        borderRadius: BorderRadius.zero,
+        borderRadius: AppRadius.brMd,
       ),
       padding: const EdgeInsets.all(4),
       child: Row(
@@ -317,18 +318,18 @@ class _Tab extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 9),
+          padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
             color: active ? AppColors.card : Colors.transparent,
             border: active ? Border.all(color: AppColors.paleLine) : null,
-            borderRadius: BorderRadius.zero,
+            borderRadius: AppRadius.brMd,
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(icon, size: 16,
                   color: active ? AppColors.primary : AppColors.paleInk3),
-              const SizedBox(width: 6),
+              const SizedBox(width: 8),
               Text(label,
                   style: TextStyle(
                       fontSize: 13, fontWeight: FontWeight.w700,
@@ -360,9 +361,9 @@ class SessionCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.card,
         border: Border.all(color: AppColors.paleLine),
-        borderRadius: BorderRadius.zero,
+        borderRadius: AppRadius.brMd,
       ),
-      padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+      padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -381,7 +382,7 @@ class SessionCard extends StatelessWidget {
                     '${int.parse(session.date.substring(5,7))}월',
                     style: AppTextStyles.monoXxs,
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 4),
                   Text(session.time, style: AppTextStyles.monoXxs),
                 ],
               ),
@@ -393,7 +394,7 @@ class SessionCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 ...session.items.map((item) => Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
+                  padding: const EdgeInsets.only(bottom: 8),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -430,10 +431,10 @@ class SessionCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: AppColors.paleBg,
                 border: Border.all(color: AppColors.paleLine),
-                borderRadius: BorderRadius.zero,
+                borderRadius: AppRadius.brMd,
               ),
               child: const Icon(Icons.edit_outlined,
-                  size: 14, color: AppColors.paleInk2),
+                  size: 16, color: AppColors.paleInk2),
             ),
           ),
         ],
@@ -572,12 +573,12 @@ class _DaySheet extends StatelessWidget {
             // 핸들
             Container(
               width: 40, height: 4,
-              margin: const EdgeInsets.symmetric(vertical: 10),
+              margin: const EdgeInsets.symmetric(vertical: 8),
               color: AppColors.paleLine,
             ),
             // 헤더
             Padding(
-              padding: const EdgeInsets.fromLTRB(22, 0, 22, 12),
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -603,15 +604,15 @@ class _DaySheet extends StatelessWidget {
             Expanded(
               child: ListView(
                 controller: scrollCtrl,
-                padding: const EdgeInsets.fromLTRB(22, 0, 22, 24),
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
                 children: [
                   if (sessions.isEmpty)
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 22),
+                      padding: const EdgeInsets.symmetric(vertical: 20),
                       decoration: BoxDecoration(
                         border: Border.all(color: AppColors.paleLine, width: 1.5),
-                        borderRadius: BorderRadius.zero,
+                        borderRadius: AppRadius.brLg,
                       ),
                       child: const Text('이 날의 급여 기록이 없어요',
                           textAlign: TextAlign.center,
@@ -621,7 +622,7 @@ class _DaySheet extends StatelessWidget {
                     )
                   else
                     ...sessions.map((s) => Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.only(bottom: 8),
                           child: SessionCard(
                               session: s,
                               onEdit: () => onEdit(s),
@@ -632,17 +633,17 @@ class _DaySheet extends StatelessWidget {
                     onTap: onAdd,
                     child: Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                       decoration: BoxDecoration(
                         color: AppColors.card,
                         border: Border.all(color: AppColors.paleLine),
-                        borderRadius: BorderRadius.zero,
+                        borderRadius: AppRadius.brLg,
                       ),
                       child: const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(Icons.add, size: 16, color: AppColors.primary),
-                          SizedBox(width: 6),
+                          SizedBox(width: 8),
                           Text('이 날 기록 추가',
                               style: TextStyle(
                                   fontSize: 13, fontWeight: FontWeight.w700,
@@ -715,12 +716,12 @@ class _ListViewState extends State<_ListView> {
 
     return ListView.builder(
       controller: _scrollCtrl,
-      padding: const EdgeInsets.fromLTRB(22, 4, 22, 110),
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 110),
       itemCount: items.length + 1, // +1 footer
       itemBuilder: (context, i) {
         if (i == 0) {
           return Padding(
-            padding: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.only(bottom: 8),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -735,14 +736,14 @@ class _ListViewState extends State<_ListView> {
         final item = items[i - 1];
         if (item.isMonth) {
           return Padding(
-            padding: const EdgeInsets.fromLTRB(2, 8, 2, 2),
+            padding: const EdgeInsets.fromLTRB(4, 8, 4, 4),
             child: Row(
               children: [
                 Text(
                   item.monthKey!.replaceAll('-', '.'),
                   style: AppTextStyles.monoSm,
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Expanded(child: Container(height: 1,
                     color: AppColors.paleLineSoft)),
               ],
@@ -750,7 +751,7 @@ class _ListViewState extends State<_ListView> {
           );
         }
         return Padding(
-          padding: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.only(bottom: 8),
           child: SessionCard(
             session: item.session!,
             onEdit: () => widget.onEdit(item.session!),
@@ -860,7 +861,7 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
                   ),
                   // 헤더 + 날짜 스테퍼
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(22, 2, 22, 12),
+                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
                     child: Column(
                       children: [
                         Row(
@@ -887,18 +888,18 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 8),
                         // 날짜 스테퍼
                         Row(
                           children: [
                             AppNavButton(onTap: () => _shiftDate(-1)),
                             Expanded(
                               child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 9),
+                                padding: const EdgeInsets.symmetric(vertical: 8),
                                 decoration: BoxDecoration(
                                   color: AppColors.card,
                                   border: Border.all(color: AppColors.paleLine),
-                                  borderRadius: BorderRadius.zero,
+                                  borderRadius: AppRadius.brMd,
                                 ),
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
@@ -907,7 +908,7 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
                                       e.date.replaceAll('-', '.'),
                                       style: AppTextStyles.mono(14, FontWeight.w700),
                                     ),
-                                    const SizedBox(width: 6),
+                                    const SizedBox(width: 8),
                                     Text(
                                       '(${_weekKo[dt.weekday % 7]})',
                                       style: TextStyle(
@@ -928,8 +929,8 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
                   Expanded(
                     child: SingleChildScrollView(
                       padding: EdgeInsets.fromLTRB(
-                          22, 4, 22,
-                          MediaQuery.of(context).viewInsets.bottom + 14),
+                          20, 4, 20,
+                          MediaQuery.of(context).viewInsets.bottom + 16),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -952,12 +953,12 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
                                   style: TextStyle(
                                       fontSize: 12, fontWeight: FontWeight.w700,
                                       color: AppColors.primary)),
-                              const SizedBox(width: 6),
+                              const SizedBox(width: 8),
                               Text('OPTIONAL',
                                   style: AppTextStyles.monoXxs),
                             ],
                           ),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 8),
                           TextField(
                             controller: _memoCtrl,
                             onChanged: (v) => widget.onChanged(
@@ -970,23 +971,23 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
 
                           // 삭제 버튼 (수정 모드)
                           if (e.isEdit && e.editId != null) ...[
-                            const SizedBox(height: 14),
+                            const SizedBox(height: 16),
                             GestureDetector(
                               onTap: () => widget.onDelete(e.editId!),
                               child: Container(
                                 width: double.infinity,
-                                padding: const EdgeInsets.symmetric(vertical: 11),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
                                 decoration: BoxDecoration(
                                   border: Border.all(
                                       color: const Color(0x66E53935)),
-                                  borderRadius: BorderRadius.zero,
+                                  borderRadius: AppRadius.brMd,
                                 ),
                                 child: const Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Icon(Icons.delete_outline,
                                         size: 16, color: AppColors.error),
-                                    SizedBox(width: 6),
+                                    SizedBox(width: 8),
                                     Text('이 기록 삭제',
                                         style: TextStyle(
                                             fontSize: 13, fontWeight: FontWeight.w700,
@@ -1003,7 +1004,7 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
                   // 푸터
                   Container(
                     padding: EdgeInsets.fromLTRB(
-                        22, 12, 22,
+                        20, 12, 20,
                         MediaQuery.of(context).padding.bottom + 12),
                     decoration: const BoxDecoration(
                       color: AppColors.paleBg,
@@ -1016,11 +1017,11 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
                           onTap: widget.onClose,
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 18, vertical: 14),
+                                horizontal: 20, vertical: 16),
                             decoration: BoxDecoration(
                               color: AppColors.card,
                               border: Border.all(color: AppColors.paleLine),
-                              borderRadius: BorderRadius.zero,
+                              borderRadius: AppRadius.brLg,
                             ),
                             child: const Text('취소',
                                 style: TextStyle(
@@ -1033,13 +1034,13 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
                           child: GestureDetector(
                             onTap: e.items.isEmpty ? null : widget.onSave,
                             child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
                                 color: e.items.isEmpty
                                     ? AppColors.paleLine
                                     : AppColors.primary,
-                                borderRadius: BorderRadius.zero,
+                                borderRadius: AppRadius.brLg,
                               ),
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,

@@ -7,21 +7,23 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/theme/pale_palette.dart';
 import '../../../../features/record/data/models/record_models.dart';
 import '../../../../features/record/providers/record_provider.dart';
+import '../../../../core/theme/app_icons.dart';
+import '../../../../core/theme/app_dimens.dart';
 
 // ── 카테고리 메타 ─────────────────────────────────────────────
+// 아이콘은 여기 들고 있지 않다 — 카테고리 코드만 [RecordTypeIcon] 에 넘긴다.
 class _CatMeta {
   final String label;
-  final IconData icon;
-  const _CatMeta(this.label, this.icon);
+  const _CatMeta(this.label);
 }
 
 const _catMeta = {
-  'WEIGHT':  _CatMeta('체중',   Icons.monitor_weight_outlined),
-  'FEEDING': _CatMeta('급여',   Icons.restaurant_outlined),
-  'CLEANING':_CatMeta('청소',   Icons.cleaning_services_outlined),
-  'MEMO':    _CatMeta('메모',   Icons.note_alt_outlined),
-  'MATING':  _CatMeta('메이팅', Icons.favorite_outline),
-  'LAYING':  _CatMeta('산란',   Icons.egg_outlined),
+  'WEIGHT':  _CatMeta('체중'),
+  'FEEDING': _CatMeta('급여'),
+  'CLEANING':_CatMeta('청소'),
+  'MEMO':    _CatMeta('메모'),
+  'MATING':  _CatMeta('메이팅'),
+  'LAYING':  _CatMeta('산란'),
 };
 
 // API 카테고리 코드 → UI 표시용 key (PalePalette.catPale/catInk에서 사용)
@@ -50,9 +52,8 @@ class WeightPoint {
 // ── RecordTab ────────────────────────────────────────────────
 class RecordTab extends ConsumerStatefulWidget {
   final int petId;
-  final PetPaletteKey paletteKey;
 
-  const RecordTab({super.key, required this.petId, required this.paletteKey});
+  const RecordTab({super.key, required this.petId});
 
   @override
   ConsumerState<RecordTab> createState() => _RecordTabState();
@@ -79,7 +80,7 @@ class _RecordTabState extends ConsumerState<RecordTab> {
       children: [
         // ── 요약 — 체중 히어로 + 나머지 카테고리 리스트 ─────
         _buildSummaryHero(context, summaryAsync, weightsAsync),
-        const SizedBox(height: 22),
+        const SizedBox(height: 20),
 
         // ── 오늘 기록 헤더 ────────────────────────────────────
         Row(
@@ -140,7 +141,7 @@ class _RecordTabState extends ConsumerState<RecordTab> {
       onTap: () => context.push('/pets/${widget.petId}/weight'),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
         decoration: BoxDecoration(
           color: PalePalette.catPale('WEIGHT'),
         ),
@@ -152,9 +153,9 @@ class _RecordTabState extends ConsumerState<RecordTab> {
                 children: [
                   Row(
                     children: [
-                      Icon(_catMeta['WEIGHT']!.icon, size: 15,
+                      RecordTypeIcon('WEIGHT', size: 15,
                           color: PalePalette.catInk('WEIGHT')),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 8),
                       Text('체중', style: AppTextStyles.paleCatLabel),
                       const Spacer(),
                       if (weightItem != null)
@@ -167,8 +168,8 @@ class _RecordTabState extends ConsumerState<RecordTab> {
                           ),
                         ),
                       const SizedBox(width: 4),
-                      Icon(Icons.chevron_right,
-                          size: 18, color: PalePalette.catInk('WEIGHT')),
+                      AppIcon(AppIcons.chevronRight,
+                          size: 20, color: PalePalette.catInk('WEIGHT')),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -208,10 +209,11 @@ class _RecordTabState extends ConsumerState<RecordTab> {
     const restCats = ['FEEDING', 'CLEANING', 'MEMO', 'MATING', 'LAYING'];
     final restCard = Container(
       decoration: BoxDecoration(
+        borderRadius: AppRadius.brLg,
         color: AppColors.card,
         border: Border.all(color: AppColors.paleLine),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Column(
         children: restCats.asMap().entries.map((entry) {
           final i   = entry.key;
@@ -252,7 +254,7 @@ class _RecordTabState extends ConsumerState<RecordTab> {
                       decoration: BoxDecoration(
                         color: PalePalette.catPale(cat),
                       ),
-                      child: Icon(meta.icon, size: 16,
+                      child: RecordTypeIcon(cat, size: 16,
                           color: PalePalette.catInk(cat)),
                     ),
                     const SizedBox(width: 12),
@@ -298,8 +300,8 @@ class _RecordTabState extends ConsumerState<RecordTab> {
                       ),
                     ],
                     const SizedBox(width: 4),
-                    Icon(Icons.chevron_right,
-                        size: 18,
+                    AppIcon(AppIcons.chevronRight,
+                        size: 20,
                         color: isEmpty
                             ? AppColors.paleInk3
                             : PalePalette.catInk(cat)),
@@ -324,18 +326,18 @@ class _RecordTabState extends ConsumerState<RecordTab> {
   Widget _buildDayList(AsyncValue<List<TimelineItem>> dayAsync) {
     return dayAsync.when(
       loading: () => const Padding(
-        padding: EdgeInsets.symmetric(vertical: 22),
+        padding: EdgeInsets.symmetric(vertical: 20),
         child: Center(child: CircularProgressIndicator()),
       ),
       error: (e, _) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 22),
+        padding: const EdgeInsets.symmetric(vertical: 20),
         child: Center(child: Text('오류: $e',
             style: TextStyle(color: AppColors.error, fontSize: 12))),
       ),
       data: (items) {
         if (items.isEmpty) {
           return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 22),
+            padding: const EdgeInsets.symmetric(vertical: 20),
             child: Center(
               child: Text('이 날의 기록이 없어요',
                   style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
@@ -355,7 +357,7 @@ class _RecordTabState extends ConsumerState<RecordTab> {
                         color: AppColors.paleLineSoft))
                     : null,
               ),
-              padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 2),
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
               child: Row(
                 children: [
                   Container(

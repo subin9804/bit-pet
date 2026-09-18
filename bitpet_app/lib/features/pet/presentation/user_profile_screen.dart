@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../data/models/pet_models.dart';
 import '../providers/pet_provider.dart';
+import '../../../core/theme/app_icons.dart';
+import '../../../core/theme/app_dimens.dart';
 
 /// 공개 프로필 — 가계도 카드의 '@닉네임'을 눌렀을 때.
 ///
@@ -54,6 +56,7 @@ class _Body extends StatelessWidget {
               width: 56,
               height: 56,
               decoration: BoxDecoration(
+                borderRadius: AppRadius.brMd,
                 color: AppColors.bg2,
                 border: Border.all(color: AppColors.paleLine),
               ),
@@ -74,7 +77,7 @@ class _Body extends StatelessWidget {
                           fontSize: 17,
                           fontWeight: FontWeight.w700,
                           color: AppColors.textPrimary)),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                   Text(
                     profile.isMe
                         ? '내 프로필'
@@ -113,12 +116,9 @@ class _PublicPetTile extends StatelessWidget {
   const _PublicPetTile({required this.card});
 
   Color get _identityColor {
-    if (card.colorCode == null) return AppColors.bg2;
-    try {
-      return Color(int.parse(card.colorCode!.replaceFirst('#', '0xFF')));
-    } catch (_) {
-      return AppColors.bg2;
-    }
+    // 개체 지정색은 걷어냈다 — 저장된 hex 를 그대로 칠하던 자리다.
+    // 자세한 이유는 core/theme/pale_palette.dart 주석 참고.
+    return AppColors.bg2;
   }
 
   @override
@@ -131,8 +131,9 @@ class _PublicPetTile extends StatelessWidget {
           : '/pets/${card.petId}/public'),
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
+          borderRadius: AppRadius.brLg,
           color: AppColors.card,
           border: Border.all(color: AppColors.paleLine),
         ),
@@ -142,17 +143,18 @@ class _PublicPetTile extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
+                borderRadius: AppRadius.brMd,
                 color: _identityColor,
                 border: Border.all(color: AppColors.paleLine),
               ),
               clipBehavior: Clip.hardEdge,
               child: card.profileImageUrl != null
                   ? Image.network(card.profileImageUrl!, fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const Center(
-                          child: Text('🦎', style: TextStyle(fontSize: 20))))
-                  : const Center(child: Text('🦎', style: TextStyle(fontSize: 20))),
+                      errorBuilder: (_, __, ___) => Center(
+                          child: AppIcon(AppIcons.species(card.speciesSubcategory), size: 20, color: AppColors.paleInk2)))
+                  : Center(child: AppIcon(AppIcons.species(card.speciesSubcategory), size: 20, color: AppColors.paleInk2)),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -163,7 +165,7 @@ class _PublicPetTile extends StatelessWidget {
                           fontWeight: FontWeight.w600,
                           color: AppColors.textPrimary),
                       overflow: TextOverflow.ellipsis),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                   Text(
                     card.morphLabel.isEmpty
                         ? card.speciesName

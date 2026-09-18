@@ -14,6 +14,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/step_shell.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../data/guardian_repository.dart';
+import '../../../core/theme/app_dimens.dart';
 
 class ChildCreateScreen extends ConsumerStatefulWidget {
   const ChildCreateScreen({super.key});
@@ -126,7 +127,7 @@ class _ChildCreateScreenState extends ConsumerState<ChildCreateScreen> {
       ),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
           children: [
             const Text(
               '자녀가 쓸 계정 정보를 보호자가 입력합니다.\n'
@@ -163,7 +164,7 @@ class _ChildCreateScreenState extends ConsumerState<ChildCreateScreen> {
                           ? Icons.visibility_off_outlined
                           : Icons.visibility_outlined,
                       color: AppColors.paleInk3,
-                      size: 18,
+                      size: 20,
                     ),
                   ),
                 ),
@@ -186,8 +187,9 @@ class _ChildCreateScreenState extends ConsumerState<ChildCreateScreen> {
                 child: Container(
                   width: double.infinity,
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                   decoration: BoxDecoration(
+                    borderRadius: AppRadius.brLg,
                     color: AppColors.surface,
                     border: Border.all(color: AppColors.paleLine),
                   ),
@@ -217,6 +219,7 @@ class _ChildCreateScreenState extends ConsumerState<ChildCreateScreen> {
             // ── 동의 ─────────────────────────────────────────────────────────
             Container(
               decoration: BoxDecoration(
+                borderRadius: AppRadius.brLg,
                 color: AppColors.surface,
                 border: Border.all(color: AppColors.paleLine),
               ),
@@ -242,7 +245,7 @@ class _ChildCreateScreenState extends ConsumerState<ChildCreateScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
             const Text(
               '자녀 계정은 어린이 게시판에서만 글·댓글을 남길 수 있어요.\n'
               '다른 게시판의 글은 읽을 수 있습니다.',
@@ -262,8 +265,8 @@ class _ChildCreateScreenState extends ConsumerState<ChildCreateScreen> {
                   disabledBackgroundColor: AppColors.paleLine,
                   disabledForegroundColor: AppColors.paleInk3,
                   shape: const RoundedRectangleBorder(
-                      borderRadius: BorderRadius.zero),
-                  padding: const EdgeInsets.symmetric(vertical: 15),
+                      borderRadius: AppRadius.brMd),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
                 child: _submitting
                     ? const SizedBox(
@@ -307,7 +310,7 @@ class _ConsentRow extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         decoration: isLast
             ? null
             : const BoxDecoration(
@@ -320,15 +323,16 @@ class _ConsentRow extends StatelessWidget {
               width: 18,
               height: 18,
               decoration: BoxDecoration(
+                borderRadius: AppRadius.brLg,
                 color: checked ? AppColors.primary : AppColors.surface,
                 border: Border.all(
                     color: checked ? AppColors.primary : AppColors.paleLine),
               ),
               child: checked
-                  ? const Icon(Icons.check, size: 12, color: AppColors.paleBg)
+                  ? const Icon(Icons.check, size: 16, color: AppColors.paleBg)
                   : null,
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             Text('[$badge] ',
                 style: TextStyle(
                   fontSize: 11,
