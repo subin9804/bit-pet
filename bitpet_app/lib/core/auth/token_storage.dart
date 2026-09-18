@@ -1,4 +1,6 @@
-﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+﻿import 'dart:async';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 const _kAccessToken = 'access_token';
@@ -55,6 +57,25 @@ class TokenStorage {
       _storage.delete(key: _kRefreshToken),
     ]);
   }
+
+  /// 토큰 갱신까지 실패해 **세션이 끝났을 때** 부른다.
+  ///
+  /// [clearTokens] 와 갈라 둔 이유: 저장소를 비우는 것만으로는 화면이 따라오지
+  /// 않는다. 라우터는 `authStateProvider` 를 보고 있는데 인터셉터는 Riverpod 을
+  /// 모르기 때문에, 토큰이 사라진 뒤에도 앱은 로그인된 줄 알고 그 화면에 그대로
+  /// 머문다 — 모든 요청이 401 로 조용히 실패하는 상태. 그래서 지우는 김에 알린다.
+  ///
+  /// 사용자가 직접 누른 로그아웃은 [AuthNotifier] 가 상태를 직접 바꾸므로
+  /// 이 경로를 타지 않는다.
+  Future<void> expireSession() async {
+    await clearTokens();
+    if (!_sessionExpired.isClosed) _sessionExpired.add(null);
+  }
+
+  final _sessionExpired = StreamController<void>.broadcast();
+
+  /// 세션 만료 신호. 앱이 사는 동안 유지되는 스트림이라 닫지 않는다.
+  Stream<void> get onSessionExpired => _sessionExpired.stream;
 
   Future<bool> get hasToken async =>
       _memAccessToken != null ||

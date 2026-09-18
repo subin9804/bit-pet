@@ -34,7 +34,9 @@ class AuthInterceptor extends Interceptor {
           return handler.resolve(response);
         }
       } catch (_) {}
-      await _tokenStorage.clearTokens();
+      // 갱신도 실패 = 세션이 끝났다. 지우기만 하면 화면이 그대로 남아
+      // "로그인은 되어 있는데 아무것도 안 되는" 상태가 되므로 앱에 알린다.
+      await _tokenStorage.expireSession();
     }
     handler.next(err);
   }

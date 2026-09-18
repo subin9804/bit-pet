@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/auth/token_storage.dart';
 import '../../../core/push/push_service.dart';
 import '../../../core/upload/image_upload.dart';
 import '../data/auth_repository.dart';
@@ -15,8 +18,22 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
   final AuthRepository _repo;
   final Ref _ref;
 
+  late final StreamSubscription<void> _expiredSub;
+
   AuthNotifier(this._repo, this._ref) : super(const AsyncValue.loading()) {
+    // 토큰이 서버에 거부돼 세션이 끝난 경우. 인터셉터는 Riverpod 을 모르기 때문에
+    // 여기서 받아 상태를 내려야 라우터(refreshListenable)가 /login 으로 보낸다.
+    // 이게 없으면 토큰만 조용히 사라지고 화면은 로그인된 채로 남는다.
+    _expiredSub = _ref.read(tokenStorageProvider).onSessionExpired.listen((_) {
+      if (mounted) state = const AsyncValue.data(null);
+    });
     _init();
+  }
+
+  @override
+  void dispose() {
+    _expiredSub.cancel();
+    super.dispose();
   }
 
   Future<void> _init() async {
