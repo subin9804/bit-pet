@@ -1,0 +1,116 @@
+# 앱 APK 자동 빌드 — 실기기 검증용
+#
+# `bitpet_app/**` 가 푸시되면 릴리즈 APK 를 만들어 GitHub 아티팩트로 올린다.
+# 폰에서 받아 바로 설치하면 된다.
+#
+# ⚠️ **스토어와는 아무 상관이 없다.** 여기서 나온 APK 는 디버그 키로 서명되어
+# 있어 Play 가 거부한다 (`android/app/build.gradle.kts` 의 폴백). 그건 결함이
+# 아니라 의도다 — 키스토어를 CI 에 올리지 않기 위한 것이고, 잃어버리면 앱
+# 업데이트를 영구히 못 올리는 물건이라 러너에 둘 이유가 없다.
+#
+# 서버(`deploy.yml`)와 달리 **자동 배포가 아니다.** 앱은 한 번 나가면 되돌릴 수
+# 없고 (이미 설치된 폰을 되돌리지 못한다) 중간에 Play 심사가 끼므로, 스토어
+# 업로드는 사람이 확인한 뒤 손으로 한다.
+#
+# ── 준비: GitHub Secrets 2개 ───────────────────────────────────────────────
+# 둘 다 gitignore 된 파일이라 레포에 없다. 없으면 빌드가 실패한다.
+#
+#   GOOGLE_SERVICES_JSON   ← bitpet_app/android/app/google-services.json
+#   FIREBASE_OPTIONS_DART  ← bitpet_app/lib/firebase_options.dart
+#
+# base64 로 넣는다 (줄바꿈·따옴표가 시크릿 저장에서 깨지지 않게):
+#   PowerShell 에서
+#     [Convert]::ToBase64String([IO.File]::ReadAllBytes("bitpet_app\android\app\google-services.json")) | Set-Clipboard
+#     [Convert]::ToBase64String([IO.File]::ReadAllBytes("bitpet_app\lib\firebase_options.dart"))        | Set-Clipboard
+#   붙여넣기: 레포 > Settings > Secrets and variables > Actions > New repository secret
+
+name: app-build
+
+on:
+  push:
+    paths:
+      - 'bitpet_app/**'
+      - '.github/workflows/app-build.yml'
+  # 코드 변경 없이 서버 주소만 바꿔 다시 뽑고 싶을 때
+  workflow_dispatch:
+    inputs:
+      api_base_url:
+        description: 'API 서버 주소'
+        required: true
+        default: 'http://localhost:8080/api/v1'
+        type: choice
+        options:
+          - 'http://localhost:8080/api/v1'   # adb reverse tcp:8080 tcp:8080 필요
+          - 'https://tailog.me/api/v1'       # 운영 서버
+
+# 같은 브랜치에 연속으로 푸시하면 앞의 빌드는 볼 일이 없다.
+concurrency:
+  group: app-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 시크릿이 비어 있으면 Gradle 이 한참 뒤에 알아보기 힘든 에러를 낸다.
+      # 여기서 먼저 잡고 무엇을 넣어야 하는지 알려준다.
+      - name: 시크릿 확인
+        env:
+          GS: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          FO: ${{ secrets.FIREBASE_OPTIONS_DART }}
+        run: |
+          # `[ ... ] && ...` 로 쓰지 않는다. Actions 의 기본 셸은 `bash -e` 라
+          # 조건이 거짓이면 그 줄의 종료코드가 1이 되어 **시크릿이 멀쩡할 때**
+          # 스텝이 실패한다. if 문은 조건이 거짓이어도 0을 돌려준다.
+          missing=""
+          if [ -z "$GS" ]; then missing="$missing GOOGLE_SERVICES_JSON"; fi
+          if [ -z "$FO" ]; then missing="$missing FIREBASE_OPTIONS_DART"; fi
+          if [ -n "$missing" ]; then
+            echo "::error::등록되지 않은 시크릿:$missing — 이 워크플로 파일 맨 위 주석에 넣는 방법이 있다."
+            exit 1
+          fi
+
+      # gitignore 된 Firebase 설정 2개를 시크릿에서 복원한다.
+      # 둘은 같은 값을 다른 형식으로 담고 있어 하나만 갱신하면 어긋난다.
+      - name: Firebase 설정 복원
+        run: |
+          echo "${{ secrets.GOOGLE_SERVICES_JSON }}"  | base64 -d > bitpet_app/android/app/google-services.json
+          echo "${{ secrets.FIREBASE_OPTIONS_DART }}" | base64 -d > bitpet_app/lib/firebase_options.dart
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'          # build.gradle.kts 의 sourceCompatibility 와 맞춘다
+          distribution: temurin
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.0'   # 로컬과 같은 버전으로 고정. 채널만 맞추면 어느 날 조용히 갈린다
+          channel: stable
+          cache: true
+
+      - name: 의존성 받기
+        working-directory: bitpet_app
+        run: flutter pub get
+
+      # arm64 하나만 뽑는다. 통짜 APK 는 x86·armv7 까지 넣어 두 배 가까이 커지는데,
+      # 검증에 쓰는 실기기는 전부 arm64 다. 에뮬레이터(x86)로 볼 일이 생기면
+      # 이 줄에서 --target-platform 을 빼면 된다.
+      - name: APK 빌드
+        working-directory: bitpet_app
+        run: |
+          flutter build apk --release \
+            --target-platform android-arm64 \
+            --dart-define=API_BASE_URL='${{ inputs.api_base_url || 'http://localhost:8080/api/v1' }}'
+
+      - name: 이름 붙이기
+        id: name
+        run: echo "short=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tailog-${{ steps.name.outputs.short }}
+          path: bitpet_app/build/app/outputs/flutter-apk/app-release.apk
+          # 검증용이라 오래 둘 이유가 없다. 기본 90일은 저장소만 먹는다.
+          retention-days: 14
