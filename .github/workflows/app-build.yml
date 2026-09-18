@@ -18,11 +18,12 @@
 #   GOOGLE_SERVICES_JSON   ← bitpet_app/android/app/google-services.json
 #   FIREBASE_OPTIONS_DART  ← bitpet_app/lib/firebase_options.dart
 #
-# base64 로 넣는다 (줄바꿈·따옴표가 시크릿 저장에서 깨지지 않게):
-#   PowerShell 에서
-#     [Convert]::ToBase64String([IO.File]::ReadAllBytes("bitpet_app\android\app\google-services.json")) | Set-Clipboard
-#     [Convert]::ToBase64String([IO.File]::ReadAllBytes("bitpet_app\lib\firebase_options.dart"))        | Set-Clipboard
-#   붙여넣기: 레포 > Settings > Secrets and variables > Actions > New repository secret
+# 파일 내용을 그대로 붙여넣어도 되고, base64 로 넣어도 된다 — 워크플로가 둘 다 받는다.
+#   레포 > Settings > Secrets and variables > Actions > New repository secret
+#
+# base64 로 넣고 싶다면 PowerShell 에서:
+#   [Convert]::ToBase64String([IO.File]::ReadAllBytes("bitpet_app\android\app\google-services.json")) | Set-Clipboard
+#   [Convert]::ToBase64String([IO.File]::ReadAllBytes("bitpet_app\lib\firebase_options.dart"))        | Set-Clipboard
 
 name: app-build
 
@@ -74,10 +75,35 @@ jobs:
 
       # gitignore 된 Firebase 설정 2개를 시크릿에서 복원한다.
       # 둘은 같은 값을 다른 형식으로 담고 있어 하나만 갱신하면 어긋난다.
+      #
+      # base64 로 넣든 파일 내용을 그대로 붙여넣든 둘 다 받는다. 넣는 사람이
+      # 어느 쪽으로 했는지 기억할 필요가 없어야 하고, 틀렸을 때 나오는 게
+      # `base64: invalid input` 한 줄이라 원인이 안 보인다.
       - name: Firebase 설정 복원
+        env:
+          GS: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          FO: ${{ secrets.FIREBASE_OPTIONS_DART }}
         run: |
-          echo "${{ secrets.GOOGLE_SERVICES_JSON }}"  | base64 -d > bitpet_app/android/app/google-services.json
-          echo "${{ secrets.FIREBASE_OPTIONS_DART }}" | base64 -d > bitpet_app/lib/firebase_options.dart
+          # 디코드를 임시 파일에 받는다. base64 는 실패하기 전까지 쓴 만큼은
+          # 뱉고 죽어서, 목적지에 바로 쓰면 반쯤 깨진 파일이 남는다.
+          restore() {
+            local value="$1" dest="$2" must_contain="$3"
+            if printf '%s' "$value" | tr -d '[:space:]' | base64 -d > /tmp/restore.tmp 2>/dev/null; then
+              mv /tmp/restore.tmp "$dest"
+              echo "$dest — base64 로 디코드"
+            else
+              printf '%s' "$value" > "$dest"
+              echo "$dest — 원문 그대로"
+            fi
+            # 실제로 그 파일이 맞는지 본다. 엉뚱한 값을 넣었으면 여기서 잡히고,
+            # 안 그러면 Gradle 이 한참 뒤에 알아보기 힘든 에러를 낸다.
+            if ! grep -q "$must_contain" "$dest"; then
+              echo "::error::$dest 복원 실패 — '$must_contain' 이 없다. 시크릿에 다른 파일을 넣었는지 확인할 것."
+              exit 1
+            fi
+          }
+          restore "$GS" bitpet_app/android/app/google-services.json 'project_id'
+          restore "$FO" bitpet_app/lib/firebase_options.dart        'DefaultFirebaseOptions'
 
       - uses: actions/setup-java@v4
         with:
