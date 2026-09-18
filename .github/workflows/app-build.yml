@@ -98,7 +98,16 @@ jobs:
             # 실제로 그 파일이 맞는지 본다. 엉뚱한 값을 넣었으면 여기서 잡히고,
             # 안 그러면 Gradle 이 한참 뒤에 알아보기 힘든 에러를 낸다.
             if ! grep -q "$must_contain" "$dest"; then
-              echo "::error::$dest 복원 실패 — '$must_contain' 이 없다. 시크릿에 다른 파일을 넣었는지 확인할 것."
+              # 값은 절대 찍지 않는다. 어느 파일이 어디로 들어갔는지 가려낼
+              # 만큼만 본다 — 이게 없으면 "복원 실패" 다섯 글자만 남는다.
+              echo "── 진단 ──────────────────────────────"
+              echo "크기          : $(wc -c < "$dest") bytes"
+              echo "JSON 처럼 시작 : $(head -c 1 "$dest" | grep -q '{' && echo yes || echo no)"
+              echo "project_id    : $(grep -qs 'project_id'           "$dest" && echo 있음 || echo 없음)"
+              echo "DefaultFirebaseOptions : $(grep -qs 'DefaultFirebaseOptions' "$dest" && echo 있음 || echo 없음)"
+              echo "──────────────────────────────────────"
+              echo "위 두 줄에서 반대쪽 파일의 표시가 '있음' 이면 두 시크릿을 서로 바꿔 넣은 것이다."
+              echo "::error::$dest 복원 실패 — '$must_contain' 이 없다."
               exit 1
             fi
           }
