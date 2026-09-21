@@ -13,6 +13,10 @@ UI/
 *.jks
 *.keystore
 key.properties
+# 예외: CI·로컬 공용 **디버그** 키. 비밀이 아니라 규격이다 — 비밀번호가 `android` 로
+# 정해져 있어 누구나 같은 걸 만들 수 있고, 이걸로 서명된 앱은 Play 가 거부한다.
+# 고정해 두는 이유는 build.gradle.kts 의 signingConfigs 주석 참고.
+!bitpet_app/android/ci-debug.keystore
 # iOS/Apple: APNs 인증 키(.p8), 인증서, 프로비저닝 프로파일
 *.p8
 *.p12

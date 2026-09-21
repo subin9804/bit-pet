@@ -41,6 +41,28 @@ android {
     }
 
     signingConfigs {
+        // 디버그 서명을 레포 안의 고정 키로 못박는다.
+        //
+        // 안 그러면 Gradle 이 `~/.android/debug.keystore` 를 쓰는데, 그 파일은
+        // 없으면 그 자리에서 새로 만들어진다. CI 러너는 매 실행이 새 VM 이라
+        // **빌드할 때마다 서명이 달라지고**, 그러면 앞 빌드 위에 덮어쓸 수 없어
+        // (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`) 설치할 때마다 앱을 지워야 한다.
+        // 지우면 로컬 DB 와 로그인이 날아가니 검증용으로 못 쓴다.
+        //
+        // 이 키를 레포에 두는 건 안전하다. 디버그 키는 비밀이 아니라 **규격**이다 —
+        // 비밀번호가 `android` 로 정해져 있어 누구나 같은 걸 만들 수 있고, 이걸로
+        // 서명된 건 Play 가 거부한다. 진짜 릴리즈 키(`key.properties` + .jks)는
+        // 예나 지금이나 레포 밖에 있다.
+        getByName("debug") {
+            val ciDebugKeystore = rootProject.file("ci-debug.keystore")
+            if (ciDebugKeystore.exists()) {
+                storeFile = ciDebugKeystore
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
+        }
+
         create("release") {
             storeFile = (keystoreProperties["storeFile"] as String?)?.let { file(it) }
             storePassword = keystoreProperties["storePassword"] as String?

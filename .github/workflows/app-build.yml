@@ -38,11 +38,11 @@ on:
       api_base_url:
         description: 'API 서버 주소'
         required: true
-        default: 'http://localhost:8080/api/v1'
+        default: 'https://tailog.me/api/v1'
         type: choice
         options:
-          - 'http://localhost:8080/api/v1'   # adb reverse tcp:8080 tcp:8080 필요
-          - 'https://tailog.me/api/v1'       # 운영 서버
+          - 'https://tailog.me/api/v1'       # 운영 서버 (기본)
+          - 'http://localhost:8080/api/v1'   # 로컬. adb reverse tcp:8080 tcp:8080 필요
 
 # 같은 브랜치에 연속으로 푸시하면 앞의 빌드는 볼 일이 없다.
 concurrency:
@@ -132,20 +132,37 @@ jobs:
       # arm64 하나만 뽑는다. 통짜 APK 는 x86·armv7 까지 넣어 두 배 가까이 커지는데,
       # 검증에 쓰는 실기기는 전부 arm64 다. 에뮬레이터(x86)로 볼 일이 생기면
       # 이 줄에서 --target-platform 을 빼면 된다.
+      # 주소는 컴파일 시점에 상수로 박힌다(`String.fromEnvironment`). 앱 안에서
+      # 고를 수 있는 값이 아니라, 주소가 다르면 APK 자체가 다른 물건이다.
+      #
+      # `||` 뒤는 **푸시로 자동 실행될 때** 쓰이는 기본값이다 — 그 경우 inputs 가
+      # 비어 있다. 자동 빌드의 기본값을 바꾸려면 여기와 위 workflow_dispatch 의
+      # `default:` 를 **둘 다** 고쳐야 한다. 한쪽만 고치면 손으로 돌릴 때와
+      # 푸시로 돌 때가 서로 다른 주소로 나온다.
       - name: APK 빌드
         working-directory: bitpet_app
         run: |
           flutter build apk --release \
             --target-platform android-arm64 \
-            --dart-define=API_BASE_URL='${{ inputs.api_base_url || 'http://localhost:8080/api/v1' }}'
+            --dart-define=API_BASE_URL='${{ inputs.api_base_url || 'https://tailog.me/api/v1' }}'
 
+      # 커밋만으로는 부족하다. 같은 커밋에서 주소만 다른 APK 가 나오는데 이름이
+      # 같으면 받아놓고 어느 쪽인지 알 수 없다 (실제로 한 번 헷갈렸다).
       - name: 이름 붙이기
         id: name
-        run: echo "short=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+        env:
+          URL: ${{ inputs.api_base_url || 'https://tailog.me/api/v1' }}
+        run: |
+          echo "short=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          case "$URL" in
+            *localhost*) echo "env=local" >> "$GITHUB_OUTPUT" ;;
+            *)           echo "env=prod"  >> "$GITHUB_OUTPUT" ;;
+          esac
+          echo "이 APK 가 보는 서버: $URL"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: tailog-${{ steps.name.outputs.short }}
+          name: tailog-${{ steps.name.outputs.env }}-${{ steps.name.outputs.short }}
           path: bitpet_app/build/app/outputs/flutter-apk/app-release.apk
           # 검증용이라 오래 둘 이유가 없다. 기본 90일은 저장소만 먹는다.
           retention-days: 14

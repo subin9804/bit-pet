@@ -12,3 +12,9 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
+
+# 예외: CI·로컬 공용 **디버그** 키.
+# 위 경고는 릴리즈 키 얘기다. 디버그 키는 비밀이 아니라 규격이라(비밀번호가
+# `android` 로 정해져 있어 누구나 같은 걸 만든다) 공개돼도 잃을 게 없고,
+# 이걸로 서명된 앱은 Play 가 거부한다. 고정하는 이유는 app/build.gradle.kts 참고.
+!ci-debug.keystore
