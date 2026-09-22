@@ -41,9 +41,15 @@ public class PetPhotoService {
         String contentType = resolveContentType(ext);
 
         PresignedPutObjectRequest presigned = s3Service.presignPut(s3Key, contentType);
+        // 썸네일 자리는 비워 내린다. 이 경로는 하위 호환용이고 register 짝
+        // (PhotoUploadCompleteRequest)에 thumbS3Key 를 받을 자리가 없다 — 서명만
+        // 내려주고 받아줄 데가 없으면 S3 에 주인 없는 축소본이 쌓인다.
+        // 앱은 둘 다 nullable 로 읽으므로 그냥 원본만 올리고 넘어간다.
         return new PresignedUploadResponse(
                 presigned.url().toString(),
                 s3Key,
+                null,
+                null,
                 presigned.expiration()
         );
     }
