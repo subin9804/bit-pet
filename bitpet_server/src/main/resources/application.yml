@@ -144,7 +144,19 @@ bitpet:
       - /v3/api-docs/**
       - /swagger-ui/**
       - /swagger-ui.html
-      - /api/v1/auth/**
+      # 비로그인 진입점만 연다.
+      # ⛔ `/api/v1/auth/**` 로 묶지 말 것 — 그 아래에는 logout·me·withdraw 처럼
+      # 인증이 **필수**인 경로가 같이 있다. 와일드카드로 열어두면 토큰 없이/만료된
+      # 채로 들어온 요청이 `authenticated()` 검사를 안 거치고 컨트롤러까지 가서
+      # `@AuthenticationPrincipal` 이 null → NPE → 401 이어야 할 자리에 **500** 이 난다.
+      # 앱의 AuthInterceptor 는 401 만 처리하므로 토큰 갱신도 세션 만료 처리도
+      # 일어나지 않는다 (실제로 로그아웃이 동작하지 않던 원인).
+      - /api/v1/auth/check-email
+      - /api/v1/auth/check-nickname
+      - /api/v1/auth/signup
+      - /api/v1/auth/login
+      - /api/v1/auth/refresh
+      - /api/v1/auth/password-reset/**
       - /api/v1/species
       - /api/v1/species/*/morphs
       - /api/v1/memo-tags

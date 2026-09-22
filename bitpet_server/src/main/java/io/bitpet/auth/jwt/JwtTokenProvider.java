@@ -105,7 +105,11 @@ public class JwtTokenProvider {
             log.debug("JWT expired: {}", e.getMessage());
             return java.util.Optional.empty();
         } catch (JwtException | IllegalArgumentException e) {
-            log.debug("Invalid JWT: {}", e.getMessage());
+            // 만료(위)와 달리 이쪽은 정상 운영에서 나오지 않는다 — 서명 불일치거나
+            // 토큰이 아닌 문자열이다. debug 로 두면 secret 이 바뀐 순간(프로필을
+            // 바꿔 띄웠거나 환경변수가 빠졌을 때) 모든 요청이 익명으로 떨어지는데
+            // 로그엔 아무 단서도 안 남는다. 실제로 그걸 찾는 데 시간을 썼다.
+            log.warn("Invalid JWT: {}", e.getMessage());
             return java.util.Optional.empty();
         }
     }
