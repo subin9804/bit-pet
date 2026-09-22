@@ -12,7 +12,7 @@ export '../../data/food_catalog.dart' show FeedFormData, FoodType, FeedingSupple
 /// 다중 급여 아이템 편집기 — 루틴 완료 모달 내 공유 위젯
 /// items: 이미 추가된 목록 / onChanged: 목록 변경 콜백
 ///
-/// **여기엔 기록 전체에 관한 것만 둔다.** 먹였나/거부했나, 그리고 담긴 목록.
+/// **여기엔 기록 전체에 관한 것만 둔다.** 급여냐 거식이냐, 그리고 담긴 목록.
 /// 종류·양·마릿수·영양제는 항목 하나에 속한 값이라 [showFeedItemModal] 로 나가 있다.
 /// 예전엔 둘이 한 줄로 쌓여 있어서, 먹이 하나를 적으려는 사람에게 칸이 여덟 개로 보였다.
 ///
@@ -96,10 +96,14 @@ class _FeedItemsEditorState extends ConsumerState<FeedItemsEditor> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── 먹였어요 / 거부했어요 ────────────────────────────
+        // ── 급여 / 거식 ──────────────────────────────────────
         // 예전엔 '거식' 체크박스였다. 켜는 순간 아래 네 필드가 통째로 사라지는
         // **모드 전환**인데 생김새는 영양제 옆의 선택 항목 같았다 — 하는 일과
         // 보이는 모양이 어긋나 있었다. 기록의 종류가 갈리는 자리이므로 승격시킨다.
+        //
+        // 라벨은 '먹였어요/거부했어요' 가 아니라 명사 한 쌍이다. 기록을 보여주는
+        // 쪽은 이미 전부 '거식' 으로 쓰고 있어서(food_catalog·feed_models·
+        // record_screen·feed_detail_screen) 입력에서만 다르게 부를 이유가 없다.
         _RefusedSegment(
           refused: _hasRefused,
           bandColor: widget.bandColor,
@@ -108,9 +112,16 @@ class _FeedItemsEditorState extends ConsumerState<FeedItemsEditor> {
 
         // 거식이면 목록도 추가 버튼도 없다. 남는 건 메모뿐이고 그건 바깥이 그린다.
         if (!_hasRefused) ...[
-          // ── 최근 조합 ────────────────────────────────────
+          // ── 최근 급여 ────────────────────────────────────
           // 같은 걸 또 주는 날엔 여기서 끝난다 (탭 2회). 모달까지 가는 경로는
           // 새 조합을 만들 때만 쓴다.
+          //
+          // 한때 이 줄을 '급여 내용' 섹션 안, 목록과 추가 버튼 사이에 넣어봤다.
+          // 논리적으로는 맞았지만(칩도 버튼도 목록을 채우는 도구다) **읽히지
+          // 않았다** — 칩과 `_ItemRow` 가 배경·테두리·모서리까지 거의 같은
+          // 모양이라, 목록 바로 밑에 붙자 이미 담긴 항목으로 보였다.
+          // 그래서 셋으로 갈라둔다: 자리가 다르고(목록 위), 제목이 있고,
+          // 칩마다 `＋` 가 붙는다.
           if (widget.petId != null)
             _RecentChips(
               petId: widget.petId!,
@@ -144,8 +155,8 @@ class _FeedItemsEditorState extends ConsumerState<FeedItemsEditor> {
 /// 누르면 **바로 담긴다.** 고르는 게 아니라 하는 것이라 선택 상태가 없다
 /// (그래서 `AppChip` 은 항상 `selected: false` 로 쓴다).
 ///
-/// 기록이 없는 개체·처음 쓰는 기기에서는 아무것도 그리지 않는다. 빈 자리에
-/// '최근 급여 없음' 같은 문구를 두면, 아무것도 할 수 없는 줄이 폼 맨 위에 생긴다.
+/// 기록이 없는 개체·처음 쓰는 기기에서는 **섹션째** 그리지 않는다. 빈 자리에
+/// '최근 급여 없음' 같은 문구를 두면 아무것도 할 수 없는 줄만 남는다.
 class _RecentChips extends ConsumerWidget {
   final int petId;
   final Color bandColor;
@@ -170,14 +181,19 @@ class _RecentChips extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: AppSpacing.xl),
-        const _SectionLabel('최근'),
+        // '최근' 이 아니라 '빠른 추가' 다. 이름이 **동사**여야 누르는 것임이 읽힌다
+        // ('최근 기록' 은 홈 피드와도 겹쳐서 어느 최근인지 헷갈렸다).
+        const _SectionLabel('빠른 추가'),
         const SizedBox(height: AppSpacing.sm),
         Wrap(
           spacing: AppSpacing.sm,
           runSpacing: AppSpacing.sm,
           children: list
               .map((f) => AppChip(
-                    label: f.summary,
+                    // `＋` 를 라벨에 직접 붙인다. `AppChip` 에 아이콘 슬롯이 없기도 하지만,
+                    // 아래 `＋ 급여 추가` 버튼과 **같은 기호를 공유하는 것 자체가 설명**이다 —
+                    // ＋ 가 붙은 건 누르면 목록에 담기는 것, 안 붙은 건 이미 담긴 것.
+                    label: '＋ ${f.summary}',
                     selected: false,
                     onTap: () => onPick(f),
                   ))
@@ -188,7 +204,7 @@ class _RecentChips extends ConsumerWidget {
   }
 }
 
-// ── 먹였어요 / 거부했어요 ──────────────────────────────────────────────────────
+// ── 급여 / 거식 ───────────────────────────────────────────────────────────────
 class _RefusedSegment extends StatelessWidget {
   final bool refused;
   final Color bandColor;
@@ -198,6 +214,14 @@ class _RefusedSegment extends StatelessWidget {
     required this.bandColor,
     required this.onChanged,
   });
+
+  // 두 칸이 **하나의 곡선**을 공유해야 한다. 예전엔 칸마다 `AnimatedContainer` 를
+  // 두고 배경색만 페이드시켰는데, 그러면 ① 왼쪽이 흐려지는 동안 오른쪽이 진해지는
+  // 크로스페이드라 움직임이 뭉개지고 ② 글자의 굵기·색은 `Text.style` 이라
+  // 애니메이션 밖에서 **즉시 튄다** — 배경은 느리고 글자는 빠른 그 시차가 어색함의
+  // 정체였다. 이제 썸 하나가 미끄러지고, 글자도 같은 duration/curve 를 탄다.
+  static const _dur = Duration(milliseconds: 190);
+  static const _curve = Curves.easeOutCubic;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -209,28 +233,52 @@ class _RefusedSegment extends StatelessWidget {
       border: Border.all(color: AppColors.paleLine),
       borderRadius: AppRadius.brLg,
     ),
-    child: Row(children: [
-      Expanded(child: _seg('먹였어요', !refused, () => onChanged(false))),
-      Expanded(child: _seg('거부했어요', refused, () => onChanged(true))),
-    ]),
+    child: Stack(
+      children: [
+        // 썸. `Positioned.fill` 이라 크기는 아래 `Row` 가 정한다 — 글자 높이가
+        // 바뀌어도 따로 맞출 값이 없다.
+        Positioned.fill(
+          child: AnimatedAlign(
+            duration: _dur,
+            curve: _curve,
+            alignment: refused ? Alignment.centerRight : Alignment.centerLeft,
+            child: FractionallySizedBox(
+              widthFactor: 0.5,
+              heightFactor: 1,
+              child: AnimatedContainer(
+                duration: _dur,
+                curve: _curve,
+                decoration: BoxDecoration(
+                  color: refused ? bandColor : AppColors.card,
+                  borderRadius: AppRadius.brMd,
+                ),
+              ),
+            ),
+          ),
+        ),
+        Row(children: [
+          Expanded(child: _seg('급여', !refused, () => onChanged(false))),
+          Expanded(child: _seg('거식', refused, () => onChanged(true))),
+        ]),
+      ],
+    ),
   );
 
   Widget _seg(String label, bool on, VoidCallback onTap) => GestureDetector(
     onTap: onTap,
     behavior: HitTestBehavior.opaque,
-    child: AnimatedContainer(
-      duration: const Duration(milliseconds: 140),
-      padding: const EdgeInsets.symmetric(vertical: 11),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: on ? (refused ? bandColor : AppColors.card) : Colors.transparent,
-        borderRadius: AppRadius.brMd,
-      ),
-      child: Text(label, style: TextStyle(
+    child: AnimatedDefaultTextStyle(
+      duration: _dur,
+      curve: _curve,
+      style: TextStyle(
         fontSize: 13,
         fontWeight: on ? FontWeight.w700 : FontWeight.w600,
         color: on ? AppColors.primary : AppColors.paleInk3,
-      )),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 11),
+        child: Text(label, textAlign: TextAlign.center),
+      ),
     ),
   );
 }

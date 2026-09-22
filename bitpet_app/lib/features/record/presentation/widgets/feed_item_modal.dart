@@ -126,10 +126,10 @@ class _FeedItemModalState extends State<_FeedItemModal> {
             ),
             const SizedBox(height: AppSpacing.lg),
 
-            // ── 뭘 줬나 ─────────────────────────────────────
+            // ── 먹이 종류 ───────────────────────────────────
             // 모달은 화면을 새로 쓰므로 10개가 다 들어간다. 드롭다운이었을 땐
             // 탭 → 오버레이가 화면을 덮음 → 스크롤 → 탭 이었다.
-            const FeedFieldLabel('뭘 줬나'),
+            const FeedFieldLabel('먹이 종류'),
             const SizedBox(height: AppSpacing.sm),
             FeedTypeChips(
               selected: _form.foodType,

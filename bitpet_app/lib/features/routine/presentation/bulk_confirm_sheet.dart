@@ -363,7 +363,12 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
                                   padding:
                                       const EdgeInsets.symmetric(vertical: 16),
                                   alignment: Alignment.center,
-                                  color: AppColors.primary,
+                                  // 바로 옆 `취소` 와 같은 `brMd`. `color:` 만 주면
+                                  // 라운드가 없어 한 줄에 선 두 버튼의 모서리가 어긋난다.
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.primary,
+                                    borderRadius: AppRadius.brMd,
+                                  ),
                                   child: _saving
                                       ? const SizedBox(
                                           width: 20, height: 20,

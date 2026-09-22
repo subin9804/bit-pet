@@ -472,7 +472,10 @@ class _CustomTextInput extends StatelessWidget {
         TextFormField(
           initialValue: form.customText,
           onChanged: (v) => onChanged(form.copyWith(customText: v)),
-          autofocus: form.customText == null,
+          // 자동 포커스를 주지 않는다. '직접입력' 칩을 누른 순간 키보드가 올라오면
+          // 화면이 절반으로 접히면서 방금 고른 칩도, 아래 사이즈·마릿수도 밀려나
+          // 시점이 통째로 바뀐다. 칩을 고르는 것과 이름을 적는 것은 별개의 동작이라
+          // 사용자가 입력란을 직접 누를 때 키보드가 올라오는 편이 덜 어지럽다.
           maxLength: 50,
           style: const TextStyle(fontSize: 14, color: AppColors.primary),
           decoration: InputDecoration(
