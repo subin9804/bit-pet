@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_icons.dart';
 import '../theme/app_dimens.dart';
+import 'confirm_modal.dart';
 
 // ── Step configuration ──────────────────────────────────────────────────────
 
@@ -223,32 +224,18 @@ class _StepTopBar extends StatelessWidget {
 
     Future<void> handleCancel() async {
       if (!confirmOnCancel) { rawCancel(); return; }
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          shape: const RoundedRectangleBorder(borderRadius: AppRadius.brMd),
-          title: const Text(
-            '입력 내용을 삭제할까요?',
-            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
-          ),
-          content: const Text(
-            '지금 나가면 입력한 정보가 모두 삭제돼요.',
-            style: TextStyle(fontSize: 14, height: 1.5),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('계속 작성', style: TextStyle(fontWeight: FontWeight.w600)),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(true),
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('나가기', style: TextStyle(fontWeight: FontWeight.w700)),
-            ),
-          ],
-        ),
+      // 앱 공통 `ConfirmModal` 을 쓴다. 여기만 머티리얼 기본 `AlertDialog` 라
+      // 모서리·버튼·여백이 다른 화면의 확인 모달과 전부 달랐다 — 같은 앱에서
+      // 같은 질문을 두 가지 모양으로 하는 셈이었다.
+      final confirmed = await ConfirmModal.show(
+        context,
+        title: '나가시겠어요?',
+        message: '저장되지 않은 정보가 모두 삭제돼요.',
+        confirmLabel: '나가기',
+        cancelLabel: '계속 작성',
+        isDangerous: true,
       );
-      if (confirmed == true) rawCancel();
+      if (confirmed) rawCancel();
     }
 
     final VoidCallback backAction = () => handleCancel();
@@ -382,7 +369,10 @@ class _StepFooter extends StatelessWidget {
       ),
       child: Row(
         children: [
-          if (idx > 0) ...[
+          // 마지막(확인) 화면에는 '이전'을 두지 않는다. 그 화면은 항목마다
+          // '수정'이 달려 있어 고칠 곳으로 **바로** 갈 수 있고, 한 칸씩 되짚는
+          // 이전은 그보다 느린 길일 뿐이다. 저장 버튼도 그만큼 넓어진다.
+          if (idx > 0 && !isLast) ...[
             GestureDetector(
               onTap: onPrev,
               child: Container(
