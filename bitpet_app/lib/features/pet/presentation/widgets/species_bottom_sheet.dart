@@ -179,7 +179,7 @@ class _SpeciesBottomSheetState extends ConsumerState<SpeciesBottomSheet> {
   Widget _buildSearchResults() {
     final allAsync = ref.watch(speciesListProvider);
     return allAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const _SpeciesListSkeleton(),
       error: (_, __) => const Center(
         child: Text('종 목록을 불러오지 못했어요',
             style: TextStyle(color: AppColors.paleInk3)),
@@ -229,7 +229,7 @@ class _SpeciesBottomSheetState extends ConsumerState<SpeciesBottomSheet> {
     final allAsync = ref.watch(speciesListProvider);
 
     return allAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const _SpeciesListSkeleton(),
       error: (_, __) => const Center(
         child: Text('종 목록을 불러오지 못했어요',
             style: TextStyle(color: AppColors.paleInk3)),
@@ -434,6 +434,28 @@ class _SubcategoryRail extends StatelessWidget {
 }
 
 // ── 종 행 ───────────────────────────────────────────────────────────────────
+
+/// 목록이 오는 동안의 자리. 가운데 도는 스피너는 '아무것도 없는 화면'과 구분이 안 되는데,
+/// 뼈대는 곧 목록이 온다는 걸 형태로 알려줘서 같은 시간이 덜 길게 느껴진다.
+class _SpeciesListSkeleton extends StatelessWidget {
+  const _SpeciesListSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      itemCount: 7,
+      itemBuilder: (_, __) => Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        height: 48,
+        decoration: BoxDecoration(
+          borderRadius: AppRadius.brMd,
+          color: AppColors.bgAlt,
+        ),
+      ),
+    );
+  }
+}
 
 class _SpeciesRow extends StatelessWidget {
   final Species species;

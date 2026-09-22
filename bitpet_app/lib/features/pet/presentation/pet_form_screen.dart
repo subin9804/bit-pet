@@ -84,6 +84,12 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
     } else {
       WidgetsBinding.instance.addPostFrameCallback((_) => _loadForEdit(widget.petId!));
     }
+    // 종 목록을 **폼이 열리는 순간** 미리 받아둔다. 어차피 2번째 스텝에서 반드시 쓰는
+    // 목록인데, 시트를 연 뒤에 요청하면 그 왕복이 통째로 대기 시간으로 보인다.
+    // 프로바이더가 autoDispose 가 아니라서 한 번 받으면 앱이 살아 있는 동안 캐시된다.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ref.read(speciesListProvider.future).ignore();
+    });
   }
 
   @override
@@ -162,6 +168,10 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
         _selectedMorphIds.clear();
         _selectedMorphs.clear();
       });
+      // 종을 고른 순간 모프도 받기 시작한다. 종을 고른 다음 하는 일은 사실상
+      // 모프를 고르는 것뿐이라, 그 사이(칩을 보고 손가락을 옮기는 시간)에
+      // 요청을 미리 태우면 시트가 열릴 땐 대개 캐시에 들어와 있다.
+      ref.read(morphsBySpeciesProvider(result.id).future).ignore();
     }
   }
 
@@ -504,79 +514,133 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
         listenable: _nameCtrl,
         builder: (_, __) => Column(
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // 아바타
-                Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Container(
-                      width: 92,
-                      height: 92,
-                      clipBehavior: Clip.hardEdge,
-                      decoration: const BoxDecoration(color: AppColors.bgAlt),
-                      child: _pickedProfile != null
-                          ? Image.memory(_pickedProfile!.bytes, fit: BoxFit.cover)
-                          : (!_removeProfile && _existingProfileUrl != null)
-                              ? Image.network(_existingProfileUrl!,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => const Center(
-                                      child: AppIcon(AppIcons.petLine,
-                                          size: 40,
-                                          color: AppColors.paleInk2)))
-                              : const Center(
-                                  child: AppIcon(AppIcons.petLine,
-                                      size: 40, color: AppColors.paleInk2),
-                                ),
-                    ),
-                    // 사진이 있을 때만 뜨는 내리기. 카메라 버튼 반대쪽에 둬서
-                    // '바꾸기'와 '내리기'를 손가락으로도 헷갈리지 않게 갈랐다.
-                    if (_hasProfilePhoto)
-                      Positioned(
-                        bottom: -4,
-                        left: -4,
-                        child: GestureDetector(
-                          onTap: () => setState(() {
-                            _pickedProfile = null;
-                            _removeProfile = true;
-                          }),
-                          child: Container(
-                            width: 30,
-                            height: 30,
-                            decoration: BoxDecoration(
-                              color: AppColors.surface,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: AppColors.paleLine),
-                            ),
-                            child: const Icon(Icons.close,
-                                size: 16, color: AppColors.paleInk2),
-                          ),
-                        ),
-                      ),
-                    Positioned(
-                      bottom: -4,
-                      right: -4,
-                      child: GestureDetector(
+            // 사진 자리는 **가운데**다. 왼쪽에 붙여 두면 이름 칸이 시선을 다 가져가
+            // 사진을 안 올린 채 다음으로 넘어가기 쉬웠다 (오른쪽에 있던 개체색
+            // 팔레트를 걷어내면서 그 줄이 반쪽만 찬 상태가 된 탓도 있다).
+            // 아바타 전체가 버튼이고, 아래 한 줄이 무엇을 하는 자리인지 말해준다.
+            const SizedBox(height: 4),
+            Center(
+              child: Column(
+                children: [
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      GestureDetector(
                         onTap: _pickProfileImage,
                         child: Container(
-                          width: 30,
-                          height: 30,
+                          width: 108,
+                          height: 108,
+                          clipBehavior: Clip.hardEdge,
                           decoration: BoxDecoration(
-                            color: AppColors.surface,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: AppColors.paleLine),
+                            borderRadius: AppRadius.brLg,
+                            color: AppColors.bgAlt,
+                            // 비어 있을 때만 테두리를 준다 — '아직 채우지 않은 칸'
+                            // 이라는 표시라서, 사진이 들어차면 할 일이 없다.
+                            border: _hasProfilePhoto
+                                ? null
+                                : Border.all(
+                                    color: AppColors.paleLine, width: 1.5),
                           ),
-                          child: const Icon(Icons.camera_alt_outlined, size: 16, color: AppColors.paleInk2),
+                          child: _pickedProfile != null
+                              ? Image.memory(_pickedProfile!.bytes,
+                                  fit: BoxFit.cover)
+                              : (!_removeProfile && _existingProfileUrl != null)
+                                  ? Image.network(_existingProfileUrl!,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => const Center(
+                                          child: AppIcon(AppIcons.petLine,
+                                              size: 44,
+                                              color: AppColors.paleInk3)))
+                                  : const Center(
+                                      child: AppIcon(AppIcons.petLine,
+                                          size: 44, color: AppColors.paleInk3),
+                                    ),
                         ),
                       ),
+                      // 사진이 있을 때만 뜨는 내리기. 카메라 버튼 반대쪽에 둬서
+                      // '바꾸기'와 '내리기'를 손가락으로도 헷갈리지 않게 갈랐다.
+                      if (_hasProfilePhoto)
+                        Positioned(
+                          bottom: -4,
+                          left: -4,
+                          child: GestureDetector(
+                            onTap: () => setState(() {
+                              _pickedProfile = null;
+                              _removeProfile = true;
+                            }),
+                            child: Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: AppColors.surface,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: AppColors.paleLine),
+                              ),
+                              child: const Icon(Icons.close,
+                                  size: 16, color: AppColors.paleInk2),
+                            ),
+                          ),
+                        ),
+                      Positioned(
+                        bottom: -4,
+                        right: -4,
+                        child: GestureDetector(
+                          onTap: _pickProfileImage,
+                          child: Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: _hasProfilePhoto
+                                  ? AppColors.surface
+                                  : AppColors.brandAction,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: _hasProfilePhoto
+                                    ? AppColors.paleLine
+                                    : AppColors.brandAction,
+                              ),
+                            ),
+                            child: Icon(
+                              _hasProfilePhoto
+                                  ? Icons.camera_alt_outlined
+                                  : Icons.add,
+                              size: 17,
+                              color: _hasProfilePhoto
+                                  ? AppColors.paleInk2
+                                  : AppColors.paleBg,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  GestureDetector(
+                    onTap: _pickProfileImage,
+                    child: Text(
+                      _hasProfilePhoto ? '사진 바꾸기' : '사진 추가하기',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: _hasProfilePhoto
+                            ? AppColors.paleInk2
+                            : AppColors.brandAction,
+                      ),
                     ),
-                  ],
-                ),
-                // 여기 오른쪽에 'IDENTITY COLOR' 팔레트가 있었다. 걷어냈다.
-              ],
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    '나중에 바꿀 수 있어요',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.paleInk3,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 28),
             SField(
               label: '이름',
               child: PaleTextField(
@@ -1027,6 +1091,7 @@ class _WeightUnitToggle extends StatelessWidget {
               duration: const Duration(milliseconds: 150),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
+                borderRadius: AppRadius.brSm,
                 color: sel ? AppColors.surface : Colors.transparent,
               ),
               child: Text(
@@ -1084,6 +1149,7 @@ class _ParentTile extends StatelessWidget {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
+                  borderRadius: AppRadius.brMd,
                   color: AppColors.paleBgAlt,
                 ),
                 child: Center(
@@ -1320,6 +1386,7 @@ class _PrecisionTab extends StatelessWidget {
         duration: const Duration(milliseconds: 130),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
+          borderRadius: AppRadius.brSm,
           color: active ? AppColors.surface : Colors.transparent,
         ),
         child: Text(
@@ -1515,6 +1582,7 @@ class _YearMonthPickerSheetState extends State<_YearMonthPickerSheet> {
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 decoration: BoxDecoration(
+                  borderRadius: AppRadius.brMd,
                   color: AppColors.primary,
                 ),
                 child: Center(

@@ -253,30 +253,16 @@ class _StepTopBar extends StatelessWidget {
 
     final VoidCallback backAction = () => handleCancel();
 
+    // 제목은 **왼쪽 고정**이다. 가운데 정렬이면 제목 길이에 따라 글자가 좌우로 움직여
+    // 스텝을 넘길 때마다 헤더가 흔들린다. 본문·프로그레스와 같은 20px 선에 맞춰
+    // 세로로 읽히는 기준선을 하나만 둔다.
     return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 8, 16, 4),
+      padding: const EdgeInsets.fromLTRB(20, 8, 16, 4),
       child: Row(
         children: [
-          SizedBox(
-            width: 68,
-            child: TextButton(
-              onPressed: backAction,
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                foregroundColor: AppColors.paleInk2,
-              ),
-              child: const Text(
-                '뒤로',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                  color: AppColors.paleInk2,
-                ),
-              ),
-            ),
-          ),
           Expanded(
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
@@ -300,7 +286,22 @@ class _StepTopBar extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 68),
+          TextButton(
+            onPressed: backAction,
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              foregroundColor: AppColors.paleInk2,
+              shape: const RoundedRectangleBorder(borderRadius: AppRadius.brMd),
+            ),
+            child: const Text(
+              '뒤로',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+                color: AppColors.paleInk2,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -336,11 +337,15 @@ class StepProgressDots extends StatelessWidget {
             margin: EdgeInsets.only(right: i < count - 1 ? 8 : 0),
             width: isCur ? 24 : 6,
             height: 4,
-            color: isCur
-                ? accentInk
-                : isDone
-                    ? AppColors.paleInk3
-                    : AppColors.paleLine,
+            // 4px 짜리 막대라 알약이 아니면 끝이 잘린 조각처럼 보인다.
+            decoration: BoxDecoration(
+              borderRadius: AppRadius.brPill,
+              color: isCur
+                  ? accentInk
+                  : isDone
+                      ? AppColors.paleInk3
+                      : AppColors.paleLine,
+            ),
           ),
         );
       }),
@@ -383,6 +388,7 @@ class _StepFooter extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 decoration: const BoxDecoration(
+                  borderRadius: AppRadius.brMd,
                   color: AppColors.surface,
                   border: Border.fromBorderSide(BorderSide(color: AppColors.paleLine)),
                 ),
@@ -405,6 +411,7 @@ class _StepFooter extends StatelessWidget {
                 duration: const Duration(milliseconds: 200),
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 decoration: BoxDecoration(
+                  borderRadius: AppRadius.brMd,
                   color: canNext ? AppColors.primary : AppColors.paleLine,
                 ),
                 child: submitting
@@ -479,7 +486,10 @@ class StepSummary extends StatelessWidget {
       children: groups.map((g) => Padding(
         padding: const EdgeInsets.only(bottom: 8),
         child: Container(
+          // 안쪽 헤더 띠가 카드 모서리를 넘어가지 않도록 잘라낸다.
+          clipBehavior: Clip.antiAlias,
           decoration: const BoxDecoration(
+            borderRadius: AppRadius.brLg,
             color: AppColors.surface,
             border: Border.fromBorderSide(BorderSide(color: AppColors.paleLine)),
           ),
@@ -678,9 +688,13 @@ class PaleSegment extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 트랙은 입력칸(`AppRadius.brLg`)과 같은 모양이고, 선택칸은 그 안에 들어가므로
+    // 한 단계 작은 `brMd` 다. 예전엔 트랙도 선택칸도 직각에 테두리만 있어서
+    // 이 줄만 다른 앱에서 가져온 것처럼 보였다.
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: const BoxDecoration(
+        borderRadius: AppRadius.brLg,
         color: AppColors.paleBgAlt,
         border: Border.fromBorderSide(BorderSide(color: AppColors.paleLine)),
       ),
@@ -694,10 +708,18 @@ class PaleSegment extends StatelessWidget {
                 duration: const Duration(milliseconds: 150),
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 decoration: BoxDecoration(
+                  borderRadius: AppRadius.brMd,
                   color: sel ? AppColors.surface : Colors.transparent,
-                  border: sel
-                      ? Border.fromBorderSide(
-                          const BorderSide(color: AppColors.primary))
+                  // 선택 표시는 채움과 그림자로 충분하다. 테두리까지 더하면
+                  // 트랙 테두리와 2겹이 되어 그 줄만 두꺼워 보인다.
+                  boxShadow: sel
+                      ? const [
+                          BoxShadow(
+                            color: Color(0x14000000),
+                            blurRadius: 4,
+                            offset: Offset(0, 1),
+                          ),
+                        ]
                       : null,
                 ),
                 child: Text(

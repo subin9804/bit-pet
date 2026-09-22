@@ -137,9 +137,10 @@ class _MorphPickerSheetState extends ConsumerState<MorphPickerSheet> {
           _buildSelectedStrip(),
           Expanded(
             child: morphsAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (_, __) =>
-                  const Center(child: Text('모프 목록을 불러오지 못했어요')),
+              // 목록이 오는 동안에도 **직접 입력은 막히지 않는다.** 스피너만 돌리면
+              // 네트워크가 느린 자리에서 할 수 있는 게 기다리는 것뿐이 된다.
+              loading: () => _buildLoading(),
+              error: (_, __) => _buildLoadError(),
               data: _buildList,
             ),
           ),
@@ -173,37 +174,55 @@ class _MorphPickerSheetState extends ConsumerState<MorphPickerSheet> {
             Text('모프 선택', style: AppTextStyles.h2),
             const SizedBox(height: 4),
             Text(
-              '${widget.species.nameKo} · 한글명, 영문명, 별칭으로 찾을 수 있어요',
+              '${widget.species.nameKo} · 한글명·영문명·별칭으로 찾고, 없으면 직접 입력해요',
               style: AppTextStyles.caption,
             ),
           ],
         ),
       );
 
+  /// 검색 칸이 곧 **직접 입력 칸**이다. 칸을 둘로 나누면 "검색해도 없을 때만 쓰는 칸"
+  /// 이라는 순서를 화면이 설명해야 하는데, 한 칸이면 치는 순간 아래에 '직접 추가'가
+  /// 따라붙어 설명이 필요 없다. 라벨에 둘 다 적어둔 건 그 칸이 검색만 하는 줄 알고
+  /// 직접 입력할 자리를 못 찾는 일이 있었기 때문이다.
   Widget _buildSearchField() => Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-        child: TextField(
-          controller: _searchCtrl,
-          textInputAction: TextInputAction.search,
-          onChanged: (v) => setState(() {
-            _query = v;
-            _createError = null;
-          }),
-          decoration: InputDecoration(
-            hintText: '예: 핀스, Pastel, 알비노',
-            prefixIcon: const Icon(Icons.search, size: 20),
-            suffixIcon: _query.isEmpty
-                ? null
-                : IconButton(
-                    icon: const Icon(Icons.close, size: 20),
-                    onPressed: () => setState(() {
-                      _searchCtrl.clear();
-                      _query = '';
-                    }),
-                  ),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(left: 4, bottom: 6),
+              child: Text('모프 검색 · 직접 입력', style: AppTextStyles.label),
+            ),
+            TextField(
+              controller: _searchCtrl,
+              textInputAction: TextInputAction.done,
+              onChanged: (v) => setState(() {
+                _query = v;
+                _createError = null;
+              }),
+              // 키보드의 완료로도 추가된다 — 목록 맨 위 타일까지 손을 옮기지 않아도 된다.
+              onSubmitted: (v) {
+                final t = v.trim();
+                if (t.isNotEmpty) _createCustom(t);
+              },
+              decoration: InputDecoration(
+                hintText: '예: 핀스, Pastel, 알비노 — 없는 모프는 적고 추가',
+                prefixIcon: const Icon(Icons.search, size: 20),
+                suffixIcon: _query.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: const Icon(Icons.close, size: 20),
+                        onPressed: () => setState(() {
+                          _searchCtrl.clear();
+                          _query = '';
+                        }),
+                      ),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              ),
+            ),
+          ],
         ),
       );
 
@@ -239,6 +258,63 @@ class _MorphPickerSheetState extends ConsumerState<MorphPickerSheet> {
           ],
         ),
       ),
+    );
+  }
+
+  /// 로딩 중 화면 — 목록 자리에 뼈대를 깔고, 검색어를 이미 쳤다면 '직접 추가'를 먼저 띄운다.
+  Widget _buildLoading() {
+    final q = _query.trim();
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      children: [
+        const Divider(height: 1, color: AppColors.border),
+        const SizedBox(height: 8),
+        if (q.isNotEmpty) ...[
+          _AddCustomTile(
+            name: q,
+            busy: _creating,
+            onTap: _creating ? null : () => _createCustom(q),
+          ),
+          const SizedBox(height: 12),
+        ],
+        ...List.generate(6, (_) => const _MorphRowSkeleton()),
+        const SizedBox(height: 12),
+        Center(
+          child: Text('모프 목록을 불러오는 중이에요', style: AppTextStyles.caption),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLoadError() {
+    final q = _query.trim();
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+      children: [
+        Center(
+          child: Text(
+            '모프 목록을 불러오지 못했어요',
+            style: AppTextStyles.body.copyWith(color: AppColors.textDisabled),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Center(
+          child: TextButton(
+            onPressed: () =>
+                ref.invalidate(morphsBySpeciesProvider(widget.species.id)),
+            child: const Text('다시 시도'),
+          ),
+        ),
+        // 목록이 안 와도 직접 입력은 서버의 다른 엔드포인트라 대체로 된다.
+        if (q.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          _AddCustomTile(
+            name: q,
+            busy: _creating,
+            onTap: _creating ? null : () => _createCustom(q),
+          ),
+        ],
+      ],
     );
   }
 
@@ -285,12 +361,20 @@ class _MorphPickerSheetState extends ConsumerState<MorphPickerSheet> {
         if (filtered.isEmpty && !showAddTile)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 32),
-            child: Center(
-              child: Text(
-                q.isEmpty ? '등록된 모프가 없어요' : "'$q' 와 맞는 모프가 없어요",
-                style:
-                    AppTextStyles.body.copyWith(color: AppColors.textDisabled),
-              ),
+            child: Column(
+              children: [
+                Text(
+                  q.isEmpty ? '등록된 모프가 없어요' : "'$q' 와 맞는 모프가 없어요",
+                  style: AppTextStyles.body
+                      .copyWith(color: AppColors.textDisabled),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '위 칸에 이름을 적으면 직접 추가할 수 있어요',
+                  style: AppTextStyles.caption,
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ),
           )
         else
@@ -467,8 +551,10 @@ class _MorphRow extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 4, vertical: 1),
-                          decoration:
-                              BoxDecoration(color: AppColors.bg2),
+                          decoration: BoxDecoration(
+                            borderRadius: AppRadius.brSm,
+                            color: AppColors.bg2,
+                          ),
                           child: const Text(
                             '직접 입력',
                             style: TextStyle(
@@ -508,6 +594,47 @@ class _MorphRow extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─── 로딩 중 목록 뼈대 ────────────────────────────────────────────────────────
+
+/// 스피너 대신 쓴다. 곧 뭐가 올지가 형태로 보이면 같은 시간도 덜 기다린 것처럼 느껴지고,
+/// 무엇보다 목록이 오는 동안 위쪽 검색·직접입력 칸이 계속 살아 있다.
+class _MorphRowSkeleton extends StatelessWidget {
+  const _MorphRowSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.paleLine)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 20,
+            height: 20,
+            decoration: BoxDecoration(
+              borderRadius: AppRadius.brSm,
+              color: AppColors.bg2,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Container(
+              height: 12,
+              decoration: BoxDecoration(
+                borderRadius: AppRadius.brSm,
+                color: AppColors.bg2,
+              ),
+            ),
+          ),
+          const SizedBox(width: 48),
+        ],
       ),
     );
   }
