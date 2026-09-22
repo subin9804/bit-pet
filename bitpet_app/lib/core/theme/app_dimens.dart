@@ -47,19 +47,26 @@ abstract final class AppSpacing {
   static const x56 = 56.0;
 
   /// 화면 좌우 여백. **모든 화면이 이 값 하나를 쓴다** (예전엔 10·12·14·16·20·22 여섯 종류였다).
-  static const screenH = 20.0;
+  ///
+  /// 2026-09-22: 20 → 24. 내용이 화면 가장자리에 붙어 답답하다는 판단.
+  /// ⚠️ 이 값을 바꾸면 앱 전체가 움직인다 — 그게 이 토큰의 목적이다.
+  /// 특정 화면만 좁히고 싶어도 여기에 예외를 만들지 말고 그 화면에서 명시할 것.
+  static const screenH = 24.0;
 
   /// 섹션과 섹션 사이.
+  ///
+  /// ℹ️ [cardGap] 이 16으로 올라가면서 이 값과의 비율이 2배가 됐다 — 의도한 것이다.
+  /// 섹션 경계가 카드 경계보다 확실히 크게 읽혀야 목록이 두 층으로 보인다.
   static const section = 32.0;
 
   /// 섹션 제목 → 내용.
-  static const titleGap = 12.0;
+  static const titleGap = 16.0;
 
   /// 카드 안쪽 여백.
-  static const cardPad = 16.0;
+  static const cardPad = 20.0;
 
   /// 카드와 카드 사이.
-  static const cardGap = 12.0;
+  static const cardGap = 16.0;
 
   /// 최소 터치 영역 한 변.
   static const minTouch = 44.0;

@@ -143,7 +143,8 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
             color: AppColors.bg2,
             border: Border(bottom: BorderSide(color: AppColors.divider)),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.screenH, vertical: AppSpacing.sm),
           child: TextField(
             controller: _searchCtrl,
             onChanged: (v) => setState(() => _query = v),
@@ -189,7 +190,8 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
             child: routinesAsync.whenOrNull(data: (all) {
               return ListView(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.screenH, vertical: AppSpacing.sm),
                 children: _kFilters.map((f) {
                   final (type, label) = f;
                   final count = type == null
@@ -235,7 +237,8 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
               }
 
               return ListView.builder(
-                padding: const EdgeInsets.only(top: 12, bottom: 110),
+                padding: const EdgeInsets.only(
+                    top: AppSpacing.cardGap, bottom: 110),
                 itemCount: visible.length,
                 itemBuilder: (_, i) => _RoutineCard(
                   routine: visible[i],
@@ -279,14 +282,16 @@ class _RoutineCard extends ConsumerWidget {
     // 한 장 안에 정보 행 + 액션 행 4개가 들어 있어서 어디까지가 한 루틴인지가
     // 선 하나로는 안 읽혔다. 라운드와 옅은 그림자가 그 경계를 대신한다.
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      margin: const EdgeInsets.fromLTRB(
+          AppSpacing.screenH, 0, AppSpacing.screenH, AppSpacing.cardGap),
       clipBehavior: Clip.antiAlias, // 액션 행이 카드 아래 모서리를 넘지 않게
       decoration: AppDecor.cardRaised,
       child: Column(
         children: [
           // ── 루틴 정보 행 ────────────────────────────────────────
+          // 아래만 12로 좁혀 두었더니 액션 행이 정보에 붙어 보였다. 네 변을 같은 값으로 둔다.
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+            padding: const EdgeInsets.all(AppSpacing.cardPad),
             child: Row(
               children: [
                 Container(
@@ -342,7 +347,7 @@ class _RoutineCard extends ConsumerWidget {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: AppSpacing.xs),
                       Row(
                         children: [
                           Icon(
@@ -567,7 +572,8 @@ class _CalendarSheetState extends ConsumerState<_CalendarSheet> {
           ),
           // 헤더
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+            padding: const EdgeInsets.fromLTRB(
+                AppSpacing.screenH, 0, AppSpacing.screenH, AppSpacing.md),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -585,7 +591,8 @@ class _CalendarSheetState extends ConsumerState<_CalendarSheet> {
           // 스크롤 영역 — Flexible로 남은 공간 채우되 내용 적으면 줄어듦
           Flexible(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+              padding: const EdgeInsets.fromLTRB(AppSpacing.screenH,
+                  AppSpacing.lg, AppSpacing.screenH, AppSpacing.section),
               child: logsAsync.when(
                 loading: () => const Center(
                     child: Padding(padding: EdgeInsets.all(40),
@@ -1006,7 +1013,8 @@ class _RoutinePetPickerSheetState
           ),
           // ── 헤더 ──
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+            padding: const EdgeInsets.fromLTRB(
+                AppSpacing.screenH, 0, AppSpacing.screenH, AppSpacing.md),
             child: Row(
               children: [
                 Container(
@@ -1087,7 +1095,9 @@ class _RoutinePetPickerSheetState
                 return GridView.builder(
                   shrinkWrap: true,
                   padding:
-                      const EdgeInsets.fromLTRB(20, 16, 20, 16),
+                      const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.screenH,
+                          vertical: AppSpacing.lg),
                   gridDelegate:
                       const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 3,
@@ -1157,7 +1167,7 @@ class _RoutinePetPickerSheetState
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
-                            const SizedBox(height: 1),
+                            const SizedBox(height: AppSpacing.xs),
                             Text(
                               p.speciesName,
                               style: const TextStyle(
@@ -1181,7 +1191,8 @@ class _RoutinePetPickerSheetState
             decoration: const BoxDecoration(
               border: Border(top: BorderSide(color: AppColors.divider)),
             ),
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+            padding: const EdgeInsets.fromLTRB(AppSpacing.screenH,
+                AppSpacing.md, AppSpacing.screenH, AppSpacing.section),
             child: Row(
               children: [
                 GestureDetector(
