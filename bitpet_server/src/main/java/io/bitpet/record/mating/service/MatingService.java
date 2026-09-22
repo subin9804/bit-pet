@@ -10,7 +10,9 @@ import io.bitpet.record.mating.dto.MatingCreateRequest;
 import io.bitpet.record.mating.dto.MatingResponse;
 import io.bitpet.record.mating.dto.MatingUpdateRequest;
 import io.bitpet.record.mating.repository.MatingDtlRepository;
+import io.bitpet.record.mating.repository.MatingDtlSpecs;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -67,7 +69,8 @@ public class MatingService {
     public List<MatingResponse> getMatings(Long petId, Long userId,
                                            String seasonLabel, Boolean isSuccessful) {
         loadOwnedPet(userId, petId);
-        return matingRepo.findByPetIdWithFilters(petId, seasonLabel, isSuccessful).stream()
+        return matingRepo.findAll(MatingDtlSpecs.filter(petId, seasonLabel, isSuccessful),
+                        Sort.by(Sort.Direction.DESC, "triedAt")).stream()
                 .map(m -> MatingResponse.of(m, resolvePet(m.getMalePetId()), resolvePet(m.getFemalePetId())))
                 .toList();
     }

@@ -2,6 +2,7 @@ package io.bitpet.record.mating.repository;
 
 import io.bitpet.record.mating.domain.MatingDtl;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -10,7 +11,8 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 
-public interface MatingDtlRepository extends JpaRepository<MatingDtl, Long> {
+public interface MatingDtlRepository extends JpaRepository<MatingDtl, Long>,
+        JpaSpecificationExecutor<MatingDtl> {
 
     @Query("""
             SELECT m FROM MatingDtl m
@@ -23,17 +25,7 @@ public interface MatingDtlRepository extends JpaRepository<MatingDtl, Long> {
                                               @Param("from") Instant from,
                                               @Param("to") Instant to);
 
-    @Query("""
-            SELECT m FROM MatingDtl m
-            WHERE (m.malePetId = :petId OR m.femalePetId = :petId)
-              AND (:seasonLabel IS NULL OR m.seasonLabel = :seasonLabel)
-              AND (:isSuccessful IS NULL OR m.isSuccessful = :isSuccessful)
-            ORDER BY m.triedAt DESC
-            """)
-    List<MatingDtl> findByPetIdWithFilters(
-            @Param("petId") Long petId,
-            @Param("seasonLabel") String seasonLabel,
-            @Param("isSuccessful") Boolean isSuccessful);
+    // 선택 필터 목록은 MatingDtlSpecs 로 조립한다 — "(:x IS NULL OR ...)" JPQL 을 쓰지 말 것 (LayingDtlSpecs 주석 참고)
 
     /** 이 개체를 상대로 걸어둔 메이팅이 있는지 — 탈퇴·고아 정리에서 "남이 거는 참조" 판정 */
     @Query("""

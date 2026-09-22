@@ -23,6 +23,7 @@ import io.bitpet.pet.dto.PetUpdateRequest;
 import io.bitpet.pet.dto.UserProfileResponse;
 import io.bitpet.pet.repository.MorphCdRepository;
 import io.bitpet.pet.repository.PetMstRepository;
+import io.bitpet.pet.repository.PetMstSpecs;
 import io.bitpet.pet.repository.PetRelationRlsRepository;
 import io.bitpet.pet.repository.SpeciesCdRepository;
 import io.bitpet.photo.domain.EntityType;
@@ -151,7 +152,7 @@ public class PetService {
     }
 
     public List<PetResponse> search(Long userId, Long speciesId, PetGender gender, String name) {
-        return petRepository.search(userId, speciesId, gender, name).stream()
+        return petRepository.findAll(PetMstSpecs.search(userId, speciesId, gender, name)).stream()
                 .map(PetResponse::from)
                 .toList();
     }

@@ -3,15 +3,15 @@ package io.bitpet.pet.repository;
 import io.bitpet.pet.domain.PetGender;
 import io.bitpet.pet.domain.PetMst;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface PetMstRepository extends JpaRepository<PetMst, Long> {
+public interface PetMstRepository extends JpaRepository<PetMst, Long>,
+        JpaSpecificationExecutor<PetMst> {
 
     boolean existsBySerialNo(String serialNo);
 
@@ -28,12 +28,5 @@ public interface PetMstRepository extends JpaRepository<PetMst, Long> {
 
     List<PetMst> findAllByUserIdAndGender(Long userId, PetGender gender);
 
-    @Query("SELECT p FROM PetMst p WHERE p.userId = :userId " +
-           "AND (:speciesId IS NULL OR p.species.id = :speciesId) " +
-           "AND (:gender IS NULL OR p.gender = :gender) " +
-           "AND (:name IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%')))")
-    List<PetMst> search(@Param("userId") Long userId,
-                        @Param("speciesId") Long speciesId,
-                        @Param("gender") PetGender gender,
-                        @Param("name") String name);
+    // 선택 필터 검색은 PetMstSpecs 로 조립한다 — "(:x IS NULL OR ...)" JPQL 을 쓰지 말 것 (LayingDtlSpecs 주석 참고)
 }

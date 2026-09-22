@@ -25,11 +25,13 @@ import io.bitpet.record.laying.dto.LayingResponse;
 import io.bitpet.record.laying.dto.LayingUpdateRequest;
 import io.bitpet.record.laying.dto.RegisterPetRequest;
 import io.bitpet.record.laying.repository.LayingDtlRepository;
+import io.bitpet.record.laying.repository.LayingDtlSpecs;
 import io.bitpet.record.laying.repository.LayingHatchDtlRepository;
 import io.bitpet.record.mating.domain.MatingDtl;
 import io.bitpet.record.mating.repository.MatingDtlRepository;
 import io.bitpet.pet.dto.PetResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -97,9 +99,10 @@ public class LayingService {
                                             LocalDate from, LocalDate to) {
         loadOwnedPet(userId, petId);
         Instant fromInst = from != null ? from.atStartOfDay(SEOUL).toInstant() : null;
-        Instant toInst   = to   != null ? to.plusDays(1).atStartOfDay(SEOUL).toInstant().minusMillis(1) : null;
+        Instant toExcl   = to   != null ? to.plusDays(1).atStartOfDay(SEOUL).toInstant() : null;
 
-        return layingRepo.findByPetIdWithFilters(petId, matingId, fromInst, toInst)
+        return layingRepo.findAll(LayingDtlSpecs.filter(petId, matingId, fromInst, toExcl),
+                        Sort.by(Sort.Direction.DESC, "laidAt"))
                 .stream()
                 .map(l -> LayingResponse.of(l, buildHatches(l.getId())))
                 .toList();
