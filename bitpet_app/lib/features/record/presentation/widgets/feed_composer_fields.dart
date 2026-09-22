@@ -73,7 +73,7 @@ class FeedComposerFields extends StatelessWidget {
         // ── 메모 ────────────────────────────────────────────
         if (showMemo) ...[
           if (!refused) const SizedBox(height: 20),
-          _Label('메모', optional: true),
+          FeedFieldLabel('메모', optional: true),
           const SizedBox(height: 8),
           TextField(
             onChanged: (v) => onChanged(form.copyWith(memo: v)),
@@ -98,7 +98,7 @@ class FeedComposerFields extends StatelessWidget {
   List<Widget> _feedFields() {
     return [
         // ── 급여 종류 ─────────────────────────────────────────
-        _Label('급여 종류'),
+        FeedFieldLabel('급여 종류'),
         const SizedBox(height: 8),
         DropdownButtonFormField<FoodType>(
           value: form.foodType,
@@ -133,40 +133,89 @@ class FeedComposerFields extends StatelessWidget {
         // ── 서브 입력 ───────────────────────────────────────
         if (form.foodType != null) ...[
           const SizedBox(height: 16),
-          _SubInput(form: form, onChanged: onChanged, bandColor: bandColor),
+          FeedSubInput(form: form, onChanged: onChanged, bandColor: bandColor),
         ],
 
         // ── 영양제 ──────────────────────────────────────────
         const SizedBox(height: 16),
-        _Label('영양제', optional: true),
+        FeedFieldLabel('영양제', optional: true),
         const SizedBox(height: 8),
-        Wrap(
-          spacing: 7,
-          children: FeedingSupplement.values.map((s) {
-            final sel = form.supplement == s;
-            return GestureDetector(
-              onTap: () => onChanged(form.copyWith(
-                supplement: sel ? null : s,
-              )),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 140),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: sel ? AppColors.petLilac : AppColors.card,
-                  border: Border.all(color: sel ? Colors.transparent : AppColors.paleLine),
-                  borderRadius: AppRadius.brPill,
-                ),
-                child: Text(s.label,
-                    style: TextStyle(
-                      fontSize: 12, fontWeight: FontWeight.w700,
-                      color: sel ? AppColors.primary : AppColors.paleInk2,
-                    )),
-              ),
-            );
-          }).toList(),
+        FeedSupplementChips(
+          selected: form.supplement,
+          onSelect: (s) => onChanged(form.copyWith(supplement: s)),
         ),
     ];
   }
+}
+
+// ── 영양제 칩 ──────────────────────────────────────────────────────────────────
+/// 단일 선택. 고른 걸 다시 누르면 해제된다 (`FeedingSupplement?`).
+class FeedSupplementChips extends StatelessWidget {
+  final FeedingSupplement? selected;
+  final ValueChanged<FeedingSupplement?> onSelect;
+  const FeedSupplementChips({
+    super.key,
+    required this.selected,
+    required this.onSelect,
+  });
+
+  @override
+  Widget build(BuildContext context) => Wrap(
+    spacing: 7,
+    runSpacing: 7,
+    children: FeedingSupplement.values.map((s) {
+      final sel = selected == s;
+      return GestureDetector(
+        onTap: () => onSelect(sel ? null : s),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 140),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: sel ? AppColors.petLilac : AppColors.card,
+            border: Border.all(color: sel ? Colors.transparent : AppColors.paleLine),
+            borderRadius: AppRadius.brPill,
+          ),
+          child: Text(s.label,
+              style: TextStyle(
+                fontSize: 12, fontWeight: FontWeight.w700,
+                color: sel ? AppColors.primary : AppColors.paleInk2,
+              )),
+        ),
+      );
+    }).toList(),
+  );
+}
+
+// ── 급여 종류 칩 그리드 ────────────────────────────────────────────────────────
+/// 드롭다운의 대체품이지만 **아무 데서나 쓰면 안 된다.**
+///
+/// 칩 10개는 세 줄을 먹는다. 바텀시트 본문에 그대로 놓으면 지금 드롭다운일 때보다
+/// 시트가 더 길어진다 — 화면을 새로 쓰는 자리(모달)에서만 값을 한다.
+/// 시트 안에서는 [FeedComposerFields] 의 드롭다운이 여전히 맞다.
+class FeedTypeChips extends StatelessWidget {
+  final FoodType? selected;
+  final ValueChanged<FoodType> onSelect;
+  final Color bandColor;
+  const FeedTypeChips({
+    super.key,
+    required this.selected,
+    required this.onSelect,
+    required this.bandColor,
+  });
+
+  @override
+  Widget build(BuildContext context) => Wrap(
+    spacing: 7,
+    runSpacing: 7,
+    children: FoodType.all.map((ft) => GestureDetector(
+      onTap: () => onSelect(ft),
+      child: AppChip(
+          label: ft.label,
+          selected: selected == ft,
+          selectedColor: bandColor,
+          selectedTextColor: AppColors.primary),
+    )).toList(),
+  );
 }
 
 // ── 거식 체크박스 ──────────────────────────────────────────────────────────────
@@ -251,10 +300,10 @@ class _AddButton extends StatelessWidget {
 }
 
 // ── 레이블 ─────────────────────────────────────────────────────────────────────
-class _Label extends StatelessWidget {
+class FeedFieldLabel extends StatelessWidget {
   final String text;
   final bool optional;
-  const _Label(this.text, {this.optional = false});
+  const FeedFieldLabel(this.text, {this.optional = false});
 
   @override
   Widget build(BuildContext context) => Row(children: [
@@ -267,11 +316,16 @@ class _Label extends StatelessWidget {
 }
 
 // ── 서브 입력 ──────────────────────────────────────────────────────────────────
-class _SubInput extends StatelessWidget {
+class FeedSubInput extends StatelessWidget {
   final FeedFormData form;
   final ValueChanged<FeedFormData> onChanged;
   final Color bandColor;
-  const _SubInput({required this.form, required this.onChanged, required this.bandColor});
+  const FeedSubInput({
+    super.key,
+    required this.form,
+    required this.onChanged,
+    required this.bandColor,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -299,7 +353,7 @@ class _SizeCountInput extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _Label('사이즈', optional: true),
+        FeedFieldLabel('사이즈', optional: true),
         const SizedBox(height: 8),
         Wrap(spacing: 7, children: sizes.map((s) {
           final sel = form.sizeLabel == s;
@@ -313,7 +367,7 @@ class _SizeCountInput extends StatelessWidget {
           );
         }).toList()),
         const SizedBox(height: 12),
-        _Label('마릿수', optional: true),
+        FeedFieldLabel('마릿수', optional: true),
         const SizedBox(height: 8),
         _CountStepper(
           count: count,
@@ -370,7 +424,7 @@ class _VolumeInput extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      _Label('용량', optional: true),
+      FeedFieldLabel('용량', optional: true),
       const SizedBox(height: 8),
       Row(children: [
         _ModeToggle(label: '용량 선택', active: !form.useCustomAmount, color: bandColor,
@@ -413,7 +467,7 @@ class _CustomTextInput extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _Label('먹이 이름'),
+        FeedFieldLabel('먹이 이름'),
         const SizedBox(height: 8),
         TextFormField(
           initialValue: form.customText,
@@ -432,7 +486,7 @@ class _CustomTextInput extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        _Label('사이즈', optional: true),
+        FeedFieldLabel('사이즈', optional: true),
         const SizedBox(height: 8),
         Wrap(spacing: 7, children: sizes.map((s) {
           final sel = form.sizeLabel == s;
@@ -446,7 +500,7 @@ class _CustomTextInput extends StatelessWidget {
           );
         }).toList()),
         const SizedBox(height: 12),
-        _Label('마릿수', optional: true),
+        FeedFieldLabel('마릿수', optional: true),
         const SizedBox(height: 8),
         _CountStepper(
           count: form.count ?? 0,
