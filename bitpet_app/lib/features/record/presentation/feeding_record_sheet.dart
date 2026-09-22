@@ -19,6 +19,7 @@ import '../providers/record_invalidation.dart';
 import 'widgets/feed_items_editor.dart';
 import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_dimens.dart';
+import '../../../core/widgets/app_network_image.dart';
 
 class FeedingRecordSheet extends ConsumerStatefulWidget {
   final TodayRoutine routine;
@@ -409,9 +410,10 @@ class _CurrentPetCard extends StatelessWidget {
             child: status.imageUrl != null
                 ? ClipRRect(
                     borderRadius: AppRadius.brLg,
-                    child: Image.network(status.imageUrl!,
+                    child: AppNetworkImage(status.imageUrl,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => AppIcon(AppIcons.petLine,
+                        memWidth: 120,
+                        placeholder: AppIcon(AppIcons.petLine,
                             size: 20,
                             color: AppColors.primary.withValues(alpha: 0.4))),
                   )

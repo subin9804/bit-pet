@@ -6,6 +6,7 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/weight_format.dart';
 import '../../data/models/pet_models.dart';
 import '../../../../core/theme/app_icons.dart';
+import '../../../../core/widgets/app_network_image.dart';
 
 /// 개체 상세 최상단 카드.
 ///
@@ -68,7 +69,8 @@ class _PetHeroCardState extends State<PetHeroCard> {
                 ),
                 clipBehavior: Clip.antiAlias,
                 child: pet.profileImageUrl != null
-                    ? Image.network(pet.profileImageUrl!, fit: BoxFit.cover)
+                    ? AppNetworkImage(pet.profileImageUrl,
+                        fit: BoxFit.cover, memWidth: 400)
                     : AppIcon(AppIcons.species(pet.speciesSubcategory),
                         color: AppColors.primary, size: 44),
               ),

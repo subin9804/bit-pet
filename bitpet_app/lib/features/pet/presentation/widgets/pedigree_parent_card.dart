@@ -4,6 +4,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../data/models/pet_models.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_dimens.dart';
+import '../../../../core/widgets/app_network_image.dart';
 
 /// 가계도 부모 카드 — 좌측 썸네일 + 우측 2줄.
 ///
@@ -173,8 +174,10 @@ class _Thumbnail extends StatelessWidget {
       ),
       clipBehavior: Clip.hardEdge,
       child: url != null
-          ? Image.network(url!, fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => _ThumbFallback(subcategory))
+          ? AppNetworkImage(url,
+              fit: BoxFit.cover,
+              memWidth: 150,
+              placeholder: _ThumbFallback(subcategory))
           : _ThumbFallback(subcategory),
     );
   }

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../data/models/photo_models.dart';
+import '../../../../core/widgets/app_network_image.dart';
 
 /// 뷰어에서 고른 동작. [action] 은 'profile' / 'delete'.
 typedef GalleryViewerResult = ({String action, PetPhoto photo});
@@ -318,15 +319,13 @@ class _ZoomablePhotoState extends State<_ZoomablePhoto> {
         maxScale: 4,
         onInteractionEnd: (_) => _notify(),
         child: SizedBox.expand(
-          child: Image.network(
+          // 확대해서 보는 자리라 여기만 원본 해상도 그대로 쓴다(memWidth 없음).
+          // 그리드에서 이미 썸네일 크기로 받아둔 것과 캐시 키가 같아 두 번
+          // 내려받지는 않는다 — 디코딩 크기만 다르다.
+          child: AppNetworkImage(
             widget.url,
             fit: BoxFit.contain,
-            loadingBuilder: (_, child, progress) => progress == null
-                ? child
-                : const Center(
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.white70)),
-            errorBuilder: (_, __, ___) => const Center(
+            placeholder: const Center(
               child: Icon(Icons.broken_image_outlined,
                   size: 40, color: Colors.white38),
             ),

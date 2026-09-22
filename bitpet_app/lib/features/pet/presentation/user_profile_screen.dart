@@ -6,6 +6,7 @@ import '../data/models/pet_models.dart';
 import '../providers/pet_provider.dart';
 import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_dimens.dart';
+import '../../../core/widgets/app_network_image.dart';
 
 /// 공개 프로필 — 가계도 카드의 '@닉네임'을 눌렀을 때.
 ///
@@ -62,8 +63,10 @@ class _Body extends StatelessWidget {
               ),
               clipBehavior: Clip.hardEdge,
               child: profile.profileImageUrl != null
-                  ? Image.network(profile.profileImageUrl!, fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const Center(
+                  ? AppNetworkImage(profile.profileImageUrl,
+                      fit: BoxFit.cover,
+                      memWidth: 150,
+                      placeholder: const Center(
                           child: Text('🙂', style: TextStyle(fontSize: 24))))
                   : const Center(child: Text('🙂', style: TextStyle(fontSize: 24))),
             ),
@@ -149,8 +152,10 @@ class _PublicPetTile extends StatelessWidget {
               ),
               clipBehavior: Clip.hardEdge,
               child: card.profileImageUrl != null
-                  ? Image.network(card.profileImageUrl!, fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Center(
+                  ? AppNetworkImage(card.profileImageUrl,
+                      fit: BoxFit.cover,
+                      memWidth: 120,
+                      placeholder: Center(
                           child: AppIcon(AppIcons.species(card.speciesSubcategory), size: 20, color: AppColors.paleInk2)))
                   : Center(child: AppIcon(AppIcons.species(card.speciesSubcategory), size: 20, color: AppColors.paleInk2)),
             ),

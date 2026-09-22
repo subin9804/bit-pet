@@ -13,6 +13,7 @@ import '../data/post_repository.dart';
 import '../providers/post_provider.dart';
 import 'report_actions.dart';
 import '../../../core/theme/app_dimens.dart';
+import '../../../core/widgets/app_network_image.dart';
 
 Color _catBg(String? code) => switch (code?.toUpperCase()) {
       'FREE' => AppColors.commFreeBg,
@@ -275,11 +276,11 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                     // 첨부 사진
                     ...post.photoUrls.map((url) => Padding(
                           padding: const EdgeInsets.only(bottom: 8),
-                          child: Image.network(
+                          child: AppNetworkImage(
                             url,
                             width: double.infinity,
                             fit: BoxFit.fitWidth,
-                            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                            placeholder: const SizedBox.shrink(),
                           ),
                         )),
 
@@ -553,10 +554,11 @@ class _Avatar extends StatelessWidget {
       decoration:
           const BoxDecoration(color: AppColors.petSage, shape: BoxShape.circle),
       child: imageUrl != null
-          ? Image.network(
-              imageUrl!,
+          ? AppNetworkImage(
+              imageUrl,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Icon(Icons.pets_rounded,
+              memWidth: (size * 3).round(),
+              placeholder: Icon(Icons.pets_rounded,
                   size: size * 0.45, color: AppColors.paleInk2),
             )
           : Icon(Icons.pets_rounded,

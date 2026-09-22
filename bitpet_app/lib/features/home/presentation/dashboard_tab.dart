@@ -18,6 +18,7 @@ import '../../routine/providers/routine_provider.dart';
 import '../../routine/presentation/bulk_confirm_sheet.dart';
 import '../../routine/presentation/per_pet_confirm_sheet.dart';
 import '../../routine/presentation/routine_postpone_sheet.dart';
+import '../../../core/widgets/app_network_image.dart';
 
 // ignore_for_file: prefer_const_constructors_in_immutables
 
@@ -758,10 +759,11 @@ class _PetAvatarItem extends StatelessWidget {
               // 사진 있는 개체보다 오히려 더 튀어서 목록이 얼룩덜룩해진다.
               // '내 개체' 탭 아바타와 같은 옅기로 맞춘다.
               child: pet.profileImageUrl != null
-                  ? Image.network(
-                      pet.profileImageUrl!,
+                  ? AppNetworkImage(
+                      pet.profileImageUrl,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _placeholderIcon,
+                      memWidth: 220,
+                      placeholder: _placeholderIcon,
                     )
                   : _placeholderIcon,
             ),

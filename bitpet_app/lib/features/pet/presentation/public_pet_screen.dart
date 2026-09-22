@@ -6,6 +6,7 @@ import '../data/models/pet_models.dart';
 import '../providers/pet_provider.dart';
 import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_dimens.dart';
+import '../../../core/widgets/app_network_image.dart';
 
 /// 남의 공개 개체 화면 — 가계도 카드에서 공개 개체를 눌렀을 때.
 ///
@@ -84,8 +85,10 @@ class _Body extends StatelessWidget {
           ),
           clipBehavior: Clip.hardEdge,
           child: card.profileImageUrl != null
-              ? Image.network(card.profileImageUrl!, fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Center(
+              ? AppNetworkImage(card.profileImageUrl,
+                  fit: BoxFit.cover,
+                  memWidth: 400,
+                  placeholder: Center(
                       child: AppIcon(AppIcons.species(card.speciesSubcategory), size: 48, color: AppColors.paleInk2)))
               : Center(child: AppIcon(AppIcons.species(card.speciesSubcategory), size: 48, color: AppColors.paleInk2)),
         ),

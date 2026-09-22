@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/pet/providers/pet_provider.dart';
 import '../theme/app_icons.dart';
+import './app_network_image.dart';
 
 /// 개체 선택 자리에 쓰는 정사각 썸네일.
 /// 대표사진이 있으면 사진을, 없거나 로드 실패 시 [fallback](기본 발바닥 아이콘)을 보여준다.
@@ -44,12 +45,13 @@ class PetAvatar extends StatelessWidget {
       decoration: BoxDecoration(color: background, border: border),
       clipBehavior: Clip.hardEdge,
       child: imageUrl != null && imageUrl!.isNotEmpty
-          ? Image.network(
-              imageUrl!,
+          ? AppNetworkImage(
+              imageUrl,
               fit: BoxFit.cover,
               width: size,
               height: size,
-              errorBuilder: (_, __, ___) => placeholder,
+              memWidth: (size * 3).round(),
+              placeholder: placeholder,
             )
           : placeholder,
     );

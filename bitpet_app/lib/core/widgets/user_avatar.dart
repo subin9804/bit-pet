@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import './app_network_image.dart';
 
 /// 프로필 색 팔레트 — 서버는 이 **키**를 저장하고(`user_mst.profile_color`)
 /// 실제 색은 앱이 해석한다. 테마가 바뀌어도 'peach' 는 계속 'peach' 다.
@@ -86,12 +87,13 @@ class UserAvatar extends StatelessWidget {
       child: ClipRect(
         child: localBytes != null
             ? Image.memory(localBytes!, fit: BoxFit.cover, width: size, height: size)
-            : Image.network(
-                imageUrl!,
+            : AppNetworkImage(
+                imageUrl,
                 fit: BoxFit.cover,
                 width: size,
                 height: size,
-                errorBuilder: (_, __, ___) => Container(
+                memWidth: (size * 3).round(),
+                placeholder: Container(
                   color: AppColors.bg2,
                   alignment: Alignment.center,
                   child: Text(emoji, style: TextStyle(fontSize: size * 0.4)),

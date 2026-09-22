@@ -18,6 +18,7 @@ import '../../pet/data/models/pet_models.dart';
 import '../../pet/providers/pet_provider.dart';
 import 'routine_form_screen.dart';
 import '../../../core/theme/app_dimens.dart';
+import '../../../core/widgets/app_network_image.dart';
 
 // ── 루틴 타입 색·아이콘·라벨 ────────────────────────────────────────
 
@@ -891,8 +892,10 @@ class _PetChip extends StatelessWidget {
             clipBehavior: Clip.hardEdge,
             decoration: BoxDecoration(color: _bg, shape: BoxShape.circle),
             child: pet.profileImageUrl != null
-                ? Image.network(pet.profileImageUrl!, fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const SizedBox.shrink())
+                ? AppNetworkImage(pet.profileImageUrl,
+                    fit: BoxFit.cover,
+                    memWidth: 80,
+                    placeholder: const SizedBox.shrink())
                 : null,
           ),
           const SizedBox(width: 8),

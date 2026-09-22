@@ -9,6 +9,7 @@ import '../../../core/widgets/app_chip.dart';
 import '../data/models/post_models.dart';
 import '../providers/post_provider.dart';
 import '../../../core/theme/app_dimens.dart';
+import '../../../core/widgets/app_network_image.dart';
 
 Color _catBg(String? code) => switch (code?.toUpperCase()) {
       'NOTICE' => AppColors.commNoticeBg,
@@ -466,10 +467,11 @@ class _PostRow extends StatelessWidget {
                   borderRadius: AppRadius.brMd,
                 ),
                 clipBehavior: Clip.hardEdge,
-                child: Image.network(
-                  post.thumbnailUrl!,
+                child: AppNetworkImage(
+                  post.thumbnailUrl,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const Center(
+                  memWidth: 300,
+                  placeholder: const Center(
                     child: Icon(Icons.image_outlined,
                         size: 28, color: AppColors.paleInk3),
                   ),
@@ -544,10 +546,11 @@ class _AuthorAvatar extends StatelessWidget {
       decoration: const BoxDecoration(
           color: AppColors.paleBgAlt, shape: BoxShape.circle),
       child: imageUrl != null
-          ? Image.network(
-              imageUrl!,
+          ? AppNetworkImage(
+              imageUrl,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) =>
+              memWidth: (size * 3).round(),
+              placeholder:
                   Icon(Icons.person, size: size * 0.62, color: AppColors.paleInk3),
             )
           : Icon(Icons.person, size: size * 0.62, color: AppColors.paleInk3),

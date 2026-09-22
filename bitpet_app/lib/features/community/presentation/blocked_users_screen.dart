@@ -9,6 +9,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../data/models/report_models.dart';
 import '../data/post_repository.dart';
+import '../../../core/widgets/app_network_image.dart';
 
 final blockedUsersProvider =
     FutureProvider.autoDispose<List<BlockedUser>>((ref) {
@@ -102,9 +103,10 @@ class BlockedUsersScreen extends ConsumerWidget {
                   decoration: const BoxDecoration(
                       color: AppColors.petSage, shape: BoxShape.circle),
                   child: u.profileImageUrl != null
-                      ? Image.network(u.profileImageUrl!,
+                      ? AppNetworkImage(u.profileImageUrl,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const Icon(
+                          memWidth: 100,
+                          placeholder: const Icon(
                               Icons.pets_rounded,
                               size: 16,
                               color: AppColors.paleInk2))

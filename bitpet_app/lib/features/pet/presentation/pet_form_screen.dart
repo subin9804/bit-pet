@@ -18,6 +18,7 @@ import 'widgets/parent_pet_bottom_sheet.dart';
 import 'widgets/morph_picker_sheet.dart';
 import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_dimens.dart';
+import '../../../core/widgets/app_network_image.dart';
 
 // ════════════════════════════════════════════════════════════════
 // 03s · 개체 등록 — 6단계 스텝 위저드
@@ -545,9 +546,10 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
                               ? Image.memory(_pickedProfile!.bytes,
                                   fit: BoxFit.cover)
                               : (!_removeProfile && _existingProfileUrl != null)
-                                  ? Image.network(_existingProfileUrl!,
+                                  ? AppNetworkImage(_existingProfileUrl,
                                       fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) => const Center(
+                                      memWidth: 400,
+                                      placeholder: const Center(
                                           child: AppIcon(AppIcons.petLine,
                                               size: 44,
                                               color: AppColors.paleInk3)))

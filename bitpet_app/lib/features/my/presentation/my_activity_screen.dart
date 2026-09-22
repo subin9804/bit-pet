@@ -8,6 +8,7 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../../community/data/models/post_models.dart';
 import '../../community/providers/post_provider.dart';
+import '../../../core/widgets/app_network_image.dart';
 
 /// 마이페이지 > 내 게시글 — 내가 쓴 글과 댓글을 탭으로 나눠 보여준다.
 ///
@@ -206,10 +207,11 @@ class _MyPostRow extends StatelessWidget {
                 height: 60,
                 color: AppColors.bg2,
                 clipBehavior: Clip.hardEdge,
-                child: Image.network(
-                  post.thumbnailUrl!,
+                child: AppNetworkImage(
+                  post.thumbnailUrl,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const Center(
+                  memWidth: 240,
+                  placeholder: const Center(
                     child: Icon(Icons.image_outlined,
                         size: 24, color: AppColors.paleInk3),
                   ),

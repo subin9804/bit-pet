@@ -18,6 +18,7 @@ import '../providers/routine_provider.dart';
 import 'widgets/confirm_accordion.dart';
 import '../../record/providers/record_invalidation.dart';
 import '../../../core/theme/app_dimens.dart';
+import '../../../core/widgets/app_network_image.dart';
 
 // ── 개체별 입력 상태 ──────────────────────────────────────────────
 class _PerPetRec {
@@ -469,9 +470,10 @@ class _PetPage extends StatelessWidget {
                   child: pet.imageUrl != null
                       ? ClipRRect(
                           borderRadius: AppRadius.brLg,
-                          child: Image.network(pet.imageUrl!,
+                          child: AppNetworkImage(pet.imageUrl,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => AppIcon(AppIcons.petLine,
+                              memWidth: 150,
+                              placeholder: AppIcon(AppIcons.petLine,
                                   size: 24, color: AppColors.primary)))
                       : AppIcon(AppIcons.petLine, size: 24, color: AppColors.primary),
                 ),

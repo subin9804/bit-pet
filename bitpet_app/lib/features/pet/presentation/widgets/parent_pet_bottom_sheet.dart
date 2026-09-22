@@ -8,6 +8,7 @@ import '../../data/pet_repository.dart';
 import '../../providers/pet_provider.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_dimens.dart';
+import '../../../../core/widgets/app_network_image.dart';
 
 /// 부모 개체 선택 바텀시트.
 ///
@@ -448,8 +449,10 @@ class _PetListCard extends StatelessWidget {
               ),
               clipBehavior: Clip.hardEdge,
               child: card.profileImageUrl != null
-                  ? Image.network(card.profileImageUrl!, fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Center(
+                  ? AppNetworkImage(card.profileImageUrl,
+                      fit: BoxFit.cover,
+                      memWidth: 150,
+                      placeholder: Center(
                           child: AppIcon(AppIcons.species(card.speciesSubcategory), size: 24, color: AppColors.paleInk2)))
                   : Center(child: AppIcon(AppIcons.species(card.speciesSubcategory), size: 24, color: AppColors.paleInk2)),
             ),

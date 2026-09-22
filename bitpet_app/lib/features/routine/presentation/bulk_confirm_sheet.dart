@@ -15,6 +15,7 @@ import '../data/routine_repository.dart';
 import '../providers/routine_provider.dart';
 import 'widgets/confirm_accordion.dart';
 import '../../record/providers/record_invalidation.dart';
+import '../../../core/widgets/app_network_image.dart';
 
 class BulkConfirmSheet extends ConsumerStatefulWidget {
   final TodayRoutine routine;
@@ -467,8 +468,10 @@ class _NameChip extends StatelessWidget {
               decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.6)),
               child: status.imageUrl != null
-                  ? Image.network(status.imageUrl!, fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => AppIcon(AppIcons.petLine,
+                  ? AppNetworkImage(status.imageUrl,
+                      fit: BoxFit.cover,
+                      memWidth: 100,
+                      placeholder: AppIcon(AppIcons.petLine,
                           size: 16, color: AppColors.textPrimary))
                   : AppIcon(AppIcons.petLine, size: 16, color: AppColors.textPrimary),
             ),

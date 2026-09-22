@@ -14,6 +14,7 @@ import '../share/data/models/share_models.dart';
 import '../share/presentation/bulk_share_sheet.dart';
 import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_dimens.dart';
+import '../../../core/widgets/app_network_image.dart';
 
 /// 개체 다중 선택 모드 on/off (함께 키우기·분양 보내기용)
 final petSelectionModeProvider = StateProvider.autoDispose<bool>((_) => false);
@@ -589,9 +590,10 @@ class _PetCard extends ConsumerWidget {
                       color: _bgColor,
                     ),
                     child: pet.profileImageUrl != null
-                        ? Image.network(pet.profileImageUrl!,
+                        ? AppNetworkImage(pet.profileImageUrl,
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => _spriteIcon())
+                                memWidth: 400,
+                                placeholder: _spriteIcon())
                         : _spriteIcon(),
                   ),
                   if (selecting)
@@ -749,8 +751,10 @@ class _PetAvatarSmall extends StatelessWidget {
       decoration: BoxDecoration(color: _color, shape: BoxShape.circle),
       child: pet.profileImageUrl != null
           ? ClipOval(
-              child: Image.network(pet.profileImageUrl!, fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => AppIcon(
+              child: AppNetworkImage(pet.profileImageUrl,
+                  fit: BoxFit.cover,
+                  memWidth: 120,
+                  placeholder: AppIcon(
                       AppIcons.species(pet.speciesSubcategory),
                       color: AppColors.primary.withValues(alpha: 0.4),
                       size: 20)))

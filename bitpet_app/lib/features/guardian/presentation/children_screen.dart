@@ -13,6 +13,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../data/guardian_repository.dart';
 import 'child_create_screen.dart';
+import '../../../core/widgets/app_network_image.dart';
 
 class ChildrenScreen extends ConsumerWidget {
   const ChildrenScreen({super.key});
@@ -100,9 +101,10 @@ class ChildrenScreen extends ConsumerWidget {
                   decoration: const BoxDecoration(
                       color: AppColors.petSage, shape: BoxShape.circle),
                   child: c.profileImageUrl != null
-                      ? Image.network(c.profileImageUrl!,
+                      ? AppNetworkImage(c.profileImageUrl,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const Icon(
+                          memWidth: 120,
+                          placeholder: const Icon(
                               Icons.child_care_rounded,
                               size: 20,
                               color: AppColors.paleInk2))
