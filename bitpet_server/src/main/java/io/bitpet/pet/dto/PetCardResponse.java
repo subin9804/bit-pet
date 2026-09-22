@@ -32,6 +32,8 @@ public record PetCardResponse(
         PetGender gender,
         Long speciesId,
         String speciesNameKo,
+        /** 종별 아이콘용. {@link PetResponse#speciesSubcategory} 와 같은 값이다. */
+        String speciesSubcategory,
         List<MorphCdResponse> morphs,
         LocalDate hatchingDate,
         String hatchingDatePrecision,
@@ -59,6 +61,7 @@ public record PetCardResponse(
                 pet.getGender(),
                 pet.getSpecies() != null ? pet.getSpecies().getId() : null,
                 pet.getSpecies() != null ? pet.getSpecies().getNameKo() : null,
+                pet.getSpecies() != null ? pet.getSpecies().getSubcategory() : null,
                 pet.getMorphs().stream().map(rls -> MorphCdResponse.from(rls.getMorph())).toList(),
                 pet.getHatchingDate(),
                 pet.getHatchingDatePrecision() != null ? pet.getHatchingDatePrecision() : "DAY",

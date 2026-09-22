@@ -16,6 +16,11 @@ public record PetResponse(
         Long speciesId,
         String speciesNameKo,
         String speciesCategory,
+        /**
+         * GECKO / LIZARD / CHAMELEON / SNAKE / TURTLE / FROG / NEWT / SMALL_MAMMAL.
+         * 앱이 종별 아이콘을 고르는 데 쓴다 — 이름(nameKo)으로는 무엇을 그릴지 알 수 없다.
+         */
+        String speciesSubcategory,
         List<MorphCdResponse> morphs,
         String name,
         PetGender gender,
@@ -90,6 +95,7 @@ public record PetResponse(
                 pet.getSpecies() != null ? pet.getSpecies().getId() : null,
                 pet.getSpecies() != null ? pet.getSpecies().getNameKo() : null,
                 pet.getSpecies() != null ? pet.getSpecies().getCategory() : null,
+                pet.getSpecies() != null ? pet.getSpecies().getSubcategory() : null,
                 morphList,
                 pet.getName(),
                 pet.getGender(),
