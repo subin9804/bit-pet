@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_chip.dart';
 import '../../data/food_catalog.dart';
+import '../../data/feed_recent_repository.dart';
 import 'feed_item_modal.dart';
 import '../../../../core/theme/app_dimens.dart';
 
@@ -14,23 +17,29 @@ export '../../data/food_catalog.dart' show FeedFormData, FoodType, FeedingSupple
 /// 예전엔 둘이 한 줄로 쌓여 있어서, 먹이 하나를 적으려는 사람에게 칸이 여덟 개로 보였다.
 ///
 /// ℹ️ 메모는 이 위젯이 그리지 않는다 — 호출하는 화면이 각자 자기 자리에 둔다.
-class FeedItemsEditor extends StatefulWidget {
+class FeedItemsEditor extends ConsumerStatefulWidget {
   final List<FeedFormData> items;
   final ValueChanged<List<FeedFormData>> onChanged;
   final Color bandColor;
+
+  /// 최근 조합 칩을 띄울 개체. **여러 개체를 한꺼번에 기록하는 자리에서는 null** —
+  /// 최근 급여는 개체마다 다르고, 다섯 마리에게 공통인 "최근"은 존재하지 않는다.
+  /// 아무 개체의 기록이나 대표로 보여주면 옆 개체 걸 그대로 담게 된다.
+  final int? petId;
 
   const FeedItemsEditor({
     super.key,
     required this.items,
     required this.onChanged,
     this.bandColor = AppColors.feedBand,
+    this.petId,
   });
 
   @override
-  State<FeedItemsEditor> createState() => _FeedItemsEditorState();
+  ConsumerState<FeedItemsEditor> createState() => _FeedItemsEditorState();
 }
 
-class _FeedItemsEditorState extends State<FeedItemsEditor> {
+class _FeedItemsEditorState extends ConsumerState<FeedItemsEditor> {
   /// 거식은 단독 기록 — 목록에 이 항목이 있으면 다른 먹이를 함께 담을 수 없다
   bool get _hasRefused => widget.items.any((i) => i.isRefused);
 
@@ -43,6 +52,18 @@ class _FeedItemsEditorState extends State<FeedItemsEditor> {
     final item = await showFeedItemModal(context, bandColor: widget.bandColor);
     if (item == null) return;
     widget.onChanged([...widget.items, item]);
+    _remember(item);
+  }
+
+  /// 담긴 조합을 다음번 최근 칩으로 남긴다. 기록 저장이 아니라 **담는 순간**에
+  /// 남기는 이유는, 저장은 이 위젯 밖에서 일어나고 취소될 수도 있기 때문이다.
+  /// 취소된 조합이 칩에 남는 건 손해가 아니다 — 고르려던 게 맞긴 했다.
+  void _remember(FeedFormData item) {
+    final petId = widget.petId;
+    if (petId == null) return;
+    ref.read(feedRecentRepositoryProvider).remember(petId, item).then((_) {
+      if (mounted) ref.invalidate(recentFeedsProvider(petId));
+    });
   }
 
   /// 담긴 항목을 눌러 고친다 — 같은 모달을 값과 함께 연다.
@@ -87,6 +108,19 @@ class _FeedItemsEditorState extends State<FeedItemsEditor> {
 
         // 거식이면 목록도 추가 버튼도 없다. 남는 건 메모뿐이고 그건 바깥이 그린다.
         if (!_hasRefused) ...[
+          // ── 최근 조합 ────────────────────────────────────
+          // 같은 걸 또 주는 날엔 여기서 끝난다 (탭 2회). 모달까지 가는 경로는
+          // 새 조합을 만들 때만 쓴다.
+          if (widget.petId != null)
+            _RecentChips(
+              petId: widget.petId!,
+              bandColor: widget.bandColor,
+              onPick: (f) {
+                widget.onChanged([...widget.items, f]);
+                _remember(f);
+              },
+            ),
+
           const SizedBox(height: AppSpacing.xl),
           const _SectionLabel('급여 내용'),
           const SizedBox(height: AppSpacing.sm),
@@ -101,6 +135,54 @@ class _FeedItemsEditorState extends State<FeedItemsEditor> {
           )),
           _AddButton(onTap: _add),
         ],
+      ],
+    );
+  }
+}
+
+// ── 최근 조합 ─────────────────────────────────────────────────────────────────
+/// 누르면 **바로 담긴다.** 고르는 게 아니라 하는 것이라 선택 상태가 없다
+/// (그래서 `AppChip` 은 항상 `selected: false` 로 쓴다).
+///
+/// 기록이 없는 개체·처음 쓰는 기기에서는 아무것도 그리지 않는다. 빈 자리에
+/// '최근 급여 없음' 같은 문구를 두면, 아무것도 할 수 없는 줄이 폼 맨 위에 생긴다.
+class _RecentChips extends ConsumerWidget {
+  final int petId;
+  final Color bandColor;
+  final ValueChanged<FeedFormData> onPick;
+
+  const _RecentChips({
+    required this.petId,
+    required this.bandColor,
+    required this.onPick,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final recent = ref.watch(recentFeedsProvider(petId));
+
+    // 로딩·에러도 빈 화면이다. 로컬 SQLite 한 방이라 로딩이 눈에 띌 일이 없고,
+    // 실패해도 잃는 건 단축키뿐이라 `＋ 급여 추가` 로 다 할 수 있다.
+    final list = recent.valueOrNull ?? const <FeedFormData>[];
+    if (list.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: AppSpacing.xl),
+        const _SectionLabel('최근'),
+        const SizedBox(height: AppSpacing.sm),
+        Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          children: list
+              .map((f) => AppChip(
+                    label: f.summary,
+                    selected: false,
+                    onTap: () => onPick(f),
+                  ))
+              .toList(),
+        ),
       ],
     );
   }

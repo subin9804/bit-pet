@@ -1900,12 +1900,23 @@ class $FeedingTableTable extends FeedingTable
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _feedResponseMeta = const VerificationMeta(
-    'feedResponse',
+  static const VerificationMeta _sizeLabelMeta = const VerificationMeta(
+    'sizeLabel',
   );
   @override
-  late final GeneratedColumn<String> feedResponse = GeneratedColumn<String>(
-    'feed_response',
+  late final GeneratedColumn<String> sizeLabel = GeneratedColumn<String>(
+    'size_label',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _supplementMeta = const VerificationMeta(
+    'supplement',
+  );
+  @override
+  late final GeneratedColumn<String> supplement = GeneratedColumn<String>(
+    'supplement',
     aliasedName,
     true,
     type: DriftSqlType.string,
@@ -2006,7 +2017,8 @@ class $FeedingTableTable extends FeedingTable
     foodType,
     amount,
     unit,
-    feedResponse,
+    sizeLabel,
+    supplement,
     fedAt,
     memo,
     deletedAt,
@@ -2065,13 +2077,16 @@ class $FeedingTableTable extends FeedingTable
         unit.isAcceptableOrUnknown(data['unit']!, _unitMeta),
       );
     }
-    if (data.containsKey('feed_response')) {
+    if (data.containsKey('size_label')) {
       context.handle(
-        _feedResponseMeta,
-        feedResponse.isAcceptableOrUnknown(
-          data['feed_response']!,
-          _feedResponseMeta,
-        ),
+        _sizeLabelMeta,
+        sizeLabel.isAcceptableOrUnknown(data['size_label']!, _sizeLabelMeta),
+      );
+    }
+    if (data.containsKey('supplement')) {
+      context.handle(
+        _supplementMeta,
+        supplement.isAcceptableOrUnknown(data['supplement']!, _supplementMeta),
       );
     }
     if (data.containsKey('fed_at')) {
@@ -2163,9 +2178,13 @@ class $FeedingTableTable extends FeedingTable
         DriftSqlType.string,
         data['${effectivePrefix}unit'],
       ),
-      feedResponse: attachedDatabase.typeMapping.read(
+      sizeLabel: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}feed_response'],
+        data['${effectivePrefix}size_label'],
+      ),
+      supplement: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}supplement'],
       ),
       fedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
@@ -2216,7 +2235,8 @@ class FeedingTableData extends DataClass
   final String foodType;
   final double? amount;
   final String? unit;
-  final String? feedResponse;
+  final String? sizeLabel;
+  final String? supplement;
   final DateTime fedAt;
   final String? memo;
   final DateTime? deletedAt;
@@ -2232,7 +2252,8 @@ class FeedingTableData extends DataClass
     required this.foodType,
     this.amount,
     this.unit,
-    this.feedResponse,
+    this.sizeLabel,
+    this.supplement,
     required this.fedAt,
     this.memo,
     this.deletedAt,
@@ -2257,8 +2278,11 @@ class FeedingTableData extends DataClass
     if (!nullToAbsent || unit != null) {
       map['unit'] = Variable<String>(unit);
     }
-    if (!nullToAbsent || feedResponse != null) {
-      map['feed_response'] = Variable<String>(feedResponse);
+    if (!nullToAbsent || sizeLabel != null) {
+      map['size_label'] = Variable<String>(sizeLabel);
+    }
+    if (!nullToAbsent || supplement != null) {
+      map['supplement'] = Variable<String>(supplement);
     }
     map['fed_at'] = Variable<DateTime>(fedAt);
     if (!nullToAbsent || memo != null) {
@@ -2291,9 +2315,12 @@ class FeedingTableData extends DataClass
           ? const Value.absent()
           : Value(amount),
       unit: unit == null && nullToAbsent ? const Value.absent() : Value(unit),
-      feedResponse: feedResponse == null && nullToAbsent
+      sizeLabel: sizeLabel == null && nullToAbsent
           ? const Value.absent()
-          : Value(feedResponse),
+          : Value(sizeLabel),
+      supplement: supplement == null && nullToAbsent
+          ? const Value.absent()
+          : Value(supplement),
       fedAt: Value(fedAt),
       memo: memo == null && nullToAbsent ? const Value.absent() : Value(memo),
       deletedAt: deletedAt == null && nullToAbsent
@@ -2323,7 +2350,8 @@ class FeedingTableData extends DataClass
       foodType: serializer.fromJson<String>(json['foodType']),
       amount: serializer.fromJson<double?>(json['amount']),
       unit: serializer.fromJson<String?>(json['unit']),
-      feedResponse: serializer.fromJson<String?>(json['feedResponse']),
+      sizeLabel: serializer.fromJson<String?>(json['sizeLabel']),
+      supplement: serializer.fromJson<String?>(json['supplement']),
       fedAt: serializer.fromJson<DateTime>(json['fedAt']),
       memo: serializer.fromJson<String?>(json['memo']),
       deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
@@ -2344,7 +2372,8 @@ class FeedingTableData extends DataClass
       'foodType': serializer.toJson<String>(foodType),
       'amount': serializer.toJson<double?>(amount),
       'unit': serializer.toJson<String?>(unit),
-      'feedResponse': serializer.toJson<String?>(feedResponse),
+      'sizeLabel': serializer.toJson<String?>(sizeLabel),
+      'supplement': serializer.toJson<String?>(supplement),
       'fedAt': serializer.toJson<DateTime>(fedAt),
       'memo': serializer.toJson<String?>(memo),
       'deletedAt': serializer.toJson<DateTime?>(deletedAt),
@@ -2363,7 +2392,8 @@ class FeedingTableData extends DataClass
     String? foodType,
     Value<double?> amount = const Value.absent(),
     Value<String?> unit = const Value.absent(),
-    Value<String?> feedResponse = const Value.absent(),
+    Value<String?> sizeLabel = const Value.absent(),
+    Value<String?> supplement = const Value.absent(),
     DateTime? fedAt,
     Value<String?> memo = const Value.absent(),
     Value<DateTime?> deletedAt = const Value.absent(),
@@ -2379,7 +2409,8 @@ class FeedingTableData extends DataClass
     foodType: foodType ?? this.foodType,
     amount: amount.present ? amount.value : this.amount,
     unit: unit.present ? unit.value : this.unit,
-    feedResponse: feedResponse.present ? feedResponse.value : this.feedResponse,
+    sizeLabel: sizeLabel.present ? sizeLabel.value : this.sizeLabel,
+    supplement: supplement.present ? supplement.value : this.supplement,
     fedAt: fedAt ?? this.fedAt,
     memo: memo.present ? memo.value : this.memo,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
@@ -2399,9 +2430,10 @@ class FeedingTableData extends DataClass
       foodType: data.foodType.present ? data.foodType.value : this.foodType,
       amount: data.amount.present ? data.amount.value : this.amount,
       unit: data.unit.present ? data.unit.value : this.unit,
-      feedResponse: data.feedResponse.present
-          ? data.feedResponse.value
-          : this.feedResponse,
+      sizeLabel: data.sizeLabel.present ? data.sizeLabel.value : this.sizeLabel,
+      supplement: data.supplement.present
+          ? data.supplement.value
+          : this.supplement,
       fedAt: data.fedAt.present ? data.fedAt.value : this.fedAt,
       memo: data.memo.present ? data.memo.value : this.memo,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
@@ -2426,7 +2458,8 @@ class FeedingTableData extends DataClass
           ..write('foodType: $foodType, ')
           ..write('amount: $amount, ')
           ..write('unit: $unit, ')
-          ..write('feedResponse: $feedResponse, ')
+          ..write('sizeLabel: $sizeLabel, ')
+          ..write('supplement: $supplement, ')
           ..write('fedAt: $fedAt, ')
           ..write('memo: $memo, ')
           ..write('deletedAt: $deletedAt, ')
@@ -2447,7 +2480,8 @@ class FeedingTableData extends DataClass
     foodType,
     amount,
     unit,
-    feedResponse,
+    sizeLabel,
+    supplement,
     fedAt,
     memo,
     deletedAt,
@@ -2467,7 +2501,8 @@ class FeedingTableData extends DataClass
           other.foodType == this.foodType &&
           other.amount == this.amount &&
           other.unit == this.unit &&
-          other.feedResponse == this.feedResponse &&
+          other.sizeLabel == this.sizeLabel &&
+          other.supplement == this.supplement &&
           other.fedAt == this.fedAt &&
           other.memo == this.memo &&
           other.deletedAt == this.deletedAt &&
@@ -2485,7 +2520,8 @@ class FeedingTableCompanion extends UpdateCompanion<FeedingTableData> {
   final Value<String> foodType;
   final Value<double?> amount;
   final Value<String?> unit;
-  final Value<String?> feedResponse;
+  final Value<String?> sizeLabel;
+  final Value<String?> supplement;
   final Value<DateTime> fedAt;
   final Value<String?> memo;
   final Value<DateTime?> deletedAt;
@@ -2501,7 +2537,8 @@ class FeedingTableCompanion extends UpdateCompanion<FeedingTableData> {
     this.foodType = const Value.absent(),
     this.amount = const Value.absent(),
     this.unit = const Value.absent(),
-    this.feedResponse = const Value.absent(),
+    this.sizeLabel = const Value.absent(),
+    this.supplement = const Value.absent(),
     this.fedAt = const Value.absent(),
     this.memo = const Value.absent(),
     this.deletedAt = const Value.absent(),
@@ -2518,7 +2555,8 @@ class FeedingTableCompanion extends UpdateCompanion<FeedingTableData> {
     required String foodType,
     this.amount = const Value.absent(),
     this.unit = const Value.absent(),
-    this.feedResponse = const Value.absent(),
+    this.sizeLabel = const Value.absent(),
+    this.supplement = const Value.absent(),
     required DateTime fedAt,
     this.memo = const Value.absent(),
     this.deletedAt = const Value.absent(),
@@ -2537,7 +2575,8 @@ class FeedingTableCompanion extends UpdateCompanion<FeedingTableData> {
     Expression<String>? foodType,
     Expression<double>? amount,
     Expression<String>? unit,
-    Expression<String>? feedResponse,
+    Expression<String>? sizeLabel,
+    Expression<String>? supplement,
     Expression<DateTime>? fedAt,
     Expression<String>? memo,
     Expression<DateTime>? deletedAt,
@@ -2554,7 +2593,8 @@ class FeedingTableCompanion extends UpdateCompanion<FeedingTableData> {
       if (foodType != null) 'food_type': foodType,
       if (amount != null) 'amount': amount,
       if (unit != null) 'unit': unit,
-      if (feedResponse != null) 'feed_response': feedResponse,
+      if (sizeLabel != null) 'size_label': sizeLabel,
+      if (supplement != null) 'supplement': supplement,
       if (fedAt != null) 'fed_at': fedAt,
       if (memo != null) 'memo': memo,
       if (deletedAt != null) 'deleted_at': deletedAt,
@@ -2573,7 +2613,8 @@ class FeedingTableCompanion extends UpdateCompanion<FeedingTableData> {
     Value<String>? foodType,
     Value<double?>? amount,
     Value<String?>? unit,
-    Value<String?>? feedResponse,
+    Value<String?>? sizeLabel,
+    Value<String?>? supplement,
     Value<DateTime>? fedAt,
     Value<String?>? memo,
     Value<DateTime?>? deletedAt,
@@ -2590,7 +2631,8 @@ class FeedingTableCompanion extends UpdateCompanion<FeedingTableData> {
       foodType: foodType ?? this.foodType,
       amount: amount ?? this.amount,
       unit: unit ?? this.unit,
-      feedResponse: feedResponse ?? this.feedResponse,
+      sizeLabel: sizeLabel ?? this.sizeLabel,
+      supplement: supplement ?? this.supplement,
       fedAt: fedAt ?? this.fedAt,
       memo: memo ?? this.memo,
       deletedAt: deletedAt ?? this.deletedAt,
@@ -2623,8 +2665,11 @@ class FeedingTableCompanion extends UpdateCompanion<FeedingTableData> {
     if (unit.present) {
       map['unit'] = Variable<String>(unit.value);
     }
-    if (feedResponse.present) {
-      map['feed_response'] = Variable<String>(feedResponse.value);
+    if (sizeLabel.present) {
+      map['size_label'] = Variable<String>(sizeLabel.value);
+    }
+    if (supplement.present) {
+      map['supplement'] = Variable<String>(supplement.value);
     }
     if (fedAt.present) {
       map['fed_at'] = Variable<DateTime>(fedAt.value);
@@ -2662,7 +2707,8 @@ class FeedingTableCompanion extends UpdateCompanion<FeedingTableData> {
           ..write('foodType: $foodType, ')
           ..write('amount: $amount, ')
           ..write('unit: $unit, ')
-          ..write('feedResponse: $feedResponse, ')
+          ..write('sizeLabel: $sizeLabel, ')
+          ..write('supplement: $supplement, ')
           ..write('fedAt: $fedAt, ')
           ..write('memo: $memo, ')
           ..write('deletedAt: $deletedAt, ')
@@ -2706,6 +2752,17 @@ class $MemoTableTable extends MemoTable
     defaultConstraints: GeneratedColumn.constraintIsAlways(
       'REFERENCES pet_mst (id)',
     ),
+  );
+  static const VerificationMeta _routineIdMeta = const VerificationMeta(
+    'routineId',
+  );
+  @override
+  late final GeneratedColumn<int> routineId = GeneratedColumn<int>(
+    'routine_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _contentMeta = const VerificationMeta(
     'content',
@@ -2768,6 +2825,7 @@ class $MemoTableTable extends MemoTable
   List<GeneratedColumn> get $columns => [
     id,
     petId,
+    routineId,
     content,
     loggedAt,
     deletedAt,
@@ -2796,6 +2854,12 @@ class $MemoTableTable extends MemoTable
       );
     } else if (isInserting) {
       context.missing(_petIdMeta);
+    }
+    if (data.containsKey('routine_id')) {
+      context.handle(
+        _routineIdMeta,
+        routineId.isAcceptableOrUnknown(data['routine_id']!, _routineIdMeta),
+      );
     }
     if (data.containsKey('content')) {
       context.handle(
@@ -2848,6 +2912,10 @@ class $MemoTableTable extends MemoTable
         DriftSqlType.int,
         data['${effectivePrefix}pet_id'],
       )!,
+      routineId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}routine_id'],
+      ),
       content: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}content'],
@@ -2880,6 +2948,7 @@ class $MemoTableTable extends MemoTable
 class MemoTableData extends DataClass implements Insertable<MemoTableData> {
   final int id;
   final int petId;
+  final int? routineId;
   final String content;
   final DateTime loggedAt;
   final DateTime? deletedAt;
@@ -2888,6 +2957,7 @@ class MemoTableData extends DataClass implements Insertable<MemoTableData> {
   const MemoTableData({
     required this.id,
     required this.petId,
+    this.routineId,
     required this.content,
     required this.loggedAt,
     this.deletedAt,
@@ -2899,6 +2969,9 @@ class MemoTableData extends DataClass implements Insertable<MemoTableData> {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
     map['pet_id'] = Variable<int>(petId);
+    if (!nullToAbsent || routineId != null) {
+      map['routine_id'] = Variable<int>(routineId);
+    }
     map['content'] = Variable<String>(content);
     map['logged_at'] = Variable<DateTime>(loggedAt);
     if (!nullToAbsent || deletedAt != null) {
@@ -2913,6 +2986,9 @@ class MemoTableData extends DataClass implements Insertable<MemoTableData> {
     return MemoTableCompanion(
       id: Value(id),
       petId: Value(petId),
+      routineId: routineId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(routineId),
       content: Value(content),
       loggedAt: Value(loggedAt),
       deletedAt: deletedAt == null && nullToAbsent
@@ -2931,6 +3007,7 @@ class MemoTableData extends DataClass implements Insertable<MemoTableData> {
     return MemoTableData(
       id: serializer.fromJson<int>(json['id']),
       petId: serializer.fromJson<int>(json['petId']),
+      routineId: serializer.fromJson<int?>(json['routineId']),
       content: serializer.fromJson<String>(json['content']),
       loggedAt: serializer.fromJson<DateTime>(json['loggedAt']),
       deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
@@ -2944,6 +3021,7 @@ class MemoTableData extends DataClass implements Insertable<MemoTableData> {
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'petId': serializer.toJson<int>(petId),
+      'routineId': serializer.toJson<int?>(routineId),
       'content': serializer.toJson<String>(content),
       'loggedAt': serializer.toJson<DateTime>(loggedAt),
       'deletedAt': serializer.toJson<DateTime?>(deletedAt),
@@ -2955,6 +3033,7 @@ class MemoTableData extends DataClass implements Insertable<MemoTableData> {
   MemoTableData copyWith({
     int? id,
     int? petId,
+    Value<int?> routineId = const Value.absent(),
     String? content,
     DateTime? loggedAt,
     Value<DateTime?> deletedAt = const Value.absent(),
@@ -2963,6 +3042,7 @@ class MemoTableData extends DataClass implements Insertable<MemoTableData> {
   }) => MemoTableData(
     id: id ?? this.id,
     petId: petId ?? this.petId,
+    routineId: routineId.present ? routineId.value : this.routineId,
     content: content ?? this.content,
     loggedAt: loggedAt ?? this.loggedAt,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
@@ -2973,6 +3053,7 @@ class MemoTableData extends DataClass implements Insertable<MemoTableData> {
     return MemoTableData(
       id: data.id.present ? data.id.value : this.id,
       petId: data.petId.present ? data.petId.value : this.petId,
+      routineId: data.routineId.present ? data.routineId.value : this.routineId,
       content: data.content.present ? data.content.value : this.content,
       loggedAt: data.loggedAt.present ? data.loggedAt.value : this.loggedAt,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
@@ -2986,6 +3067,7 @@ class MemoTableData extends DataClass implements Insertable<MemoTableData> {
     return (StringBuffer('MemoTableData(')
           ..write('id: $id, ')
           ..write('petId: $petId, ')
+          ..write('routineId: $routineId, ')
           ..write('content: $content, ')
           ..write('loggedAt: $loggedAt, ')
           ..write('deletedAt: $deletedAt, ')
@@ -2999,6 +3081,7 @@ class MemoTableData extends DataClass implements Insertable<MemoTableData> {
   int get hashCode => Object.hash(
     id,
     petId,
+    routineId,
     content,
     loggedAt,
     deletedAt,
@@ -3011,6 +3094,7 @@ class MemoTableData extends DataClass implements Insertable<MemoTableData> {
       (other is MemoTableData &&
           other.id == this.id &&
           other.petId == this.petId &&
+          other.routineId == this.routineId &&
           other.content == this.content &&
           other.loggedAt == this.loggedAt &&
           other.deletedAt == this.deletedAt &&
@@ -3021,6 +3105,7 @@ class MemoTableData extends DataClass implements Insertable<MemoTableData> {
 class MemoTableCompanion extends UpdateCompanion<MemoTableData> {
   final Value<int> id;
   final Value<int> petId;
+  final Value<int?> routineId;
   final Value<String> content;
   final Value<DateTime> loggedAt;
   final Value<DateTime?> deletedAt;
@@ -3029,6 +3114,7 @@ class MemoTableCompanion extends UpdateCompanion<MemoTableData> {
   const MemoTableCompanion({
     this.id = const Value.absent(),
     this.petId = const Value.absent(),
+    this.routineId = const Value.absent(),
     this.content = const Value.absent(),
     this.loggedAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
@@ -3038,6 +3124,7 @@ class MemoTableCompanion extends UpdateCompanion<MemoTableData> {
   MemoTableCompanion.insert({
     this.id = const Value.absent(),
     required int petId,
+    this.routineId = const Value.absent(),
     required String content,
     required DateTime loggedAt,
     this.deletedAt = const Value.absent(),
@@ -3049,6 +3136,7 @@ class MemoTableCompanion extends UpdateCompanion<MemoTableData> {
   static Insertable<MemoTableData> custom({
     Expression<int>? id,
     Expression<int>? petId,
+    Expression<int>? routineId,
     Expression<String>? content,
     Expression<DateTime>? loggedAt,
     Expression<DateTime>? deletedAt,
@@ -3058,6 +3146,7 @@ class MemoTableCompanion extends UpdateCompanion<MemoTableData> {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (petId != null) 'pet_id': petId,
+      if (routineId != null) 'routine_id': routineId,
       if (content != null) 'content': content,
       if (loggedAt != null) 'logged_at': loggedAt,
       if (deletedAt != null) 'deleted_at': deletedAt,
@@ -3069,6 +3158,7 @@ class MemoTableCompanion extends UpdateCompanion<MemoTableData> {
   MemoTableCompanion copyWith({
     Value<int>? id,
     Value<int>? petId,
+    Value<int?>? routineId,
     Value<String>? content,
     Value<DateTime>? loggedAt,
     Value<DateTime?>? deletedAt,
@@ -3078,6 +3168,7 @@ class MemoTableCompanion extends UpdateCompanion<MemoTableData> {
     return MemoTableCompanion(
       id: id ?? this.id,
       petId: petId ?? this.petId,
+      routineId: routineId ?? this.routineId,
       content: content ?? this.content,
       loggedAt: loggedAt ?? this.loggedAt,
       deletedAt: deletedAt ?? this.deletedAt,
@@ -3094,6 +3185,9 @@ class MemoTableCompanion extends UpdateCompanion<MemoTableData> {
     }
     if (petId.present) {
       map['pet_id'] = Variable<int>(petId.value);
+    }
+    if (routineId.present) {
+      map['routine_id'] = Variable<int>(routineId.value);
     }
     if (content.present) {
       map['content'] = Variable<String>(content.value);
@@ -3118,6 +3212,7 @@ class MemoTableCompanion extends UpdateCompanion<MemoTableData> {
     return (StringBuffer('MemoTableCompanion(')
           ..write('id: $id, ')
           ..write('petId: $petId, ')
+          ..write('routineId: $routineId, ')
           ..write('content: $content, ')
           ..write('loggedAt: $loggedAt, ')
           ..write('deletedAt: $deletedAt, ')
@@ -5294,6 +5389,728 @@ class PendingOpTableCompanion extends UpdateCompanion<PendingOpTableData> {
   }
 }
 
+class $FeedRecentTableTable extends FeedRecentTable
+    with TableInfo<$FeedRecentTableTable, FeedRecentTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $FeedRecentTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _petIdMeta = const VerificationMeta('petId');
+  @override
+  late final GeneratedColumn<int> petId = GeneratedColumn<int>(
+    'pet_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _signatureMeta = const VerificationMeta(
+    'signature',
+  );
+  @override
+  late final GeneratedColumn<String> signature = GeneratedColumn<String>(
+    'signature',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(maxTextLength: 200),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _foodTypeMeta = const VerificationMeta(
+    'foodType',
+  );
+  @override
+  late final GeneratedColumn<String> foodType = GeneratedColumn<String>(
+    'food_type',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(maxTextLength: 50),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _feedCountMeta = const VerificationMeta(
+    'feedCount',
+  );
+  @override
+  late final GeneratedColumn<int> feedCount = GeneratedColumn<int>(
+    'feed_count',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sizeLabelMeta = const VerificationMeta(
+    'sizeLabel',
+  );
+  @override
+  late final GeneratedColumn<String> sizeLabel = GeneratedColumn<String>(
+    'size_label',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _mlAmountMeta = const VerificationMeta(
+    'mlAmount',
+  );
+  @override
+  late final GeneratedColumn<double> mlAmount = GeneratedColumn<double>(
+    'ml_amount',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _useMlMeta = const VerificationMeta('useMl');
+  @override
+  late final GeneratedColumn<bool> useMl = GeneratedColumn<bool>(
+    'use_ml',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("use_ml" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _useCustomAmountMeta = const VerificationMeta(
+    'useCustomAmount',
+  );
+  @override
+  late final GeneratedColumn<bool> useCustomAmount = GeneratedColumn<bool>(
+    'use_custom_amount',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("use_custom_amount" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _customTextMeta = const VerificationMeta(
+    'customText',
+  );
+  @override
+  late final GeneratedColumn<String> customText = GeneratedColumn<String>(
+    'custom_text',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _supplementMeta = const VerificationMeta(
+    'supplement',
+  );
+  @override
+  late final GeneratedColumn<String> supplement = GeneratedColumn<String>(
+    'supplement',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastUsedAtMeta = const VerificationMeta(
+    'lastUsedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastUsedAt = GeneratedColumn<DateTime>(
+    'last_used_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    petId,
+    signature,
+    foodType,
+    feedCount,
+    sizeLabel,
+    mlAmount,
+    useMl,
+    useCustomAmount,
+    customText,
+    supplement,
+    lastUsedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'feed_recent_dtl';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<FeedRecentTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('pet_id')) {
+      context.handle(
+        _petIdMeta,
+        petId.isAcceptableOrUnknown(data['pet_id']!, _petIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_petIdMeta);
+    }
+    if (data.containsKey('signature')) {
+      context.handle(
+        _signatureMeta,
+        signature.isAcceptableOrUnknown(data['signature']!, _signatureMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_signatureMeta);
+    }
+    if (data.containsKey('food_type')) {
+      context.handle(
+        _foodTypeMeta,
+        foodType.isAcceptableOrUnknown(data['food_type']!, _foodTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_foodTypeMeta);
+    }
+    if (data.containsKey('feed_count')) {
+      context.handle(
+        _feedCountMeta,
+        feedCount.isAcceptableOrUnknown(data['feed_count']!, _feedCountMeta),
+      );
+    }
+    if (data.containsKey('size_label')) {
+      context.handle(
+        _sizeLabelMeta,
+        sizeLabel.isAcceptableOrUnknown(data['size_label']!, _sizeLabelMeta),
+      );
+    }
+    if (data.containsKey('ml_amount')) {
+      context.handle(
+        _mlAmountMeta,
+        mlAmount.isAcceptableOrUnknown(data['ml_amount']!, _mlAmountMeta),
+      );
+    }
+    if (data.containsKey('use_ml')) {
+      context.handle(
+        _useMlMeta,
+        useMl.isAcceptableOrUnknown(data['use_ml']!, _useMlMeta),
+      );
+    }
+    if (data.containsKey('use_custom_amount')) {
+      context.handle(
+        _useCustomAmountMeta,
+        useCustomAmount.isAcceptableOrUnknown(
+          data['use_custom_amount']!,
+          _useCustomAmountMeta,
+        ),
+      );
+    }
+    if (data.containsKey('custom_text')) {
+      context.handle(
+        _customTextMeta,
+        customText.isAcceptableOrUnknown(data['custom_text']!, _customTextMeta),
+      );
+    }
+    if (data.containsKey('supplement')) {
+      context.handle(
+        _supplementMeta,
+        supplement.isAcceptableOrUnknown(data['supplement']!, _supplementMeta),
+      );
+    }
+    if (data.containsKey('last_used_at')) {
+      context.handle(
+        _lastUsedAtMeta,
+        lastUsedAt.isAcceptableOrUnknown(
+          data['last_used_at']!,
+          _lastUsedAtMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_lastUsedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {petId, signature},
+  ];
+  @override
+  FeedRecentTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return FeedRecentTableData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      petId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}pet_id'],
+      )!,
+      signature: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}signature'],
+      )!,
+      foodType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}food_type'],
+      )!,
+      feedCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}feed_count'],
+      ),
+      sizeLabel: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}size_label'],
+      ),
+      mlAmount: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}ml_amount'],
+      ),
+      useMl: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}use_ml'],
+      )!,
+      useCustomAmount: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}use_custom_amount'],
+      )!,
+      customText: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}custom_text'],
+      ),
+      supplement: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}supplement'],
+      ),
+      lastUsedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_used_at'],
+      )!,
+    );
+  }
+
+  @override
+  $FeedRecentTableTable createAlias(String alias) {
+    return $FeedRecentTableTable(attachedDatabase, alias);
+  }
+}
+
+class FeedRecentTableData extends DataClass
+    implements Insertable<FeedRecentTableData> {
+  final int id;
+  final int petId;
+
+  /// 같은 조합인지 판정하는 키. 아래 값들을 이어붙인 문자열이다.
+  /// 이게 같으면 새 행을 만들지 않고 [lastUsedAt] 만 올린다 — 같은 걸 열 번 줬다고
+  /// 최근 칩 세 칸이 같은 먹이로 채워지면 칩의 값어치가 없다.
+  final String signature;
+  final String foodType;
+  final int? feedCount;
+  final String? sizeLabel;
+  final double? mlAmount;
+  final bool useMl;
+  final bool useCustomAmount;
+  final String? customText;
+  final String? supplement;
+  final DateTime lastUsedAt;
+  const FeedRecentTableData({
+    required this.id,
+    required this.petId,
+    required this.signature,
+    required this.foodType,
+    this.feedCount,
+    this.sizeLabel,
+    this.mlAmount,
+    required this.useMl,
+    required this.useCustomAmount,
+    this.customText,
+    this.supplement,
+    required this.lastUsedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['pet_id'] = Variable<int>(petId);
+    map['signature'] = Variable<String>(signature);
+    map['food_type'] = Variable<String>(foodType);
+    if (!nullToAbsent || feedCount != null) {
+      map['feed_count'] = Variable<int>(feedCount);
+    }
+    if (!nullToAbsent || sizeLabel != null) {
+      map['size_label'] = Variable<String>(sizeLabel);
+    }
+    if (!nullToAbsent || mlAmount != null) {
+      map['ml_amount'] = Variable<double>(mlAmount);
+    }
+    map['use_ml'] = Variable<bool>(useMl);
+    map['use_custom_amount'] = Variable<bool>(useCustomAmount);
+    if (!nullToAbsent || customText != null) {
+      map['custom_text'] = Variable<String>(customText);
+    }
+    if (!nullToAbsent || supplement != null) {
+      map['supplement'] = Variable<String>(supplement);
+    }
+    map['last_used_at'] = Variable<DateTime>(lastUsedAt);
+    return map;
+  }
+
+  FeedRecentTableCompanion toCompanion(bool nullToAbsent) {
+    return FeedRecentTableCompanion(
+      id: Value(id),
+      petId: Value(petId),
+      signature: Value(signature),
+      foodType: Value(foodType),
+      feedCount: feedCount == null && nullToAbsent
+          ? const Value.absent()
+          : Value(feedCount),
+      sizeLabel: sizeLabel == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sizeLabel),
+      mlAmount: mlAmount == null && nullToAbsent
+          ? const Value.absent()
+          : Value(mlAmount),
+      useMl: Value(useMl),
+      useCustomAmount: Value(useCustomAmount),
+      customText: customText == null && nullToAbsent
+          ? const Value.absent()
+          : Value(customText),
+      supplement: supplement == null && nullToAbsent
+          ? const Value.absent()
+          : Value(supplement),
+      lastUsedAt: Value(lastUsedAt),
+    );
+  }
+
+  factory FeedRecentTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return FeedRecentTableData(
+      id: serializer.fromJson<int>(json['id']),
+      petId: serializer.fromJson<int>(json['petId']),
+      signature: serializer.fromJson<String>(json['signature']),
+      foodType: serializer.fromJson<String>(json['foodType']),
+      feedCount: serializer.fromJson<int?>(json['feedCount']),
+      sizeLabel: serializer.fromJson<String?>(json['sizeLabel']),
+      mlAmount: serializer.fromJson<double?>(json['mlAmount']),
+      useMl: serializer.fromJson<bool>(json['useMl']),
+      useCustomAmount: serializer.fromJson<bool>(json['useCustomAmount']),
+      customText: serializer.fromJson<String?>(json['customText']),
+      supplement: serializer.fromJson<String?>(json['supplement']),
+      lastUsedAt: serializer.fromJson<DateTime>(json['lastUsedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'petId': serializer.toJson<int>(petId),
+      'signature': serializer.toJson<String>(signature),
+      'foodType': serializer.toJson<String>(foodType),
+      'feedCount': serializer.toJson<int?>(feedCount),
+      'sizeLabel': serializer.toJson<String?>(sizeLabel),
+      'mlAmount': serializer.toJson<double?>(mlAmount),
+      'useMl': serializer.toJson<bool>(useMl),
+      'useCustomAmount': serializer.toJson<bool>(useCustomAmount),
+      'customText': serializer.toJson<String?>(customText),
+      'supplement': serializer.toJson<String?>(supplement),
+      'lastUsedAt': serializer.toJson<DateTime>(lastUsedAt),
+    };
+  }
+
+  FeedRecentTableData copyWith({
+    int? id,
+    int? petId,
+    String? signature,
+    String? foodType,
+    Value<int?> feedCount = const Value.absent(),
+    Value<String?> sizeLabel = const Value.absent(),
+    Value<double?> mlAmount = const Value.absent(),
+    bool? useMl,
+    bool? useCustomAmount,
+    Value<String?> customText = const Value.absent(),
+    Value<String?> supplement = const Value.absent(),
+    DateTime? lastUsedAt,
+  }) => FeedRecentTableData(
+    id: id ?? this.id,
+    petId: petId ?? this.petId,
+    signature: signature ?? this.signature,
+    foodType: foodType ?? this.foodType,
+    feedCount: feedCount.present ? feedCount.value : this.feedCount,
+    sizeLabel: sizeLabel.present ? sizeLabel.value : this.sizeLabel,
+    mlAmount: mlAmount.present ? mlAmount.value : this.mlAmount,
+    useMl: useMl ?? this.useMl,
+    useCustomAmount: useCustomAmount ?? this.useCustomAmount,
+    customText: customText.present ? customText.value : this.customText,
+    supplement: supplement.present ? supplement.value : this.supplement,
+    lastUsedAt: lastUsedAt ?? this.lastUsedAt,
+  );
+  FeedRecentTableData copyWithCompanion(FeedRecentTableCompanion data) {
+    return FeedRecentTableData(
+      id: data.id.present ? data.id.value : this.id,
+      petId: data.petId.present ? data.petId.value : this.petId,
+      signature: data.signature.present ? data.signature.value : this.signature,
+      foodType: data.foodType.present ? data.foodType.value : this.foodType,
+      feedCount: data.feedCount.present ? data.feedCount.value : this.feedCount,
+      sizeLabel: data.sizeLabel.present ? data.sizeLabel.value : this.sizeLabel,
+      mlAmount: data.mlAmount.present ? data.mlAmount.value : this.mlAmount,
+      useMl: data.useMl.present ? data.useMl.value : this.useMl,
+      useCustomAmount: data.useCustomAmount.present
+          ? data.useCustomAmount.value
+          : this.useCustomAmount,
+      customText: data.customText.present
+          ? data.customText.value
+          : this.customText,
+      supplement: data.supplement.present
+          ? data.supplement.value
+          : this.supplement,
+      lastUsedAt: data.lastUsedAt.present
+          ? data.lastUsedAt.value
+          : this.lastUsedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FeedRecentTableData(')
+          ..write('id: $id, ')
+          ..write('petId: $petId, ')
+          ..write('signature: $signature, ')
+          ..write('foodType: $foodType, ')
+          ..write('feedCount: $feedCount, ')
+          ..write('sizeLabel: $sizeLabel, ')
+          ..write('mlAmount: $mlAmount, ')
+          ..write('useMl: $useMl, ')
+          ..write('useCustomAmount: $useCustomAmount, ')
+          ..write('customText: $customText, ')
+          ..write('supplement: $supplement, ')
+          ..write('lastUsedAt: $lastUsedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    petId,
+    signature,
+    foodType,
+    feedCount,
+    sizeLabel,
+    mlAmount,
+    useMl,
+    useCustomAmount,
+    customText,
+    supplement,
+    lastUsedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is FeedRecentTableData &&
+          other.id == this.id &&
+          other.petId == this.petId &&
+          other.signature == this.signature &&
+          other.foodType == this.foodType &&
+          other.feedCount == this.feedCount &&
+          other.sizeLabel == this.sizeLabel &&
+          other.mlAmount == this.mlAmount &&
+          other.useMl == this.useMl &&
+          other.useCustomAmount == this.useCustomAmount &&
+          other.customText == this.customText &&
+          other.supplement == this.supplement &&
+          other.lastUsedAt == this.lastUsedAt);
+}
+
+class FeedRecentTableCompanion extends UpdateCompanion<FeedRecentTableData> {
+  final Value<int> id;
+  final Value<int> petId;
+  final Value<String> signature;
+  final Value<String> foodType;
+  final Value<int?> feedCount;
+  final Value<String?> sizeLabel;
+  final Value<double?> mlAmount;
+  final Value<bool> useMl;
+  final Value<bool> useCustomAmount;
+  final Value<String?> customText;
+  final Value<String?> supplement;
+  final Value<DateTime> lastUsedAt;
+  const FeedRecentTableCompanion({
+    this.id = const Value.absent(),
+    this.petId = const Value.absent(),
+    this.signature = const Value.absent(),
+    this.foodType = const Value.absent(),
+    this.feedCount = const Value.absent(),
+    this.sizeLabel = const Value.absent(),
+    this.mlAmount = const Value.absent(),
+    this.useMl = const Value.absent(),
+    this.useCustomAmount = const Value.absent(),
+    this.customText = const Value.absent(),
+    this.supplement = const Value.absent(),
+    this.lastUsedAt = const Value.absent(),
+  });
+  FeedRecentTableCompanion.insert({
+    this.id = const Value.absent(),
+    required int petId,
+    required String signature,
+    required String foodType,
+    this.feedCount = const Value.absent(),
+    this.sizeLabel = const Value.absent(),
+    this.mlAmount = const Value.absent(),
+    this.useMl = const Value.absent(),
+    this.useCustomAmount = const Value.absent(),
+    this.customText = const Value.absent(),
+    this.supplement = const Value.absent(),
+    required DateTime lastUsedAt,
+  }) : petId = Value(petId),
+       signature = Value(signature),
+       foodType = Value(foodType),
+       lastUsedAt = Value(lastUsedAt);
+  static Insertable<FeedRecentTableData> custom({
+    Expression<int>? id,
+    Expression<int>? petId,
+    Expression<String>? signature,
+    Expression<String>? foodType,
+    Expression<int>? feedCount,
+    Expression<String>? sizeLabel,
+    Expression<double>? mlAmount,
+    Expression<bool>? useMl,
+    Expression<bool>? useCustomAmount,
+    Expression<String>? customText,
+    Expression<String>? supplement,
+    Expression<DateTime>? lastUsedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (petId != null) 'pet_id': petId,
+      if (signature != null) 'signature': signature,
+      if (foodType != null) 'food_type': foodType,
+      if (feedCount != null) 'feed_count': feedCount,
+      if (sizeLabel != null) 'size_label': sizeLabel,
+      if (mlAmount != null) 'ml_amount': mlAmount,
+      if (useMl != null) 'use_ml': useMl,
+      if (useCustomAmount != null) 'use_custom_amount': useCustomAmount,
+      if (customText != null) 'custom_text': customText,
+      if (supplement != null) 'supplement': supplement,
+      if (lastUsedAt != null) 'last_used_at': lastUsedAt,
+    });
+  }
+
+  FeedRecentTableCompanion copyWith({
+    Value<int>? id,
+    Value<int>? petId,
+    Value<String>? signature,
+    Value<String>? foodType,
+    Value<int?>? feedCount,
+    Value<String?>? sizeLabel,
+    Value<double?>? mlAmount,
+    Value<bool>? useMl,
+    Value<bool>? useCustomAmount,
+    Value<String?>? customText,
+    Value<String?>? supplement,
+    Value<DateTime>? lastUsedAt,
+  }) {
+    return FeedRecentTableCompanion(
+      id: id ?? this.id,
+      petId: petId ?? this.petId,
+      signature: signature ?? this.signature,
+      foodType: foodType ?? this.foodType,
+      feedCount: feedCount ?? this.feedCount,
+      sizeLabel: sizeLabel ?? this.sizeLabel,
+      mlAmount: mlAmount ?? this.mlAmount,
+      useMl: useMl ?? this.useMl,
+      useCustomAmount: useCustomAmount ?? this.useCustomAmount,
+      customText: customText ?? this.customText,
+      supplement: supplement ?? this.supplement,
+      lastUsedAt: lastUsedAt ?? this.lastUsedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (petId.present) {
+      map['pet_id'] = Variable<int>(petId.value);
+    }
+    if (signature.present) {
+      map['signature'] = Variable<String>(signature.value);
+    }
+    if (foodType.present) {
+      map['food_type'] = Variable<String>(foodType.value);
+    }
+    if (feedCount.present) {
+      map['feed_count'] = Variable<int>(feedCount.value);
+    }
+    if (sizeLabel.present) {
+      map['size_label'] = Variable<String>(sizeLabel.value);
+    }
+    if (mlAmount.present) {
+      map['ml_amount'] = Variable<double>(mlAmount.value);
+    }
+    if (useMl.present) {
+      map['use_ml'] = Variable<bool>(useMl.value);
+    }
+    if (useCustomAmount.present) {
+      map['use_custom_amount'] = Variable<bool>(useCustomAmount.value);
+    }
+    if (customText.present) {
+      map['custom_text'] = Variable<String>(customText.value);
+    }
+    if (supplement.present) {
+      map['supplement'] = Variable<String>(supplement.value);
+    }
+    if (lastUsedAt.present) {
+      map['last_used_at'] = Variable<DateTime>(lastUsedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FeedRecentTableCompanion(')
+          ..write('id: $id, ')
+          ..write('petId: $petId, ')
+          ..write('signature: $signature, ')
+          ..write('foodType: $foodType, ')
+          ..write('feedCount: $feedCount, ')
+          ..write('sizeLabel: $sizeLabel, ')
+          ..write('mlAmount: $mlAmount, ')
+          ..write('useMl: $useMl, ')
+          ..write('useCustomAmount: $useCustomAmount, ')
+          ..write('customText: $customText, ')
+          ..write('supplement: $supplement, ')
+          ..write('lastUsedAt: $lastUsedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -5309,6 +6126,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     this,
   );
   late final $PendingOpTableTable pendingOpTable = $PendingOpTableTable(this);
+  late final $FeedRecentTableTable feedRecentTable = $FeedRecentTableTable(
+    this,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -5322,6 +6142,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     routinePetTable,
     routineLogTable,
     pendingOpTable,
+    feedRecentTable,
   ];
 }
 
@@ -6766,7 +7587,8 @@ typedef $$FeedingTableTableCreateCompanionBuilder =
       required String foodType,
       Value<double?> amount,
       Value<String?> unit,
-      Value<String?> feedResponse,
+      Value<String?> sizeLabel,
+      Value<String?> supplement,
       required DateTime fedAt,
       Value<String?> memo,
       Value<DateTime?> deletedAt,
@@ -6784,7 +7606,8 @@ typedef $$FeedingTableTableUpdateCompanionBuilder =
       Value<String> foodType,
       Value<double?> amount,
       Value<String?> unit,
-      Value<String?> feedResponse,
+      Value<String?> sizeLabel,
+      Value<String?> supplement,
       Value<DateTime> fedAt,
       Value<String?> memo,
       Value<DateTime?> deletedAt,
@@ -6852,8 +7675,13 @@ class $$FeedingTableTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get feedResponse => $composableBuilder(
-    column: $table.feedResponse,
+  ColumnFilters<String> get sizeLabel => $composableBuilder(
+    column: $table.sizeLabel,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get supplement => $composableBuilder(
+    column: $table.supplement,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6955,8 +7783,13 @@ class $$FeedingTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get feedResponse => $composableBuilder(
-    column: $table.feedResponse,
+  ColumnOrderings<String> get sizeLabel => $composableBuilder(
+    column: $table.sizeLabel,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get supplement => $composableBuilder(
+    column: $table.supplement,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -7048,8 +7881,11 @@ class $$FeedingTableTableAnnotationComposer
   GeneratedColumn<String> get unit =>
       $composableBuilder(column: $table.unit, builder: (column) => column);
 
-  GeneratedColumn<String> get feedResponse => $composableBuilder(
-    column: $table.feedResponse,
+  GeneratedColumn<String> get sizeLabel =>
+      $composableBuilder(column: $table.sizeLabel, builder: (column) => column);
+
+  GeneratedColumn<String> get supplement => $composableBuilder(
+    column: $table.supplement,
     builder: (column) => column,
   );
 
@@ -7139,7 +7975,8 @@ class $$FeedingTableTableTableManager
                 Value<String> foodType = const Value.absent(),
                 Value<double?> amount = const Value.absent(),
                 Value<String?> unit = const Value.absent(),
-                Value<String?> feedResponse = const Value.absent(),
+                Value<String?> sizeLabel = const Value.absent(),
+                Value<String?> supplement = const Value.absent(),
                 Value<DateTime> fedAt = const Value.absent(),
                 Value<String?> memo = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
@@ -7155,7 +7992,8 @@ class $$FeedingTableTableTableManager
                 foodType: foodType,
                 amount: amount,
                 unit: unit,
-                feedResponse: feedResponse,
+                sizeLabel: sizeLabel,
+                supplement: supplement,
                 fedAt: fedAt,
                 memo: memo,
                 deletedAt: deletedAt,
@@ -7173,7 +8011,8 @@ class $$FeedingTableTableTableManager
                 required String foodType,
                 Value<double?> amount = const Value.absent(),
                 Value<String?> unit = const Value.absent(),
-                Value<String?> feedResponse = const Value.absent(),
+                Value<String?> sizeLabel = const Value.absent(),
+                Value<String?> supplement = const Value.absent(),
                 required DateTime fedAt,
                 Value<String?> memo = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
@@ -7189,7 +8028,8 @@ class $$FeedingTableTableTableManager
                 foodType: foodType,
                 amount: amount,
                 unit: unit,
-                feedResponse: feedResponse,
+                sizeLabel: sizeLabel,
+                supplement: supplement,
                 fedAt: fedAt,
                 memo: memo,
                 deletedAt: deletedAt,
@@ -7270,6 +8110,7 @@ typedef $$MemoTableTableCreateCompanionBuilder =
     MemoTableCompanion Function({
       Value<int> id,
       required int petId,
+      Value<int?> routineId,
       required String content,
       required DateTime loggedAt,
       Value<DateTime?> deletedAt,
@@ -7280,6 +8121,7 @@ typedef $$MemoTableTableUpdateCompanionBuilder =
     MemoTableCompanion Function({
       Value<int> id,
       Value<int> petId,
+      Value<int?> routineId,
       Value<String> content,
       Value<DateTime> loggedAt,
       Value<DateTime?> deletedAt,
@@ -7320,6 +8162,11 @@ class $$MemoTableTableFilterComposer
   });
   ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get routineId => $composableBuilder(
+    column: $table.routineId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7386,6 +8233,11 @@ class $$MemoTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get routineId => $composableBuilder(
+    column: $table.routineId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get content => $composableBuilder(
     column: $table.content,
     builder: (column) => ColumnOrderings(column),
@@ -7446,6 +8298,9 @@ class $$MemoTableTableAnnotationComposer
   });
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get routineId =>
+      $composableBuilder(column: $table.routineId, builder: (column) => column);
 
   GeneratedColumn<String> get content =>
       $composableBuilder(column: $table.content, builder: (column) => column);
@@ -7516,6 +8371,7 @@ class $$MemoTableTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 Value<int> petId = const Value.absent(),
+                Value<int?> routineId = const Value.absent(),
                 Value<String> content = const Value.absent(),
                 Value<DateTime> loggedAt = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
@@ -7524,6 +8380,7 @@ class $$MemoTableTableTableManager
               }) => MemoTableCompanion(
                 id: id,
                 petId: petId,
+                routineId: routineId,
                 content: content,
                 loggedAt: loggedAt,
                 deletedAt: deletedAt,
@@ -7534,6 +8391,7 @@ class $$MemoTableTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 required int petId,
+                Value<int?> routineId = const Value.absent(),
                 required String content,
                 required DateTime loggedAt,
                 Value<DateTime?> deletedAt = const Value.absent(),
@@ -7542,6 +8400,7 @@ class $$MemoTableTableTableManager
               }) => MemoTableCompanion.insert(
                 id: id,
                 petId: petId,
+                routineId: routineId,
                 content: content,
                 loggedAt: loggedAt,
                 deletedAt: deletedAt,
@@ -9353,6 +10212,351 @@ typedef $$PendingOpTableTableProcessedTableManager =
       PendingOpTableData,
       PrefetchHooks Function()
     >;
+typedef $$FeedRecentTableTableCreateCompanionBuilder =
+    FeedRecentTableCompanion Function({
+      Value<int> id,
+      required int petId,
+      required String signature,
+      required String foodType,
+      Value<int?> feedCount,
+      Value<String?> sizeLabel,
+      Value<double?> mlAmount,
+      Value<bool> useMl,
+      Value<bool> useCustomAmount,
+      Value<String?> customText,
+      Value<String?> supplement,
+      required DateTime lastUsedAt,
+    });
+typedef $$FeedRecentTableTableUpdateCompanionBuilder =
+    FeedRecentTableCompanion Function({
+      Value<int> id,
+      Value<int> petId,
+      Value<String> signature,
+      Value<String> foodType,
+      Value<int?> feedCount,
+      Value<String?> sizeLabel,
+      Value<double?> mlAmount,
+      Value<bool> useMl,
+      Value<bool> useCustomAmount,
+      Value<String?> customText,
+      Value<String?> supplement,
+      Value<DateTime> lastUsedAt,
+    });
+
+class $$FeedRecentTableTableFilterComposer
+    extends Composer<_$AppDatabase, $FeedRecentTableTable> {
+  $$FeedRecentTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get petId => $composableBuilder(
+    column: $table.petId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get signature => $composableBuilder(
+    column: $table.signature,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get foodType => $composableBuilder(
+    column: $table.foodType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get feedCount => $composableBuilder(
+    column: $table.feedCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sizeLabel => $composableBuilder(
+    column: $table.sizeLabel,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get mlAmount => $composableBuilder(
+    column: $table.mlAmount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get useMl => $composableBuilder(
+    column: $table.useMl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get useCustomAmount => $composableBuilder(
+    column: $table.useCustomAmount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get customText => $composableBuilder(
+    column: $table.customText,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get supplement => $composableBuilder(
+    column: $table.supplement,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastUsedAt => $composableBuilder(
+    column: $table.lastUsedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$FeedRecentTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $FeedRecentTableTable> {
+  $$FeedRecentTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get petId => $composableBuilder(
+    column: $table.petId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get signature => $composableBuilder(
+    column: $table.signature,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get foodType => $composableBuilder(
+    column: $table.foodType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get feedCount => $composableBuilder(
+    column: $table.feedCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sizeLabel => $composableBuilder(
+    column: $table.sizeLabel,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get mlAmount => $composableBuilder(
+    column: $table.mlAmount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get useMl => $composableBuilder(
+    column: $table.useMl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get useCustomAmount => $composableBuilder(
+    column: $table.useCustomAmount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get customText => $composableBuilder(
+    column: $table.customText,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get supplement => $composableBuilder(
+    column: $table.supplement,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastUsedAt => $composableBuilder(
+    column: $table.lastUsedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$FeedRecentTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $FeedRecentTableTable> {
+  $$FeedRecentTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get petId =>
+      $composableBuilder(column: $table.petId, builder: (column) => column);
+
+  GeneratedColumn<String> get signature =>
+      $composableBuilder(column: $table.signature, builder: (column) => column);
+
+  GeneratedColumn<String> get foodType =>
+      $composableBuilder(column: $table.foodType, builder: (column) => column);
+
+  GeneratedColumn<int> get feedCount =>
+      $composableBuilder(column: $table.feedCount, builder: (column) => column);
+
+  GeneratedColumn<String> get sizeLabel =>
+      $composableBuilder(column: $table.sizeLabel, builder: (column) => column);
+
+  GeneratedColumn<double> get mlAmount =>
+      $composableBuilder(column: $table.mlAmount, builder: (column) => column);
+
+  GeneratedColumn<bool> get useMl =>
+      $composableBuilder(column: $table.useMl, builder: (column) => column);
+
+  GeneratedColumn<bool> get useCustomAmount => $composableBuilder(
+    column: $table.useCustomAmount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get customText => $composableBuilder(
+    column: $table.customText,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get supplement => $composableBuilder(
+    column: $table.supplement,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get lastUsedAt => $composableBuilder(
+    column: $table.lastUsedAt,
+    builder: (column) => column,
+  );
+}
+
+class $$FeedRecentTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $FeedRecentTableTable,
+          FeedRecentTableData,
+          $$FeedRecentTableTableFilterComposer,
+          $$FeedRecentTableTableOrderingComposer,
+          $$FeedRecentTableTableAnnotationComposer,
+          $$FeedRecentTableTableCreateCompanionBuilder,
+          $$FeedRecentTableTableUpdateCompanionBuilder,
+          (
+            FeedRecentTableData,
+            BaseReferences<
+              _$AppDatabase,
+              $FeedRecentTableTable,
+              FeedRecentTableData
+            >,
+          ),
+          FeedRecentTableData,
+          PrefetchHooks Function()
+        > {
+  $$FeedRecentTableTableTableManager(
+    _$AppDatabase db,
+    $FeedRecentTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$FeedRecentTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$FeedRecentTableTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$FeedRecentTableTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> petId = const Value.absent(),
+                Value<String> signature = const Value.absent(),
+                Value<String> foodType = const Value.absent(),
+                Value<int?> feedCount = const Value.absent(),
+                Value<String?> sizeLabel = const Value.absent(),
+                Value<double?> mlAmount = const Value.absent(),
+                Value<bool> useMl = const Value.absent(),
+                Value<bool> useCustomAmount = const Value.absent(),
+                Value<String?> customText = const Value.absent(),
+                Value<String?> supplement = const Value.absent(),
+                Value<DateTime> lastUsedAt = const Value.absent(),
+              }) => FeedRecentTableCompanion(
+                id: id,
+                petId: petId,
+                signature: signature,
+                foodType: foodType,
+                feedCount: feedCount,
+                sizeLabel: sizeLabel,
+                mlAmount: mlAmount,
+                useMl: useMl,
+                useCustomAmount: useCustomAmount,
+                customText: customText,
+                supplement: supplement,
+                lastUsedAt: lastUsedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int petId,
+                required String signature,
+                required String foodType,
+                Value<int?> feedCount = const Value.absent(),
+                Value<String?> sizeLabel = const Value.absent(),
+                Value<double?> mlAmount = const Value.absent(),
+                Value<bool> useMl = const Value.absent(),
+                Value<bool> useCustomAmount = const Value.absent(),
+                Value<String?> customText = const Value.absent(),
+                Value<String?> supplement = const Value.absent(),
+                required DateTime lastUsedAt,
+              }) => FeedRecentTableCompanion.insert(
+                id: id,
+                petId: petId,
+                signature: signature,
+                foodType: foodType,
+                feedCount: feedCount,
+                sizeLabel: sizeLabel,
+                mlAmount: mlAmount,
+                useMl: useMl,
+                useCustomAmount: useCustomAmount,
+                customText: customText,
+                supplement: supplement,
+                lastUsedAt: lastUsedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$FeedRecentTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $FeedRecentTableTable,
+      FeedRecentTableData,
+      $$FeedRecentTableTableFilterComposer,
+      $$FeedRecentTableTableOrderingComposer,
+      $$FeedRecentTableTableAnnotationComposer,
+      $$FeedRecentTableTableCreateCompanionBuilder,
+      $$FeedRecentTableTableUpdateCompanionBuilder,
+      (
+        FeedRecentTableData,
+        BaseReferences<
+          _$AppDatabase,
+          $FeedRecentTableTable,
+          FeedRecentTableData
+        >,
+      ),
+      FeedRecentTableData,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -9373,4 +10577,6 @@ class $AppDatabaseManager {
       $$RoutineLogTableTableTableManager(_db, _db.routineLogTable);
   $$PendingOpTableTableTableManager get pendingOpTable =>
       $$PendingOpTableTableTableManager(_db, _db.pendingOpTable);
+  $$FeedRecentTableTableTableManager get feedRecentTable =>
+      $$FeedRecentTableTableTableManager(_db, _db.feedRecentTable);
 }

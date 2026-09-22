@@ -257,6 +257,7 @@ class _FeedingRecordSheetState extends ConsumerState<FeedingRecordSheet> {
                     // 급여 입력 컴포저 (목록에 추가)
                     FeedItemsEditor(
                       items: _currentItems,
+                      petId: _current.petId,
                       bandColor: AppColors.petPeach,
                       onChanged: (list) => setState(() => _items[_current.petId] = list),
                     ),

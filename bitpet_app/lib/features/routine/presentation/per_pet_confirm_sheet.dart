@@ -601,6 +601,7 @@ class _PetPage extends StatelessWidget {
                 },
                 child: FeedItemsEditor(
                   items: rec.feedItems,
+                  petId: pet.petId,
                   bandColor: accent,
                   onChanged: (items) {
                     rec.feedItems = items;

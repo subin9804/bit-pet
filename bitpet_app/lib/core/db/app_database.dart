@@ -11,6 +11,7 @@ import 'tables/memo_table.dart';
 import 'tables/routine_table.dart';
 import 'tables/routine_log_table.dart';
 import 'tables/pending_op_table.dart';
+import 'tables/feed_recent_table.dart';
 
 part 'app_database.g.dart';
 
@@ -23,13 +24,14 @@ part 'app_database.g.dart';
   RoutinePetTable,
   RoutineLogTable,
   PendingOpTable,
+  FeedRecentTable,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
   AppDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -50,6 +52,12 @@ class AppDatabase extends _$AppDatabase {
           // v3 → v4: memo_dtl.routine_id 추가 (서버 V36 마이그레이션 대응)
           if (from < 4) {
             await customStatement('ALTER TABLE memo_dtl ADD COLUMN routine_id INTEGER');
+          }
+          // v4 → v5: feed_recent_dtl 신설 (개체별 최근 급여 조합 — 기기 로컬 캐시).
+          // 서버 스키마와 무관하다. 기록이 아니라 단축키라서 마이그레이션에서
+          // 채워넣을 과거 데이터도 없다 — 빈 테이블로 시작해 쓰는 대로 쌓인다.
+          if (from < 5) {
+            await m.createTable(feedRecentTable);
           }
         },
         beforeOpen: (details) async {

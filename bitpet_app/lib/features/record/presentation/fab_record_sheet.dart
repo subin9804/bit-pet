@@ -833,6 +833,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                 // FeedItemsEditor (개체별 — 목록에 추가)
                 FeedItemsEditor(
                   items: entry.items,
+                  petId: activePet.id,
                   bandColor: pale,
                   onChanged: (list) => setState(() => entry.items = list),
                 ),

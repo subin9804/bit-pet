@@ -191,6 +191,7 @@ class _FeedDetailScreenState extends ConsumerState<FeedDetailScreen> {
           // 편집 시트 오버레이
           if (_editor != null)
             FeedEditorSheet(
+              petId:     widget.petId,
               editor:    _editor!,
               onChanged: (e) => setState(() => _editor = e),
               onSave:    _save,
@@ -777,6 +778,8 @@ class _ListItem {
 
 // ── 편집 바텀시트 ────────────────────────────────────────────
 class FeedEditorSheet extends StatefulWidget {
+  /// 최근 급여 칩은 개체별이라 시트도 어느 개체를 고치는 중인지 알아야 한다.
+  final int petId;
   final FeedEditorState editor;
   final ValueChanged<FeedEditorState> onChanged;
   final VoidCallback onSave;
@@ -785,6 +788,7 @@ class FeedEditorSheet extends StatefulWidget {
 
   const FeedEditorSheet({
     super.key,
+    required this.petId,
     required this.editor,
     required this.onChanged,
     required this.onSave,
@@ -937,6 +941,7 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
                           // 공용 리치 컴포저 (FAB·루틴 완료와 동일 폼)
                           FeedItemsEditor(
                             items: e.items.map((i) => i.toForm()).toList(),
+                            petId: widget.petId,
                             bandColor: _chipColor('귀뚜라미'),
                             onChanged: (forms) => widget.onChanged(
                               e.copyWith(
