@@ -78,7 +78,7 @@ public class RoutineService {
     // Routine CRUD (생성자 개인 소유 — 본인이 만든 루틴만 조회·수정 가능)
     // -------------------------------------------------------------------------
 
-    @Transactional
+    @Transactional(readOnly = true)
     public List<RoutineResponse> listRoutines(Long userId) {
         LocalDate today = LocalDate.now(SEOUL);
         List<RoutineMst> routines = loadRoutines(userId);
@@ -89,7 +89,7 @@ public class RoutineService {
         }).toList();
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public RoutineResponse getRoutine(Long userId, Long routineId) {
         RoutineMst routine = findAccessibleRoutine(userId, routineId);
         catchUpOverdue(List.of(routine), LocalDate.now(SEOUL));
@@ -100,6 +100,13 @@ public class RoutineService {
     /**
      * 예정일이 지난 미완료 루틴을 오늘 이후가 될 때까지 다음 주기로 전진.
      * 자정 배치(rollOverPastDueRoutines)가 서버 다운 등으로 미실행돼도 조회 시점에 자가 치유.
+     *
+     * <p><b>호출부는 반드시 {@code readOnly = true} 트랜잭션이어야 한다.</b> 여기서 바뀐 값은
+     * 응답을 만드는 데만 쓰고 DB 에는 내보내지 않는다 — readOnly 면 Hibernate 가 플러시를
+     * 막아서(FlushMode.MANUAL) 이 수정이 UPDATE 로 나가지 않는다. 영속화는 자정 배치의 몫이다.
+     *
+     * <p>쓰기 트랜잭션에서 부르면 조회 요청마다 같은 {@code routine_mst} 행에 UPDATE 가 나가고,
+     * 루틴 탭이 여러 조회를 동시에 때리는 순간 행 락을 서로 기다린다. 실제로 그렇게 돌고 있었다.
      */
     private void catchUpOverdue(List<RoutineMst> routines, LocalDate today) {
         routines.forEach(r -> {
@@ -211,7 +218,7 @@ public class RoutineService {
     // Today's routines — completion status per pet
     // -------------------------------------------------------------------------
 
-    @Transactional
+    @Transactional(readOnly = true)
     public List<TodayRoutineResponse> listTodayRoutines(Long userId) {
         LocalDate today = LocalDate.now(SEOUL);
         Instant[] todayRange = todayRange(today);
@@ -273,7 +280,7 @@ public class RoutineService {
     // Pet view: routines with subscription status
     // -------------------------------------------------------------------------
 
-    @Transactional
+    @Transactional(readOnly = true)
     public List<RoutineWithSubscriptionResponse> listRoutinesForPet(Long userId, Long petId) {
         verifyPetAccessible(userId, petId);
         LocalDate today = LocalDate.now(SEOUL);
