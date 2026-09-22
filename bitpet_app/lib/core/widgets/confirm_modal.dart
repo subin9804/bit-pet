@@ -1,6 +1,6 @@
 // 공통 확인 모달 — 센터 다이얼로그.
 // 루틴 일괄 완료 모달(bulk_confirm_sheet)과 같은 문법: 헤더 밴드(아이콘 + 모노 라벨 + 제목),
-// 본문, 상단 구분선이 있는 푸터(보조 취소 버튼 + 꽉 찬 확인 버튼). 직각.
+// 본문, 상단 구분선이 있는 푸터(보조 취소 버튼 + 꽉 찬 확인 버튼).
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
@@ -110,11 +110,17 @@ class _ConfirmModalState extends State<ConfirmModal> {
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
               child: Row(
                 children: [
+                  // 아이콘 판. 예전엔 흰색 62% 였는데, 밴드가 연회색(`paleBgAlt`)일
+                  // 때 흰 사각형이 바탕과 거의 같은 밝기라 **씻긴 자국처럼** 보였다.
+                  // 밴드 잉크를 옅게 깔면 어느 밴드색 위에서도 같은 관계가 유지된다.
                   Container(
                     width: 44,
                     height: 44,
-                    color: Colors.white.withValues(alpha: 0.62),
-                    child: Icon(_icon, size: 20, color: _bandInk),
+                    decoration: BoxDecoration(
+                      borderRadius: AppRadius.brMd,
+                      color: _bandInk.withValues(alpha: 0.12),
+                    ),
+                    child: Icon(_icon, size: AppIconSize.md, color: _bandInk),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -248,9 +254,13 @@ class _ConfirmModalState extends State<ConfirmModal> {
                         duration: const Duration(milliseconds: 120),
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         alignment: Alignment.center,
-                        color: _canConfirm
-                            ? _confirmColor
-                            : AppColors.toggleOff,
+                        // 취소 버튼은 이미 brMd 였는데 확인 버튼만 각져 있었다.
+                        // 나란히 선 같은 역할의 둘이 모양이 다르면 한쪽이 깨진 것처럼 보인다.
+                        decoration: BoxDecoration(
+                          borderRadius: AppRadius.brMd,
+                          color:
+                              _canConfirm ? _confirmColor : AppColors.toggleOff,
+                        ),
                         child: Text(
                           widget.confirmLabel,
                           style: const TextStyle(

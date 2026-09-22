@@ -105,6 +105,15 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
     }
   }
 
+  /// 로그아웃. **어느 단계가 실패하든 마지막 두 줄은 반드시 실행된다.**
+  ///
+  /// 순서(푸시 해제 → 서버 로그아웃 → 상태 비우기)는 그대로 두되, 앞의 두 개는
+  /// 네트워크에 매달린 일이라 실패할 수 있다. 실패했다고 로그아웃이 안 되면
+  /// 안 된다 — 사용자가 누른 건 "이 기기에서 나가겠다"이고, 그건 서버 사정과
+  /// 무관하게 **로컬에서 완결될 수 있는 일**이다.
+  ///
+  /// 예전엔 앞 단계에 시간 제한이 없어서, 푸시 토큰 조회가 안 돌아오면
+  /// (`PushService.unregisterToken` 주석 참고) 로그아웃이 통째로 멈췄다.
   Future<void> logout() async {
     // 서버에서 디바이스 토큰을 먼저 지운다 — JWT가 살아있는 동안 호출해야 인증이 통과된다
     try {
@@ -112,7 +121,20 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
     } catch (e) {
       debugPrint('[FCM] 푸시 토큰 해제 실패: $e');
     }
-    await _repo.logout();
+    try {
+      await _repo.logout().timeout(const Duration(seconds: 5));
+    } catch (e) {
+      // 서버에 못 닿아도 이 기기에서는 나간다. 서버의 refresh 토큰은 14일 뒤
+      // 알아서 만료되고, 남아 있어도 그것만으로는 아무것도 할 수 없다.
+      debugPrint('[Auth] 서버 로그아웃 실패 — 로컬 토큰만 정리: $e');
+      // `_repo.logout()` 의 finally 가 끝까지 못 갔을 수 있어 직접 한 번 더 지운다.
+      // 토큰이 남으면 다음 실행에서 `_init` 이 로그인 상태로 복원해버린다.
+      try {
+        await _ref.read(tokenStorageProvider).clearTokens();
+      } catch (e2) {
+        debugPrint('[Auth] 로컬 토큰 정리 실패: $e2');
+      }
+    }
     state = const AsyncValue.data(null);
   }
 

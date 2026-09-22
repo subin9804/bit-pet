@@ -1,7 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -26,11 +25,18 @@ const bool kSocialLoginEnabled = false;
 // 그 사이 진짜 로고(`assets/branding/logo.svg` — 심볼과 워드마크가 한 벌)가
 // 나왔다. 앱을 처음 여는 화면에서 로고가 아닌 걸 보여줄 이유가 없다.
 //
-// 원본 833×240 비율 그대로 폭만 맞춘다.
-Widget get _logo => SvgPicture.asset(
-      'assets/branding/logo.svg',
-      width: 208,
-      semanticsLabel: 'tailog',
+// 로고는 `login_main.png` — 심볼 위, 워드마크 아래로 쌓인 **정사각** 구성이다.
+// 가로로 긴 `logo.svg`(833×240)와 비율이 달라서, 같은 폭을 주면 훨씬 커 보인다.
+// 그래서 폭을 208 → 180 으로 줄였다. 이 파일은 여백이 넉넉해 실제 로고는 더 작게 앉는다.
+//
+// 벡터가 아니라 PNG 인 이유는 이게 최종 납품물이기 때문이다. `logo.svg` 는 가로형이라
+// 이 화면의 세로 구성에 맞지 않는다 (지우지는 않았다 — 가로 자리에 여전히 쓸 수 있다).
+Widget get _logo => Image.asset(
+      'assets/branding/login_main.png',
+      width: 180,
+      // 3072px 원본을 180 으로 줄이므로 축소 품질이 그대로 보인다.
+      filterQuality: FilterQuality.medium,
+      semanticLabel: 'tailog',
     );
 
 class LoginScreen extends ConsumerStatefulWidget {

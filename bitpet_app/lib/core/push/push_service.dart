@@ -87,17 +87,41 @@ class PushService {
     }
   }
 
-  /// 로그아웃 시 호출 — 서버에서 토큰 삭제 후 로컬 토큰도 폐기해 다음 로그인 때 새로 발급받는다.
+  static const _fcmTimeout = Duration(seconds: 3);
+
+  /// 로그아웃·탈퇴 시 호출 — 서버에서 토큰 삭제 후 로컬 토큰도 폐기해 다음 로그인 때
+  /// 새로 발급받는다. **절대 멈추지 않는 것이 이 함수의 계약이다.**
+  ///
+  /// 🔴 `FirebaseMessaging.getToken()` 은 FCM 서버에 닿지 못하면 **예외를 던지지 않고
+  /// 그냥 안 돌아온다.** 예전엔 이 호출이 try 밖에 있었고, 부르는 쪽은 try/catch 로만
+  /// 감싸고 있었다 — try/catch 는 예외를 잡을 뿐 멈춤은 잡지 못한다. 그래서 로그아웃을
+  /// 누르면 여기서 멈춘 채 토큰 삭제도, 화면 이동도 일어나지 않았다
+  /// (증상은 "확인을 눌렀는데 아무 일도 없다", 에러 한 줄 없이).
+  ///
+  /// 푸시 정리는 실패해도 잃을 게 적다 — 서버는 `UNREGISTERED` 응답을 받으면 죽은
+  /// 토큰을 스스로 지운다. 반면 로그아웃이 막히는 건 사용자가 앱을 쓸 수 없는 상태다.
+  /// 그래서 **모든 단계에 시간을 끊고, 안 되면 그냥 넘어간다.**
   Future<void> unregisterToken() async {
-    final token = _currentToken ?? await FirebaseMessaging.instance.getToken();
+    var token = _currentToken;
+    if (token == null) {
+      try {
+        token = await FirebaseMessaging.instance.getToken().timeout(_fcmTimeout);
+      } catch (e) {
+        debugPrint('[FCM] 토큰 조회 실패·시간초과 — 해제 생략: $e');
+        return;
+      }
+    }
     if (token == null) return;
     try {
-      await _ref.read(deviceTokenRepositoryProvider).unregister(token);
+      await _ref
+          .read(deviceTokenRepositoryProvider)
+          .unregister(token)
+          .timeout(_fcmTimeout);
     } catch (e) {
       debugPrint('[FCM] 토큰 해제 실패: $e');
     }
     try {
-      await FirebaseMessaging.instance.deleteToken();
+      await FirebaseMessaging.instance.deleteToken().timeout(_fcmTimeout);
     } catch (e) {
       debugPrint('[FCM] 토큰 삭제 실패: $e');
     }
