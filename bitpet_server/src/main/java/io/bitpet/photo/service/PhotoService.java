@@ -29,6 +29,13 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class PhotoService {
 
+    /**
+     * 썸네일은 <b>JPEG 고정</b>이다. 앱이 만드는 축소본이라 플랫폼마다 되는 포맷이 달라서는
+     * 안 되는데(WebP 인코딩은 Android 만 된다) 원본 포맷을 따라가면 HEIC 썸네일 같은 게 섞인다.
+     */
+    private static final String THUMB_SUFFIX = "_thumb.jpg";
+    private static final String THUMB_CONTENT_TYPE = "image/jpeg";
+
     private final PhotoDtlRepository photoRepo;
     private final PetMstRepository petRepo;
     private final io.bitpet.pet.service.PetKeeperService petKeeper;
@@ -44,9 +51,17 @@ public class PhotoService {
                 ? req.contentType() : resolveContentType(ext);
 
         PresignedPutObjectRequest presigned = s3Service.presignPut(s3Key, contentType);
+
+        // 썸네일 자리도 같이 서명해 내린다. 앱이 축소본을 만들면 여기에 PUT 하고,
+        // 못 만들면 그냥 쓰지 않으면 된다 (서명만 만료될 뿐 S3 에 아무것도 안 생긴다).
+        String thumbKey = buildThumbKey(s3Key);
+        PresignedPutObjectRequest thumbPresigned = s3Service.presignPut(thumbKey, THUMB_CONTENT_TYPE);
+
         return new PresignedUploadResponse(
                 presigned.url().toString(),
                 s3Key,
+                thumbPresigned.url().toString(),
+                thumbKey,
                 presigned.expiration()
         );
     }
@@ -59,6 +74,7 @@ public class PhotoService {
                 .entityType(req.entityType())
                 .entityId(req.entityId())
                 .s3Key(req.s3Key())
+                .thumbS3Key(acceptThumbKey(req.s3Key(), req.thumbS3Key()))
                 .fileSize(req.fileSize())
                 .mimeType(req.mimeType())
                 .width(req.width())
@@ -68,14 +84,14 @@ public class PhotoService {
                 .caption(req.caption())
                 .build());
 
-        return PhotoResponse.of(saved, s3Service.presignGet(saved.getS3Key()).url().toString());
+        return toResponse(saved);
     }
 
     public List<PhotoResponse> listPhotos(Long userId, EntityType entityType, Long entityId) {
         validateEntityAccess(userId, entityType, entityId);
         return photoRepo.findAllByEntityTypeAndEntityIdOrderByDisplayOrderAscTakenAtDesc(entityType, entityId)
                 .stream()
-                .map(p -> PhotoResponse.of(p, s3Service.presignGet(p.getS3Key()).url().toString()))
+                .map(this::toResponse)
                 .toList();
     }
 
@@ -96,6 +112,10 @@ public class PhotoService {
 
         photo.softDelete();
         s3Service.deleteObject(photo.getS3Key());
+        // 썸네일도 같이 지운다. 빠뜨리면 원본만 사라지고 축소본이 영원히 남는다.
+        if (photo.getThumbS3Key() != null) {
+            s3Service.deleteObject(photo.getThumbS3Key());
+        }
     }
 
     @Transactional
@@ -109,12 +129,41 @@ public class PhotoService {
         }
 
         pet.setProfilePhoto(photo.getId());
-        return PhotoResponse.of(photo, s3Service.presignGet(photo.getS3Key()).url().toString());
+        return toResponse(photo);
     }
 
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
+
+    private PhotoResponse toResponse(PhotoDtl photo) {
+        return PhotoResponse.of(
+                photo,
+                s3Service.presignGet(photo.getS3Key()).url().toString(),
+                photo.getThumbS3Key() != null
+                        ? s3Service.presignGet(photo.getThumbS3Key()).url().toString()
+                        : null);
+    }
+
+    /**
+     * 앱이 보내온 썸네일 키를 <b>서버 규칙과 대조해</b> 받아들인다.
+     *
+     * <p>키를 그대로 믿으면 앱이 아무 경로나 적어 보낼 수 있고, 그러면 사진마다 규칙이
+     * 갈려 삭제·정리 경로가 썸네일을 찾지 못한다. 규칙과 다르면 <b>거절이 아니라 무시</b>다 —
+     * 축소본 하나 때문에 사진 등록 자체를 실패시킬 이유가 없고, 원본은 이미 올라가 있다.
+     */
+    private static String acceptThumbKey(String s3Key, String thumbS3Key) {
+        if (thumbS3Key == null || thumbS3Key.isBlank()) return null;
+        return buildThumbKey(s3Key).equals(thumbS3Key) ? thumbS3Key : null;
+    }
+
+    /** 원본 키의 확장자만 갈아끼운다 — {@code pets/1/{uuid}.jpg} → {@code pets/1/{uuid}_thumb.jpg}. */
+    private static String buildThumbKey(String s3Key) {
+        int dot = s3Key.lastIndexOf('.');
+        int slash = s3Key.lastIndexOf('/');
+        String base = (dot > slash) ? s3Key.substring(0, dot) : s3Key;
+        return base + THUMB_SUFFIX;
+    }
 
     private void validateEntityAccess(Long userId, EntityType entityType, Long entityId) {
         // 현재는 PET만 직접 소유권 검증. MEMO/MATING/LAYING은 해당 도메인 서비스에서 검증됨.

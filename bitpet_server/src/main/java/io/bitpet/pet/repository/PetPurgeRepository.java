@@ -34,8 +34,16 @@ public interface PetPurgeRepository extends Repository<PetMst, Long> {
               AND (CAST(:keepPhotoId AS BIGINT) IS NULL OR id <> CAST(:keepPhotoId AS BIGINT))
             """;
 
-    /** 삭제 대상 사진의 S3 키 — 행을 지우기 전에 먼저 걷는다 */
-    @Query(value = "SELECT s3_key FROM photo_dtl " + PHOTO_SCOPE, nativeQuery = true)
+    /**
+     * 삭제 대상 사진의 S3 키 — 행을 지우기 전에 먼저 걷는다.
+     *
+     * <p>썸네일 키(V13)도 <b>같은 목록에 담아야 한다.</b> 원본만 걷으면 개체를 지워도
+     * 축소본이 버킷에 영원히 남는다. 썸네일이 없는 사진(백필 안 한 기존 분·구버전 앱)은
+     * {@code thumb_s3_key IS NULL} 이라 두 번째 갈래에서 자연히 빠진다.
+     */
+    @Query(value = "SELECT s3_key FROM photo_dtl " + PHOTO_SCOPE
+            + " UNION ALL SELECT thumb_s3_key FROM photo_dtl " + PHOTO_SCOPE
+            + " AND thumb_s3_key IS NOT NULL", nativeQuery = true)
     List<String> findPhotoKeysOfPet(@Param("petId") Long petId,
                                     @Param("keepPhotoId") Long keepPhotoId);
 

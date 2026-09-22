@@ -13,6 +13,7 @@ import '../../providers/pet_provider.dart';
 import '../../providers/photo_provider.dart';
 import 'gallery_photo_viewer.dart';
 import '../../../../core/theme/app_icons.dart';
+import '../../../../core/widgets/app_network_image.dart';
 
 class GalleryTab extends ConsumerStatefulWidget {
   final int petId;
@@ -238,20 +239,19 @@ class _PhotoTile extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          Image.network(
-            photo.url,
+          // 그리드 썸네일은 원본을 그대로 띄우지 않는다 — 한 화면에 열 몇 장이
+          // 올라오는 자리라 원본 해상도로 디코딩하면 메모리가 순식간에 찬다.
+          // `displayUrl` 은 서버 축소본(512px)이고, 없으면 원본으로 떨어진다
+          // (썸네일 도입 전에 올라간 사진). memWidth 는 그 폴백 경우까지 대비한 방어선.
+          AppNetworkImage(
+            photo.displayUrl,
             fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => Container(
+            memWidth: 400,
+            placeholder: Container(
               color: AppColors.bgAlt,
               child: const AppIcon(AppIcons.petLine,
                   color: AppColors.ink3, size: 28),
             ),
-            loadingBuilder: (_, child, progress) => progress == null
-                ? child
-                : Container(
-                    color: AppColors.paleBgAlt,
-                    child: const Center(
-                        child: CircularProgressIndicator(strokeWidth: 1.5))),
           ),
           if (isProfile)
             Positioned(

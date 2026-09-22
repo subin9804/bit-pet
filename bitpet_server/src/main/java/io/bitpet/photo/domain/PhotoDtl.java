@@ -49,6 +49,14 @@ public class PhotoDtl extends BaseTimeEntity {
     @Column(name = "s3_key", nullable = false, length = 255)
     private String s3Key;
 
+    /**
+     * 썸네일 키(짧은 변 512px 기준 JPEG). <b>NULL 이면 썸네일이 없다</b> — 기존 사진을 백필하지
+     * 않았고, 썸네일은 앱이 업로드 시점에 만들어 같이 올리므로 구버전 앱이 올린 사진에도 없다.
+     * 응답은 이 경우 {@code thumbnailUrl} 을 비워 내리고 앱이 원본으로 폴백한다.
+     */
+    @Column(name = "thumb_s3_key", length = 255)
+    private String thumbS3Key;
+
     @Column(name = "file_size")
     private Integer fileSize;
 
@@ -74,12 +82,13 @@ public class PhotoDtl extends BaseTimeEntity {
     private Instant deletedAt;
 
     @Builder
-    private PhotoDtl(EntityType entityType, Long entityId, String s3Key,
+    private PhotoDtl(EntityType entityType, Long entityId, String s3Key, String thumbS3Key,
                      Integer fileSize, String mimeType, Integer width, Integer height,
                      int displayOrder, Instant takenAt, String caption) {
         this.entityType = entityType;
         this.entityId = entityId;
         this.s3Key = s3Key;
+        this.thumbS3Key = thumbS3Key;
         this.fileSize = fileSize;
         this.mimeType = mimeType;
         this.width = width;
@@ -87,6 +96,17 @@ public class PhotoDtl extends BaseTimeEntity {
         this.displayOrder = displayOrder;
         this.takenAt = takenAt;
         this.caption = caption;
+    }
+
+    /**
+     * 목록·아바타처럼 <b>작게 그려지는 자리</b>에 쓸 키. 썸네일이 있으면 썸네일, 없으면 원본.
+     *
+     * <p>갤러리 그리드와 34px 아바타가 3MB 원본을 받아 디코딩하던 게 스크롤이 버벅이던
+     * 원인이다. 512px 급이면 화면 폭(≈400dp)을 채우는 개체 상세 상단까지도 충분하다 —
+     * 원본이 필요한 자리는 확대 뷰어뿐이고, 거기는 {@code s3Key} 를 그대로 쓴다.
+     */
+    public String displayKey() {
+        return thumbS3Key != null ? thumbS3Key : s3Key;
     }
 
     public void softDelete() {

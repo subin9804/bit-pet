@@ -66,7 +66,7 @@ public class PetService {
     private String resolveProfileImageUrl(PetMst pet) {
         if (pet.getProfilePhotoId() == null) return null;
         return photoRepository.findById(pet.getProfilePhotoId())
-                .map(p -> s3Service.resolveUrl(p.getS3Key()))
+                .map(p -> s3Service.resolveUrl(p.displayKey()))
                 .orElse(null);
     }
 
@@ -206,7 +206,7 @@ public class PetService {
                 .filter(p -> p.getEntityId().equals(petId))
                 .orElseThrow(() -> new BusinessException(ErrorCode.PHOTO_NOT_FOUND));
         pet.setProfilePhoto(photo.getId());
-        return PetResponse.from(pet, null, List.of(), s3Service.resolveUrl(photo.getS3Key()),
+        return PetResponse.from(pet, null, List.of(), s3Service.resolveUrl(photo.displayKey()),
                 petKeeper.isOwner(userId, petId));
     }
 

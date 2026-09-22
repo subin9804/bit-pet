@@ -243,7 +243,7 @@ public class NfcTagService {
     private String resolvePhotoUrl(PetMst pet) {
         if (pet.getProfilePhotoId() == null) return null;
         return photoRepository.findById(pet.getProfilePhotoId())
-                .map(p -> s3Service.resolveUrl(p.getS3Key()))
+                .map(p -> s3Service.resolveUrl(p.displayKey()))
                 .orElse(null);
     }
 

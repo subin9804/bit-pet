@@ -89,6 +89,10 @@ public class PetPhotoService {
 
         photo.softDelete();
         s3Service.deleteObject(photo.getS3Key());
+        // 구 API 로 지워도 썸네일(V13)은 같은 행에 달려 있다 — 빠뜨리면 축소본만 남는다.
+        if (photo.getThumbS3Key() != null) {
+            s3Service.deleteObject(photo.getThumbS3Key());
+        }
     }
 
     @Transactional

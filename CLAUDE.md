@@ -216,8 +216,10 @@ PostgreSQL이 재정규화하는데 의미는 같다.)
   V10(`user_mst.profile_color` — 프로필 아바타 색 팔레트 키. 사진이 있으면 테두리 색으로 쓰인다),
   V11(`user_block_rls`·`post_report_dtl` 신설 + `post_mst`/`post_comment_dtl` 에 `blinded_at`/`blinded_by`),
   V12(`user_mst.birth_date`·`guardian_user_id` + `user_agreement_dtl` CHECK 확장(GUARDIAN/GUARDIAN_CONSENT)
-  + `post_category_cd` 에 KIDS 어린이 게시판 시드).
-  **다음은 V13.**
+  + `post_category_cd` 에 KIDS 어린이 게시판 시드),
+  V13(`photo_dtl.thumb_s3_key` — 앱이 업로드 시점에 만들어 같이 올리는 썸네일 키. NULL 허용 =
+  기존 사진 백필 안 함, 앱이 `thumbnailUrl ?? url` 로 폴백).
+  **다음은 V14.**
 - 코드성 시드(`memo_tag_cd`, `post_category_cd`, `serial_pool_stat_mst`)는 베이스라인 하단에 들어 있다.
   종·모프 마스터는 그대로 `R__01`/`R__02` 담당.
 - ⚠️ **`R__02` 는 파일에 없는 공식 모프를 매 실행마다 지운다** (개체가 물고 있으면 FK RESTRICT 라
@@ -770,7 +772,7 @@ test → GHCR 이미지 빌드(**태그 = 커밋 SHA**) → SSH → `deploy/scri
 - 외부 시스템 영향(push·삭제·외부 API 호출)은 확인 후 진행
 - Flutter UI는 디자인 확정 전까지 **뼈대(Skeleton)만** 구현, 상세 UI는 별도 지시 대기
 - 새 Flyway 마이그레이션은 기존 파일 절대 수정 금지, 항상 다음 버전으로 신규 작성
-  (2026-08-19 스쿼시 이후 V2~V12 추가됨, **다음은 V13**. `V1__baseline_schema.sql` 수정 = 모든 DB 기동 불가)
+  (2026-08-19 스쿼시 이후 V2~V13 추가됨, **다음은 V14**. `V1__baseline_schema.sql` 수정 = 모든 DB 기동 불가)
 
 ---
 

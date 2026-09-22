@@ -1,7 +1,14 @@
 import 'dart:typed_data';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+
+/// 썸네일 축소 기준 — 짧은 변이 이 값 아래로는 내려가지 않게 비율을 유지해 줄인다.
+/// 512면 화면 폭(≈400dp)을 채우는 개체 상세 상단까지 견딘다. 원본이 필요한 자리는
+/// 확대 뷰어뿐이고, 거기는 `url`(원본)을 그대로 쓴다.
+const int kThumbMaxEdge = 512;
 
 /// 선택한 이미지의 원본 바이트 + 파일명 + content-type 묶음.
 class PickedImage {
@@ -42,6 +49,32 @@ class ImageUploadService {
       filename: name,
       contentType: contentTypeFor(name),
     );
+  }
+
+  /// 짧은 변 [kThumbMaxEdge]px 기준 JPEG 썸네일을 만든다. 실패하면 null — 호출부는 썸네일 없이
+  /// 원본만 올리고, 서버·앱 모두 `thumbnailUrl ?? url` 로 폴백하므로 사진 등록은 그대로 된다.
+  ///
+  /// 썸네일이 필요한 이유는 디코딩 비용이다. 34px 아바타와 목록 그리드가 3MB 원본을 받아
+  /// 매번 풀사이즈로 디코딩하던 게 스크롤이 버벅이던 원인이었다.
+  ///
+  /// 포맷을 JPEG 로 고정한 건 플랫폼 차이 때문이다 — WebP 인코딩은 Android 에서만 되고,
+  /// 원본 포맷을 따라가면 HEIC 썸네일 같은 게 섞인다. 서버의 키 규칙(`_thumb.jpg`)과도 맞물린다.
+  Future<Uint8List?> makeThumbnail(Uint8List bytes) async {
+    try {
+      final out = await FlutterImageCompress.compressWithList(
+        bytes,
+        minWidth: kThumbMaxEdge,
+        minHeight: kThumbMaxEdge,
+        quality: 80,
+        format: CompressFormat.jpeg,
+      );
+      // minWidth/minHeight 는 '이 크기 아래로는 줄이지 않는다'는 뜻이라, 원본이 이미
+      // 작으면 축소가 거의 없다. 그 경우 굳이 두 번 올릴 필요가 없다.
+      return out.length < bytes.length ? out : null;
+    } catch (e) {
+      debugPrint('썸네일 생성 실패 — 원본만 업로드한다: $e');
+      return null;
+    }
   }
 
   /// presigned PUT URL로 바이트 업로드. content-type은 presign 시점과 반드시 일치해야 함.

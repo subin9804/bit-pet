@@ -70,7 +70,7 @@ public class RoutineService {
     private String resolvePetImageUrl(PetMst pet) {
         if (pet == null || pet.getProfilePhotoId() == null) return null;
         return photoRepository.findById(pet.getProfilePhotoId())
-                .map(p -> s3Service.resolveUrl(p.getS3Key()))
+                .map(p -> s3Service.resolveUrl(p.displayKey()))
                 .orElse(null);
     }
 
