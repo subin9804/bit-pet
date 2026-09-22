@@ -608,17 +608,24 @@ class _RecordCard extends StatelessWidget {
               ],
             ),
           ),
+          // 루틴 완료로 자동 생성된 항목은 수정할 수 없다. 버튼을 없애지 않고
+          // 흐리게만 두는 건, 자리가 사라지면 카드 폭이 제각각이 되어 목록이
+          // 흔들리기 때문이다. 눌리면 왜 안 되는지 토스트가 뜬다.
           GestureDetector(
             onTap: onEdit,
-            child: Container(
-              width: 30, height: 30,
-              decoration: BoxDecoration(
-                color: AppColors.paleBg,
-                border: Border.all(color: AppColors.paleLine),
-                borderRadius: AppRadius.brMd,
+            child: Opacity(
+              opacity: entry.editable ? 1 : 0.4,
+              child: Container(
+                width: 30, height: 30,
+                decoration: BoxDecoration(
+                  color: AppColors.paleBg,
+                  border: Border.all(color: AppColors.paleLine),
+                  borderRadius: AppRadius.brMd,
+                ),
+                child: Icon(
+                    entry.editable ? Icons.edit_outlined : Icons.lock_outline,
+                    size: 16, color: AppColors.paleInk2),
               ),
-              child: const Icon(Icons.edit_outlined,
-                  size: 16, color: AppColors.paleInk2),
             ),
           ),
         ],

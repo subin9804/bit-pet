@@ -15,8 +15,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -30,6 +28,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @Tag(name = "Laying", description = "산란·해칭 기록 CRUD — /pets/:id/layings")
 @RestController
@@ -50,17 +49,14 @@ public class LayingController {
 
     @Operation(summary = "산란 목록")
     @GetMapping("/api/v1/pets/{petId}/layings")
-    public ApiResponse<Page<LayingResponse>> listLayings(
+    public ApiResponse<List<LayingResponse>> listLayings(
             @AuthenticationPrincipal AuthPrincipal principal,
             @PathVariable Long petId,
             @RequestParam(required = false) Long matingId,
             @RequestParam(required = false) LocalDate from,
-            @RequestParam(required = false) LocalDate to,
-            @RequestParam(defaultValue = "0")  int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(required = false) LocalDate to) {
         return ApiResponse.ok(layingService.getLayings(
-                petId, principal.userId(), matingId, from, to,
-                PageRequest.of(page, Math.min(size, 100))));
+                petId, principal.userId(), matingId, from, to));
     }
 
     @Operation(summary = "산란 단건 조회")

@@ -519,7 +519,7 @@ class MockRecordRepository extends RecordRepository {
       ];
 
   @override
-  Future<List<Memo>> getMemos(int petId, {int page = 0, int size = 20}) async =>
+  Future<List<Memo>> getMemos(int petId) async =>
       [
         Memo(
           id: 1,

@@ -9,7 +9,6 @@ import io.bitpet.record.memo.domain.MemoTagCd;
 import io.bitpet.record.memo.domain.MemoTagRls;
 import io.bitpet.record.memo.domain.MemoVetExtDtl;
 import io.bitpet.record.memo.dto.MemoCreateRequest;
-import io.bitpet.record.memo.dto.MemoListResponse;
 import io.bitpet.record.memo.dto.MemoResponse;
 import io.bitpet.record.memo.dto.MemoTagResponse;
 import io.bitpet.record.memo.dto.MemoUpdateRequest;
@@ -19,8 +18,6 @@ import io.bitpet.record.memo.repository.MemoTagCdRepository;
 import io.bitpet.record.memo.repository.MemoTagRlsRepository;
 import io.bitpet.record.memo.repository.MemoVetExtDtlRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -100,27 +97,33 @@ public class MemoService {
     // 메모 목록
     // -------------------------------------------------------------------------
 
-    public MemoListResponse getMemos(Long petId, Long userId,
-                                     List<String> tagCodes,
-                                     LocalDate from, LocalDate to,
-                                     Pageable pageable) {
+    /**
+     * 기록 목록은 <b>페이지 없이 배열 그대로</b> 내린다. 필터(태그/기간)는 남긴다.
+     *
+     * ℹ️ 원래는 `Page` 로 잘라 `{items, totalElements}` 를 내려줬는데, 그 페이지는 **이미
+     * 허구였다** — 아래에서 CUSTOM 루틴 합성 메모를 덧붙이고 다시 정렬하기 때문에
+     * `totalElements` 가 페이지 로컬 개수였고, 실제로 페이지를 넘기면 중복·누락이 났다.
+     * 합성분은 DB 에 없어 DB 페이징으로 셀 수가 없다. 그래서 고치는 방향이 아니라 버렸다.
+     */
+    public List<MemoResponse> getMemos(Long petId, Long userId,
+                                       List<String> tagCodes,
+                                       LocalDate from, LocalDate to) {
         loadOwnedPet(userId, petId);
 
-        Page<MemoDtl> page;
+        List<MemoDtl> rows;
         if (tagCodes != null && !tagCodes.isEmpty()) {
-            page = memoRepo.findByPetIdAndTagCodes(petId, tagCodes, pageable);
+            rows = memoRepo.findByPetIdAndTagCodes(petId, tagCodes);
         } else if (from != null && to != null) {
-            page = memoRepo.findByPetIdAndPeriod(
+            rows = memoRepo.findByPetIdAndPeriod(
                     petId,
                     from.atStartOfDay(SEOUL).toInstant(),
-                    to.plusDays(1).atStartOfDay(SEOUL).toInstant().minusMillis(1),
-                    pageable);
+                    to.plusDays(1).atStartOfDay(SEOUL).toInstant().minusMillis(1));
         } else {
-            page = memoRepo.findAllByPetIdOrderByLoggedAtDesc(petId, pageable);
+            rows = memoRepo.findAllByPetIdOrderByLoggedAtDesc(petId);
         }
 
         List<MemoResponse> items = new ArrayList<>(
-                page.getContent().stream().map(this::buildResponse).toList());
+                rows.stream().map(this::buildResponse).toList());
 
         // 태그 필터 없을 때만 CUSTOM 루틴 메모 추가
         if (tagCodes == null || tagCodes.isEmpty()) {
@@ -128,7 +131,7 @@ public class MemoService {
         }
 
         items.sort(Comparator.comparing(MemoResponse::loggedAt).reversed());
-        return new MemoListResponse(items, (long) items.size());
+        return items;
     }
 
     // -------------------------------------------------------------------------

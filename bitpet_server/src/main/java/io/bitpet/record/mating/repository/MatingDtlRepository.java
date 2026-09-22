@@ -1,8 +1,6 @@
 package io.bitpet.record.mating.repository;
 
 import io.bitpet.record.mating.domain.MatingDtl;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -32,11 +30,10 @@ public interface MatingDtlRepository extends JpaRepository<MatingDtl, Long> {
               AND (:isSuccessful IS NULL OR m.isSuccessful = :isSuccessful)
             ORDER BY m.triedAt DESC
             """)
-    Page<MatingDtl> findByPetIdWithFilters(
+    List<MatingDtl> findByPetIdWithFilters(
             @Param("petId") Long petId,
             @Param("seasonLabel") String seasonLabel,
-            @Param("isSuccessful") Boolean isSuccessful,
-            Pageable pageable);
+            @Param("isSuccessful") Boolean isSuccessful);
 
     /** 이 개체를 상대로 걸어둔 메이팅이 있는지 — 탈퇴·고아 정리에서 "남이 거는 참조" 판정 */
     @Query("""

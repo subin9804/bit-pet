@@ -30,8 +30,6 @@ import io.bitpet.record.mating.domain.MatingDtl;
 import io.bitpet.record.mating.repository.MatingDtlRepository;
 import io.bitpet.pet.dto.PetResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -90,16 +88,21 @@ public class LayingService {
     // 산란 목록
     // -------------------------------------------------------------------------
 
-    public Page<LayingResponse> getLayings(Long petId, Long userId,
+    /**
+     * 기록 목록은 <b>페이지 없이 배열 그대로</b> 내린다. 같은 도메인의 체중·급여·청소가
+     * 이미 그렇고, 앱은 캘린더를 그리느라 어차피 전량을 받는다. 필터(matingId/기간)는 남긴다.
+     */
+    public List<LayingResponse> getLayings(Long petId, Long userId,
                                             Long matingId,
-                                            LocalDate from, LocalDate to,
-                                            Pageable pageable) {
+                                            LocalDate from, LocalDate to) {
         loadOwnedPet(userId, petId);
         Instant fromInst = from != null ? from.atStartOfDay(SEOUL).toInstant() : null;
         Instant toInst   = to   != null ? to.plusDays(1).atStartOfDay(SEOUL).toInstant().minusMillis(1) : null;
 
-        return layingRepo.findByPetIdWithFilters(petId, matingId, fromInst, toInst, pageable)
-                .map(l -> LayingResponse.of(l, buildHatches(l.getId())));
+        return layingRepo.findByPetIdWithFilters(petId, matingId, fromInst, toInst)
+                .stream()
+                .map(l -> LayingResponse.of(l, buildHatches(l.getId())))
+                .toList();
     }
 
     // -------------------------------------------------------------------------

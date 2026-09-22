@@ -3,7 +3,6 @@ package io.bitpet.record.memo.controller;
 import io.bitpet.auth.jwt.AuthPrincipal;
 import io.bitpet.common.response.ApiResponse;
 import io.bitpet.record.memo.dto.MemoCreateRequest;
-import io.bitpet.record.memo.dto.MemoListResponse;
 import io.bitpet.record.memo.dto.MemoResponse;
 import io.bitpet.record.memo.dto.MemoTagResponse;
 import io.bitpet.record.memo.dto.MemoUpdateRequest;
@@ -12,8 +11,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -38,17 +35,13 @@ public class MemoController {
 
     @Operation(summary = "메모 목록 조회")
     @GetMapping("/api/v1/pets/{petId}/memos")
-    public ApiResponse<MemoListResponse> list(
+    public ApiResponse<List<MemoResponse>> list(
             @AuthenticationPrincipal AuthPrincipal principal,
             @PathVariable Long petId,
             @RequestParam(required = false) List<String> tags,
             @RequestParam(required = false) LocalDate from,
-            @RequestParam(required = false) LocalDate to,
-            @RequestParam(defaultValue = "0")  int page,
-            @RequestParam(defaultValue = "20") int size) {
-
-        Pageable pageable = PageRequest.of(page, Math.min(size, 100));
-        return ApiResponse.ok(memoService.getMemos(petId, principal.userId(), tags, from, to, pageable));
+            @RequestParam(required = false) LocalDate to) {
+        return ApiResponse.ok(memoService.getMemos(petId, principal.userId(), tags, from, to));
     }
 
     @Operation(summary = "메모 등록")

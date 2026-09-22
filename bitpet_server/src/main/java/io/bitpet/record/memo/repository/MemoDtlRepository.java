@@ -1,7 +1,6 @@
 package io.bitpet.record.memo.repository;
 
 import io.bitpet.record.memo.domain.MemoDtl;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -16,7 +15,7 @@ public interface MemoDtlRepository extends JpaRepository<MemoDtl, Long> {
 
     Optional<MemoDtl> findByClientIdAndClientChangeId(String clientId, UUID clientChangeId);
 
-    Page<MemoDtl> findAllByPetIdOrderByLoggedAtDesc(Long petId, Pageable pageable);
+    List<MemoDtl> findAllByPetIdOrderByLoggedAtDesc(Long petId);
 
     List<MemoDtl> findAllByPetIdInOrderByLoggedAtDesc(List<Long> petIds, Pageable pageable);
 
@@ -36,10 +35,9 @@ public interface MemoDtlRepository extends JpaRepository<MemoDtl, Long> {
               AND t.code IN :tagCodes
             ORDER BY m.loggedAt DESC
             """)
-    Page<MemoDtl> findByPetIdAndTagCodes(
+    List<MemoDtl> findByPetIdAndTagCodes(
             @Param("petId") Long petId,
-            @Param("tagCodes") List<String> tagCodes,
-            Pageable pageable);
+            @Param("tagCodes") List<String> tagCodes);
 
     @Query("""
             SELECT m FROM MemoDtl m
@@ -48,9 +46,8 @@ public interface MemoDtlRepository extends JpaRepository<MemoDtl, Long> {
               AND m.loggedAt <= :to
             ORDER BY m.loggedAt DESC
             """)
-    Page<MemoDtl> findByPetIdAndPeriod(
+    List<MemoDtl> findByPetIdAndPeriod(
             @Param("petId") Long petId,
             @Param("from") Instant from,
-            @Param("to") Instant to,
-            Pageable pageable);
+            @Param("to") Instant to);
 }

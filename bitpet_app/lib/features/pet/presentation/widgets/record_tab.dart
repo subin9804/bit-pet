@@ -26,9 +26,6 @@ const _catMeta = {
   'LAYING':  _CatMeta('산란'),
 };
 
-// API 카테고리 코드 → UI 표시용 key (PalePalette.catPale/catInk에서 사용)
-String _paleCatKey(String apiCat) => apiCat; // 이미 WEIGHT/FEEDING/... 형식
-
 /// 최근 기록이 얼마나 지났는지 — 오늘 / 어제 / N일 전 / N주 전 / N개월 전 / N년 전
 String _relativeDay(DateTime dt) {
   final today = DateTime.now();
@@ -60,58 +57,16 @@ class RecordTab extends ConsumerStatefulWidget {
 }
 
 class _RecordTabState extends ConsumerState<RecordTab> {
-  // 캘린더는 캘린더 탭으로 이전 — 기록 탭은 요약 + 오늘 기록만 표시
-  DateTime get _today => DateTime.now();
-
-  String get _todayStr =>
-      '${_today.year}-${_today.month.toString().padLeft(2, '0')}-${_today.day.toString().padLeft(2, '0')}';
-
+  // 캘린더는 캘린더 탭, 날짜별 기록은 각 기록 상세 화면이 맡는다.
+  // 기록 탭에 남는 건 **요약 하나뿐**이다 — 아래에 '오늘 기록' 목록이 따로
+  // 있었지만, 위 요약 줄이 이미 카테고리마다 마지막 기록과 '오늘/어제'를
+  // 말해주고 있어 같은 내용을 두 번 읽히는 자리였다.
   @override
   Widget build(BuildContext context) {
     final weightsAsync = ref.watch(weightListProvider(widget.petId));
-    final dayAsync     = ref.watch(
-        petDayTimelineProvider(PetDateParam(widget.petId, _todayStr)));
     final summaryAsync = ref.watch(petRecordSummaryProvider(widget.petId));
 
-    const weekKo = ['일','월','화','수','목','금','토'];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // ── 요약 — 체중 히어로 + 나머지 카테고리 리스트 ─────
-        _buildSummaryHero(context, summaryAsync, weightsAsync),
-        const SizedBox(height: 20),
-
-        // ── 오늘 기록 헤더 ────────────────────────────────────
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            RichText(
-              text: TextSpan(
-                style: AppTextStyles.paleSectionTitle,
-                children: [
-                  TextSpan(text: '오늘 ${_today.month}.${_today.day} '),
-                  TextSpan(
-                    text: '(${weekKo[_today.weekday % 7]})',
-                    style: const TextStyle(
-                        color: AppColors.paleInk2, fontWeight: FontWeight.w600),
-                  ),
-                ],
-              ),
-            ),
-            dayAsync.whenOrNull(data: (items) =>
-              Text('${items.length}건',
-                  style: AppTextStyles.mono(12, FontWeight.w700,
-                      color: AppColors.paleInk2))) ??
-              const SizedBox.shrink(),
-          ],
-        ),
-        const SizedBox(height: 4),
-
-        // ── 오늘 타임라인 리스트 ──────────────────────────────
-        _buildDayList(dayAsync),
-      ],
-    );
+    return _buildSummaryHero(context, summaryAsync, weightsAsync);
   }
 
   // ── 요약 — Hero 레이아웃 (04 handoff: 체중 히어로 + 나머지 리스트) ──
@@ -320,71 +275,6 @@ class _RecordTabState extends ConsumerState<RecordTab> {
         const SizedBox(height: 12),
         restCard,
       ],
-    );
-  }
-
-  Widget _buildDayList(AsyncValue<List<TimelineItem>> dayAsync) {
-    return dayAsync.when(
-      loading: () => const Padding(
-        padding: EdgeInsets.symmetric(vertical: 20),
-        child: Center(child: CircularProgressIndicator()),
-      ),
-      error: (e, _) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 20),
-        child: Center(child: Text('오류: $e',
-            style: TextStyle(color: AppColors.error, fontSize: 12))),
-      ),
-      data: (items) {
-        if (items.isEmpty) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 20),
-            child: Center(
-              child: Text('이 날의 기록이 없어요',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
-                      color: AppColors.paleInk3)),
-            ),
-          );
-        }
-        return Column(
-          children: items.asMap().entries.map((e) {
-            final i    = e.key;
-            final item = e.value;
-            final meta = _catMeta[item.category];
-            return Container(
-              decoration: BoxDecoration(
-                border: i < items.length - 1
-                    ? const Border(bottom: BorderSide(
-                        color: AppColors.paleLineSoft))
-                    : null,
-              ),
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-              child: Row(
-                children: [
-                  Container(
-                    width: 9, height: 9,
-                    decoration: BoxDecoration(
-                      color: PalePalette.catInk(_paleCatKey(item.category)),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(meta?.label ?? item.category,
-                      style: const TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w700,
-                          color: AppColors.primary)),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(item.displayText,
-                        style: TextStyle(
-                            fontSize: 13, color: AppColors.paleInk2),
-                        overflow: TextOverflow.ellipsis),
-                  ),
-                ],
-              ),
-            );
-          }).toList(),
-        );
-      },
     );
   }
 

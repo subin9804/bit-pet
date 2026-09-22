@@ -8,6 +8,27 @@ final recordRepositoryProvider = Provider<RecordRepository>((ref) {
   return RecordRepository(ref.watch(dioProvider));
 });
 
+/// 목록 응답에서 항목 배열만 꺼낸다.
+///
+/// 기록 목록 응답에서 배열을 꺼낸다.
+///
+/// 서버는 이제 **전부 배열을 그대로** 준다(`ApiResponse<List<X>>`). 예전엔 세 모양으로
+/// 갈려 있었다 — 배열(weights·cleanings), 직접 만든 래퍼 `{items, totalElements}`
+/// (memos·matings), 스프링 `Page` 를 흘린 것 `{content, ...}` (layings). 앱이
+/// `as List` 로 단정하는 바람에 뒤 두 경우가 캐스팅에서 터졌고, 그 예외가 화면 전체를
+/// 에러 문자열로 덮었다(메이팅·산란 상세가 이 상태였다).
+///
+/// 서버를 모았으니 첫 분기만으로 충분하지만, 나머지 분기는 **방어막으로 남겨둔다** —
+/// 구버전 서버에 붙은 앱이 화면째 깨지는 것보다 조용히 읽히는 쪽이 낫고 비용이 0이다.
+List<dynamic> unwrapList(dynamic d) {
+  if (d is List) return d;
+  if (d is Map<String, dynamic>) {
+    final items = d['items'] ?? d['content'];
+    if (items is List) return items;
+  }
+  return const [];
+}
+
 class RecordRepository {
   final Dio _dio;
   RecordRepository(this._dio);
@@ -136,17 +157,16 @@ class RecordRepository {
     return apiRes.data ?? [];
   }
 
-  Future<List<Memo>> getMemos(int petId, {int page = 0, int size = 20}) async {
-    final res = await _dio.get('/pets/$petId/memos',
-        queryParameters: {'page': page, 'size': size});
+  // 페이징 파라미터는 없다 — 서버가 전량을 배열로 준다. 예전엔 `page`/`size` 가
+  // 있었고 기본이 20이라 메모 캘린더가 **최근 20건만** 들고 있었다(그 이전 달은
+  // 기록이 있어도 빈 달로 보였다). 서버 쪽 페이징 자체를 걷어내면서 같이 없앴다.
+  Future<List<Memo>> getMemos(int petId) async {
+    final res = await _dio.get('/pets/$petId/memos');
     final apiRes = ApiResponse.fromJson(
       res.data as Map<String, dynamic>,
-      (d) {
-        final map = d as Map<String, dynamic>;
-        return (map['items'] as List)
-            .map((e) => Memo.fromJson(e as Map<String, dynamic>))
-            .toList();
-      },
+      (d) => unwrapList(d)
+          .map((e) => Memo.fromJson(e as Map<String, dynamic>))
+          .toList(),
     );
     return apiRes.data ?? [];
   }
@@ -189,7 +209,7 @@ class RecordRepository {
     final res = await _dio.get('/pets/$petId/matings');
     final apiRes = ApiResponse.fromJson(
       res.data as Map<String, dynamic>,
-      (d) => (d as List)
+      (d) => unwrapList(d)
           .map((e) => MatingRecord.fromJson(e as Map<String, dynamic>))
           .toList(),
     );
@@ -232,7 +252,7 @@ class RecordRepository {
     final res = await _dio.get('/pets/$petId/layings');
     final apiRes = ApiResponse.fromJson(
       res.data as Map<String, dynamic>,
-      (d) => (d as List)
+      (d) => unwrapList(d)
           .map((e) => LayingRecord.fromJson(e as Map<String, dynamic>))
           .toList(),
     );

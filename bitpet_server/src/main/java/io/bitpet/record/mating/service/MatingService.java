@@ -7,13 +7,10 @@ import io.bitpet.pet.domain.PetMst;
 import io.bitpet.pet.repository.PetMstRepository;
 import io.bitpet.record.mating.domain.MatingDtl;
 import io.bitpet.record.mating.dto.MatingCreateRequest;
-import io.bitpet.record.mating.dto.MatingListResponse;
 import io.bitpet.record.mating.dto.MatingResponse;
 import io.bitpet.record.mating.dto.MatingUpdateRequest;
 import io.bitpet.record.mating.repository.MatingDtlRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -63,17 +60,16 @@ public class MatingService {
     // 메이팅 목록
     // -------------------------------------------------------------------------
 
-    public MatingListResponse getMatings(Long petId, Long userId,
-                                         String seasonLabel, Boolean isSuccessful,
-                                         Pageable pageable) {
+    /**
+     * 기록 목록은 <b>페이지 없이 배열 그대로</b> 내린다. 같은 도메인의 체중·급여·청소가
+     * 이미 그렇고, 앱은 캘린더를 그리느라 어차피 전량을 받는다. 필터(시즌/성공여부)는 남긴다.
+     */
+    public List<MatingResponse> getMatings(Long petId, Long userId,
+                                           String seasonLabel, Boolean isSuccessful) {
         loadOwnedPet(userId, petId);
-        Page<MatingDtl> page = matingRepo.findByPetIdWithFilters(petId, seasonLabel, isSuccessful, pageable);
-
-        List<MatingResponse> items = page.getContent().stream()
+        return matingRepo.findByPetIdWithFilters(petId, seasonLabel, isSuccessful).stream()
                 .map(m -> MatingResponse.of(m, resolvePet(m.getMalePetId()), resolvePet(m.getFemalePetId())))
                 .toList();
-
-        return new MatingListResponse(items, page.getTotalElements());
     }
 
     // -------------------------------------------------------------------------
