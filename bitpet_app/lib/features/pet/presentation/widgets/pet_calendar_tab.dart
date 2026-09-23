@@ -9,9 +9,29 @@ import '../../../record/data/models/record_models.dart';
 import '../../../record/providers/record_provider.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_dimens.dart';
+import '../../data/anniversary.dart';
+import '../../providers/pet_provider.dart';
+import 'anniversary_view.dart';
 
 // 캘린더 탭에서 표시하는 카테고리 (급여·체중·청소·메모)
 const _calendarCats = ['FEEDING', 'WEIGHT', 'CLEANING', 'MEMO'];
+
+// 기념일 마커용 가짜 카테고리 키 — 서버 집계에는 없는 값이다.
+// `_calendarCats` 에 넣지 않으므로 아래 기록 목록·건수 계산에는 섞이지 않는다.
+const _annivHatch = 'ANNIV_HATCH';
+const _annivAdopt = 'ANNIV_ADOPT';
+
+String _annivCatOf(AnniversaryKind k) =>
+    k == AnniversaryKind.hatching ? _annivHatch : _annivAdopt;
+
+AnniversaryKind? _annivKindOf(String cat) => switch (cat) {
+      _annivHatch => AnniversaryKind.hatching,
+      _annivAdopt => AnniversaryKind.adoption,
+      _ => null,
+    };
+
+const _legendStyle = TextStyle(
+    fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.paleInk2);
 
 const _catLabel = {
   'FEEDING': '급여',
@@ -66,6 +86,19 @@ class _PetCalendarTabState extends ConsumerState<PetCalendarTab> {
           day.categories.where(_calendarCats.contains).toList();
       if (cats.isNotEmpty) events[day.date] = cats;
     }
+
+    // 기념일은 서버 집계에 없다 — 개체 응답의 해칭일·입양일에서 직접 만든다.
+    // 마커는 기록과 같은 줄에 찍히므로 가짜 카테고리 키로 얹는다.
+    final anniversaries = petAnniversariesInMonth(
+        ref.watch(petDetailProvider(widget.petId)).valueOrNull, _focusedDay);
+    for (final entry in anniversaries.entries) {
+      // 같은 날 여러 마리여도 종류당 하나만 — 셀 안에 아이콘이 줄줄이 서면 읽히지 않는다
+      final kinds = entry.value.map((a) => a.kind).toSet();
+      final marks = kinds.map(_annivCatOf).toList()..sort();
+      events.putIfAbsent(entry.key, () => []).insertAll(0, marks);
+    }
+    final selectedAnnivs =
+        anniversaries[_dateKey(_selectedDay)] ?? const <Anniversary>[];
 
     const weekKo = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -164,19 +197,21 @@ class _PetCalendarTabState extends ConsumerState<PetCalendarTab> {
                       padding: const EdgeInsets.only(bottom: 4),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
-                        children: cats
-                            .take(3)
-                            .map((c) => Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 1),
-                                  child: RecordTypeIcon(
+                        children: cats.take(3).map((c) {
+                          final kind = _annivKindOf(c);
+                          return Padding(
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 1),
+                            child: kind != null
+                                ? AnniversaryMark(kind: kind)
+                                : RecordTypeIcon(
                                     c,
                                     size: 11,
                                     color: PalePalette.catInk(c),
                                     fallback: Icons.circle,
                                   ),
-                                ))
-                            .toList(),
+                          );
+                        }).toList(),
                       ),
                     );
                   },
@@ -185,26 +220,35 @@ class _PetCalendarTabState extends ConsumerState<PetCalendarTab> {
               const SizedBox(height: 8),
 
               // ── 범례 ──
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: _calendarCats
-                    .map((c) => Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              RecordTypeIcon(c,
-                                  size: 12, color: PalePalette.catInk(c)),
-                              const SizedBox(width: 4),
-                              Text(_catLabel[c]!,
-                                  style: const TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.paleInk2)),
-                            ],
-                          ),
-                        ))
-                    .toList(),
+              // 기념일 두 종류가 붙어 한 줄에 6칸이 되므로 넘치면 줄바꿈시킨다
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 16,
+                runSpacing: 6,
+                children: [
+                  for (final c in _calendarCats)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        RecordTypeIcon(c,
+                            size: 12, color: PalePalette.catInk(c)),
+                        const SizedBox(width: 4),
+                        Text(_catLabel[c]!, style: _legendStyle),
+                      ],
+                    ),
+                  for (final kind in AnniversaryKind.values)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        AnniversaryMark(kind: kind, size: 12),
+                        const SizedBox(width: 4),
+                        Text(
+                          kind == AnniversaryKind.hatching ? '해칭일' : '입양일',
+                          style: _legendStyle,
+                        ),
+                      ],
+                    ),
+                ],
               ),
             ],
           ),
@@ -241,13 +285,26 @@ class _PetCalendarTabState extends ConsumerState<PetCalendarTab> {
         const SizedBox(height: 4),
 
         // ── 선택일 기록 목록 ─────────────────────────────────
-        _buildDayList(dayAsync),
+        // 기념일은 기록보다 위에 — 그 날의 성격을 먼저 알려준다
+        for (final a in selectedAnnivs)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+            child: AnniversaryRow(anniversary: a),
+          ),
+        if (selectedAnnivs.isNotEmpty)
+          const Divider(height: 1, color: AppColors.paleLineSoft),
+
+        _buildDayList(dayAsync, selectedAnnivs.isNotEmpty),
       ],
     );
   }
 
   /// 선택 날짜의 급여/체중/메모 기록 목록 (캘린더 아래 인라인)
-  Widget _buildDayList(AsyncValue<List<TimelineItem>> dayAsync) {
+  ///
+  /// [hasAnniversary] 면 기록이 없어도 빈 안내를 띄우지 않는다 —
+  /// 바로 위에 기념일 줄이 있는데 '기록이 없어요'가 따라붙으면 모순으로 읽힌다.
+  Widget _buildDayList(
+      AsyncValue<List<TimelineItem>> dayAsync, bool hasAnniversary) {
     return dayAsync.when(
       loading: () => const Padding(
         padding: EdgeInsets.symmetric(vertical: 20),
@@ -264,6 +321,7 @@ class _PetCalendarTabState extends ConsumerState<PetCalendarTab> {
         final filtered =
             items.where((r) => _calendarCats.contains(r.category)).toList();
         if (filtered.isEmpty) {
+          if (hasAnniversary) return const SizedBox.shrink();
           return const Padding(
             padding: EdgeInsets.symmetric(vertical: 20),
             child: Center(

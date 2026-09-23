@@ -9,6 +9,8 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../notification/providers/notification_provider.dart';
 import '../../pet/data/models/pet_models.dart';
+import '../../pet/data/anniversary.dart';
+import '../../pet/presentation/widgets/anniversary_view.dart';
 import '../../pet/providers/pet_provider.dart';
 import '../../record/providers/record_provider.dart';
 import '../../record/data/models/record_models.dart';
@@ -903,6 +905,12 @@ class _HomeCalendarState extends ConsumerState<_HomeCalendar> {
     final isCurrentMonth =
         _month.year == now.year && _month.month == now.month;
 
+    // 기념일은 서버 캘린더 집계에 없다(그 달에 쌓인 행을 세는 것이라 매년
+    // 돌아오는 날을 담을 자리가 없다). 개체 목록에 해칭일·입양일이 이미
+    // 실려 오므로 여기서 월/일만 맞춰 얹는다.
+    final anniversaries = anniversariesInMonth(
+        ref.watch(petListProvider).valueOrNull ?? const [], _month);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -978,6 +986,7 @@ class _HomeCalendarState extends ConsumerState<_HomeCalendar> {
               _CalendarGrid(
                 month: _month,
                 days: calAsync.valueOrNull ?? const [],
+                anniversaries: anniversaries,
                 today: now,
                 selDate: _selDate,
                 onSelect: _selectDate,
@@ -993,6 +1002,7 @@ class _HomeCalendarState extends ConsumerState<_HomeCalendar> {
             dateStr: _selDate!,
             weekKo: _weekKo,
             recordsAsync: dayAsync ?? const AsyncLoading(),
+            anniversaries: anniversaries[_selDate!] ?? const [],
           ),
         ],
       ],
@@ -1005,11 +1015,13 @@ class _DayRecordSection extends StatelessWidget {
   final String dateStr;
   final List<String> weekKo;
   final AsyncValue<List<RecentRecord>> recordsAsync;
+  final List<Anniversary> anniversaries;
 
   const _DayRecordSection({
     required this.dateStr,
     required this.weekKo,
     required this.recordsAsync,
+    required this.anniversaries,
   });
 
   static const _catOrder = ['FEEDING', 'WEIGHT', 'CLEANING', 'MEMO', 'MATING', 'LAYING'];
@@ -1056,6 +1068,26 @@ class _DayRecordSection extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
+
+        // 기념일 — 기록보다 위. 건수(N건)에는 세지 않는다, 기록이 아니니까.
+        if (anniversaries.isNotEmpty) ...[
+          Container(
+            width: double.infinity,
+            color: AppColors.card,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+            child: Column(
+              children: [
+                for (final a in anniversaries)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: AnniversaryRow(anniversary: a),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+
         recordsAsync.when(
           loading: () => const Padding(
             padding: EdgeInsets.symmetric(vertical: 16),
@@ -1063,6 +1095,10 @@ class _DayRecordSection extends StatelessWidget {
           ),
           error: (_, __) => const SizedBox.shrink(),
           data: (records) {
+            // 기념일 줄이 이미 있으면 '기록이 없어요'를 붙이지 않는다 — 모순으로 읽힌다
+            if (records.isEmpty && anniversaries.isNotEmpty) {
+              return const SizedBox.shrink();
+            }
             if (records.isEmpty) {
               return Container(
                 width: double.infinity,
@@ -1356,6 +1392,9 @@ class _CategoryDetailSheet extends StatelessWidget {
 class _CalendarGrid extends StatelessWidget {
   final DateTime month;
   final List<CalendarDay> days;
+
+  /// 'YYYY-MM-DD' → 그 날의 기념일. 기록이 아니라 파생값이라 [days] 와 따로 온다.
+  final Map<String, List<Anniversary>> anniversaries;
   final DateTime today;
   final String? selDate;
   final ValueChanged<String> onSelect;
@@ -1363,6 +1402,7 @@ class _CalendarGrid extends StatelessWidget {
   const _CalendarGrid({
     required this.month,
     required this.days,
+    required this.anniversaries,
     required this.today,
     required this.selDate,
     required this.onSelect,
@@ -1386,6 +1426,9 @@ class _CalendarGrid extends StatelessWidget {
           categories: recordMap[
                   '$ym-${d.toString().padLeft(2, '0')}'] ??
               const [],
+          anniversaries:
+              anniversaries['$ym-${d.toString().padLeft(2, '0')}'] ??
+                  const [],
           isToday: d == today.day &&
               month.year == today.year &&
               month.month == today.month,
@@ -1410,6 +1453,7 @@ class _DayCell extends StatelessWidget {
   final int day;
   final String dateStr;
   final List<String> categories;
+  final List<Anniversary> anniversaries;
   final bool isToday;
   final bool isSelected;
   final ValueChanged<String> onTap;
@@ -1418,6 +1462,7 @@ class _DayCell extends StatelessWidget {
     required this.day,
     required this.dateStr,
     required this.categories,
+    required this.anniversaries,
     required this.isToday,
     required this.isSelected,
     required this.onTap,
@@ -1432,6 +1477,13 @@ class _DayCell extends StatelessWidget {
         'LAYING'   => AppColors.catLayingInk,
         _ => AppColors.textDisabled,
       };
+
+  /// 이 날 찍을 기념일 종류 (해칭 먼저, 중복 제거)
+  List<AnniversaryKind> get _annivKinds {
+    final kinds = anniversaries.map((a) => a.kind).toSet().toList();
+    kinds.sort((a, b) => a.index.compareTo(b.index));
+    return kinds;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1459,18 +1511,29 @@ class _DayCell extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          if (categories.isNotEmpty)
+          if (categories.isNotEmpty || anniversaries.isNotEmpty)
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: categories.take(3).map((c) => Container(
-                    width: 4,
-                    height: 4,
-                    margin: const EdgeInsets.symmetric(horizontal: 1),
-                    decoration: BoxDecoration(
-                      color: _catColor(c),
-                      shape: BoxShape.circle,
-                    ),
-                  )).toList(),
+              children: [
+                // 기념일 먼저 — 같은 날 여러 마리여도 종류당 하나만 찍는다.
+                // 셀이 한 줄뿐이라 마릿수까지 세면 점이 밀려 안 보인다.
+                for (final kind in _annivKinds)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 1),
+                    child: AnniversaryMark(kind: kind, size: 9),
+                  ),
+                ...categories
+                    .take(3 - _annivKinds.length)
+                    .map((c) => Container(
+                          width: 4,
+                          height: 4,
+                          margin: const EdgeInsets.symmetric(horizontal: 1),
+                          decoration: BoxDecoration(
+                            color: _catColor(c),
+                            shape: BoxShape.circle,
+                          ),
+                        )),
+              ],
             )
           else
             const SizedBox(height: 8),
