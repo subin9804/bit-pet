@@ -16,7 +16,10 @@ import '../data/record_repository.dart';
 import '../providers/record_invalidation.dart';
 import '../providers/record_provider.dart';
 import '../../pet/providers/pet_provider.dart';
+import '../../pet/data/pet_repository.dart';
+import '../../pet/data/models/pet_models.dart';
 import '../../../core/theme/app_dimens.dart';
+import '../../../core/widgets/pet_avatar.dart';
 
 const _weekKo = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -204,8 +207,27 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
         }
       } else if (widget.recordType == 'mating') {
         final memo = (e.form['memo'] as String).trim();
+
+        // 서버는 petIdMale/petIdFemale 중 **최소 하나가 내 개체**여야 받아준다
+        // (`MATING_OWNER_REQUIRED`). 예전엔 둘 다 안 보내서 무조건 400 이었다.
+        // 이 화면의 개체를 제 성별 자리에 넣고, 반대편에 파트너를 넣는다.
+        final self = ref.read(petDetailProvider(widget.petId)).valueOrNull;
+        final gender = self?.gender;
+        if (gender != 'MALE' && gender != 'FEMALE') {
+          showToast(context,
+              '개체의 성별이 정해져야 교배를 기록할 수 있어요. 개체 정보에서 성별을 먼저 지정해 주세요.',
+              type: ToastType.warning);
+          return;
+        }
+        final partnerId = e.form['partnerPetId'] as int?;
+        final malePetId   = gender == 'MALE'   ? widget.petId : partnerId;
+        final femalePetId = gender == 'FEMALE' ? widget.petId : partnerId;
+
         final data = {
+          if (malePetId != null) 'petIdMale': malePetId,
+          if (femalePetId != null) 'petIdFemale': femalePetId,
           'triedAt': dateTime,
+          'seasonLabel': DateTime.parse(e.dateStr).year.toString(),
           if (e.form['isSuccessful'] != null)
             'isSuccessful': e.form['isSuccessful'],
           if (memo.isNotEmpty) 'memo': memo,
@@ -220,7 +242,9 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
         final memo = (e.form['memo'] as String).trim();
         final data = {
           'laidAt': dateTime,
-          'totalCount': cnt,
+          // 서버 필드명은 `eggCountTotal`(@NotNull @Min(1)).
+          // `totalCount` 로 보내면 알맹이가 없는 요청이 되어 400 이 떨어진다.
+          'eggCountTotal': cnt,
           if (memo.isNotEmpty) 'memo': memo,
         };
         if (e.isEdit && e.editId != null) {
@@ -320,6 +344,7 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
           ),
           if (_editor != null)
             _EditorSheet(
+              petId: widget.petId,
               recordType: widget.recordType,
               editor: _editor!,
               accentColor: _meta.accent,
@@ -366,7 +391,8 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
   Map<String, dynamic> _defaultForm() => switch (widget.recordType) {
     'cleaning' => {'cleaningType': CleaningType.FULL, 'memo': ''},
     'memo'     => {'content': '', 'tags': <String>[], 'memo': ''},
-    'mating'   => {'isSuccessful': null, 'memo': ''},
+    'mating'   => {'isSuccessful': null, 'partnerPetId': null,
+                   'partnerLabel': null, 'memo': ''},
     'laying'   => {'totalCount': 1, 'memo': ''},
     _ => {},
   };
@@ -387,7 +413,15 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
         };
       case 'mating':
         final r = entry.raw as MatingRecord;
-        return {'isSuccessful': r.isSuccessful, 'memo': r.memo ?? ''};
+        // 파트너 = 이 기록에서 '내 개체가 아닌 쪽'. 성별을 따지지 않아도
+        // 어느 칸에 내가 들어가 있는지만 보면 반대편이 곧 파트너다.
+        final isMale = r.malePetId == widget.petId;
+        return {
+          'isSuccessful': r.isSuccessful,
+          'partnerPetId': isMale ? r.femalePetId : r.malePetId,
+          'partnerLabel': isMale ? r.femalePetName : r.malePetName,
+          'memo': r.memo ?? '',
+        };
       case 'laying':
         final r = entry.raw as LayingRecord;
         return {'totalCount': r.totalCount, 'memo': r.memo ?? ''};
@@ -554,15 +588,24 @@ class _RecordCard extends StatelessWidget {
         children: [
           if (showDate)
             SizedBox(
-              width: 42,
+              // 42로는 시각('14:30', 12sp 고정폭 5글자)이 간당간당해서
+              // 기기 폰트 배율에 따라 줄바꿈되고, 그만큼 카드가 세로로
+              // 늘어나 목록 전체에 빈 공간이 생긴다. 폭을 넉넉히 주고
+              // 줄바꿈 자체를 막는다.
+              width: 52,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Text(entry.dateStr.substring(8), style: AppTextStyles.monoBody),
+                  Text(entry.dateStr.substring(8),
+                      maxLines: 1, softWrap: false,
+                      style: AppTextStyles.monoBody),
                   Text('${int.parse(entry.dateStr.substring(5, 7))}월',
+                      maxLines: 1, softWrap: false,
                       style: AppTextStyles.monoXxs),
                   const SizedBox(height: 4),
-                  Text(entry.timeStr, style: AppTextStyles.monoXxs),
+                  Text(entry.timeStr,
+                      maxLines: 1, softWrap: false,
+                      style: AppTextStyles.monoXxs),
                 ],
               ),
             ),
@@ -781,9 +824,16 @@ class _DaySheet extends StatelessWidget {
       maxChildSize: 0.9,
       expand: false,
       builder: (context, scrollCtrl) => Container(
+        // 위쪽 모서리만 둥글게. 테두리는 Border.all 로 둔다 —
+        // BoxDecoration 은 모서리가 둥글면 균일한 테두리만 허용해서
+        // Border(top: …) 과 borderRadius 를 같이 쓰면 런타임에 죽는다.
+        // (아래쪽 선은 화면 밖으로 나가 보이지 않는다)
+        clipBehavior: Clip.antiAlias,
         decoration: const BoxDecoration(
           color: AppColors.paleBg,
-          border: Border(top: BorderSide(color: AppColors.paleLine, width: 1.5)),
+          border: Border.fromBorderSide(
+              BorderSide(color: AppColors.paleLine, width: 1.5)),
+          borderRadius: AppRadius.brSheet,
         ),
         child: Column(
           children: [
@@ -967,6 +1017,7 @@ class _RecordListViewState extends State<_RecordListView> {
 
 // ── 에디터 시트 ──────────────────────────────────────────────────
 class _EditorSheet extends StatefulWidget {
+  final int petId;
   final String recordType;
   final _EditorState editor;
   final Color accentColor;
@@ -976,7 +1027,7 @@ class _EditorSheet extends StatefulWidget {
   final VoidCallback onClose;
 
   const _EditorSheet({
-    required this.recordType, required this.editor,
+    required this.petId, required this.recordType, required this.editor,
     required this.accentColor, required this.onChanged,
     required this.onSave, required this.onDelete, required this.onClose,
   });
@@ -1280,6 +1331,21 @@ class _EditorSheetState extends State<_EditorSheet> {
 
                       // ── 교배 ──────────────────────────────
                       if (widget.recordType == 'mating') ...[
+                        // 파트너를 지정해야 상대 개체의 기록탭에도 같은 교배가 뜬다
+                        // (서버는 암수 어느 쪽이든 걸려 있으면 목록에 포함시킨다).
+                        _MatingPartnerField(
+                          petId: widget.petId,
+                          partnerPetId: e.form['partnerPetId'] as int?,
+                          partnerLabel: e.form['partnerLabel'] as String?,
+                          onPicked: (id, label) {
+                            widget.onChanged(e.copyWith(form: {
+                              ...e.form,
+                              'partnerPetId': id,
+                              'partnerLabel': label,
+                            }));
+                          },
+                        ),
+                        const SizedBox(height: 16),
                         const Text('결과',
                             style: TextStyle(fontSize: 12,
                                 fontWeight: FontWeight.w700,
@@ -1493,6 +1559,275 @@ class _EditorSheetState extends State<_EditorSheet> {
           ),
         ),
       ]),
+    );
+  }
+}
+
+// ── 교배 파트너 선택 ────────────────────────────────────────────
+//
+// FAB 기록 시트에만 있던 것을 기록 상세의 추가/수정 폼으로도 옮겨 왔다.
+// 서버는 `petIdMale`/`petIdFemale` 중 최소 하나가 내 개체여야 기록을 받고,
+// 목록 쿼리는 암수 **어느 쪽이든** 그 개체가 걸린 교배를 돌려준다
+// (`MatingDtlSpecs.filter`). 즉 여기서 파트너를 지정하면 그 개체의
+// 기록탭에도 같은 교배가 자동으로 뜬다 — 같은 기록을 두 번 쓰지 않는다.
+class _MatingPartnerField extends ConsumerStatefulWidget {
+  final int petId;
+  final int? partnerPetId;
+  final String? partnerLabel;
+  final void Function(int? id, String? label) onPicked;
+
+  const _MatingPartnerField({
+    required this.petId,
+    required this.partnerPetId,
+    required this.partnerLabel,
+    required this.onPicked,
+  });
+
+  @override
+  ConsumerState<_MatingPartnerField> createState() =>
+      _MatingPartnerFieldState();
+}
+
+class _MatingPartnerFieldState extends ConsumerState<_MatingPartnerField> {
+  final _serialCtrl = TextEditingController();
+  bool _external = false;
+  bool _searching = false;
+  String? _searchError;
+
+  @override
+  void dispose() {
+    _serialCtrl.dispose();
+    super.dispose();
+  }
+
+  // 일련번호로 남의 개체 찾기 — 정확히 일치해야만 열린다 (목록 열람은 없다)
+  Future<void> _search(String speciesName) async {
+    final q = _serialCtrl.text.trim().toUpperCase();
+    if (q.isEmpty) return;
+    setState(() {
+      _searching = true;
+      _searchError = null;
+    });
+    try {
+      final found = await ref.read(petRepositoryProvider).findBySerial(q);
+      if (!mounted) return;
+      if (found == null) {
+        setState(() => _searchError = '검색 결과 없음 (비공개이거나 없는 일련번호)');
+      } else if (speciesName.isNotEmpty && found.speciesName != speciesName) {
+        setState(() =>
+            _searchError = '같은 종만 파트너로 지정할 수 있어요 (${found.speciesName})');
+      } else {
+        widget.onPicked(found.id, found.name);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _searchError = '검색 중 오류가 발생했어요');
+    } finally {
+      if (mounted) setState(() => _searching = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final self = ref.watch(petDetailProvider(widget.petId)).valueOrNull;
+    final myPets =
+        ref.watch(petListProvider).whenOrNull(data: (l) => l) ?? const <Pet>[];
+
+    // 성별이 없으면 서버가 암수 어느 칸에도 넣어주지 않는다(400).
+    // 파트너를 고르게 두기 전에 이 사실부터 알린다.
+    if (self != null && self.gender != 'MALE' && self.gender != 'FEMALE') {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.paleBgAlt,
+          border: Border.all(color: AppColors.paleLine),
+          borderRadius: AppRadius.brMd,
+        ),
+        child: const Text(
+          '이 개체의 성별이 지정되어 있지 않아 교배를 기록할 수 없어요.\n'
+          '개체 정보에서 성별을 먼저 지정해 주세요.',
+          style: TextStyle(fontSize: 12, color: AppColors.paleInk2, height: 1.5),
+        ),
+      );
+    }
+
+    // 후보: 같은 종 · 반대 성별 · 자기 자신 제외
+    final wantMale = self?.gender == 'FEMALE';
+    final candidates = myPets
+        .where((p) =>
+            p.id != widget.petId &&
+            (self == null || p.speciesName == self.speciesName) &&
+            p.gender == (wantMale ? 'MALE' : 'FEMALE'))
+        .toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(children: [
+          const Text('파트너',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700,
+                  color: AppColors.primary)),
+          const SizedBox(width: 8),
+          Text('OPTIONAL', style: AppTextStyles.monoXxs),
+        ]),
+        const SizedBox(height: 8),
+
+        // 이미 고른 파트너 — 한 줄로 보여주고 해제만 시킨다
+        if (widget.partnerPetId != null)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              border: Border.all(color: AppColors.paleLine),
+              borderRadius: AppRadius.brMd,
+            ),
+            child: Row(children: [
+              const Icon(Icons.favorite, size: 14, color: AppColors.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  widget.partnerLabel ?? '개체 #${widget.partnerPetId}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 13,
+                      fontWeight: FontWeight.w700, color: AppColors.primary),
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  _serialCtrl.clear();
+                  widget.onPicked(null, null);
+                },
+                child: const Icon(Icons.close, size: 16,
+                    color: AppColors.paleInk2),
+              ),
+            ]),
+          )
+        else ...[
+          Row(children: [
+            Expanded(
+              child: AppChip(
+                label: '내 개체',
+                selected: !_external,
+                centered: true,
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                onTap: () => setState(() {
+                  _external = false;
+                  _searchError = null;
+                }),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: AppChip(
+                label: '외부 개체',
+                selected: _external,
+                centered: true,
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                onTap: () => setState(() {
+                  _external = true;
+                  _searchError = null;
+                }),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 8),
+          if (_external) ...[
+            Row(children: [
+              Expanded(
+                child: TextField(
+                  controller: _serialCtrl,
+                  textCapitalization: TextCapitalization.characters,
+                  style: const TextStyle(fontSize: 14, color: AppColors.primary),
+                  decoration:
+                      AppInputStyles.textarea(hintText: '일련번호 (예: AB12CD34)'),
+                  onChanged: (_) => setState(() => _searchError = null),
+                  onSubmitted: (_) => _search(self?.speciesName ?? ''),
+                ),
+              ),
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: _searching ? null : () => _search(self?.speciesName ?? ''),
+                child: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: AppRadius.brMd,
+                  ),
+                  child: _searching
+                      ? const Padding(
+                          padding: EdgeInsets.all(16),
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.search, size: 20, color: Colors.white),
+                ),
+              ),
+            ]),
+            if (_searchError != null) ...[
+              const SizedBox(height: 6),
+              Text(_searchError!,
+                  style: const TextStyle(fontSize: 12,
+                      color: AppColors.warning)),
+            ],
+          ] else
+            Container(
+              constraints: const BoxConstraints(maxHeight: 168),
+              decoration: BoxDecoration(
+                color: AppColors.card,
+                border: Border.all(color: AppColors.paleLine),
+                borderRadius: AppRadius.brMd,
+              ),
+              child: candidates.isEmpty
+                  ? const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Center(
+                        child: Text('같은 종의 반대 성별 개체가 없어요',
+                            style: TextStyle(fontSize: 12,
+                                color: AppColors.paleInk3)),
+                      ),
+                    )
+                  : ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: candidates.length,
+                      separatorBuilder: (_, __) => const Divider(
+                          height: 1, color: AppColors.paleLineSoft),
+                      itemBuilder: (_, i) {
+                        final p = candidates[i];
+                        return GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => widget.onPicked(p.id, p.name),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
+                            child: Row(children: [
+                              PetAvatar(
+                                imageUrl: p.profileImageUrl,
+                                size: 30,
+                                background: AppColors.paleBgAlt,
+                                iconColor: AppColors.paleInk2,
+                                subcategory: p.speciesSubcategory,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(p.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.primary)),
+                              ),
+                              Text(p.gender == 'MALE' ? '♂' : '♀',
+                                  style: const TextStyle(fontSize: 13,
+                                      color: AppColors.paleInk2)),
+                            ]),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+        ],
+      ],
     );
   }
 }

@@ -196,6 +196,11 @@ class MatingRecord {
   final int id;
   final int? malePetId;
   final int? femalePetId;
+  /// 상대 개체 이름 — 서버가 `petMaleSummary`/`petFemaleSummary` 로 같이 내려준다.
+  /// 이름을 들고 있지 않으면 수정 폼에서 파트너를 'id #12' 로밖에 못 보여준다.
+  final String? malePetName;
+  final String? femalePetName;
+  final String? externalPartnerText;
   final DateTime triedAt;
   final String? seasonLabel;
   final bool? isSuccessful;
@@ -206,6 +211,9 @@ class MatingRecord {
     required this.id,
     this.malePetId,
     this.femalePetId,
+    this.malePetName,
+    this.femalePetName,
+    this.externalPartnerText,
     required this.triedAt,
     this.seasonLabel,
     this.isSuccessful,
@@ -214,9 +222,16 @@ class MatingRecord {
   });
 
   factory MatingRecord.fromJson(Map<String, dynamic> json) => MatingRecord(
-        id: json['id'] as int,
-        malePetId: json['malePetId'] as int?,
-        femalePetId: json['femalePetId'] as int?,
+        // 서버 키는 `matingId`(`MatingResponse`). `id` 는 폴백일 뿐이다 —
+        // 예전엔 `id` 만 읽어서 교배 기록이 한 건이라도 있으면 목록이 통째로 터졌다.
+        id: (json['matingId'] ?? json['id']) as int,
+        malePetId: (json['petIdMale'] ?? json['malePetId']) as int?,
+        femalePetId: (json['petIdFemale'] ?? json['femalePetId']) as int?,
+        malePetName:
+            (json['petMaleSummary'] as Map<String, dynamic>?)?['name'] as String?,
+        femalePetName:
+            (json['petFemaleSummary'] as Map<String, dynamic>?)?['name'] as String?,
+        externalPartnerText: json['externalPartnerText'] as String?,
         triedAt: DateTime.parse(json['triedAt'] as String),
         seasonLabel: json['seasonLabel'] as String?,
         isSuccessful: json['isSuccessful'] as bool?,
@@ -247,9 +262,11 @@ class HatchRecord {
   });
 
   factory HatchRecord.fromJson(Map<String, dynamic> json) => HatchRecord(
-        id: json['id'] as int,
-        layingId: json['layingId'] as int,
-        eggIndex: json['eggIndex'] as int,
+        // 서버 키는 `hatchId`(`HatchResponse`). 그 응답엔 layingId·eggIndex 가
+        // 아예 없어서(부모 산란 기록 안에 배열로 들어온다) 기본값으로 받는다.
+        id: (json['hatchId'] ?? json['id']) as int,
+        layingId: (json['layingId'] as int?) ?? 0,
+        eggIndex: (json['eggIndex'] as int?) ?? 0,
         status: HatchStatus.values.firstWhere(
           (e) => e.name == json['status'],
           orElse: () => HatchStatus.PENDING,
@@ -281,10 +298,11 @@ class LayingRecord {
   });
 
   factory LayingRecord.fromJson(Map<String, dynamic> json) => LayingRecord(
-        id: json['id'] as int,
-        petId: json['petId'] as int,
+        // 서버 키는 `layingId` / `eggCountTotal`(`LayingResponse`).
+        id: (json['layingId'] ?? json['id']) as int,
+        petId: (json['petId'] as int?) ?? 0,
         laidAt: DateTime.parse(json['laidAt'] as String),
-        totalCount: json['totalCount'] as int,
+        totalCount: ((json['eggCountTotal'] ?? json['totalCount']) as num).toInt(),
         memo: json['memo'] as String?,
         hatches: (json['hatches'] as List?)
                 ?.map((e) => HatchRecord.fromJson(e as Map<String, dynamic>))

@@ -9,6 +9,7 @@
 
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_dimens.dart';
 import '../theme/app_text_styles.dart';
 import 'app_buttons.dart';
 
@@ -222,21 +223,28 @@ class _DayCell extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // 날짜 숫자 — 오늘은 채운 원으로 구분한다 (선택 강조와 겹쳐도 읽힌다)
+            // 날짜 숫자 — 오늘은 채운 배지로 구분한다 (선택 강조와 겹쳐도 읽힌다)
+            //
+            // ⚠️ 폭을 18로 고정하면 두 자리 날짜가 배지 안에서 줄바꿈되어
+            // 둘째 자리가 잘려 나간다(23일 → '2'만 보임). 글자 수에 따라
+            // 늘어나는 알약 모양으로 두고, 줄바꿈 자체를 막는다.
             SizedBox(
               height: 18,
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: isToday
                     ? Container(
-                        width: 18,
                         height: 18,
+                        constraints: const BoxConstraints(minWidth: 18),
+                        padding: const EdgeInsets.symmetric(horizontal: 5),
                         alignment: Alignment.center,
                         decoration: const BoxDecoration(
                           color: AppColors.primary,
-                          shape: BoxShape.circle,
+                          borderRadius: AppRadius.brPill,
                         ),
                         child: Text('$day',
+                            maxLines: 1,
+                            softWrap: false,
                             style: AppTextStyles.mono(11, FontWeight.w700,
                                 color: AppColors.paleBg)),
                       )
