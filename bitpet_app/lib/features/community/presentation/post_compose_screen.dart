@@ -7,6 +7,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_input_styles.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/upload/image_upload.dart';
+import '../../../core/widgets/app_network_image.dart';
+import '../data/models/post_models.dart';
 import '../providers/post_provider.dart';
 import '../../../core/theme/app_dimens.dart';
 
@@ -33,22 +35,35 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
 
     if (widget.isEdit) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        final postAsync = ref.read(postDetailProvider(widget.postId!));
-        postAsync.whenOrNull(data: (post) {
-          if (post != null) {
-            ref.read(composeProvider.notifier).prefill(post);
-            setState(() {
-              _titleCtrl.text = post.title;
-              _bodyCtrl.text = post.content;
-            });
-          }
-        });
+        if (!mounted) return;
+        final provider = postDetailProvider(widget.postId!);
+        _prefill(ref.read(provider));
+        // 상세를 아직 못 받았으면(딥링크로 곧장 수정에 들어온 경우) 올 때까지 기다린다.
+        // 예전엔 이 순간에 데이터가 없으면 폼이 영영 빈 채로 남았다.
+        _prefillSub = ref.listenManual(provider, (_, next) => _prefill(next));
       });
     }
   }
 
+  bool _prefilled = false;
+  ProviderSubscription<AsyncValue<Post?>>? _prefillSub;
+
+  /// 딱 한 번만 채운다 — 상세가 다시 로드될 때마다 덮으면 사용자가 고치던 내용이 날아간다.
+  void _prefill(AsyncValue<Post?> detail) {
+    if (_prefilled || !mounted) return;
+    final post = detail.valueOrNull;
+    if (post == null) return;
+    _prefilled = true;
+    ref.read(composeProvider.notifier).prefill(post);
+    setState(() {
+      _titleCtrl.text = post.title;
+      _bodyCtrl.text = post.content;
+    });
+  }
+
   @override
   void dispose() {
+    _prefillSub?.close();
     _titleCtrl.dispose();
     _bodyCtrl.dispose();
     super.dispose();
@@ -70,6 +85,13 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
           ref.invalidate(feedProvider);
           context.go('/community');
         }
+      }
+    } on PhotoUploadFailure catch (e) {
+      // 글 본문은 저장된 상태다. 화면을 닫지 않고 남겨서 실패한 사진만 다시 올리게 한다
+      // ('등록'을 다시 눌러도 글이 또 만들어지지는 않는다).
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('$e')));
       }
     } catch (e) {
       if (mounted) {
@@ -187,12 +209,13 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
                   // ── 사진 첨부 (선택, 최대 5장) ──────────────────
                   _Field(
                     label: '사진',
-                    hint: '최대 5장까지 첨부할 수 있어요.',
+                    hint: '최대 $kMaxPostPhotos장까지 첨부할 수 있어요. 한 번에 여러 장 고를 수 있어요.',
                     child: Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        ...state.images.asMap().entries.map((e) => Stack(
+                        // 이미 올린 사진과 방금 고른 사진이 한 줄에 같이 온다.
+                        ...state.attachments.asMap().entries.map((e) => Stack(
                               children: [
                                 Container(
                                   width: 78,
@@ -200,8 +223,13 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
                                   clipBehavior: Clip.hardEdge,
                                   decoration: const BoxDecoration(
                                       color: AppColors.paleBgAlt),
-                                  child: Image.memory(e.value.bytes,
-                                      fit: BoxFit.cover),
+                                  child: e.value.isExisting
+                                      ? AppNetworkImage(e.value.url,
+                                          width: 78,
+                                          height: 78,
+                                          memWidth: 200)
+                                      : Image.memory(e.value.picked!.bytes,
+                                          fit: BoxFit.cover),
                                 ),
                                 Positioned(
                                   top: 2,
@@ -209,7 +237,7 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
                                   child: GestureDetector(
                                     onTap: () => ref
                                         .read(composeProvider.notifier)
-                                        .removeImage(e.key),
+                                        .removeAttachment(e.key),
                                     child: Container(
                                       padding: const EdgeInsets.all(4),
                                       color: Colors.black54,
@@ -220,17 +248,17 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
                                 ),
                               ],
                             )),
-                        if (state.images.length < 5)
+                        if (state.remainingSlots > 0)
                           GestureDetector(
                             onTap: () async {
+                              // 남은 칸만큼만 고르게 한다 (한 칸이면 단일 선택기가 뜬다).
                               final picked = await ref
                                   .read(imageUploadServiceProvider)
-                                  .pickFromGallery();
-                              if (picked != null) {
-                                ref
-                                    .read(composeProvider.notifier)
-                                    .addImage(picked);
-                              }
+                                  .pickMultiFromGallery(
+                                      limit: state.remainingSlots);
+                              ref
+                                  .read(composeProvider.notifier)
+                                  .addImages(picked);
                             },
                             child: Container(
                               width: 78,
@@ -247,7 +275,8 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
                                   const Icon(Icons.camera_alt_outlined,
                                       size: 20, color: AppColors.paleInk2),
                                   const SizedBox(height: 4),
-                                  Text('${state.images.length}/5',
+                                  Text(
+                                      '${state.attachments.length}/$kMaxPostPhotos',
                                       style: AppTextStyles.monoXs.copyWith(
                                           fontWeight: FontWeight.w600,
                                           color: AppColors.paleInk2)),

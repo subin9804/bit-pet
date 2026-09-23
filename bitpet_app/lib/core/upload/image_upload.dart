@@ -23,7 +23,7 @@ class PickedImage {
 }
 
 /// 이미지 업로드 공용 헬퍼.
-/// - 갤러리에서 이미지 1장 선택
+/// - 갤러리에서 이미지 선택 (1장 / 여러 장)
 /// - presigned PUT URL로 S3(LocalStack)에 직접 업로드
 ///
 /// presign/register(등록)는 각 도메인 repository가 담당하고,
@@ -49,6 +49,31 @@ class ImageUploadService {
       filename: name,
       contentType: contentTypeFor(name),
     );
+  }
+
+  /// 갤러리에서 여러 장 선택. 취소하면 빈 목록.
+  ///
+  /// [limit] 은 "앞으로 몇 장 더 받을 수 있는가"(= 최대치 − 이미 고른 수)다. 남은 칸을
+  /// 넘겨주면 갤러리가 그 수만큼만 고르게 막아준다 — 다 고르고 나서 "5장까지예요" 라고
+  /// 돌려보내는 것보다 낫다. 그래도 플랫폼이 무시할 수 있으니 호출부에서 한 번 더 자른다.
+  ///
+  /// `limit: 1` 도 안전하다 — image_picker 가 알아서 단일 선택기로 넘긴다.
+  Future<List<PickedImage>> pickMultiFromGallery({int? limit}) async {
+    final xs = await _picker.pickMultiImage(
+      imageQuality: 85,
+      maxWidth: 2000,
+      limit: limit,
+    );
+    final out = <PickedImage>[];
+    for (final x in xs) {
+      final bytes = await x.readAsBytes();
+      out.add(PickedImage(
+        bytes: bytes,
+        filename: x.name,
+        contentType: contentTypeFor(x.name),
+      ));
+    }
+    return out;
   }
 
   /// 짧은 변 [kThumbMaxEdge]px 기준 JPEG 썸네일을 만든다. 실패하면 null — 호출부는 썸네일 없이

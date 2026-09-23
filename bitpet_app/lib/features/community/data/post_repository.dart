@@ -34,6 +34,11 @@ class PostRepository {
     });
   }
 
+  /// 이미 올라간 사진 1장 삭제 (수정 화면에서 X 를 누른 경우)
+  Future<void> deletePostPhoto(int postId, int photoId) async {
+    await _dio.delete('/posts/$postId/photos/$photoId');
+  }
+
   // ── 카테고리 ────────────────────────────────────────────────────────
   Future<List<PostCategory>> getCategories() async {
     final res = await _dio.get('/post-categories');

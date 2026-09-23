@@ -11,6 +11,7 @@ import '../data/models/post_models.dart';
 import '../data/models/report_models.dart';
 import '../data/post_repository.dart';
 import '../providers/post_provider.dart';
+import 'post_photo_carousel.dart';
 import 'report_actions.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/widgets/app_network_image.dart';
@@ -273,16 +274,10 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                     ),
                     const SizedBox(height: 20),
 
-                    // 첨부 사진
-                    ...post.photoUrls.map((url) => Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: AppNetworkImage(
-                            url,
-                            width: double.infinity,
-                            fit: BoxFit.fitWidth,
-                            placeholder: const SizedBox.shrink(),
-                          ),
-                        )),
+                    // 첨부 사진 — 세로로 쌓지 않고 한 칸짜리 캐러셀로 넘겨 본다.
+                    // (탭하면 전체화면, 개체 갤러리 뷰어와 같은 조작)
+                    if (post.photos.isNotEmpty)
+                      PostPhotoCarousel(post.photoUrls),
 
                     // 좋아요 — 가려진 글에는 달지 않는다
                     if (!post.isBlinded) Row(

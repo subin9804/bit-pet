@@ -186,18 +186,48 @@ final commentsProvider =
 });
 
 // ── 글쓰기/수정 상태 ──────────────────────────────────────────────────
+
+/// 사진 첨부 칸 하나. **이미 서버에 올라간 사진**과 **방금 고른 사진**이 한 줄에 섞인다.
+/// 수정 화면에서 기존 사진을 보여주려면 둘을 같은 목록으로 다뤄야 순서·개수(5장)를
+/// 한 군데서 셀 수 있다.
+class ComposeAttachment {
+  final int? photoId; // 서버에 있는 사진
+  final String? url; // 그 사진의 presigned view URL
+  final PickedImage? picked; // 새로 고른 사진 (아직 안 올라감)
+
+  const ComposeAttachment.existing(int this.photoId, String this.url)
+      : picked = null;
+  // 이름이 `picked` 가 아닌 건 Dart 에서 생성자와 필드가 같은 이름을 못 쓰기 때문.
+  const ComposeAttachment.added(PickedImage this.picked)
+      : photoId = null,
+        url = null;
+
+  bool get isExisting => photoId != null;
+}
+
+/// 첨부 사진 업로드가 일부/전부 실패했을 때. 글 본문은 이미 저장된 뒤라
+/// "저장 실패"로 뭉뚱그리면 안 된다 — 사진만 다시 올리면 되는 상태다.
+class PhotoUploadFailure implements Exception {
+  final int failed;
+  const PhotoUploadFailure(this.failed);
+  @override
+  String toString() => '사진 $failed장을 올리지 못했어요. 다시 시도해 주세요.';
+}
+
+const int kMaxPostPhotos = 5;
+
 class ComposeState {
   final int? categoryId;
   final String title;
   final String body;
-  final List<PickedImage> images; // 첨부 이미지 (최대 5장)
+  final List<ComposeAttachment> attachments; // 첨부 사진 (최대 5장)
   final bool isSubmitting;
 
   const ComposeState({
     this.categoryId,
     this.title = '',
     this.body = '',
-    this.images = const [],
+    this.attachments = const [],
     this.isSubmitting = false,
   });
 
@@ -205,19 +235,21 @@ class ComposeState {
     int? categoryId,
     String? title,
     String? body,
-    List<PickedImage>? images,
+    List<ComposeAttachment>? attachments,
     bool? isSubmitting,
   }) =>
       ComposeState(
         categoryId: categoryId ?? this.categoryId,
         title: title ?? this.title,
         body: body ?? this.body,
-        images: images ?? this.images,
+        attachments: attachments ?? this.attachments,
         isSubmitting: isSubmitting ?? this.isSubmitting,
       );
 
   bool get canSubmit =>
       categoryId != null && title.trim().isNotEmpty && body.trim().isNotEmpty;
+
+  int get remainingSlots => kMaxPostPhotos - attachments.length;
 }
 
 final composeProvider =
@@ -229,12 +261,24 @@ class ComposeNotifier extends StateNotifier<ComposeState> {
   final PostRepository _repo;
   ComposeNotifier(this._repo) : super(const ComposeState());
 
+  /// 새 글에서 본문 저장까지는 됐는데 사진에서 막힌 경우. 다시 '등록'을 누르면
+  /// 글을 또 만들지 않고 **남은 사진만** 이어서 올린다.
+  Post? _createdPost;
+
+  /// 수정 화면에서 X 를 누른 기존 사진들. 저장을 눌러야 실제로 지운다 —
+  /// 누르자마자 지우면 '취소'로 나가도 사진이 이미 사라져 있다.
+  final List<int> _removedPhotoIds = [];
+
   void prefill(Post post) {
     state = ComposeState(
       categoryId: post.categoryId,
       title: post.title,
       body: post.content,
+      attachments: post.photos
+          .map((p) => ComposeAttachment.existing(p.id, p.url))
+          .toList(),
     );
+    _removedPhotoIds.clear();
   }
 
   void setCategory(int categoryId) =>
@@ -242,31 +286,63 @@ class ComposeNotifier extends StateNotifier<ComposeState> {
   void setTitle(String v) => state = state.copyWith(title: v);
   void setBody(String v) => state = state.copyWith(body: v);
 
-  void addImage(PickedImage image) {
-    if (state.images.length >= 5) return;
-    state = state.copyWith(images: [...state.images, image]);
+  /// 고른 사진들을 남은 칸만큼만 받는다. 갤러리가 limit 을 무시해도 여기서 잘린다.
+  void addImages(List<PickedImage> images) {
+    if (images.isEmpty) return;
+    final room = state.remainingSlots;
+    if (room <= 0) return;
+    state = state.copyWith(attachments: [
+      ...state.attachments,
+      ...images.take(room).map(ComposeAttachment.added),
+    ]);
   }
 
-  void removeImage(int index) {
-    final next = [...state.images]..removeAt(index);
-    state = state.copyWith(images: next);
+  void removeAttachment(int index) {
+    final next = [...state.attachments];
+    final removed = next.removeAt(index);
+    if (removed.photoId != null) _removedPhotoIds.add(removed.photoId!);
+    state = state.copyWith(attachments: next);
+  }
+
+  /// 아직 안 올라간 사진들을 순서대로 올린다. 올라간 것은 목록에서 빼서
+  /// 재시도할 때 같은 사진이 두 번 올라가지 않게 한다.
+  ///
+  /// ⛔ 실패를 삼키지 말 것. 예전엔 `catch (_) {}` 라서 두 번째 장부터 조용히
+  /// 사라져도 사용자도 우리도 알 방법이 없었다.
+  Future<void> _uploadPending(int postId, {required int startOrder}) async {
+    var order = startOrder;
+    var failed = 0;
+    final remaining = <ComposeAttachment>[];
+
+    for (final a in state.attachments) {
+      if (a.picked == null) {
+        remaining.add(a);
+        continue;
+      }
+      try {
+        await _repo.uploadPostPhoto(postId, a.picked!, order++);
+      } catch (_) {
+        failed++;
+        remaining.add(a); // 실패한 것만 남겨 다시 시도할 수 있게
+      }
+    }
+
+    if (mounted) state = state.copyWith(attachments: remaining);
+    if (failed > 0) throw PhotoUploadFailure(failed);
   }
 
   Future<Post?> submit() async {
     if (!state.canSubmit) return null;
     state = state.copyWith(isSubmitting: true);
     try {
-      final post = await _repo.createPost(CreatePostRequest(
-        categoryId: state.categoryId!,
-        title: state.title,
-        content: state.body,
-      ));
-      // 게시글 생성 후 첨부 이미지 업로드 (개별 실패는 무시)
-      for (var i = 0; i < state.images.length; i++) {
-        try {
-          await _repo.uploadPostPhoto(post.id, state.images[i], i);
-        } catch (_) {}
-      }
+      final post = _createdPost ??
+          await _repo.createPost(CreatePostRequest(
+            categoryId: state.categoryId!,
+            title: state.title,
+            content: state.body,
+          ));
+      _createdPost = post;
+      await _uploadPending(post.id, startOrder: 0);
       return post;
     } finally {
       if (mounted) state = state.copyWith(isSubmitting: false);
@@ -277,7 +353,7 @@ class ComposeNotifier extends StateNotifier<ComposeState> {
     if (!state.canSubmit) return null;
     state = state.copyWith(isSubmitting: true);
     try {
-      return await _repo.updatePost(
+      final post = await _repo.updatePost(
         postId,
         UpdatePostRequest(
           categoryId: state.categoryId!,
@@ -285,6 +361,19 @@ class ComposeNotifier extends StateNotifier<ComposeState> {
           content: state.body,
         ),
       );
+      // 지운 사진 먼저 — 5장 제한이 서버에 있어서, 자리를 비우기 전에 올리면
+      // 교체(한 장 지우고 한 장 추가)가 막힌다.
+      for (final id in [..._removedPhotoIds]) {
+        try {
+          await _repo.deletePostPhoto(postId, id);
+          _removedPhotoIds.remove(id);
+        } catch (_) {}
+      }
+      await _uploadPending(
+        postId,
+        startOrder: state.attachments.where((a) => a.isExisting).length,
+      );
+      return post;
     } finally {
       if (mounted) state = state.copyWith(isSubmitting: false);
     }

@@ -24,6 +24,20 @@ class PostCategory {
       );
 }
 
+/// 게시글 첨부 사진. **id 를 같이 들고 있어야** 수정 화면에서 한 장만 지울 수 있다
+/// (`DELETE /posts/{postId}/photos/{photoId}`). URL 만 들고 있던 시절엔 이미 올린
+/// 사진을 수정 화면에서 손댈 방법이 아예 없었다.
+class PostPhoto {
+  final int id;
+  final String url;
+  const PostPhoto({required this.id, required this.url});
+
+  factory PostPhoto.fromJson(Map<String, dynamic> json) => PostPhoto(
+        id: json['id'] as int,
+        url: (json['viewUrl'] ?? json['url']) as String,
+      );
+}
+
 class Post {
   final int id;
   final int userId;
@@ -42,7 +56,9 @@ class Post {
   /// 이 값은 "가려진 글이다"라는 표시를 붙이고 좋아요·댓글 버튼을 접는 용도다.
   final bool isBlinded;
   final String? thumbnailUrl;
-  final List<String> photoUrls; // 상세 응답의 첨부 사진 URL
+  final List<PostPhoto> photos; // 상세 응답의 첨부 사진 (목록 응답엔 없음)
+
+  List<String> get photoUrls => photos.map((p) => p.url).toList();
   final DateTime createdAt;
 
   const Post({
@@ -60,7 +76,7 @@ class Post {
     this.isPinned = false,
     this.isBlinded = false,
     this.thumbnailUrl,
-    this.photoUrls = const [],
+    this.photos = const [],
     required this.createdAt,
   });
 
@@ -79,12 +95,8 @@ class Post {
         isPinned: json['pinned'] as bool? ?? false,
         isBlinded: json['blinded'] as bool? ?? false,
         thumbnailUrl: json['thumbnailUrl'] as String?,
-        photoUrls: ((json['photos'] as List<dynamic>?) ?? const [])
-            .map((e) {
-              final m = e as Map<String, dynamic>;
-              return (m['viewUrl'] ?? m['url']) as String?;
-            })
-            .whereType<String>()
+        photos: ((json['photos'] as List<dynamic>?) ?? const [])
+            .map((e) => PostPhoto.fromJson(e as Map<String, dynamic>))
             .toList(),
         createdAt: DateTime.parse(json['createdAt'] as String),
       );
@@ -108,7 +120,7 @@ class Post {
         isPinned: isPinned,
         isBlinded: isBlinded,
         thumbnailUrl: thumbnailUrl,
-        photoUrls: photoUrls,
+        photos: photos,
         createdAt: createdAt,
       );
 }
