@@ -4,6 +4,17 @@ import '../theme/app_icons.dart';
 import '../theme/app_dimens.dart';
 import 'confirm_modal.dart';
 
+/// 스텝 폼의 좌우 기준선.
+///
+/// 앱 공통 [AppSpacing.screenH](24)보다 좁다. 이 화면은 제목·설명·입력칸이
+/// 세로로 길게 이어지는 **폼**이라, 24로 띄우면 글이 화면 한가운데로 몰려
+/// 왼쪽이 통째로 비어 보인다. 목록·카드 화면과 달리 왼쪽 가장자리가 그대로
+/// 읽기 시작선이 되는 자리라 붙여 두는 쪽이 읽힌다.
+///
+/// ⚠️ `screenH` 를 고쳐서 맞추지 말 것 — 그러면 앱 전체가 같이 움직인다
+/// (토큰 주석의 "특정 화면만 좁히려면 그 화면에서 명시하라"가 이 경우다).
+const double _stepGutter = AppSpacing.lg;
+
 // ── Step configuration ──────────────────────────────────────────────────────
 
 class StepConfig {
@@ -128,7 +139,10 @@ class _StepShellState extends State<StepShell> {
           confirmOnCancel: widget.confirmOnCancel,
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+          // 좌우는 `_stepGutter` 하나로 — 헤더·프로그레스·본문·푸터가 전부 같은 선에서
+          // 시작해야 스텝을 넘겨도 기준선이 움직이지 않는다.
+          padding: const EdgeInsets.fromLTRB(
+              _stepGutter, AppSpacing.lg, _stepGutter, 0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -138,7 +152,7 @@ class _StepShellState extends State<StepShell> {
                 accentInk: widget.accentInk,
                 onJump: (i) { if (i < _idx) setState(() => _idx = i); },
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.lg),
               Text(
                 _step.title,
                 style: const TextStyle(
@@ -149,7 +163,7 @@ class _StepShellState extends State<StepShell> {
                 ),
               ),
               if (_step.desc != null) ...[
-                const SizedBox(height: 4),
+                const SizedBox(height: AppSpacing.xs),
                 Text(
                   _step.desc!,
                   style: const TextStyle(
@@ -160,7 +174,7 @@ class _StepShellState extends State<StepShell> {
                   ),
                 ),
               ],
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.md),
             ],
           ),
         ),
@@ -180,7 +194,8 @@ class _StepShellState extends State<StepShell> {
             child: KeyedSubtree(
               key: ValueKey(_idx),
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+                padding: const EdgeInsets.fromLTRB(
+                    _stepGutter, 0, _stepGutter, AppSpacing.xl),
                 child: _step.render(ctx),
               ),
             ),
@@ -241,10 +256,13 @@ class _StepTopBar extends StatelessWidget {
     final VoidCallback backAction = () => handleCancel();
 
     // 제목은 **왼쪽 고정**이다. 가운데 정렬이면 제목 길이에 따라 글자가 좌우로 움직여
-    // 스텝을 넘길 때마다 헤더가 흔들린다. 본문·프로그레스와 같은 20px 선에 맞춰
-    // 세로로 읽히는 기준선을 하나만 둔다.
+    // 스텝을 넘길 때마다 헤더가 흔들린다. 본문·프로그레스와 같은 `_stepGutter` 선에
+    // 맞춰 세로로 읽히는 기준선을 하나만 둔다.
+    // 오른쪽에서 8을 빼는 건 '뒤로'가 TextButton 이라 안쪽에 8을 더 물고 있어서다 —
+    // 그대로 두면 글자 기준으로 8만큼 더 들어가 왼쪽과 어긋난다.
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 16, 4),
+      padding: const EdgeInsets.fromLTRB(
+          _stepGutter, AppSpacing.sm, _stepGutter - 8, AppSpacing.xs),
       child: Row(
         children: [
           Expanded(
@@ -261,7 +279,7 @@ class _StepTopBar extends StatelessWidget {
                     letterSpacing: -0.2,
                   ),
                 ),
-                const SizedBox(height: 1),
+                const SizedBox(height: 2),
                 Text(
                   '${idx + 1} / $total',
                   style: const TextStyle(
@@ -362,7 +380,8 @@ class _StepFooter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+      padding: const EdgeInsets.fromLTRB(
+          _stepGutter, AppSpacing.md, _stepGutter, AppSpacing.xxl),
       decoration: const BoxDecoration(
         color: AppColors.paleBg,
         border: Border(top: BorderSide(color: AppColors.paleLineSoft)),
