@@ -70,7 +70,11 @@ public class TimelineService {
                     ps -> {
                         int idx = 1;
                         ps.setLong(idx++, petId);
-                        if (isMating) ps.setLong(idx++, petId); // female_pet_id
+                        if (isMating) {
+                            // 파트너 CASE + WHERE 의 female_pet_id — 합쳐서 petId 3회
+                            ps.setLong(idx++, petId);
+                            ps.setLong(idx++, petId);
+                        }
                         if (finalFromInst != null) ps.setTimestamp(idx++, Timestamp.from(finalFromInst));
                         if (finalToInst   != null) ps.setTimestamp(idx++, Timestamp.from(finalToInst));
                     },
@@ -164,14 +168,29 @@ public class TimelineService {
             }
             case MATING -> {
                 // mating_dtl has male_pet_id / female_pet_id, not pet_id
-                String matingSummary = "CONCAT('합사', CASE WHEN duration_minutes IS NOT NULL THEN CONCAT(' — ', duration_minutes, '분') ELSE '' END)";
+                //
+                // 상대가 없는 '합사'는 요약이 아니라 그냥 분류명이다. 이 화면에서
+                // 알고 싶은 건 "누구와" 이므로 파트너 이름을 붙인다. 파트너는
+                // **조회 중인 개체의 반대쪽**이라 CASE 로 고른다(우리 개체면 pet_mst
+                // 이름, 외부 개체면 external_partner_text, 둘 다 없으면 생략).
+                String matingSummary = """
+                        CONCAT('합사',
+                            CASE WHEN COALESCE(p.name, m.external_partner_text) IS NOT NULL
+                                 THEN CONCAT(' · ', COALESCE(p.name, m.external_partner_text))
+                                 ELSE '' END,
+                            CASE WHEN m.duration_minutes IS NOT NULL
+                                 THEN CONCAT(' — ', m.duration_minutes, '분')
+                                 ELSE '' END)""";
                 StringBuilder ms = new StringBuilder();
-                ms.append("SELECT id, tried_at AS logged_at, ")
+                ms.append("SELECT m.id, m.tried_at AS logged_at, ")
                   .append(matingSummary).append(" AS summary, NULL AS routine_title ")
-                  .append("FROM mating_dtl ")
-                  .append("WHERE (male_pet_id = ? OR female_pet_id = ?) AND deleted_at IS NULL");
-                if (from != null) ms.append(" AND tried_at >= ?");
-                if (to   != null) ms.append(" AND tried_at <= ?");
+                  .append("FROM mating_dtl m ")
+                  // ⚠️ 이 JOIN 의 ? 가 WHERE 보다 앞에 있다 — 바인딩 순서(petId 3회)를 맞출 것
+                  .append("LEFT JOIN pet_mst p ON p.id = CASE WHEN m.male_pet_id = ? ")
+                  .append("THEN m.female_pet_id ELSE m.male_pet_id END AND p.deleted_at IS NULL ")
+                  .append("WHERE (m.male_pet_id = ? OR m.female_pet_id = ?) AND m.deleted_at IS NULL");
+                if (from != null) ms.append(" AND m.tried_at >= ?");
+                if (to   != null) ms.append(" AND m.tried_at <= ?");
                 ms.append(" ORDER BY logged_at DESC LIMIT ").append(limit);
                 return ms.toString();
             }
