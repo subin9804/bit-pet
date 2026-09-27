@@ -6,6 +6,32 @@ import '../../../record/data/food_catalog.dart';
 
 enum RoutineType { FEEDING, CLEANING, WEIGHT, CUSTOM }
 
+/// 서버의 `LocalTime` 을 **항상 `"HH:mm"`** 으로 맞춰 받는다.
+///
+/// 자릿수가 고정이 아니라서 그냥 `as String?` 로 받으면 안 된다 —
+/// Jackson 은 초가 0이면 `"09:00"`, 아니면 `"09:00:30"` 으로 쓰고,
+/// `write-dates-as-timestamps` 가 켜지는 순간 `[9, 0]` 배열이 된다.
+/// 받는 쪽마다 `split(':')` 자릿수를 세는 코드가 흩어져 있으면,
+/// 형태가 하나만 어긋나도 그 화면이 **조용히 기본값으로 떨어진다**
+/// (루틴 수정 폼이 09:00 으로 되돌아가 원래 시간을 덮어쓴 적이 있다).
+String? normalizeAlarmTime(dynamic raw) {
+  int? h, m;
+  if (raw is String) {
+    final parts = raw.split(':');
+    if (parts.length < 2) return null;
+    h = int.tryParse(parts[0]);
+    m = int.tryParse(parts[1]);
+  } else if (raw is List && raw.length >= 2) {
+    h = raw[0] is int ? raw[0] as int : int.tryParse('${raw[0]}');
+    m = raw[1] is int ? raw[1] as int : int.tryParse('${raw[1]}');
+  } else {
+    return null;
+  }
+  if (h == null || m == null) return null;
+  if (h < 0 || h > 23 || m < 0 || m > 59) return null;
+  return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
+}
+
 enum RoutineLogStatus { COMPLETED, REFUSED }
 
 // -----------------------------------------------------------------------
@@ -46,7 +72,7 @@ class TodayRoutine {
           (e) => e.name == json['routineType'],
           orElse: () => RoutineType.CUSTOM,
         ),
-        alarmTime: json['alarmTime'] as String?,
+        alarmTime: normalizeAlarmTime(json['alarmTime']),
         isAlarmEnabled: json['alarmEnabled'] as bool? ?? false,
         cycleDays: json['cycleDays'] as int? ?? 1,
         nextDueAt: json['nextDueAt'] != null
@@ -171,7 +197,7 @@ class Routine {
         ),
         title: json['title'] as String,
         cycleDays: json['cycleDays'] as int,
-        alarmTime: json['alarmTime'] as String?,
+        alarmTime: normalizeAlarmTime(json['alarmTime']),
         isAlarmEnabled: json['alarmEnabled'] as bool? ?? false,
         startDate: json['startDate'] != null
             ? DateTime.tryParse(json['startDate'] as String)

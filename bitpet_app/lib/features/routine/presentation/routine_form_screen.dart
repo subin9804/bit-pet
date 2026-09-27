@@ -91,6 +91,13 @@ class _RoutineFormScreenState extends ConsumerState<RoutineFormScreen> {
   int _alarmMinute = 0;
   bool _alarmOn    = true;
 
+  /// 사용자가 알림 단계를 실제로 만졌는가.
+  ///
+  /// 수정 폼은 마지막 '확인' 단계로 바로 열려서 **이름만 고치고 저장하는 게 흔하다**.
+  /// 그때 폼 기본값 09:00 이 그대로 서버로 나가면 원래 시간이 소리 없이 사라진다.
+  /// 안 만졌으면 서버가 준 값을 그대로 돌려보낸다.
+  bool _alarmTouched = false;
+
   // ── 헬퍼 ─────────────────────────────────────────────────────────────────
   static String _todayIso() {
     final d = DateTime.now();
@@ -102,6 +109,19 @@ class _RoutineFormScreenState extends ConsumerState<RoutineFormScreen> {
 
   String get _alarmTime =>
       '${_alarmHour.toString().padLeft(2,'0')}:${_alarmMinute.toString().padLeft(2,'0')}';
+
+  /// 저장할 알림 시간. 알림을 껐으면 null.
+  ///
+  /// 알림 단계를 안 만졌고 서버에 원래 값이 있으면 **그 값을 그대로** 보낸다.
+  /// 화면에 뜬 숫자(= 못 읽었을 때는 기본값 9시)를 무조건 믿고 쓰지 않는다는 뜻이다.
+  String? get _alarmTimeForSave {
+    if (!_alarmOn) return null;
+    if (!_alarmTouched) {
+      final original = widget.initialRoutine?.alarmTime;
+      if (original != null) return original;
+    }
+    return _alarmTime;
+  }
 
   String get _cycleSummaryFull {
     switch (_cycleMode) {
@@ -156,11 +176,16 @@ class _RoutineFormScreenState extends ConsumerState<RoutineFormScreen> {
       _titleEdited = true;
       _petIds      = Set<int>.from(r.petIds);
       _interval    = r.cycleDays;
-      if (r.alarmTime != null) {
-        final parts = r.alarmTime!.split(':');
-        if (parts.length == 2) {
-          _alarmHour   = int.tryParse(parts[0]) ?? 9;
-          _alarmMinute = int.tryParse(parts[1]) ?? 0;
+      // `alarmTime` 은 모델에서 이미 "HH:mm" 으로 정규화돼 들어온다.
+      // 그래도 파싱이 실패하면 시각을 건드리지 않고 넘어간다 — 여기서 9시를
+      // 채워 넣으면 그게 그대로 저장돼 원래 시간을 지운다(`_alarmTimeForSave` 참고).
+      final parts = r.alarmTime?.split(':') ?? const [];
+      if (parts.length >= 2) {
+        final h = int.tryParse(parts[0]);
+        final m = int.tryParse(parts[1]);
+        if (h != null && m != null) {
+          _alarmHour   = h;
+          _alarmMinute = m;
         }
       }
       _alarmOn = r.isAlarmEnabled;
@@ -184,7 +209,7 @@ class _RoutineFormScreenState extends ConsumerState<RoutineFormScreen> {
           'routineType': _type.name,
           'title': _titleCtrl.text.trim(),
           'cycleDays': _cycleDays,
-          'alarmTime': _alarmOn ? _alarmTime : null,
+          'alarmTime': _alarmTimeForSave,
           'alarmEnabled': _alarmOn,
           'petIds': _petIds.toList(),
         },
@@ -195,7 +220,7 @@ class _RoutineFormScreenState extends ConsumerState<RoutineFormScreen> {
           routineType: _type,
           title: _titleCtrl.text.trim(),
           cycleDays: _cycleDays,
-          alarmTime: _alarmOn ? _alarmTime : null,
+          alarmTime: _alarmTimeForSave,
           alarmEnabled: _alarmOn,
           petIds: _petIds.toList(),
           startAt: DateTime.tryParse(_startDate),
@@ -346,8 +371,12 @@ class _RoutineFormScreenState extends ConsumerState<RoutineFormScreen> {
         alarmOn: _alarmOn,
         typeBg: _typeBg,
         cycleSummary: _cycleSummaryFull,
-        onTimeChanged: (h, m) => setState(() { _alarmHour = h; _alarmMinute = m; }),
-        onAlarmToggled: () => setState(() => _alarmOn = !_alarmOn),
+        onTimeChanged: (h, m) => setState(() {
+          _alarmHour = h; _alarmMinute = m; _alarmTouched = true;
+        }),
+        onAlarmToggled: () => setState(() {
+          _alarmOn = !_alarmOn; _alarmTouched = true;
+        }),
       ),
     ),
 
