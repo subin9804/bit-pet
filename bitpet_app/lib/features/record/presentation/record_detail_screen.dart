@@ -375,10 +375,31 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
     timeStr: _timeStr(r.loggedAt), summary: r.displayContent, raw: r,
     editable: r.editable);
 
+  /// 교배는 **상대가 있어야 성립**하는 유일한 기록이다. 결과(성공/실패)만 적어두면
+  /// 같은 철에 여러 번 합사한 목록이 전부 똑같아 보여서 어느 줄이 뭔지 구분이 안 된다.
+  /// 파트너는 이 개체의 **반대쪽**이다 — 내가 수컷 칸이면 암컷 칸이 상대다.
+  /// 모델이 `petMaleSummary`/`petFemaleSummary` 의 이름을 이미 들고 있어 서버를 더
+  /// 부르지 않는다. 우리 개체가 아니면 `externalPartnerText`(외부 개체).
+  String? _matingPartnerName(MatingRecord r) {
+    if (r.malePetId == widget.petId) {
+      return r.femalePetName ?? r.externalPartnerText;
+    }
+    if (r.femalePetId == widget.petId) {
+      return r.malePetName ?? r.externalPartnerText;
+    }
+    return r.externalPartnerText;
+  }
+
   RecordEntry _fromMating(MatingRecord r) {
-    final label = r.isSuccessful == true
+    final result = r.isSuccessful == true
         ? '성공'
         : r.isSuccessful == false ? '실패' : '결과 미정';
+    // 파트너를 앞에 둔다 — 눈이 먼저 닿는 자리가 "누구와" 여야 요약으로 읽힌다.
+    // 파트너가 없으면(한쪽만 기록) 가운뎃점만 남지 않게 결과만 적는다.
+    final partner = _matingPartnerName(r);
+    final label = partner == null || partner.isEmpty
+        ? result
+        : '$partner · $result';
     return RecordEntry(
       id: r.id, dateStr: _dateStr(r.triedAt),
       timeStr: _timeStr(r.triedAt), summary: label, raw: r);
@@ -599,10 +620,9 @@ class _RecordCard extends StatelessWidget {
                   Text(entry.dateStr.substring(8),
                       maxLines: 1, softWrap: false,
                       style: AppTextStyles.monoBody),
-                  Text('${int.parse(entry.dateStr.substring(5, 7))}월',
-                      maxLines: 1, softWrap: false,
-                      style: AppTextStyles.monoXxs),
-                  const SizedBox(height: 4),
+                  // '9월'은 목록에 이미 `2026.09` 월 구분선이 있어 중복이다.
+                  // 내용은 한 줄뿐인데 이 열이 세 줄이라 카드만 쓸데없이 높았다.
+                  const SizedBox(height: 2),
                   Text(entry.timeStr,
                       maxLines: 1, softWrap: false,
                       style: AppTextStyles.monoXxs),
@@ -1780,7 +1800,8 @@ class _MatingPartnerFieldState extends ConsumerState<_MatingPartnerField> {
               ),
               child: candidates.isEmpty
                   ? const Padding(
-                      padding: EdgeInsets.all(16),
+                      padding: EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 14),
                       child: Center(
                         child: Text('같은 종의 반대 성별 개체가 없어요',
                             style: TextStyle(fontSize: 12,
@@ -1789,6 +1810,10 @@ class _MatingPartnerFieldState extends ConsumerState<_MatingPartnerField> {
                     )
                   : ListView.separated(
                       shrinkWrap: true,
+                      // ⚠️ padding 을 안 주면 주변 MediaQuery 의 패딩(바텀시트 하단
+                      // safe-area)을 그대로 먹어서, 항목이 한둘이어도 박스 아래가 붕 뜬다.
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      physics: const ClampingScrollPhysics(),
                       itemCount: candidates.length,
                       separatorBuilder: (_, __) => const Divider(
                           height: 1, color: AppColors.paleLineSoft),
