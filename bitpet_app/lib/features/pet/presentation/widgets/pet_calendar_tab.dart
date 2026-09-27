@@ -13,11 +13,16 @@ import '../../data/anniversary.dart';
 import '../../providers/pet_provider.dart';
 import 'anniversary_view.dart';
 
-// 캘린더 탭에서 표시하는 카테고리 (급여·체중·청소·메모)
-const _calendarCats = ['FEEDING', 'WEIGHT', 'CLEANING', 'MEMO'];
+// 캘린더 탭에서 표시하는 카테고리.
+// 서버 `RecordCategory` 전체(급여·체중·청소·메모·메이팅·산란)와 같은 집합이다 —
+// 여기서 빠진 카테고리는 마커도 목록도 건수도 전부 조용히 사라진다.
+// 실제로 쓰는 건 성별을 반영한 `_PetCalendarTabState._calendarCats` 쪽이다.
+const _calendarCatsAll = [
+  'FEEDING', 'WEIGHT', 'CLEANING', 'MEMO', 'MATING', 'LAYING',
+];
 
 // 기념일 마커용 가짜 카테고리 키 — 서버 집계에는 없는 값이다.
-// `_calendarCats` 에 넣지 않으므로 아래 기록 목록·건수 계산에는 섞이지 않는다.
+// `_calendarCatsAll` 에 넣지 않으므로 아래 기록 목록·건수 계산에는 섞이지 않는다.
 const _annivHatch = 'ANNIV_HATCH';
 const _annivAdopt = 'ANNIV_ADOPT';
 
@@ -38,16 +43,20 @@ const _catLabel = {
   'WEIGHT': '체중',
   'CLEANING': '청소',
   'MEMO': '메모',
+  'MATING': '메이팅',
+  'LAYING': '산란',
 };
 
 
 /// 개체 상세 — 캘린더 탭.
-/// 월별 캘린더에 급여/체중/메모 기록을 카테고리 아이콘으로 표시하고,
+/// 월별 캘린더에 기록을 카테고리 아이콘으로 표시하고,
 /// 날짜 탭 시 캘린더 아래에 해당 날짜의 기록 목록을 보여준다.
 class PetCalendarTab extends ConsumerStatefulWidget {
   final int petId;
+  /// 산란을 표시할지 판정하는 데만 쓴다 ([canLayEggs]).
+  final String gender;
 
-  const PetCalendarTab({super.key, required this.petId});
+  const PetCalendarTab({super.key, required this.petId, required this.gender});
 
   @override
   ConsumerState<PetCalendarTab> createState() => _PetCalendarTabState();
@@ -56,6 +65,13 @@ class PetCalendarTab extends ConsumerStatefulWidget {
 class _PetCalendarTabState extends ConsumerState<PetCalendarTab> {
   DateTime _focusedDay = DateTime.now();
   DateTime _selectedDay = DateTime.now();
+
+  /// 이 개체에게 뜰 수 있는 카테고리. 수컷이면 산란이 빠진다.
+  /// 마커·범례·건수·날짜별 목록이 **전부 이 하나**를 본다 — 한 군데서만 빼면
+  /// 목록엔 없는데 건수만 1 늘어나는 식으로 어긋난다.
+  List<String> get _calendarCats => canLayEggs(widget.gender)
+      ? _calendarCatsAll
+      : _calendarCatsAll.where((c) => c != 'LAYING').toList();
 
   String get _ymStr =>
       '${_focusedDay.year}-${_focusedDay.month.toString().padLeft(2, '0')}';
@@ -79,7 +95,7 @@ class _PetCalendarTabState extends ConsumerState<PetCalendarTab> {
     final dayAsync = ref.watch(petDayTimelineProvider(
         PetDateParam(widget.petId, _dateKey(_selectedDay))));
 
-    // 날짜(YYYY-MM-DD) → 해당 날짜의 기록 카테고리 (급여/체중/메모만)
+    // 날짜(YYYY-MM-DD) → 해당 날짜의 기록 카테고리
     final events = <String, List<String>>{};
     for (final day in calendarAsync.valueOrNull ?? const []) {
       final cats =
@@ -299,7 +315,7 @@ class _PetCalendarTabState extends ConsumerState<PetCalendarTab> {
     );
   }
 
-  /// 선택 날짜의 급여/체중/메모 기록 목록 (캘린더 아래 인라인)
+  /// 선택 날짜의 기록 목록 (캘린더 아래 인라인)
   ///
   /// [hasAnniversary] 면 기록이 없어도 빈 안내를 띄우지 않는다 —
   /// 바로 위에 기념일 줄이 있는데 '기록이 없어요'가 따라붙으면 모순으로 읽힌다.

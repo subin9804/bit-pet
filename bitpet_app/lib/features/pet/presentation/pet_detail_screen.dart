@@ -151,8 +151,8 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
                         child: IndexedStack(
                           index: _tabIndex,
                           children: [
-                            RecordTab(petId: widget.petId),
-                            PetCalendarTab(petId: widget.petId),
+                            RecordTab(petId: widget.petId, gender: pet.gender),
+                            PetCalendarTab(petId: widget.petId, gender: pet.gender),
                             GalleryTab(
                               petId: widget.petId,
                               profilePhotoId: pet.profilePhotoId,

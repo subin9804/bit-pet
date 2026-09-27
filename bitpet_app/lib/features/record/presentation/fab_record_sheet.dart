@@ -124,6 +124,10 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
   String? _memoTag; // 'VET' | 'SHED' | 'POOP' | 'BEHAVIOR' | 'ETC'
   // mate
   bool _partnerExternal = false;
+  // 합사 결과. **null(결과 미정)이 기본이고 그게 정상 상태다** — FAB 은 합사 직후
+  // 그 자리에서 찍는 기록이라 성공 여부는 대개 나중에 안다. 기본을 '성공'으로
+  // 두면 아무도 안 고친 기록이 전부 성공으로 쌓인다.
+  bool? _mateSuccess;
   Pet? _partnerPet;       // 내 개체 (인터널)
   Pet? _searchedPartner;  // 검색으로 찾은 외부 개체
   bool _searchLoading = false;
@@ -459,6 +463,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
   // ── 06b · 대상 개체 선택 (인라인) ─────────────────────────────
   Widget _buildPickPets() {
     return _PetPickerContent(
+      typeId: _typeId,
       preSelected: _selectedPetIds,
       onApply: (ids) => _applyPets(ids),
       onBack: _goBack,
@@ -1107,6 +1112,9 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
               if (extText     != null) 'externalPartnerText': extText,
               'triedAt': now.toUtc().toIso8601String(),
               'seasonLabel': now.year.toString(),
+              // 미정이면 키 자체를 빼야 한다. null 을 실어 보내면 서버가 '아직
+              // 모름'과 '실패'를 구분하지 못한다.
+              if (_mateSuccess != null) 'isSuccessful': _mateSuccess,
               if (memo.isNotEmpty) 'memo': memo,
             };
             await repo.addMating(pet.id, matingData);
@@ -1561,6 +1569,30 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
               ),
             ],
             const SizedBox(height: 20),
+            _FieldLabel('결과', required: false),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                _TypeToggle(
+                  label: '결과 미정',
+                  active: _mateSuccess == null,
+                  onTap: () => setState(() => _mateSuccess = null),
+                ),
+                const SizedBox(width: 8),
+                _TypeToggle(
+                  label: '성공',
+                  active: _mateSuccess == true,
+                  onTap: () => setState(() => _mateSuccess = true),
+                ),
+                const SizedBox(width: 8),
+                _TypeToggle(
+                  label: '실패',
+                  active: _mateSuccess == false,
+                  onTap: () => setState(() => _mateSuccess = false),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
             _FieldLabel('메모', required: false),
             const SizedBox(height: 8),
             TextField(
@@ -1675,11 +1707,15 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
 
 // ── 06b 개체 선택 컨텐츠 (인라인 위젯) ─────────────────────────
 class _PetPickerContent extends ConsumerStatefulWidget {
+  /// 앞 단계에서 고른 기록 종류. 종류에 따라 대상이 될 수 없는 개체가 있다
+  /// ([_PetPickerContentState._isEligible]).
+  final String typeId;
   final Set<int> preSelected;
   final ValueChanged<Set<int>> onApply;
   final VoidCallback onBack;
 
   const _PetPickerContent({
+    required this.typeId,
     required this.preSelected,
     required this.onApply,
     required this.onBack,
@@ -1704,6 +1740,13 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
     _selected = Set.from(widget.preSelected);
   }
 
+  /// 이 기록 종류의 대상이 될 수 있는 개체인가.
+  ///
+  /// 산란은 수컷에게 성립하지 않는다 — 서버가 FEMALE 만 받으므로, 고를 수 있게
+  /// 두면 저장 단계에 가서야 에러로 알게 된다. 고르지 못하게 하는 쪽이 낫다.
+  /// 종 필터(`_matchFilter`)와 달리 **사용자가 끌 수 없는 조건**이라 따로 둔다.
+  bool _isEligible(Pet p) => widget.typeId != 'lay' || canLayEggs(p.gender);
+
   bool _matchFilter(Pet p) {
     final sp = p.speciesName.toLowerCase();
     return switch (_filter) {
@@ -1721,7 +1764,12 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
     final petsAsync = ref.watch(petListProvider);
     final allPets   = petsAsync.whenOrNull(data: (l) => l) ?? <Pet>[];
     final q         = _query.toLowerCase();
-    final filtered  = allPets.where((p) =>
+    // 대상이 될 수 없는 개체를 먼저 걷어낸다. 검색·종 필터보다 앞이어야
+    // '전체선택'·'N마리 표시 중'·카운트가 못 고르는 개체를 세지 않는다.
+    final eligible  = allPets.where(_isEligible).toList();
+    final eligibleIds = eligible.map((p) => p.id).toSet();
+    final excluded  = allPets.length - eligible.length;
+    final filtered  = eligible.where((p) =>
         _matchFilter(p) &&
         (q.isEmpty || p.name.toLowerCase().contains(q) ||
             p.speciesName.toLowerCase().contains(q))).toList();
@@ -1883,7 +1931,10 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
           child: Row(
             children: [
               Text(
-                '${filtered.length}마리 표시 중',
+                // 왜 안 보이는지 말해준다 — 그냥 빼버리면 "내 개체가 없어졌다"가 된다.
+                excluded > 0
+                    ? '${filtered.length}마리 · 수컷 $excluded마리 제외'
+                    : '${filtered.length}마리 표시 중',
                 style: AppTextStyles.mono(11, FontWeight.w700,
                     color: AppColors.paleInk2),
               ),
@@ -1990,7 +2041,11 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
           nextLabel: '적용',
           nextBadge: _selected.isNotEmpty ? '${_selected.length}마리' : null,
           nextEnabled: _selected.isNotEmpty,
-          onNext: () => widget.onApply(Set.from(_selected)),
+          // 목록에 없는 개체는 체크도 못 하지만, 앞 단계에서 미리 선택된 채
+          // 넘어온 것(`preSelected`)은 화면에 안 보이면서 선택이 살아 있다.
+          // 여기서 한 번 걸러야 수컷이 산란 대상으로 새지 않는다.
+          onNext: () => widget.onApply(
+              _selected.where(eligibleIds.contains).toSet()),
         ),
       ],
     );

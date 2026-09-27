@@ -1,5 +1,15 @@
 import '../food_catalog.dart';
 
+/// 이 개체에게 산란 기록이 성립하는가.
+///
+/// 서버도 산란은 FEMALE 만 받는다(`LayingService`) — 수컷 개체 상세에 산란 줄을
+/// 띄워두면 눌러도 빈 목록이거나 저장에서 튕긴다.
+///
+/// **성별 미상(UNKNOWN)은 보여준다.** 어린 개체는 성별이 나중에 갈리는데
+/// 여기서 같이 감추면 정작 알을 낳았을 때 기록할 자리가 없다.
+/// 감추는 건 "아닌 게 확실한" 수컷뿐이다.
+bool canLayEggs(String gender) => gender != 'MALE';
+
 class WeightRecord {
   final int id;
   final int petId;

@@ -49,8 +49,10 @@ class WeightPoint {
 // ── RecordTab ────────────────────────────────────────────────
 class RecordTab extends ConsumerStatefulWidget {
   final int petId;
+  /// 산란 줄을 띄울지 판정하는 데만 쓴다 ([canLayEggs]).
+  final String gender;
 
-  const RecordTab({super.key, required this.petId});
+  const RecordTab({super.key, required this.petId, required this.gender});
 
   @override
   ConsumerState<RecordTab> createState() => _RecordTabState();
@@ -160,8 +162,13 @@ class _RecordTabState extends ConsumerState<RecordTab> {
       ),
     );
 
-    // ② 나머지 5개 카테고리 — 단일 카드 안에 아이콘칩 리스트
-    const restCats = ['FEEDING', 'CLEANING', 'MEMO', 'MATING', 'LAYING'];
+    // ② 나머지 카테고리 — 단일 카드 안에 아이콘칩 리스트.
+    // 수컷이면 산란이 빠져서 4줄이 된다. 구분선이 `length - 1` 기준이라
+    // 목록을 줄여도 마지막 줄 밑에 선이 남지 않는다.
+    final restCats = [
+      'FEEDING', 'CLEANING', 'MEMO', 'MATING',
+      if (canLayEggs(widget.gender)) 'LAYING',
+    ];
     final restCard = Container(
       decoration: BoxDecoration(
         borderRadius: AppRadius.brLg,
