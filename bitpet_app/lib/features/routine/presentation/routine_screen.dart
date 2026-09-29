@@ -378,6 +378,13 @@ class _RoutineCard extends ConsumerWidget {
                           ),
                         ],
                       ),
+                      // 미뤄둔 루틴이라는 걸 알려주고, 그 자리에서 되돌릴 수 있게 한다.
+                      // 이 줄이 없으면 미룬 사실 자체가 어디에도 안 보여서
+                      // "왜 알림이 안 오지"가 된다.
+                      if (r.isPostponed) ...[
+                        const SizedBox(height: AppSpacing.xs),
+                        _PostponedBanner(routine: r),
+                      ],
                     ],
                   ),
                 ),
@@ -469,6 +476,98 @@ class _RoutineCard extends ConsumerWidget {
 }
 
 // ── 카드 액션 버튼 ────────────────────────────────────────────────
+
+/// '9/16에서 미룸 · 되돌리기' 줄.
+///
+/// 되돌리기는 **직전 1회만** 된다 — 서버가 `postponedFrom` 한 칸만 들고 있어서
+/// 두 번 미뤘으면 중간 날짜까지만 돌아간다. 그래서 되돌린 뒤의 날짜를 토스트로
+/// 되읽어준다(사용자가 기대한 날짜와 다를 수 있다).
+///
+/// 자체 상태(`_busy`)를 갖기 위해 별도 위젯으로 뺐다 — 부모 `_RoutineCard` 는
+/// `ConsumerWidget` 이라 연타 방지 플래그를 들 자리가 없다.
+class _PostponedBanner extends ConsumerStatefulWidget {
+  final Routine routine;
+  const _PostponedBanner({required this.routine});
+
+  @override
+  ConsumerState<_PostponedBanner> createState() => _PostponedBannerState();
+}
+
+class _PostponedBannerState extends ConsumerState<_PostponedBanner> {
+  bool _busy = false;
+
+  Future<void> _cancel() async {
+    setState(() => _busy = true);
+    try {
+      final updated = await ref
+          .read(routineRepositoryProvider)
+          .cancelPostpone(widget.routine.id);
+      // 되돌리면 예정일이 오늘로 당겨질 수 있다(서버가 지난 날짜는 오늘로 올린다)
+      // → 오늘 목록에 다시 나타나야 하므로 양쪽을 모두 새로 읽는다.
+      ref.read(routineListProvider.notifier).load();
+      ref.read(todayRoutinesProvider.notifier).load();
+      ref.invalidate(routineTodayStatusProvider(widget.routine.id));
+      if (mounted) {
+        final d = updated.nextDueAt?.toLocal();
+        showToast(
+          context,
+          d == null ? '되돌렸어요' : '${d.month}/${d.day}로 되돌렸어요',
+        );
+      }
+    } catch (e) {
+      if (mounted) showToast(context, '되돌리기 실패: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final from = widget.routine.postponedFrom?.toLocal();
+    return Row(
+      children: [
+        const Icon(Icons.undo, size: 14, color: AppColors.textDisabled),
+        const SizedBox(width: 4),
+        Expanded(
+          child: Text(
+            from == null ? '미뤄둔 루틴' : '${from.month}/${from.day}에서 미룸',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textDisabled,
+            ),
+          ),
+        ),
+        const SizedBox(width: 4),
+        // 되돌리기는 '취소' 성격이라 버튼으로 키우지 않는다. 다만 탭 타겟은
+        // 손가락에 맞춰 세로로 넉넉히 준다.
+        InkWell(
+          onTap: _busy ? null : _cancel,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            child: _busy
+                ? const SizedBox(
+                    width: 11,
+                    height: 11,
+                    child: CircularProgressIndicator(strokeWidth: 1.5),
+                  )
+                : const Text(
+                    '되돌리기',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
+}
 
 class _CardAction extends StatelessWidget {
   final IconData icon;

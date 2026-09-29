@@ -135,6 +135,25 @@ public class RoutineMst extends BaseTimeEntity {
         this.nextDueAt     = newDueDate;
     }
 
+    /**
+     * 미루기 취소 — 직전 예정일({@code postponedFrom})로 되돌린다. <b>되돌릴 수 있는 건 마지막 미루기 1회뿐</b>이다
+     * ({@link #postpone}이 매번 {@code postponedFrom}을 덮어쓰므로 그 앞 이력은 남아 있지 않다).
+     *
+     * <p>⚠️ 되돌릴 날짜가 이미 지났으면 <b>오늘로 당긴다.</b> 그대로 과거 날짜를 넣으면
+     * {@link #advanceDueDate}(자정 롤오버·조회 시 캐치업)가 주기만큼 <b>앞으로</b> 밀어버려서,
+     * 취소했는데 오히려 더 미뤄지는 정반대 결과가 된다. 되돌리기의 뜻은 "다시 내 할 일로 돌려놔라"이므로
+     * 오늘 할 일로 띄우는 쪽이 맞다.
+     *
+     * @return 되돌릴 게 있어서 실제로 되돌렸으면 true
+     */
+    public boolean cancelPostpone() {
+        if (postponedAt == null || postponedFrom == null) return false;
+        LocalDate today = LocalDate.now(SEOUL);
+        this.nextDueAt = postponedFrom.isBefore(today) ? today : postponedFrom;
+        clearPostponed();
+        return true;
+    }
+
     private void clearPostponed() {
         this.postponedAt   = null;
         this.postponedFrom = null;

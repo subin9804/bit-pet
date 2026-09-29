@@ -199,6 +199,22 @@ class _RoutinePostponeSheetState extends ConsumerState<RoutinePostponeSheet> {
                 : '원하는 날짜로 미뤄요',
             onTap: _pickDate,
           ),
+          const SizedBox(height: 8),
+          // 되돌릴 수 있다는 걸 미루기 '전에' 알려준다 — 되돌리기 진입점은
+          // 루틴 탭 카드에 있어서, 여기서 말해주지 않으면 못 찾는다.
+          Row(
+            children: [
+              const Icon(Icons.undo, size: 13, color: AppColors.textDisabled),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  '미룬 뒤에도 루틴 탭에서 되돌릴 수 있어요',
+                  style: AppTextStyles.caption
+                      .copyWith(color: AppColors.textDisabled),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 16),
 
           Row(

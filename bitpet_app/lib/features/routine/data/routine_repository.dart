@@ -84,6 +84,24 @@ class RoutineRepository {
     return apiRes.data!;
   }
 
+  /// 미루기 취소 — 직전 예정일로 되돌린다.
+  ///
+  /// 되돌릴 수 있는 건 **마지막 미루기 1회뿐**이다. 서버가 `postponedFrom` 한 칸만
+  /// 들고 있어서 두 번 미뤘으면 중간 날짜까지만 돌아간다.
+  /// 되돌릴 게 없으면 서버가 409 `ROUTINE_NOT_POSTPONED` 를 준다.
+  Future<Routine> cancelPostpone(int routineId) async {
+    final res = await _dio.post('/routines/$routineId/postpone/cancel');
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => Routine.fromJson(d as Map<String, dynamic>),
+    );
+    if (!apiRes.success || apiRes.data == null) {
+      throw ApiException(
+          statusCode: res.statusCode ?? 0, message: apiRes.message ?? '되돌리기 실패');
+    }
+    return apiRes.data!;
+  }
+
   Future<void> deleteRoutine(int routineId) async {
     await _dio.delete('/routines/$routineId');
   }

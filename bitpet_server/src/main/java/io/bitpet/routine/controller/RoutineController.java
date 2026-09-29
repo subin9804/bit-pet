@@ -85,6 +85,14 @@ public class RoutineController {
                 routineService.postponeRoutine(principal.userId(), routineId, req.nextDueAt()));
     }
 
+    /** 미루기 취소 — 직전 예정일로 되돌린다. 되돌릴 게 없으면 409 */
+    @PostMapping("/routines/{routineId}/postpone/cancel")
+    public ApiResponse<RoutineResponse> cancelPostpone(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @PathVariable Long routineId) {
+        return ApiResponse.ok(routineService.cancelPostpone(principal.userId(), routineId));
+    }
+
     // -------------------------------------------------------------------------
     // Today's routines
     // -------------------------------------------------------------------------

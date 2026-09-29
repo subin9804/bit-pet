@@ -183,6 +183,21 @@ public class RoutineService {
         return RoutineResponse.from(routine, petIds);
     }
 
+    /**
+     * 미루기 취소 — 직전 예정일로 되돌린다. 미루기와 마찬가지로 <b>루틴 단위</b>다.
+     * 되돌릴 수 있는 건 마지막 1회뿐이고, 되돌릴 게 없으면 409 로 알린다
+     * (조용히 성공시키면 앱이 "되돌렸다"고 말해놓고 아무것도 안 바뀐다).
+     */
+    @Transactional
+    public RoutineResponse cancelPostpone(Long userId, Long routineId) {
+        RoutineMst routine = findAccessibleRoutine(userId, routineId);
+        if (!routine.cancelPostpone()) {
+            throw new BusinessException(ErrorCode.ROUTINE_NOT_POSTPONED);
+        }
+        List<Long> petIds = routinePetRepository.findPetIdsByRoutineId(routineId);
+        return RoutineResponse.from(routine, petIds);
+    }
+
     // -------------------------------------------------------------------------
     // Pet subscription (routine_pet_rls)
     // -------------------------------------------------------------------------

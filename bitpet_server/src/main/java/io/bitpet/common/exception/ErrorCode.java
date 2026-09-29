@@ -99,6 +99,7 @@ public enum ErrorCode {
     ROUTINE_LOG_NOT_FOUND(HttpStatus.NOT_FOUND, "Routine log not found"),
     ROUTINE_WEIGHT_REQUIRED(HttpStatus.BAD_REQUEST, "Weight value is required to complete a weight routine"),
     ROUTINE_POSTPONE_DATE_INVALID(HttpStatus.BAD_REQUEST, "Postpone date must be a future date"),
+    ROUTINE_NOT_POSTPONED(HttpStatus.CONFLICT, "This routine has nothing to undo"),
 
     // --- Notification ---
     NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "Notification not found"),
