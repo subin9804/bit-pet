@@ -1,7 +1,10 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/api/api_response.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/confirm_modal.dart';
 import '../../../core/widgets/step_shell.dart';
@@ -41,13 +44,57 @@ class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
 
   bool _submitting = false;
 
+  /// 서버가 알려준 남은 등록 가능 수. **null = 모른다**(아직 못 받았거나 실패).
+  /// 모를 때는 제한을 걸지 않는다 — 여유가 넉넉한 사람이 한 마리도 못 넣는 쪽이 더 나쁘다.
+  int? _remainingSlots;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadQuota();
+  }
+
+  /// 남은 수를 미리 받아 입력 자체를 막아둔다. 안 그러면 50마리를 적고 저장을 눌러
+  /// 중간에 터지는데, 그때는 이미 몇 마리가 만들어진 뒤라 되돌리기도 애매하다.
+  Future<void> _loadQuota() async {
+    final remaining = await ref.read(petRepositoryProvider).fetchRemainingPetSlots();
+    if (!mounted) return;
+    setState(() {
+      _remainingSlots = remaining;
+      // 받아보니 이미 적어둔 수보다 적을 수 있다 (다른 기기에서 등록했거나 초기값 변경)
+      if (_count > _countMax) _count = math.max(1, _countMax);
+    });
+  }
+
+  /// 한 번에 넣을 수 있는 최대 마리수. 1회 상한(99)과 남은 자리 중 **작은 쪽**.
+  int get _countMax {
+    const perRun = _maxPerRun;
+    final remaining = _remainingSlots;
+    if (remaining == null) return perRun;
+    return math.min(perRun, math.max(0, remaining));
+  }
+
+  /// 마리수 칸 밑에 붙는 안내. 남은 자리가 1회 상한보다 적으면 그걸 먼저 말한다 —
+  /// "99까지 가능"이라고 써두고 막히면 안내가 거짓말이 된다.
+  String get _countHint {
+    final remaining = _remainingSlots;
+    if (remaining != null && remaining <= 0) {
+      return '등록 가능한 자리가 없어요 (최대 $_maxOwnedPets마리)';
+    }
+    if (remaining != null && remaining < _maxPerRun) {
+      return '남은 자리 $remaining마리 (1인당 최대 $_maxOwnedPets마리)';
+    }
+    return '1회에 최대 $_maxPerRun마리까지 등록할 수 있어요';
+  }
+
   @override
   void dispose() {
     _prefixCtrl.dispose();
     super.dispose();
   }
 
-  bool get _canSubmit => _species != null && _count >= 1 && !_submitting;
+  bool get _canSubmit =>
+      _species != null && _count >= 1 && _count <= _countMax && !_submitting;
 
   /// 실제로 붙는 접두어. 비워두면 종 이름이 들어간다.
   ///
@@ -182,9 +229,14 @@ class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
       }
     } catch (e) {
       if (mounted) {
+        // 상한 초과처럼 사용자가 고칠 수 있는 상황은 서버 문장이 가장 정확하다.
+        // 'DioException [bad response]...' 를 띄우던 자리다.
+        final reason = serverMessageOf(e) ?? '오류가 발생했어요';
+        // 몇 마리까지 들어갔는지를 먼저 말한다 — 일괄 등록은 중간에 멈출 수 있고,
+        // 그걸 안 알려주면 목록을 열어 세어 봐야 안다.
         ToastMessage.show(
           context,
-          successCount > 0 ? '$successCount마리 등록 후 오류 발생' : '등록 실패: $e',
+          successCount > 0 ? '$successCount마리까지 등록됐어요 — $reason' : reason,
           type: ToastType.warning,
         );
       }
@@ -270,9 +322,10 @@ class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
 
                     SField(
                       label: '마리수',
-                      hint: '최대 50마리',
+                      hint: _countHint,
                       child: _CountStepper(
                         value: _count,
+                        max: _countMax,
                         onChanged: (v) => setState(() => _count = v),
                       ),
                     ),
@@ -540,13 +593,87 @@ class _TapField extends StatelessWidget {
   }
 }
 
-class _CountStepper extends StatelessWidget {
+/// 1회 등록 상한. 100을 두 자리로 자른 게 아니라, **한 번에 만들면 되돌리기가
+/// 힘든 양**의 선이다 — 잘못 적어 저장하면 하나씩 지워야 한다.
+const int _maxPerRun = 99;
+
+/// 1인당 소유 상한. 안내 문구에만 쓴다 — 실제 판정은 서버가 하고,
+/// 남은 자리는 `/pets/quota` 가 계산해서 내려준다.
+const int _maxOwnedPets = 100;
+
+/// − / 숫자 / ＋. 가운데는 **직접 입력도 되는 칸**이다.
+///
+/// 버튼만 두면 30마리를 넣으려고 29번 눌러야 한다. 반대로 입력칸만 두면 한두 마리
+/// 조정이 번거로워서 둘 다 남긴다. 키보드는 숫자만 뜨고(`TextInputType.number`),
+/// 숫자 아닌 글자는 포매터가 애초에 받지 않는다 — 막은 뒤에 경고하는 것보다
+/// 들어오지 않는 쪽이 설명할 게 없다.
+class _CountStepper extends StatefulWidget {
   final int value;
+  final int max;
   final void Function(int) onChanged;
-  const _CountStepper({required this.value, required this.onChanged});
+
+  const _CountStepper({
+    required this.value,
+    required this.max,
+    required this.onChanged,
+  });
+
+  @override
+  State<_CountStepper> createState() => _CountStepperState();
+}
+
+class _CountStepperState extends State<_CountStepper> {
+  late final TextEditingController _ctrl =
+      TextEditingController(text: '${widget.value}');
+  final _focus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    // 포커스가 빠질 때 비어 있으면 1로 되돌린다. 입력 중에 되돌리면
+    // 지우자마자 1이 끼어들어 숫자를 바꿀 수가 없다.
+    _focus.addListener(() {
+      if (!_focus.hasFocus && _ctrl.text.trim().isEmpty) {
+        _setText('${widget.value}');
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(_CountStepper old) {
+    super.didUpdateWidget(old);
+    // 버튼으로 바뀐 값·바깥에서 깎인 값(남은 자리)을 칸에 반영한다.
+    // 입력 중인 숫자와 같으면 건드리지 않는다 — 커서가 튀어 버린다.
+    if (int.tryParse(_ctrl.text) != widget.value) {
+      _setText('${widget.value}');
+    }
+  }
+
+  void _setText(String v) {
+    _ctrl.text = v;
+    _ctrl.selection = TextSelection.collapsed(offset: v.length);
+  }
+
+  void _onTyped(String raw) {
+    if (raw.isEmpty) return;              // 지우는 중 — 아직 판정하지 않는다
+    final n = int.tryParse(raw);
+    if (n == null) return;
+    final clamped = n.clamp(1, math.max(1, widget.max));
+    if (clamped != n) _setText('$clamped');   // 상한을 넘겨 적으면 바로 깎아 보여준다
+    widget.onChanged(clamped);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final canDec = widget.value > 1;
+    final canInc = widget.value < widget.max;
     return Container(
       decoration: BoxDecoration(
         borderRadius: AppRadius.brMd,
@@ -555,24 +682,12 @@ class _CountStepper extends StatelessWidget {
       ),
       child: Row(
         children: [
-          GestureDetector(
-            onTap: value > 1 ? () => onChanged(value - 1) : null,
-            child: Container(
-              width: 48,
-              height: 48,
-              alignment: Alignment.center,
-              decoration: const BoxDecoration(
-                border: Border(right: BorderSide(color: AppColors.paleLine)),
-              ),
-              child: Text(
-                '−',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  color: value > 1 ? AppColors.primary : AppColors.paleLine,
-                ),
-              ),
-            ),
+          _StepButton(
+            label: '−',
+            fontSize: 22,
+            enabled: canDec,
+            onTap: () => widget.onChanged(widget.value - 1),
+            borderSide: const Border(right: BorderSide(color: AppColors.paleLine)),
           ),
           Expanded(
             child: Row(
@@ -580,12 +695,30 @@ class _CountStepper extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.baseline,
               textBaseline: TextBaseline.alphabetic,
               children: [
-                Text(
-                  '$value',
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
+                // 자릿수만큼만 차지하게 폭을 묶어 '마리'가 숫자에 붙어 보이게 한다
+                SizedBox(
+                  width: 44,
+                  child: TextField(
+                    controller: _ctrl,
+                    focusNode: _focus,
+                    onChanged: _onTyped,
+                    textAlign: TextAlign.right,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(2),   // 두 자리면 99까지다
+                    ],
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                    ),
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.zero,
+                      counterText: '',
+                    ),
                   ),
                 ),
                 const SizedBox(width: 4),
@@ -600,26 +733,51 @@ class _CountStepper extends StatelessWidget {
               ],
             ),
           ),
-          GestureDetector(
-            onTap: value < 50 ? () => onChanged(value + 1) : null,
-            child: Container(
-              width: 48,
-              height: 48,
-              alignment: Alignment.center,
-              decoration: const BoxDecoration(
-                border: Border(left: BorderSide(color: AppColors.paleLine)),
-              ),
-              child: Text(
-                '＋',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: value < 50 ? AppColors.primary : AppColors.paleLine,
-                ),
-              ),
-            ),
+          _StepButton(
+            label: '＋',
+            fontSize: 18,
+            enabled: canInc,
+            onTap: () => widget.onChanged(widget.value + 1),
+            borderSide: const Border(left: BorderSide(color: AppColors.paleLine)),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _StepButton extends StatelessWidget {
+  final String label;
+  final double fontSize;
+  final bool enabled;
+  final Border borderSide;
+  final VoidCallback onTap;
+
+  const _StepButton({
+    required this.label,
+    required this.fontSize,
+    required this.enabled,
+    required this.borderSide,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: enabled ? onTap : null,
+      child: Container(
+        width: 48,
+        height: 48,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(border: borderSide),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: fontSize,
+            fontWeight: FontWeight.w700,
+            color: enabled ? AppColors.primary : AppColors.paleLine,
+          ),
+        ),
       ),
     );
   }

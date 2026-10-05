@@ -224,6 +224,9 @@ public class LayingService {
                         .orElseThrow(() -> new BusinessException(ErrorCode.MORPH_NOT_FOUND))
                 : null;
 
+        // 부화 개체도 결국 내 개체다 — 여기를 빼면 상한을 우회하는 경로가 된다
+        petKeeper.assertCanOwnMore(userId);
+
         String serial = serialNumberGenerator.generate();
         PetMst newPet = petRepo.save(PetMst.builder()
                 .serialNo(serial)

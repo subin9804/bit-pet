@@ -16,6 +16,7 @@ import io.bitpet.pet.dto.PetBulkDeleteResponse;
 import io.bitpet.pet.dto.PetCardResponse;
 import io.bitpet.pet.dto.PetCreateRequest;
 import io.bitpet.pet.dto.PetOwnerResponse;
+import io.bitpet.pet.dto.PetQuotaResponse;
 import io.bitpet.pet.dto.PetRelationRequest;
 import io.bitpet.pet.dto.PetRelationResponse;
 import io.bitpet.pet.dto.PetResponse;
@@ -82,6 +83,7 @@ public class PetService {
                         .orElseThrow(() -> new BusinessException(ErrorCode.SPECIES_NOT_FOUND))
                 : null;
 
+        petKeeper.assertCanOwnMore(userId);
         assertNameAvailable(userId, req.name(), 0L);
 
         String serial = serialNumberGenerator.generate();
@@ -536,6 +538,19 @@ public class PetService {
         if (newParentPetId != null) {
             addRelation(userId, new PetRelationRequest(newParentPetId, childPetId, type));
         }
+    }
+
+    /**
+     * 남은 등록 가능 수. 폼이 입력을 제한하는 용도다.
+     *
+     * <p>⚠️ 여기서 받은 수치는 <b>안내</b>다. 받은 뒤 저장까지의 사이에 다른 기기가
+     * 등록할 수 있으므로, 상한 검사를 이 조회로 대체하지 말 것.
+     */
+    public PetQuotaResponse quota(Long userId) {
+        long owned = petKeeper.countOwned(userId);
+        return new PetQuotaResponse(
+                owned, PetKeeperService.MAX_OWNED_PETS,
+                Math.max(0, PetKeeperService.MAX_OWNED_PETS - owned));
     }
 
     /**

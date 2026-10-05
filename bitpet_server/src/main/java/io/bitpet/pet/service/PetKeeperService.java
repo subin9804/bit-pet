@@ -98,6 +98,40 @@ public class PetKeeperService {
                 .collect(java.util.stream.Collectors.toSet());
     }
 
+    // -------------------------------------------------------------------------
+    // 소유 개체 상한
+    // -------------------------------------------------------------------------
+
+    /**
+     * 1인당 소유할 수 있는 개체 수.
+     *
+     * <p>사진·기록이 개체마다 붙는 구조라 한 계정이 무제한으로 늘어나면 비용이 그대로 따라온다.
+     * 값 자체는 <b>잠정</b>이다 — 막히는 사용자가 실제로 나오면 올린다. 올리는 건 상수 하나지만
+     * 내리는 건 이미 넘긴 계정을 어떻게 할지부터 정해야 하므로, 넉넉하게 시작하지 않는다.
+     */
+    public static final int MAX_OWNED_PETS = 100;
+
+    /** 유저가 소유한 개체 수 */
+    public long countOwned(Long userId) {
+        return keeperRepository.countOwnedByUser(userId);
+    }
+
+    /**
+     * 개체를 하나 더 등록할 수 있는지. 넘으면 {@link ErrorCode#PET_LIMIT_EXCEEDED}.
+     *
+     * <p>⚠️ <b>개체가 만들어지는 모든 경로</b>가 이걸 지나야 한다 (현재 일반 등록 +
+     * 산란 부화 개체 등록). 한 곳이라도 빠지면 그 경로가 상한을 우회하는 통로가 된다.
+     *
+     * <p>다개체 일괄 등록은 한 마리씩 {@code create} 를 호출하므로 여기서 함께 막힌다 —
+     * 상한에 닿는 순간 그 뒤가 전부 실패한다. 앱이 미리 남은 수를 받아 입력을 제한하는 건
+     * 안내일 뿐이고, 판정은 저장할 때 서버가 한다.
+     */
+    public void assertCanOwnMore(Long userId) {
+        if (countOwned(userId) >= MAX_OWNED_PETS) {
+            throw new BusinessException(ErrorCode.PET_LIMIT_EXCEEDED);
+        }
+    }
+
     /** 개체 생성 시 소유자 등록 */
     @Transactional
     public void registerOwner(Long petId, Long userId) {

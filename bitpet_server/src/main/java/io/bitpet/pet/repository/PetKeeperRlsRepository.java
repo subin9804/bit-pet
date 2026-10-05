@@ -35,6 +35,25 @@ public interface PetKeeperRlsRepository
     @Query("SELECT k.id.petId FROM PetKeeperRls k WHERE k.id.userId = :userId")
     List<Long> findPetIdsByUserId(@Param("userId") Long userId);
 
+    /**
+     * 유저가 소유(OWNER)한 개체 수 — 상한 검사용.
+     *
+     * <p>행을 세는 게 아니라 <b>살아 있는 개체를 센다</b>: {@code PetMst} 서브쿼리를 거치는 건
+     * {@code @SQLRestriction("deleted_at IS NULL")} 을 타려는 것이다. 키퍼 행은 개체를 지워도
+     * 남을 수 있어서, 직접 세면 지운 개체가 평생 자리를 차지한다.
+     *
+     * <p>이별(폐사)한 개체는 <b>센다</b> — 목록에 계속 보이고 기록도 그대로 남아 있으므로
+     * 자리를 쓰는 것은 사실이다. 공유받은(KEEPER) 개체는 세지 않는다: 남의 개체가 내 한도를
+     * 깎으면 같이 키우자는 초대를 거절할 이유가 생긴다.
+     */
+    @Query("""
+            SELECT COUNT(k) FROM PetKeeperRls k
+            WHERE k.id.userId = :userId
+              AND k.role = 'OWNER'
+              AND k.id.petId IN (SELECT p.id FROM PetMst p)
+            """)
+    long countOwnedByUser(@Param("userId") Long userId);
+
     /** 유저가 소유(OWNER)한 개체 행 목록 — 탈퇴 시 승격/삭제 판단용 */
     @Query("SELECT k FROM PetKeeperRls k WHERE k.id.userId = :userId AND k.role = 'OWNER'")
     List<PetKeeperRls> findOwnedByUser(@Param("userId") Long userId);

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/api/api_response.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/upload/image_upload.dart';
 import '../../../core/widgets/app_toggle.dart';
@@ -76,11 +77,10 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
   // 입력이 멎으면 물어보고, 겹치면 다음 단계로 넘어가지 못하게 한다.
   Timer? _nameCheckTimer;
 
-  /// 지금 화면에 띄운 판정이 **어느 입력에 대한 것인지**. 응답이 순서대로 오지 않으므로
-  /// 이 값이 현재 입력과 다르면 결과를 버린다 — 안 그러면 한 글자 전의 답이 남는다.
-  String? _nameCheckedFor;
-  bool _nameChecking = false;
-  bool _nameTaken = false;
+  /// 이름 판정. **null = 아직 모른다**(입력 중 · 확인 실패). 세 값을 한 변수로 드는 건
+  /// '확인 중'을 따로 띄우지 않기 때문이다 — 중간 상태를 글자로 보여주면 한 글자마다
+  /// 문구가 바뀌어 깜빡이고, 그 자체가 느려 보인다. 답이 났을 때만 한 줄 뜬다.
+  bool? _nameAvailable;
   PickedImage? _pickedProfile; // 새로 고른 프로필 사진 (저장 시 업로드)
 
   /// 수정 모드에서 이미 올라가 있는 대표 사진. 이게 없으면 화면이 "사진 없음"처럼
@@ -120,33 +120,30 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
     super.dispose();
   }
 
-  /// 이름 입력이 바뀔 때마다 — 즉시 그리고, 400ms 멎으면 서버에 물어본다.
+  /// 이름 입력이 바뀔 때마다 — 입력이 멎으면 바로 서버에 물어본다.
   ///
   /// 한 글자마다 때리지 않는 건 요청 수가 아니라 **답이 뒤집히는 것** 때문이다.
   /// 입력 중에 '중복' / '사용 가능'이 번갈아 깜빡이면 읽을 수가 없다.
+  /// 다만 간격은 **사람이 멈췄다고 느끼기 전**이어야 한다 — 400ms 는 눈에 보이는
+  /// 공백이 생겨서 앱이 느린 것처럼 읽혔다.
   void _onNameChanged(String value) {
     final name = value.trim();
     _nameCheckTimer?.cancel();
 
     setState(() {
       // 글자가 바뀐 순간 이전 판정은 무효다 — 남겨두면 지운 이름에 붙은 경고가 계속 보인다
-      _nameCheckedFor = null;
-      _nameTaken = false;
-      _nameChecking = name.isNotEmpty;
+      _nameAvailable = null;
     });
     if (name.isEmpty) return;
 
-    _nameCheckTimer = Timer(const Duration(milliseconds: 400), () async {
+    _nameCheckTimer = Timer(const Duration(milliseconds: 180), () async {
       final available = await ref
           .read(petRepositoryProvider)
           .isNameAvailable(name, excludePetId: widget.petId);
       if (!mounted) return;
       if (_nameCtrl.text.trim() != name) return;   // 그 사이 더 입력했다 — 이 답은 버린다
-      setState(() {
-        _nameChecking = false;
-        _nameCheckedFor = name;
-        _nameTaken = !available;
-      });
+      // available 이 null 이면 못 물어본 것이다. 그대로 null 로 둬서 아무 말도 하지 않는다
+      setState(() => _nameAvailable = available);
     });
   }
 
@@ -483,7 +480,24 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
     }
   }
 
+  /// 저장 — 실패하면 **서버 문장을 그대로 띄운다**.
+  ///
+  /// 예전엔 예외가 StepShell 밖으로 그냥 빠져나가서, 이름이 겹치거나 상한에 걸려도
+  /// 버튼만 되살아나고 아무 말이 없었다 — "저장이 안 되는데 왜 안 되는지 모르는" 화면.
   Future<void> _submit() async {
+    try {
+      await _save();
+    } catch (e) {
+      if (!mounted) return;
+      ToastMessage.show(
+        context,
+        serverMessageOf(e) ?? '저장에 실패했어요',
+        type: ToastType.error,
+      );
+    }
+  }
+
+  Future<void> _save() async {
     if (_species == null) {
       ToastMessage.show(context, '종을 선택해주세요', type: ToastType.warning);
       return;
@@ -585,10 +599,10 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
     StepConfig(
       title: '사진과 이름',
       desc: '사진을 올리고 이름을 지어주세요.',
-      // 겹치는 이름이면 다음으로 넘어가지 못한다. '확인 중'은 막지 않는다 —
-      // 네트워크가 느린 사람이 버튼이 왜 죽었는지 모르는 쪽이 더 나쁘고,
-      // 최종 판정은 어차피 저장할 때 서버가 한다.
-      valid: () => _nameCtrl.text.trim().isNotEmpty && !_nameTaken,
+      // 겹치는 이름이면 다음으로 넘어가지 못한다. 다만 **모를 때는 막지 않는다** —
+      // 확인에 실패했다고 버튼이 죽으면 왜 죽었는지 알 길이 없고,
+      // 최종 판정은 어차피 저장할 때 서버가 한다 (실패하면 서버 문장을 띄운다).
+      valid: () => _nameCtrl.text.trim().isNotEmpty && _nameAvailable != false,
       render: (_) => ListenableBuilder(
         listenable: _nameCtrl,
         builder: (_, __) => Column(
@@ -731,11 +745,7 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
                     placeholder: '개체 이름',
                     onChanged: _onNameChanged,
                   ),
-                  _NameCheckLine(
-                    checking: _nameChecking,
-                    taken: _nameTaken,
-                    checkedFor: _nameCheckedFor,
-                  ),
+                  _NameCheckLine(available: _nameAvailable),
                 ],
               ),
             ),
@@ -1345,43 +1355,40 @@ class _ParentTile extends StatelessWidget {
   }
 }
 
-/// 이름 칸 아래 한 줄. 확인 중 · 쓸 수 있음 · 이미 있음.
+/// 이름 칸 아래 한 줄. 쓸 수 있음 · 이미 있음, 그리고 **모를 때는 빈 줄**.
+///
+/// 상태가 두 개뿐인 건 의도적이다 — '확인 중'을 글자로 띄우면 타이핑하는 동안
+/// 문구가 계속 바뀌어 깜빡이고, 확인이 오래 걸리는 것처럼 읽힌다. 못 물어봤을 때도
+/// 조용하다: 확인에 실패한 걸 '사용 가능'으로 둘러대면 화면이 거짓말을 한다.
 ///
 /// **자리를 항상 차지한다**(빈 상태도 같은 높이). 안내가 나타날 때마다 아래 내용이
 /// 밀려 내려가면 입력하는 중에 화면이 출렁인다.
 class _NameCheckLine extends StatelessWidget {
-  final bool checking;
-  final bool taken;
-  final String? checkedFor;
+  /// null = 아직 모른다 (입력 중 · 확인 실패)
+  final bool? available;
 
-  const _NameCheckLine({
-    required this.checking,
-    required this.taken,
-    required this.checkedFor,
-  });
+  const _NameCheckLine({required this.available});
 
   @override
   Widget build(BuildContext context) {
-    String text = '';
-    Color color = AppColors.paleInk3;
-    if (checking) {
-      text = '확인 중…';
-    } else if (taken) {
-      text = '이미 같은 이름의 개체가 있어요';
-      color = AppColors.error;
-    } else if (checkedFor != null) {
-      text = '사용할 수 있는 이름이에요';
-      color = AppColors.brandAction;
-    }
+    final text = switch (available) {
+      true => '사용할 수 있는 이름이에요',
+      false => '이미 같은 이름의 개체가 있어요',
+      null => '',
+    };
+    // 높이는 글자(12 * 1.4 ≒ 17) + 위 여백 6 보다 넉넉해야 한다.
+    // 20 으로 잡았을 때 받침이 잘려 나갔다.
     return SizedBox(
-      height: 20,
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Padding(
-          padding: const EdgeInsets.only(top: 4, left: 2),
-          child: Text(
-            text,
-            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: color),
+      height: 26,
+      child: Padding(
+        padding: const EdgeInsets.only(top: 6, left: 2),
+        child: Text(
+          text,
+          style: TextStyle(
+            fontSize: 12,
+            height: 1.4,
+            fontWeight: FontWeight.w600,
+            color: available == false ? AppColors.error : AppColors.brandAction,
           ),
         ),
       ),

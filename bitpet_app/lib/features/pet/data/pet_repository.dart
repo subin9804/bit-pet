@@ -203,18 +203,34 @@ class PetRepository {
 
   /// 이 이름을 지금 쓸 수 있는지 (폼 입력 중 안내용).
   ///
-  /// 실패하면 **true(쓸 수 있음)** 로 돌려준다 — 네트워크가 끊겼다고 입력을 막으면
-  /// 저장조차 시도할 수 없다. 최종 판정은 저장 시 서버가 한다.
-  Future<bool> isNameAvailable(String name, {int? excludePetId}) async {
+  /// 못 물어봤으면 **null** 이다. 실패를 true 로 둘러대지 않는 이유는, 그러면 화면이
+  /// "사용할 수 있는 이름이에요"라고 **거짓말을 하게** 되기 때문이다. 어차피 통신이
+  /// 끊긴 상태에선 저장도 안 되므로, 모를 때는 아무 말도 하지 않는 쪽이 맞다.
+  /// (모른다고 입력을 막지도 않는다 — 최종 판정은 저장 시 서버가 한다.)
+  Future<bool?> isNameAvailable(String name, {int? excludePetId}) async {
     try {
       final res = await _dio.get('/pets/name-available', queryParameters: {
         'name': name,
         if (excludePetId != null) 'excludePetId': excludePetId,
       });
       final data = (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>?;
-      return data?['available'] as bool? ?? true;
+      return data?['available'] as bool?;
     } catch (_) {
-      return true;
+      return null;
+    }
+  }
+
+  /// 앞으로 몇 마리 더 등록할 수 있는지 (일괄 등록 입력 제한 안내용).
+  ///
+  /// 못 받아오면 **null** — 이때는 제한을 걸지 않는다. 모르는 값으로 입력을 막으면
+  /// 여유가 넉넉한 사람이 한 마리도 못 넣는 쪽이 된다. 상한 판정은 저장 시 서버가 한다.
+  Future<int?> fetchRemainingPetSlots() async {
+    try {
+      final res = await _dio.get('/pets/quota');
+      final data = (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>?;
+      return (data?['remaining'] as num?)?.toInt();
+    } catch (_) {
+      return null;
     }
   }
 

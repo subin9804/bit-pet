@@ -12,6 +12,7 @@ import io.bitpet.pet.dto.PetCreateRequest;
 import io.bitpet.pet.dto.PetRelationRequest;
 import io.bitpet.pet.dto.PetRelationResponse;
 import io.bitpet.pet.dto.PetNameAvailabilityResponse;
+import io.bitpet.pet.dto.PetQuotaResponse;
 import io.bitpet.pet.dto.PetResponse;
 import io.bitpet.pet.dto.PetUpdateRequest;
 import io.bitpet.pet.service.PetService;
@@ -76,6 +77,13 @@ public class PetController {
             @RequestParam(required = false) PetGender gender,
             @RequestParam(required = false) String name) {
         return ApiResponse.ok(petService.search(principal.userId(), speciesId, gender, name));
+    }
+
+    @Operation(summary = "남은 등록 가능 개체 수 (폼 입력 제한 안내용)")
+    @GetMapping("/quota")
+    public ApiResponse<PetQuotaResponse> quota(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return ApiResponse.ok(petService.quota(principal.userId()));
     }
 
     @Operation(summary = "이름 사용 가능 여부 (폼 입력 중 안내용)")

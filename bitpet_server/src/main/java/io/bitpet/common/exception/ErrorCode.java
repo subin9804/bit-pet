@@ -48,6 +48,7 @@ public enum ErrorCode {
     PET_ACCESS_DENIED(HttpStatus.FORBIDDEN, "You do not own this pet"),
     PET_ORPHANED(HttpStatus.CONFLICT, "소유자가 없는 개체는 새로 연결할 수 없습니다."),
     PET_NAME_DUPLICATE(HttpStatus.CONFLICT, "같은 이름의 개체가 이미 있습니다."),
+    PET_LIMIT_EXCEEDED(HttpStatus.CONFLICT, "개체는 최대 100마리까지 등록할 수 있습니다."),
     USER_PROFILE_HIDDEN(HttpStatus.FORBIDDEN, "프로필을 공개하지 않은 사용자입니다."),
 
     // --- Species ---
