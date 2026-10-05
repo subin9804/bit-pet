@@ -189,6 +189,13 @@ class _RoutineFormScreenState extends ConsumerState<RoutineFormScreen> {
         }
       }
       _alarmOn = r.isAlarmEnabled;
+      // 수정 폼은 서버의 시작일을 그대로 띄운다. 기본값(오늘)을 남겨두면 '시작일'
+      // 요약줄이 거짓을 말하고, 저장 시 그 오늘이 그대로 나가 일정이 되감긴다.
+      final sd = r.startDate?.toLocal();
+      if (sd != null) {
+        _startDate = '${sd.year}-${sd.month.toString().padLeft(2, '0')}'
+            '-${sd.day.toString().padLeft(2, '0')}';
+      }
     } else {
       _titleCtrl = TextEditingController(text: '급여');
     }
@@ -212,6 +219,11 @@ class _RoutineFormScreenState extends ConsumerState<RoutineFormScreen> {
           'alarmTime': _alarmTimeForSave,
           'alarmEnabled': _alarmOn,
           'petIds': _petIds.toList(),
+          // 시작일을 바꿨으면 다음 예정일도 같이 옮겨야 한다. 이 필드가 없던 동안은
+          // 수정으로 알림 일정을 바꿀 방법이 아예 없었다.
+          // 서버는 기존 시작일과 같으면 무시하므로 매번 보내도 안전하다.
+          if (DateTime.tryParse(_startDate) != null)
+            'startAt': DateTime.parse(_startDate).toUtc().toIso8601String(),
         },
       );
     } else {

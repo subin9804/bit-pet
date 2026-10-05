@@ -49,21 +49,31 @@ public class RoutineScheduler {
 
         Instant now = Instant.now();
         for (RoutineMst routine : readyList) {
+            List<Long> petIds = routinePetRepository.findPetIdsByRoutineId(routine.getId());
+
+            // 개체가 없으면 보낼 알림이 없다 — markNotified 도 찍지 않고 넘어간다.
+            // 찍어버리면 '오늘 보냈음'이 되어 그날 다시 스캔되지 않으므로, 오늘 안에
+            // 개체를 연결해도 알림이 오지 않는다 (RoutineMst 빌더가 active=true 를
+            // 무조건 세팅하므로 0마리 루틴도 이 목록에 들어온다).
+            if (petIds.isEmpty()) {
+                log.debug("Routine id={} has no pets — skipping without marking notified", routine.getId());
+                continue;
+            }
+
             try {
-                List<Long> petIds = routinePetRepository.findPetIdsByRoutineId(routine.getId());
-                if (!petIds.isEmpty()) {
-                    notificationService.createRoutineNotification(
-                            routine.getUserId(),
-                            petIds.get(0),
-                            routine.getId(),
-                            petIds.size(),
-                            buildTitle(routine, petIds),
-                            routine.getTitle()
-                    );
-                }
+                notificationService.createRoutineNotification(
+                        routine.getUserId(),
+                        petIds.get(0),
+                        routine.getId(),
+                        petIds.size(),
+                        buildTitle(routine, petIds),
+                        routine.getTitle()
+                );
             } catch (Exception e) {
                 log.warn("Notification failed for routine id={}: {}", routine.getId(), e.getMessage());
             }
+            // 실패해도 찍는다 — 안 찍으면 같은 루틴을 1분마다 하루 종일 재시도한다.
+            // 발송 실패 자체는 notification_log_dtl 의 status=FAILED 로 남는다.
             routine.markNotified(now);
         }
     }

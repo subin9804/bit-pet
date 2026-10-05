@@ -20,6 +20,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.util.Objects;
 
 @Entity
 @Getter
@@ -108,6 +109,7 @@ public class RoutineMst extends BaseTimeEntity {
     public void update(RoutineType routineType, String title, int cycleDays,
                        LocalTime alarmTime, boolean alarmEnabled,
                        Boolean active, String memo) {
+        boolean alarmMoved = !Objects.equals(this.alarmTime, alarmTime);
         this.routineType  = routineType;
         this.title        = title;
         this.cycleDays    = cycleDays;
@@ -115,6 +117,50 @@ public class RoutineMst extends BaseTimeEntity {
         this.alarmEnabled = alarmEnabled;
         if (active != null) this.active = active;
         this.memo         = memo;
+        if (alarmMoved) forgetTodaysNotification();
+    }
+
+    /**
+     * 시작일 재설정 — 시작일과 다음 예정일을 함께 옮긴다. 수정 화면에서 "오늘부터 시작"을
+     * 다시 고를 수 있게 하는 유일한 경로다.
+     *
+     * <p>⚠️ <b>값이 실제로 바뀔 때만 움직인다.</b> 앱은 수정 시 폼 전체를 보내므로 바뀌지 않은
+     * 시작일도 매번 함께 온다. 무조건 대입하면 몇 주째 돌던 루틴의 {@code nextDueAt}이
+     * 편집 한 번에 시작일로 <b>되감긴다.</b>
+     *
+     * <p>미룸 표시도 지운다 — 되돌릴 기준이 되는 옛 일정이 사라졌으므로, 남겨두면
+     * "9/16에서 미룸"이 새 일정과 아무 관계 없는 날짜를 가리킨다.
+     */
+    public void reschedule(LocalDate newStartDate) {
+        if (newStartDate == null || newStartDate.equals(this.startDate)) return;
+        this.startDate = newStartDate;
+        this.nextDueAt = newStartDate;
+        clearPostponed();
+        forgetTodaysNotification();
+    }
+
+    /**
+     * '오늘 알림 보냈음' 표시 해제 — 바뀐 시각에 다시 울릴 수 있게 한다.
+     *
+     * <p>스케줄러 조회 조건이 {@code lastNotifiedAt < 오늘 0시}라서, 이 표시가 남아 있으면
+     * 알람을 몇 시로 옮기든 <b>오늘은 다시 오지 않는다.</b> 루틴을 고쳤는데 알림이 안 오는
+     * 증상의 원인이 이것이다.
+     *
+     * <p>⚠️ 새 알람 시각이 <b>이미 지났으면 지우지 않는다.</b> 지우면 저장하는 순간 알림이
+     * 튀어나온다 — 18시에 알람을 9시로 바꾼 사람이 기대하는 건 '내일 9시'이지 지금 당장이 아니다.
+     */
+    private void forgetTodaysNotification() {
+        if (shouldForgetTodaysNotification(alarmTime, LocalTime.now(SEOUL))) {
+            this.lastNotifiedAt = null;
+        }
+    }
+
+    /**
+     * 위 판단만 떼어낸 순수 함수 — 시계를 넣을 수 있어야 양쪽 분기를 테스트할 수 있다.
+     * ({@code LocalTime.now()} 를 직접 읽으면 테스트가 실행 시각에 따라 흔들린다.)
+     */
+    public static boolean shouldForgetTodaysNotification(LocalTime newAlarmTime, LocalTime now) {
+        return newAlarmTime == null || !newAlarmTime.isBefore(now);
     }
 
     /** 루틴 완료 시 — lastExecutedAt 기록, nextDueAt을 다음 주기 날짜로 전진 */

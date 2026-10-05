@@ -155,6 +155,10 @@ public class RoutineService {
         RoutineMst routine = findAccessibleRoutine(userId, routineId);
         routine.update(req.routineType(), req.title(), req.cycleDays(),
                 req.alarmTime(), req.alarmEnabled(), req.active(), req.memo());
+        // 시작일을 바꿨으면 다음 예정일도 함께 옮긴다. 생성과 같은 변환을 쓴다.
+        if (req.startAt() != null) {
+            routine.reschedule(req.startAt().atZone(SEOUL).toLocalDate());
+        }
         List<Long> petIds = routinePetRepository.findPetIdsByRoutineId(routineId);
         return RoutineResponse.from(routine, petIds);
     }
