@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/confirm_modal.dart';
 import '../../../core/widgets/step_shell.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../data/models/pet_models.dart';
@@ -47,6 +48,49 @@ class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
   }
 
   bool get _canSubmit => _species != null && _count >= 1 && !_submitting;
+
+  /// 실제로 붙는 접두어. 비워두면 종 이름이 들어간다.
+  ///
+  /// 등록 로직과 미리보기가 **같은 값을 봐야 한다** — 따로 계산하면 예시와
+  /// 실제로 저장되는 이름이 갈라져도 아무도 모른다.
+  String get _effectivePrefix {
+    final typed = _prefixCtrl.text.trim();
+    if (typed.isNotEmpty) return typed;
+    return _species?.nameKo ?? '이름';
+  }
+
+  /// 확인을 받을 만한 입력이 있는지. 아무것도 안 건드렸으면 묻지 않는다 —
+  /// 잘못 들어온 사람에게까지 모달을 띄우면 방해일 뿐이다.
+  bool get _hasInput =>
+      _species != null ||
+      _count > 1 ||
+      _prefixCtrl.text.trim().isNotEmpty ||
+      _gender != 'UNKNOWN' ||
+      _hatchDate != null ||
+      _adoptDate != null ||
+      _fatherPet != null ||
+      _motherPet != null;
+
+  /// 뒤로 — 입력한 게 있으면 확인을 받는다.
+  ///
+  /// 문구·모양은 StepShell 의 취소 확인과 **같은 것을 쓴다**. 머티리얼 기본
+  /// AlertDialog 를 쓰던 때는 모서리·버튼 색이 앱의 다른 확인 모달과 전부
+  /// 달라서, 같은 질문을 두 가지 모양으로 하는 셈이었다.
+  Future<void> _confirmExit() async {
+    if (!_hasInput) {
+      context.pop();
+      return;
+    }
+    final ok = await ConfirmModal.show(
+      context,
+      title: '나가시겠어요?',
+      message: '저장되지 않은 정보가 모두 삭제돼요.',
+      confirmLabel: '나가기',
+      cancelLabel: '계속 작성',
+      isDangerous: true,
+    );
+    if (ok && mounted) context.pop();
+  }
 
   String _isoDate(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
@@ -109,9 +153,7 @@ class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
     setState(() => _submitting = true);
 
     final repo = ref.read(petRepositoryProvider);
-    final prefix = _prefixCtrl.text.trim().isNotEmpty
-        ? _prefixCtrl.text.trim()
-        : _species!.nameKo;
+    final prefix = _effectivePrefix;
 
     int successCount = 0;
     try {
@@ -159,59 +201,48 @@ class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
         child: Column(
           children: [
             // ── 상단 바 ──────────────────────────────────────────────────────
+            // 제목은 **왼쪽 고정**, '뒤로'는 오른쪽 — StepShell 헤더와 같은 문법이다.
+            // 개체 등록 폼에서 넘어오는 화면이라 둘의 머리가 다르면 같은 흐름
+            // 중간에 다른 앱이 끼어든 것처럼 보인다.
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 8, 16, 4),
+              padding: const EdgeInsets.fromLTRB(
+                  20, AppSpacing.sm, 12, AppSpacing.xs),
               child: Row(
                 children: [
-                  SizedBox(
-                    width: 68,
-                    child: TextButton(
-                      onPressed: () async {
-                        final confirmed = await showDialog<bool>(
-                          context: context,
-                          builder: (ctx) => AlertDialog(
-                            shape: const RoundedRectangleBorder(),
-                            title: const Text('입력 내용을 삭제할까요?',
-                                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-                            content: const Text('지금 나가면 입력한 정보가 모두 삭제돼요.',
-                                style: TextStyle(fontSize: 14, height: 1.5)),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.of(ctx).pop(false),
-                                child: const Text('계속 작성',
-                                    style: TextStyle(fontWeight: FontWeight.w600)),
-                              ),
-                              TextButton(
-                                onPressed: () => Navigator.of(ctx).pop(true),
-                                style: TextButton.styleFrom(foregroundColor: Colors.red),
-                                child: const Text('나가기',
-                                    style: TextStyle(fontWeight: FontWeight.w700)),
-                              ),
-                            ],
-                          ),
-                        );
-                        if (confirmed == true && mounted) context.pop();
-                      },
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        foregroundColor: AppColors.paleInk2,
-                      ),
-                      child: const Text('뒤로',
-                          style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
-                              color: AppColors.paleInk2)),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('일괄 개체 등록',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                                color: AppColors.primary,
+                                letterSpacing: -0.2)),
+                        SizedBox(height: 2),
+                        Text('같은 조건으로 한 번에',
+                            style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.paleInk3)),
+                      ],
                     ),
                   ),
-                  const Expanded(
-                    child: Text('일괄 개체 등록',
-                        textAlign: TextAlign.center,
+                  TextButton(
+                    onPressed: _confirmExit,
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      foregroundColor: AppColors.paleInk2,
+                      shape: const RoundedRectangleBorder(
+                          borderRadius: AppRadius.brMd),
+                    ),
+                    child: const Text('뒤로',
                         style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 15,
-                            color: AppColors.primary)),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                            color: AppColors.paleInk2)),
                   ),
-                  const SizedBox(width: 68),
                 ],
               ),
             ),
@@ -223,142 +254,125 @@ class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ── 필수 섹션 ────────────────────────────────────────────
-                    _SectionHeader(label: '필수 항목'),
-                    const SizedBox(height: 12),
-
-                    // 종 선택
-                    _FieldLabel(label: '종', required: true),
-                    const SizedBox(height: 8),
-                    _TapField(
-                      value: _species?.nameKo,
-                      placeholder: '종을 선택하세요',
-                      icon: Icons.search,
-                      onTap: _openSpeciesSheet,
-                    ),
+                    // ── 필수 항목 ───────────────────────────────────────────
+                    const _SectionHeader(label: '필수 항목'),
                     const SizedBox(height: 16),
 
-                    // 마리수
-                    _FieldLabel(label: '마리수', required: true),
-                    const SizedBox(height: 8),
-                    _CountStepper(
-                      value: _count,
-                      onChanged: (v) => setState(() => _count = v),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // ── 선택 섹션 ────────────────────────────────────────────
-                    _SectionHeader(label: '선택 항목', muted: true),
-                    const SizedBox(height: 12),
-
-                    // 이름 접두어
-                    _FieldLabel(label: '이름 접두어', required: false),
-                    const SizedBox(height: 8),
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: AppRadius.brLg,
-                        color: AppColors.surface,
-                        border: Border.all(color: AppColors.paleLine),
-                      ),
-                      child: TextField(
-                        controller: _prefixCtrl,
-                        style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.primary),
-                        cursorColor: AppColors.primary,
-                        decoration: InputDecoration(
-                          hintText: _species != null
-                              ? '비워두면 "${_species!.nameKo}"으로 자동 설정'
-                              : '예: 차우, 개구리 등',
-                          hintStyle: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.paleInk3),
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 12),
-                          border: InputBorder.none,
-                        ),
+                    SField(
+                      label: '종',
+                      child: _TapField(
+                        value: _species?.nameKo,
+                        placeholder: '종을 선택하세요',
+                        icon: Icons.search,
+                        onTap: _openSpeciesSheet,
                       ),
                     ),
-                    if (_count > 1)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(
-                          '예: ${_prefixCtrl.text.isEmpty ? (_species?.nameKo ?? '이름') : _prefixCtrl.text} 1, ${_prefixCtrl.text.isEmpty ? (_species?.nameKo ?? '이름') : _prefixCtrl.text} 2 …',
-                          style: const TextStyle(
-                              fontSize: 11,
-                              color: AppColors.paleInk3,
-                              fontWeight: FontWeight.w500),
-                        ),
+
+                    SField(
+                      label: '마리수',
+                      hint: '최대 50마리',
+                      child: _CountStepper(
+                        value: _count,
+                        onChanged: (v) => setState(() => _count = v),
                       ),
-                    const SizedBox(height: 16),
-
-                    // 성별
-                    _FieldLabel(label: '성별', required: false),
-                    const SizedBox(height: 8),
-                    _GenderPicker(
-                      value: _gender,
-                      onChanged: (v) => setState(() => _gender = v),
                     ),
+
+                    const SizedBox(height: 8),
+
+                    // ── 선택 항목 ───────────────────────────────────────────
+                    const _SectionHeader(label: '선택 항목', muted: true),
                     const SizedBox(height: 16),
 
-                    // 해칭일
-                    _FieldLabel(label: '해칭일', required: false),
-                    const SizedBox(height: 8),
-                    _TapField(
-                      value: _hatchDate != null ? _fmtDate(_hatchDate!) : null,
-                      placeholder: '해칭일 선택 (선택)',
-                      icon: Icons.egg_outlined,
-                      onTap: () => _pickDate(isHatch: true),
-                      onClear: () => setState(() => _hatchDate = null),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // 입양일
-                    _FieldLabel(label: '입양일', required: false),
-                    const SizedBox(height: 8),
-                    _TapField(
-                      value: _adoptDate != null ? _fmtDate(_adoptDate!) : null,
-                      placeholder: '입양일 선택 (선택)',
-                      icon: Icons.home_outlined,
-                      onTap: () => _pickDate(isHatch: false),
-                      onClear: () => setState(() => _adoptDate = null),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // 부모 개체
-                    _FieldLabel(label: '부모 개체', required: false),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _TapField(
-                            value: _fatherPet?.name,
-                            placeholder: '아버지 개체',
-                            icon: Icons.male,
-                            // 필드를 누르면 시트가 다시 열려 **다른 개체로 바꿀 수 있고**,
-                            // X 를 누르면 비워진다. 시트는 취소 시 null 을 팝하므로
-                            // 거기서는 해제가 성립하지 않는다 — 비우기는 여기 X 가 유일하다.
-                            onTap: () => _openParentSheet(isFather: true),
-                            onClear: () => setState(() => _fatherPet = null),
+                    SField(
+                      label: '이름 접두어',
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          PaleTextField(
+                            controller: _prefixCtrl,
+                            placeholder: _species != null
+                                ? '비워두면 "${_species!.nameKo}"으로 자동 설정'
+                                : '예: 차우, 개구리 등',
+                            // 아래 예시가 입력에 따라 움직여야 한다 — 예전엔
+                            // onChanged 가 없어서 다 적어도 예시가 그대로였다.
+                            onChanged: (_) => setState(() {}),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _TapField(
-                            value: _motherPet?.name,
-                            placeholder: '어머니 개체',
-                            icon: Icons.female,
-                            // 필드를 누르면 시트가 다시 열려 **다른 개체로 바꿀 수 있고**,
-                            // X 를 누르면 비워진다. 시트는 취소 시 null 을 팝하므로
-                            // 거기서는 해제가 성립하지 않는다 — 비우기는 여기 X 가 유일하다.
-                            onTap: () => _openParentSheet(isFather: false),
-                            onClear: () => setState(() => _motherPet = null),
-                          ),
-                        ),
-                      ],
+                          if (_count > 1)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6, left: 4),
+                              child: Text(
+                                '예: $_effectivePrefix 1, $_effectivePrefix 2 …',
+                                style: const TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.paleInk3),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
+
+                    SField(
+                      label: '성별',
+                      child: _GenderPicker(
+                        value: _gender,
+                        onChanged: (v) => setState(() => _gender = v),
+                      ),
+                    ),
+
+                    SField(
+                      label: '해칭일',
+                      child: _TapField(
+                        value: _hatchDate != null ? _fmtDate(_hatchDate!) : null,
+                        placeholder: '해칭일 선택',
+                        icon: Icons.egg_outlined,
+                        onTap: () => _pickDate(isHatch: true),
+                        onClear: () => setState(() => _hatchDate = null),
+                      ),
+                    ),
+
+                    SField(
+                      label: '입양일',
+                      child: _TapField(
+                        value: _adoptDate != null ? _fmtDate(_adoptDate!) : null,
+                        placeholder: '입양일 선택',
+                        icon: Icons.home_outlined,
+                        onTap: () => _pickDate(isHatch: false),
+                        onClear: () => setState(() => _adoptDate = null),
+                      ),
+                    ),
+
+                    SField(
+                      label: '부모 개체',
+                      hint: '등록되는 전원에게 적용',
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _TapField(
+                              value: _fatherPet?.name,
+                              placeholder: '아버지',
+                              icon: Icons.male,
+                              // 필드를 누르면 시트가 다시 열려 **다른 개체로 바꿀 수 있고**,
+                              // X 를 누르면 비워진다. 시트는 취소 시 null 을 팝하므로
+                              // 거기서는 해제가 성립하지 않는다 — 비우기는 여기 X 가 유일하다.
+                              onTap: () => _openParentSheet(isFather: true),
+                              onClear: () => setState(() => _fatherPet = null),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _TapField(
+                              value: _motherPet?.name,
+                              placeholder: '어머니',
+                              icon: Icons.female,
+                              onTap: () => _openParentSheet(isFather: false),
+                              onClear: () => setState(() => _motherPet = null),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
                     const SizedBox(height: 32),
                   ],
                 ),
@@ -367,7 +381,8 @@ class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
 
             // ── 등록 버튼 ─────────────────────────────────────────────────────
             Container(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+              padding: const EdgeInsets.fromLTRB(
+                  20, AppSpacing.md, 20, AppSpacing.xxl),
               decoration: const BoxDecoration(
                 color: AppColors.paleBg,
                 border: Border(top: BorderSide(color: AppColors.paleLineSoft)),
@@ -379,6 +394,8 @@ class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   decoration: BoxDecoration(
+                    // 각진 버튼 하나만 남아 있었다 — 다른 화면의 제출 버튼은 전부 brMd 다
+                    borderRadius: AppRadius.brMd,
                     color: _canSubmit ? AppColors.primary : AppColors.paleLine,
                   ),
                   child: _submitting
@@ -428,6 +445,7 @@ class _SectionHeader extends StatelessWidget {
           width: 3,
           height: 14,
           decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(2),
             color: muted ? AppColors.paleInk3 : AppColors.primary,
           ),
         ),
@@ -445,46 +463,6 @@ class _SectionHeader extends StatelessWidget {
         Expanded(
           child: Container(height: 1, color: AppColors.paleLineSoft),
         ),
-      ],
-    );
-  }
-}
-
-class _FieldLabel extends StatelessWidget {
-  final String label;
-  final bool required;
-  const _FieldLabel({required this.label, required this.required});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 13.5,
-            fontWeight: FontWeight.w700,
-            color: AppColors.primary,
-            letterSpacing: -0.2,
-          ),
-        ),
-        if (required) ...[
-          const SizedBox(width: 4),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppColors.petCoralInk.withValues(alpha: 0.12),
-            ),
-            child: const Text(
-              '필수',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                color: AppColors.petCoralInk,
-              ),
-            ),
-          ),
-        ],
       ],
     );
   }
@@ -520,7 +498,7 @@ class _TapField extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
         decoration: BoxDecoration(
-          borderRadius: AppRadius.brLg,
+          borderRadius: AppRadius.brMd,
           color: AppColors.surface,
           border: Border.all(
             color: hasValue ? AppColors.primary.withValues(alpha: 0.25) : AppColors.paleLine,
@@ -571,7 +549,7 @@ class _CountStepper extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        borderRadius: AppRadius.brLg,
+        borderRadius: AppRadius.brMd,
         color: AppColors.surface,
         border: Border.all(color: AppColors.paleLine),
       ),
@@ -674,7 +652,7 @@ class _GenderPicker extends StatelessWidget {
                 duration: const Duration(milliseconds: 150),
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
-                  borderRadius: AppRadius.brLg,
+                  borderRadius: AppRadius.brMd,
                   color: on ? ink.withValues(alpha: 0.12) : AppColors.surface,
                   border: Border.all(
                     color: on ? ink : AppColors.paleLine,

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -68,6 +70,17 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
   /// 등록 모드에는 지울 부모가 없으므로 처음부터 true.
   bool _parentsLoaded = false;
   bool _isPublic = false; // 검색 허용 여부 (기본 비공개)
+
+  // ── 이름 중복 실시간 확인 ──────────────────────────────────────────────────
+  // 저장할 때만 막으면 "저장이 안 되는데 이유를 모르는" 화면이 된다.
+  // 입력이 멎으면 물어보고, 겹치면 다음 단계로 넘어가지 못하게 한다.
+  Timer? _nameCheckTimer;
+
+  /// 지금 화면에 띄운 판정이 **어느 입력에 대한 것인지**. 응답이 순서대로 오지 않으므로
+  /// 이 값이 현재 입력과 다르면 결과를 버린다 — 안 그러면 한 글자 전의 답이 남는다.
+  String? _nameCheckedFor;
+  bool _nameChecking = false;
+  bool _nameTaken = false;
   PickedImage? _pickedProfile; // 새로 고른 프로필 사진 (저장 시 업로드)
 
   /// 수정 모드에서 이미 올라가 있는 대표 사진. 이게 없으면 화면이 "사진 없음"처럼
@@ -100,10 +113,41 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
 
   @override
   void dispose() {
+    _nameCheckTimer?.cancel();
     _nameCtrl.dispose();
     _weightCtrl.dispose();
     _memoCtrl.dispose();
     super.dispose();
+  }
+
+  /// 이름 입력이 바뀔 때마다 — 즉시 그리고, 400ms 멎으면 서버에 물어본다.
+  ///
+  /// 한 글자마다 때리지 않는 건 요청 수가 아니라 **답이 뒤집히는 것** 때문이다.
+  /// 입력 중에 '중복' / '사용 가능'이 번갈아 깜빡이면 읽을 수가 없다.
+  void _onNameChanged(String value) {
+    final name = value.trim();
+    _nameCheckTimer?.cancel();
+
+    setState(() {
+      // 글자가 바뀐 순간 이전 판정은 무효다 — 남겨두면 지운 이름에 붙은 경고가 계속 보인다
+      _nameCheckedFor = null;
+      _nameTaken = false;
+      _nameChecking = name.isNotEmpty;
+    });
+    if (name.isEmpty) return;
+
+    _nameCheckTimer = Timer(const Duration(milliseconds: 400), () async {
+      final available = await ref
+          .read(petRepositoryProvider)
+          .isNameAvailable(name, excludePetId: widget.petId);
+      if (!mounted) return;
+      if (_nameCtrl.text.trim() != name) return;   // 그 사이 더 입력했다 — 이 답은 버린다
+      setState(() {
+        _nameChecking = false;
+        _nameCheckedFor = name;
+        _nameTaken = !available;
+      });
+    });
   }
 
   Future<void> _loadForEdit(int petId) async {
@@ -541,7 +585,10 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
     StepConfig(
       title: '사진과 이름',
       desc: '사진을 올리고 이름을 지어주세요.',
-      valid: () => _nameCtrl.text.trim().isNotEmpty,
+      // 겹치는 이름이면 다음으로 넘어가지 못한다. '확인 중'은 막지 않는다 —
+      // 네트워크가 느린 사람이 버튼이 왜 죽었는지 모르는 쪽이 더 나쁘고,
+      // 최종 판정은 어차피 저장할 때 서버가 한다.
+      valid: () => _nameCtrl.text.trim().isNotEmpty && !_nameTaken,
       render: (_) => ListenableBuilder(
         listenable: _nameCtrl,
         builder: (_, __) => Column(
@@ -676,10 +723,20 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
             const SizedBox(height: 28),
             SField(
               label: '이름',
-              child: PaleTextField(
-                controller: _nameCtrl,
-                placeholder: '개체 이름',
-                onChanged: (_) => setState(() {}),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  PaleTextField(
+                    controller: _nameCtrl,
+                    placeholder: '개체 이름',
+                    onChanged: _onNameChanged,
+                  ),
+                  _NameCheckLine(
+                    checking: _nameChecking,
+                    taken: _nameTaken,
+                    checkedFor: _nameCheckedFor,
+                  ),
+                ],
               ),
             ),
           ],
@@ -1007,7 +1064,10 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
           onDone: _submit,
           onCancel: () => context.pop(),
           confirmOnCancel: true,
-          initialStep: widget.petId != null ? 4 : 0,
+          // 수정은 **요약 화면에서 시작**한다 — 고칠 한 곳만 찾아 들어가는 게 보통이고,
+          // 1단계부터 다시 훑게 하면 등록을 또 하는 기분이 된다.
+          // ⚠️ 상수를 박지 말 것: 단계가 하나 늘자 4 번이 요약이 아니게 되어 밀렸다.
+          initialStep: widget.petId != null ? _steps.length - 1 : 0,
         ),
       ),
     );
@@ -1279,6 +1339,50 @@ class _ParentTile extends StatelessWidget {
               visualDensity: VisualDensity.compact,
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 이름 칸 아래 한 줄. 확인 중 · 쓸 수 있음 · 이미 있음.
+///
+/// **자리를 항상 차지한다**(빈 상태도 같은 높이). 안내가 나타날 때마다 아래 내용이
+/// 밀려 내려가면 입력하는 중에 화면이 출렁인다.
+class _NameCheckLine extends StatelessWidget {
+  final bool checking;
+  final bool taken;
+  final String? checkedFor;
+
+  const _NameCheckLine({
+    required this.checking,
+    required this.taken,
+    required this.checkedFor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    String text = '';
+    Color color = AppColors.paleInk3;
+    if (checking) {
+      text = '확인 중…';
+    } else if (taken) {
+      text = '이미 같은 이름의 개체가 있어요';
+      color = AppColors.error;
+    } else if (checkedFor != null) {
+      text = '사용할 수 있는 이름이에요';
+      color = AppColors.brandAction;
+    }
+    return SizedBox(
+      height: 20,
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 4, left: 2),
+          child: Text(
+            text,
+            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: color),
+          ),
         ),
       ),
     );

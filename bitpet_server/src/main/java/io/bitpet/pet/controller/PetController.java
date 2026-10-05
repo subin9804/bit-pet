@@ -11,6 +11,7 @@ import io.bitpet.pet.dto.PetCardResponse;
 import io.bitpet.pet.dto.PetCreateRequest;
 import io.bitpet.pet.dto.PetRelationRequest;
 import io.bitpet.pet.dto.PetRelationResponse;
+import io.bitpet.pet.dto.PetNameAvailabilityResponse;
 import io.bitpet.pet.dto.PetResponse;
 import io.bitpet.pet.dto.PetUpdateRequest;
 import io.bitpet.pet.service.PetService;
@@ -75,6 +76,16 @@ public class PetController {
             @RequestParam(required = false) PetGender gender,
             @RequestParam(required = false) String name) {
         return ApiResponse.ok(petService.search(principal.userId(), speciesId, gender, name));
+    }
+
+    @Operation(summary = "이름 사용 가능 여부 (폼 입력 중 안내용)")
+    @GetMapping("/name-available")
+    public ApiResponse<PetNameAvailabilityResponse> checkNameAvailable(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @RequestParam String name,
+            @RequestParam(required = false) Long excludePetId) {
+        boolean available = petService.isNameAvailable(principal.userId(), name, excludePetId);
+        return ApiResponse.ok(new PetNameAvailabilityResponse(name, available));
     }
 
     @Operation(summary = "일련번호로 공개 개체 조회 (메이팅 파트너 검색용, 검색허용 개체만 반환)")

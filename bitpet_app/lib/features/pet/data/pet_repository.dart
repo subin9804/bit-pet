@@ -201,6 +201,23 @@ class PetRepository {
     return apiRes.data!;
   }
 
+  /// 이 이름을 지금 쓸 수 있는지 (폼 입력 중 안내용).
+  ///
+  /// 실패하면 **true(쓸 수 있음)** 로 돌려준다 — 네트워크가 끊겼다고 입력을 막으면
+  /// 저장조차 시도할 수 없다. 최종 판정은 저장 시 서버가 한다.
+  Future<bool> isNameAvailable(String name, {int? excludePetId}) async {
+    try {
+      final res = await _dio.get('/pets/name-available', queryParameters: {
+        'name': name,
+        if (excludePetId != null) 'excludePetId': excludePetId,
+      });
+      final data = (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>?;
+      return data?['available'] as bool? ?? true;
+    } catch (_) {
+      return true;
+    }
+  }
+
   /// 일련번호로 개체 카드 찾기 — 부모 선택에서 **남의 개체**를 거는 유일한 경로.
   /// 정확히 일치해야 하고, 비공개거나 없는 번호면 서버가 404 → null 로 돌려준다.
   Future<PetCard?> findCardBySerial(String serialNo) async {

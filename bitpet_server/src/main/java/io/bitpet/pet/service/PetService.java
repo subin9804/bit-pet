@@ -539,6 +539,21 @@ public class PetService {
     }
 
     /**
+     * 이 이름을 지금 쓸 수 있는지. 폼이 입력 중에 물어보는 용도다.
+     *
+     * <p>⚠️ 이 조회는 <b>검사가 아니라 안내</b>다. 통과했다고 저장이 보장되지 않는다 —
+     * 물어본 뒤 저장까지의 사이에 다른 기기가 같은 이름을 쓸 수 있다.
+     * 그래서 {@code create}/{@code update} 의 검사를 이걸로 대체하지 말 것.
+     *
+     * @param excludePetId 수정 중인 개체(자기 이름을 그대로 둔 경우). 등록이면 null
+     */
+    public boolean isNameAvailable(Long userId, String name, Long excludePetId) {
+        if (name == null || name.isBlank()) return true;   // 빈 이름은 '중복'이 아니라 '미입력'이다
+        return !petRepository.existsDuplicateName(
+                userId, name.trim().toLowerCase(), excludePetId != null ? excludePetId : 0L);
+    }
+
+    /**
      * 같은 사람의 개체끼리 이름이 겹치지 않게 막는다.
      *
      * <p>이름은 목록·루틴·기록에서 개체를 가리키는 사실상의 식별자다(일련번호를 외우는 사람은
