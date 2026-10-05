@@ -461,6 +461,7 @@ class _PetTabState extends ConsumerState<_PetTab> {
                 onRefresh: () => ref.read(petListProvider.notifier).load(),
                 child: Column(
                   children: [
+                    _PetCountLine(shown: pets.length, total: allPets.length),
                     if (hiddenShared > 0) _SharedHiddenNotice(hiddenShared),
                     Expanded(
                       child: _isGridView
@@ -474,6 +475,40 @@ class _PetTabState extends ConsumerState<_PetTab> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// 지금 보고 있는 개체 수 한 줄.
+///
+/// 검색·종 필터가 걸려 있으면 '전체 N마리 중'을 함께 보여준다 — 숫자만 띄우면
+/// 필터가 걸린 걸 잊은 사람이 개체가 사라졌다고 읽는다.
+class _PetCountLine extends StatelessWidget {
+  final int shown;
+  final int total;
+  const _PetCountLine({required this.shown, required this.total});
+
+  @override
+  Widget build(BuildContext context) {
+    final filtered = shown != total;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 2),
+      child: Row(
+        children: [
+          Text(
+            filtered ? '$shown마리' : '총 $shown마리',
+            style: AppTextStyles.caption.copyWith(
+              color: AppColors.paleInk2,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (filtered)
+            Text(
+              ' · 전체 $total마리 중',
+              style: AppTextStyles.caption.copyWith(color: AppColors.paleInk3),
+            ),
+        ],
+      ),
     );
   }
 }

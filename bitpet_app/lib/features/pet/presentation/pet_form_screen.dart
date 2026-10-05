@@ -62,6 +62,11 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
   String _weightUnit = 'g';
   PetCard? _fatherPet;
   PetCard? _motherPet;
+
+  /// 수정 모드에서 기존 부모를 **실제로 읽어왔는지**. 가계도 조회가 실패했는데
+  /// 부모를 같이 보내면 서버가 "둘 다 비워달라"로 읽어 가계도가 조용히 지워진다.
+  /// 등록 모드에는 지울 부모가 없으므로 처음부터 true.
+  bool _parentsLoaded = false;
   bool _isPublic = false; // 검색 허용 여부 (기본 비공개)
   PickedImage? _pickedProfile; // 새로 고른 프로필 사진 (저장 시 업로드)
 
@@ -105,6 +110,17 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
     try {
       final pet = await ref.read(petDetailProvider(petId).future);
 
+      // 부모는 가계도로 받는다. Pet 안의 fatherName/motherName 은 이름뿐이라
+      // 소유자(@닉네임 / 정보 없음)를 그릴 수 없고, 남의 개체인지도 알 수 없다.
+      // 실패해도 폼은 열어야 하므로 삼켜두고 부모만 비워 둔다 — 그러면 저장할 때
+      // 기존 부모가 날아가므로, 못 읽었을 때는 부모를 아예 보내지 않는다(_parentsLoaded).
+      Genealogy? genealogy;
+      try {
+        genealogy = await ref.read(genealogyProvider(petId).future);
+      } catch (_) {
+        genealogy = null;
+      }
+
       // 이미 pet.morphs에 N:N 목록이 들어있으므로 직접 사용
       final matchedMorphs = List<Morph>.from(pet.morphs);
 
@@ -144,6 +160,12 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
         // 대표 사진
         _existingProfileUrl = pet.profileImageUrl;
         _existingProfilePhotoId = pet.profilePhotoId;
+        // 부모
+        if (genealogy != null) {
+          _fatherPet = genealogy.father;
+          _motherPet = genealogy.mother;
+          _parentsLoaded = true;
+        }
 
         _initialized = true;
       });
@@ -457,12 +479,20 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
         'adoptionDate': _adoptUnknown ? null : fmt(_adoptDate),
         if (weightG != null) 'currentWeightG': weightG,
         'description': _memoCtrl.text.trim().isEmpty ? null : _memoCtrl.text.trim(),
+        // editParents 가 켜져 있을 때만 서버가 부모를 건드린다. null = 해제이므로
+        // 기존 부모를 못 읽어온 상태에서는 보내지 않는다.
+        if (_parentsLoaded) ...{
+          'editParents': true,
+          'fatherPetId': _fatherPet?.petId,
+          'motherPetId': _motherPet?.petId,
+        },
       };
       await ref.read(petListProvider.notifier).update(widget.petId!, data);
       // 내리기가 먼저다 — 둘 다 걸린 경우 새로 올린 대표 지정을 지우면 안 된다
       await _removeProfilePhoto(widget.petId!);
       await _uploadProfile(widget.petId!);
       ref.invalidate(petDetailProvider(widget.petId!));
+      ref.invalidate(genealogyProvider(widget.petId!));   // 부모를 고쳤으면 정보 카드도 다시 읽어야 한다
       if (mounted) {
         ToastMessage.show(context, '수정되었습니다!', type: ToastType.success);
         context.pop();
@@ -500,9 +530,10 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
   // ── 스텝 빌드 ─────────────────────────────────────────────────────────────
   List<StepConfig> get _steps {
     final isEdit = widget.petId != null;
-    final all = _buildAllSteps(isEdit);
-    // 수정 모드: Step 4(몸무게+부모) 제외
-    return isEdit ? [all[0], all[1], all[2], all[4], all[5]] : all;
+    // 수정 모드도 단계 구성이 같다. Step 4 는 몸무게를 숨기고 부모만 남긴다 —
+    // 몸무게는 기록 탭에 누적되는 값이라 수정 폼에서 다시 받으면 기록이 하나 더 생기지만,
+    // 부모는 폼에서 고치는 게 자연스럽다 (예전엔 상세 화면 '수정' 아이콘에만 있었다).
+    return _buildAllSteps(isEdit);
   }
 
   List<StepConfig> _buildAllSteps(bool isEdit) => [
@@ -756,11 +787,15 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
 
     // ── Step 4: 몸무게+부모 ──────────────────────────────────────────────────
     StepConfig(
-      title: '몸무게와 부모',
-      desc: '나중에 기록 탭에서 이어서 관리해요.',
+      title: isEdit ? '부모 개체' : '몸무게와 부모',
+      desc: isEdit
+          ? '부모를 다시 고르거나 비울 수 있어요.'
+          : '나중에 기록 탭에서 이어서 관리해요.',
       render: (_) => Column(
         children: [
-          SField(
+          // 몸무게는 등록 때만 받는다. 수정에서 또 받으면 저장할 때마다 체중 기록이
+          // 하나씩 쌓여 그래프가 거짓이 된다 — 수정은 기록 탭에서 한다.
+          if (!isEdit) SField(
             label: '현재 몸무게',
             hint: '기록 탭에 누적',
             child: Row(
@@ -927,20 +962,20 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
               muted: _adoptUnknown || _adoptDate == null,
             ),
           ]),
-          if (!isEdit)
-            StepSummaryGroup(label: '몸무게·부모', step: 3, rows: [
+          StepSummaryGroup(label: isEdit ? '부모' : '몸무게·부모', step: 3, rows: [
+            if (!isEdit)
               StepSummaryRow(
                 k: '몸무게',
                 v: _weightCtrl.text.isNotEmpty ? '${_weightCtrl.text} $_weightUnit' : '',
                 muted: _weightCtrl.text.isEmpty,
               ),
-              StepSummaryRow(
-                k: '부 / 모',
-                v: '${_fatherPet?.name ?? '—'} / ${_motherPet?.name ?? '—'}',
-                muted: _fatherPet == null && _motherPet == null,
-              ),
-            ]),
-          StepSummaryGroup(label: '메모', step: isEdit ? 3 : 4, rows: [
+            StepSummaryRow(
+              k: '부 / 모',
+              v: '${_fatherPet?.name ?? '—'} / ${_motherPet?.name ?? '—'}',
+              muted: _fatherPet == null && _motherPet == null,
+            ),
+          ]),
+          StepSummaryGroup(label: '메모', step: 4, rows: [
             StepSummaryRow(k: '메모', v: _memoCtrl.text, muted: _memoCtrl.text.isEmpty),
             StepSummaryRow(k: '메이팅 검색', v: _isPublic ? '공개' : '비공개'),
           ]),
@@ -1187,57 +1222,64 @@ class _ParentTile extends StatelessWidget {
       );
     }
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        borderRadius: AppRadius.brLg,
-        color: AppColors.surface,
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.35), width: 1.2),
-      ),
-      child: Row(
-        children: [
-          PetAvatar(
-            imageUrl: pet!.profileImageUrl,
-            size: 42,
-            background: _bgOf(pet!),
-            iconColor: AppColors.primary,
-            subcategory: pet!.speciesSubcategory,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(pet!.name,
-                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.primary),
-                    overflow: TextOverflow.ellipsis),
-                Text(
-                  '${pet!.serialNo} · ${pet!.speciesName}',
-                  style: const TextStyle(fontSize: 11, color: AppColors.paleInk3),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                // 남의 개체를 부모로 걸 수 있으므로, 내 개체가 아니면 소유자를 드러낸다
-                if (!pet!.owner.isMe)
+    // 이미 고른 상태에서도 **카드 전체가 탭 타겟**이다 — 다시 누르면 시트가 열려
+    // 다른 개체로 갈아끼운다. 예전엔 X 로 비운 뒤 빈 칸을 다시 눌러야만 바꿀 수 있었다.
+    // (X 는 IconButton 이라 제스처 경쟁에서 항상 이긴다 — 비우기가 먹히는 쪽이 여기다.)
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          borderRadius: AppRadius.brLg,
+          color: AppColors.surface,
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.35), width: 1.2),
+        ),
+        child: Row(
+          children: [
+            PetAvatar(
+              imageUrl: pet!.profileImageUrl,
+              size: 42,
+              background: _bgOf(pet!),
+              iconColor: AppColors.primary,
+              subcategory: pet!.speciesSubcategory,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(pet!.name,
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.primary),
+                      overflow: TextOverflow.ellipsis),
                   Text(
-                    pet!.owner.isOrphaned
-                        ? '정보 없음'
-                        : pet!.owner.userId == null
-                            ? (pet!.owner.nickname ?? '비공개')
-                            : '@${pet!.owner.nickname}',
-                    style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                    '${pet!.serialNo} · ${pet!.speciesName}',
+                    style: const TextStyle(fontSize: 11, color: AppColors.paleInk3),
                     overflow: TextOverflow.ellipsis,
                   ),
-              ],
+                  // 남의 개체를 부모로 걸 수 있으므로, 내 개체가 아니면 소유자를 드러낸다
+                  if (!pet!.owner.isMe)
+                    Text(
+                      pet!.owner.isOrphaned
+                          ? '정보 없음'
+                          : pet!.owner.userId == null
+                              ? (pet!.owner.nickname ?? '비공개')
+                              : '@${pet!.owner.nickname}',
+                      style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                ],
+              ),
             ),
-          ),
-          IconButton(
-            onPressed: onClear,
-            icon: const Icon(Icons.close, size: 20),
-            color: AppColors.paleInk3,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-          ),
-        ],
+            IconButton(
+              onPressed: onClear,
+              icon: const Icon(Icons.close, size: 20),
+              color: AppColors.paleInk3,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              visualDensity: VisualDensity.compact,
+            ),
+          ],
+        ),
       ),
     );
   }

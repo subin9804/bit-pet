@@ -311,13 +311,7 @@ class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
                       placeholder: '해칭일 선택 (선택)',
                       icon: Icons.egg_outlined,
                       onTap: () => _pickDate(isHatch: true),
-                      trailing: _hatchDate != null
-                          ? GestureDetector(
-                              onTap: () => setState(() => _hatchDate = null),
-                              child: const Icon(Icons.close,
-                                  size: 16, color: AppColors.paleInk3),
-                            )
-                          : null,
+                      onClear: () => setState(() => _hatchDate = null),
                     ),
                     const SizedBox(height: 16),
 
@@ -329,13 +323,7 @@ class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
                       placeholder: '입양일 선택 (선택)',
                       icon: Icons.home_outlined,
                       onTap: () => _pickDate(isHatch: false),
-                      trailing: _adoptDate != null
-                          ? GestureDetector(
-                              onTap: () => setState(() => _adoptDate = null),
-                              child: const Icon(Icons.close,
-                                  size: 16, color: AppColors.paleInk3),
-                            )
-                          : null,
+                      onClear: () => setState(() => _adoptDate = null),
                     ),
                     const SizedBox(height: 16),
 
@@ -349,15 +337,11 @@ class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
                             value: _fatherPet?.name,
                             placeholder: '아버지 개체',
                             icon: Icons.male,
+                            // 필드를 누르면 시트가 다시 열려 **다른 개체로 바꿀 수 있고**,
+                            // X 를 누르면 비워진다. 시트는 취소 시 null 을 팝하므로
+                            // 거기서는 해제가 성립하지 않는다 — 비우기는 여기 X 가 유일하다.
                             onTap: () => _openParentSheet(isFather: true),
-                            trailing: _fatherPet != null
-                                ? GestureDetector(
-                                    onTap: () =>
-                                        setState(() => _fatherPet = null),
-                                    child: const Icon(Icons.close,
-                                        size: 16, color: AppColors.paleInk3),
-                                  )
-                                : null,
+                            onClear: () => setState(() => _fatherPet = null),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -366,15 +350,11 @@ class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
                             value: _motherPet?.name,
                             placeholder: '어머니 개체',
                             icon: Icons.female,
+                            // 필드를 누르면 시트가 다시 열려 **다른 개체로 바꿀 수 있고**,
+                            // X 를 누르면 비워진다. 시트는 취소 시 null 을 팝하므로
+                            // 거기서는 해제가 성립하지 않는다 — 비우기는 여기 X 가 유일하다.
                             onTap: () => _openParentSheet(isFather: false),
-                            trailing: _motherPet != null
-                                ? GestureDetector(
-                                    onTap: () =>
-                                        setState(() => _motherPet = null),
-                                    child: const Icon(Icons.close,
-                                        size: 16, color: AppColors.paleInk3),
-                                  )
-                                : null,
+                            onClear: () => setState(() => _motherPet = null),
                           ),
                         ),
                       ],
@@ -515,14 +495,21 @@ class _TapField extends StatelessWidget {
   final String placeholder;
   final IconData icon;
   final VoidCallback onTap;
-  final Widget? trailing;
+
+  /// 값을 비우는 콜백. 주면 값이 있을 때 오른쪽에 X 가 뜬다.
+  ///
+  /// ⚠️ 위젯(trailing)이 아니라 **콜백**을 받는 이유: 예전엔 호출부가
+  /// `GestureDetector(child: Icon(size: 16))` 를 끼워 넣었는데, 맨 `Icon` 은
+  /// 16px 밖에 안 되고 기본 `deferToChild` 라 탭이 거의 바깥 필드로 새서
+  /// **비우려고 누르면 선택 시트가 열렸다**. 히트 영역을 위젯 안에서 책임진다.
+  final VoidCallback? onClear;
 
   const _TapField({
     required this.value,
     required this.placeholder,
     required this.icon,
     required this.onTap,
-    this.trailing,
+    this.onClear,
   });
 
   @override
@@ -556,9 +543,18 @@ class _TapField extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            if (trailing != null) trailing!
-            else const AppIcon(AppIcons.chevronRight,
-                size: 16, color: AppColors.paleInk3),
+            if (hasValue && onClear != null)
+              IconButton(
+                onPressed: onClear,
+                icon: const Icon(Icons.close, size: 20),
+                color: AppColors.paleInk3,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                visualDensity: VisualDensity.compact,
+              )
+            else
+              const AppIcon(AppIcons.chevronRight,
+                  size: 16, color: AppColors.paleInk3),
           ],
         ),
       ),

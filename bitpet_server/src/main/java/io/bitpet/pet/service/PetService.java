@@ -82,6 +82,8 @@ public class PetService {
                         .orElseThrow(() -> new BusinessException(ErrorCode.SPECIES_NOT_FOUND))
                 : null;
 
+        assertNameAvailable(userId, req.name(), 0L);
+
         String serial = serialNumberGenerator.generate();
         PetMst pet = PetMst.builder()
                 .serialNo(serial)
@@ -176,6 +178,7 @@ public class PetService {
     @Transactional
     public PetResponse update(Long userId, Long petId, PetUpdateRequest req) {
         PetMst pet = petKeeper.assertKeeper(userId, petId);
+        assertNameAvailable(userId, req.name(), petId);
         SpeciesCd species = req.speciesId() != null
                 ? speciesRepository.findById(req.speciesId())
                         .orElseThrow(() -> new BusinessException(ErrorCode.SPECIES_NOT_FOUND))
@@ -192,6 +195,10 @@ public class PetService {
         }
         if (morphIds != null) {
             syncMorphs(pet, morphIds, effectiveSpecies);
+        }
+        if (Boolean.TRUE.equals(req.editParents())) {
+            syncParent(userId, petId, req.fatherPetId(), RelationType.FATHER);
+            syncParent(userId, petId, req.motherPetId(), RelationType.MOTHER);
         }
         return PetResponse.from(pet, null, List.of(), null, petKeeper.isOwner(userId, petId));
     }
@@ -501,6 +508,51 @@ public class PetService {
     private void linkParentAtCreate(Long userId, Long childPetId, Long parentPetId, RelationType type) {
         if (parentPetId == null) return;
         addRelation(userId, new PetRelationRequest(parentPetId, childPetId, type));
+    }
+
+    /**
+     * 부모 한 자리를 요청 값에 맞춘다 — 같으면 그대로, 다르면 기존 행을 지우고 새로 건다.
+     *
+     * <p>지우고 다시 거는 게 아니라 <b>같으면 손대지 않는</b> 게 핵심이다. 매번 지웠다 걸면
+     * 관계 id 가 바뀌어 아무 변경이 없는 저장에도 가계도 참조가 흔들리고, {@code addRelation}
+     * 의 중복 검사에 자기 자신이 걸려 터진다.
+     *
+     * <p>부모 쪽 검증(실존·고아·순환)은 {@link #addRelation} 을 그대로 타므로 등록 경로와
+     * 같은 정책이 적용된다. 바꾸려던 부모가 거절되면 예외로 트랜잭션이 전부 되돌아간다 —
+     * 기존 부모만 날아가고 새 부모는 안 걸리는 중간 상태가 남지 않는다.
+     */
+    private void syncParent(Long userId, Long childPetId, Long newParentPetId, RelationType type) {
+        PetRelationRls current = relationRepository.findAllByChildPetId(childPetId).stream()
+                .filter(r -> r.getRelationType() == type)
+                .findFirst()
+                .orElse(null);
+        Long currentParentId = current != null ? current.getParentPet().getId() : null;
+        if (java.util.Objects.equals(currentParentId, newParentPetId)) return;
+
+        if (current != null) {
+            relationRepository.delete(current);
+            relationRepository.flush();   // 중복 검사가 지워진 행을 보지 않게
+        }
+        if (newParentPetId != null) {
+            addRelation(userId, new PetRelationRequest(newParentPetId, childPetId, type));
+        }
+    }
+
+    /**
+     * 같은 사람의 개체끼리 이름이 겹치지 않게 막는다.
+     *
+     * <p>이름은 목록·루틴·기록에서 개체를 가리키는 사실상의 식별자다(일련번호를 외우는 사람은
+     * 없다). 같은 이름이 둘이면 "레오에게 밥 줬나"를 화면에서 판단할 수 없다.
+     *
+     * <p>⚠️ 범위는 전역이 아니라 <b>사람 단위</b>다. 남이 쓰는 이름까지 막으면 흔한 이름이
+     * 선착순으로 소진된다.
+     */
+    private void assertNameAvailable(Long userId, String name, Long excludePetId) {
+        if (name == null || name.isBlank()) return;   // 부분 수정에서 이름을 안 보낸 경우
+        // 정규화는 여기서 한다 — 쿼리 파라미터를 TRIM 으로 감싸도 적용되지 않는다
+        if (petRepository.existsDuplicateName(userId, name.trim().toLowerCase(), excludePetId)) {
+            throw new BusinessException(ErrorCode.PET_NAME_DUPLICATE);
+        }
     }
 
     /** 소유자 전용 작업 검증 — 개체를 없애는 동작(삭제·벌크 삭제)에만 쓴다 */

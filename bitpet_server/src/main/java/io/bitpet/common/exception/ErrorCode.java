@@ -47,6 +47,7 @@ public enum ErrorCode {
     PET_SERIAL_GENERATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to generate a unique pet serial number"),
     PET_ACCESS_DENIED(HttpStatus.FORBIDDEN, "You do not own this pet"),
     PET_ORPHANED(HttpStatus.CONFLICT, "소유자가 없는 개체는 새로 연결할 수 없습니다."),
+    PET_NAME_DUPLICATE(HttpStatus.CONFLICT, "같은 이름의 개체가 이미 있습니다."),
     USER_PROFILE_HIDDEN(HttpStatus.FORBIDDEN, "프로필을 공개하지 않은 사용자입니다."),
 
     // --- Species ---
