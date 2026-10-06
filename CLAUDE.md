@@ -219,7 +219,8 @@ PostgreSQL이 재정규화하는데 의미는 같다.)
   + `post_category_cd` 에 KIDS 어린이 게시판 시드),
   V13(`photo_dtl.thumb_s3_key` — 앱이 업로드 시점에 만들어 같이 올리는 썸네일 키. NULL 허용 =
   기존 사진 백필 안 함, 앱이 `thumbnailUrl ?? url` 로 폴백).
-  **다음은 V14.**
+  V14(먹이 없이 완료한 급여 루틴의 `feeding_dtl` 백필 — `food_type=''`).
+  **다음은 V15.**
 - 코드성 시드(`memo_tag_cd`, `post_category_cd`, `serial_pool_stat_mst`)는 베이스라인 하단에 들어 있다.
   종·모프 마스터는 그대로 `R__01`/`R__02` 담당.
 - ⚠️ **`R__02` 는 파일에 없는 공식 모프를 매 실행마다 지운다** (개체가 물고 있으면 FK RESTRICT 라
@@ -296,7 +297,27 @@ PostgreSQL이 재정규화하는데 의미는 같다.)
 - REFUSED + 메모 없음 → INSERT 안 함
 - FEEDING 완료 → `feeding_dtl` + `routine_log_dtl` 양쪽 INSERT
 - WEIGHT 완료 → `weight_dtl` + `routine_log_dtl` 양쪽 INSERT
-- CLEANING/CUSTOM → `routine_log_dtl`만 (extra_data JSONB에 타입별 메타)
+- CLEANING 완료 → `cleaning_dtl` + `routine_log_dtl` / CUSTOM 완료 → 메모가 있으면 `memo_dtl` + `routine_log_dtl`
+  (`routine_log_dtl.extra_data` JSONB 에 타입별 메타)
+
+#### ⛔ 루틴과 기록은 별개다 (2026-10-07 확정)
+
+루틴은 **정기적으로 할 일을 챙기고 했는지 확인하는 도구**일 뿐이다. 기록은 루틴을 수행할 때
+같이 저장되지만 루틴에 종속되지 않는다 — **루틴이 삭제돼도 기록은 남는다**
+(`feeding_dtl.routine_id` 는 `ON DELETE SET NULL`, `routine_log_id` 는 FK 없음).
+
+- ⛔ **'루틴 전용 카드' 같은 건 없다.** 루틴 완료로 생긴 것도 전부 보통 기록이고 **전부 수정·삭제된다**
+- **먹이를 하나도 안 적고 완료해도 `feeding_dtl` 한 행을 남긴다** (`food_type = ''`).
+  빈 문자열은 "뭘 줬는지 아직 안 적음" 이고 거식(`refused_yn='Y'`, `food_type IS NULL`)과 다른 상태다.
+  CHECK `ck_feeding_dtl_food_type_by_refused` 는 NOT NULL 만 보므로 통과한다
+- ⛔ **읽기 시점에 루틴 로그를 기록으로 합성하지 말 것.** 2026-10-06 에 이 방식(`editable=false`)을
+  넣었다가 하루 만에 걷어냈다 — 합성 항목의 id 가 `routine_log_dtl.id` 라 수정 경로로 보낼 수 없고,
+  결국 "수정 안 되는 기록"이라는 없는 개념을 사용자에게 설명하게 된다
+- ⛔ **루틴 로그 ↔ dtl 짝은 반드시 `routine_log_id` 로 찾는다.** 시각 일치(`fed_at = executed_at`)로
+  맞추던 코드가 `TimelineService`·`CalendarService` 에 있었는데, 기록의 **날짜를 수정하는 순간**
+  짝이 끊겨 루틴 로그가 유령 항목으로 되살아나 같은 기록이 2개로 보였다
+- ℹ️ 아직 안 지킨 곳: CUSTOM 루틴을 메모 없이 완료하면 `memo_dtl` 이 안 생긴다 (`content` NOT NULL),
+  WEIGHT 루틴은 체중 없이 완료할 수 없다(체중 필수 원칙). 둘 다 별도 판단 필요
 
 ### Memo 도메인 (v5)
 - `health_memo_dtl` → `memo_dtl` (V15 마이그레이션)
@@ -772,7 +793,7 @@ test → GHCR 이미지 빌드(**태그 = 커밋 SHA**) → SSH → `deploy/scri
 - 외부 시스템 영향(push·삭제·외부 API 호출)은 확인 후 진행
 - Flutter UI는 디자인 확정 전까지 **뼈대(Skeleton)만** 구현, 상세 UI는 별도 지시 대기
 - 새 Flyway 마이그레이션은 기존 파일 절대 수정 금지, 항상 다음 버전으로 신규 작성
-  (2026-08-19 스쿼시 이후 V2~V13 추가됨, **다음은 V14**. `V1__baseline_schema.sql` 수정 = 모든 DB 기동 불가)
+  (2026-08-19 스쿼시 이후 V2~V14 추가됨, **다음은 V15**. `V1__baseline_schema.sql` 수정 = 모든 DB 기동 불가)
 
 ---
 

@@ -79,13 +79,6 @@ class _FeedDetailScreenState extends ConsumerState<FeedDetailScreen> {
   }
 
   void _openEdit(FeedSession s) {
-    // 먹이 입력 없이 완료한 급여 루틴은 실제 급여 행이 없다 — 편집 시트를 열면
-    // 저장할 대상이 없어 404 가 되고, id 가 routine_log 라 남의 행을 건드릴 수도 있다.
-    if (!s.editable) {
-      showToast(context, '루틴 완료로 기록된 항목은 수정할 수 없어요.',
-          type: ToastType.info);
-      return;
-    }
     setState(() {
       _editor = FeedEditorState(
         isEdit: true, editId: s.id,
@@ -97,7 +90,10 @@ class _FeedDetailScreenState extends ConsumerState<FeedDetailScreen> {
 
   Future<void> _save() async {
     final e = _editor;
-    if (e == null || e.items.isEmpty) return;
+    if (e == null) return;
+    // 새로 추가할 때는 먹이가 있어야 한다. 수정은 비어도 보낸다 —
+    // 먹이 없이 완료한 루틴 기록의 시각·메모만 고치는 경우가 있다.
+    if (!e.isEdit && e.items.isEmpty) return;
     final notifier = ref.read(feedSessionsProvider(widget.petId).notifier);
     try {
       if (e.isEdit && e.editId != null) {
@@ -431,9 +427,9 @@ class SessionCard extends StatelessWidget {
                     ],
                   ),
                 )),
-                // 먹이를 적지 않고 완료한 급여 루틴 — 무엇을 줬는지는 모르지만
+                // 먹이를 아직 안 적은 기록 — 무엇을 줬는지는 몰라도
                 // '챙겼다'는 사실은 남는다. 카드가 비어 보이지 않게 한 줄 띄운다.
-                if (session.isRoutineOnly)
+                if (session.isFoodless)
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -447,7 +443,7 @@ class SessionCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       Expanded(
-                        child: Text(session.routineOnlyLabel,
+                        child: Text(session.foodlessLabel,
                             style: const TextStyle(
                                 fontSize: 14, fontWeight: FontWeight.w600,
                                 color: AppColors.paleInk2)),
@@ -461,22 +457,20 @@ class SessionCard extends StatelessWidget {
               ],
             ),
           ),
-          // 수정 버튼 — 합성 항목은 고칠 대상이 없으므로 버튼 자체를 두지 않는다.
-          // 눌리는 버튼을 두고 거절하면 "왜 안 되지"를 눌러보고 나서야 알게 된다.
-          if (session.editable)
-            GestureDetector(
-              onTap: onEdit,
-              child: Container(
-                width: 30, height: 30,
-                decoration: BoxDecoration(
-                  color: AppColors.paleBg,
-                  border: Border.all(color: AppColors.paleLine),
-                  borderRadius: AppRadius.brMd,
-                ),
-                child: const Icon(Icons.edit_outlined,
-                    size: 16, color: AppColors.paleInk2),
+          // 루틴으로 생긴 기록도 그냥 기록이다 — 전부 수정할 수 있다.
+          GestureDetector(
+            onTap: onEdit,
+            child: Container(
+              width: 30, height: 30,
+              decoration: BoxDecoration(
+                color: AppColors.paleBg,
+                border: Border.all(color: AppColors.paleLine),
+                borderRadius: AppRadius.brMd,
               ),
+              child: const Icon(Icons.edit_outlined,
+                  size: 16, color: AppColors.paleInk2),
             ),
+          ),
         ],
       ),
     );
@@ -521,10 +515,10 @@ class _CalendarViewState extends State<_CalendarView> {
     final recs = byDate[date];
     if (recs == null || recs.isEmpty) return null;
     final items = recs.expand((s) => s.items).toList();
-    // 먹이 없이 완료한 급여 루틴은 항목이 0개다. 그래도 **챙긴 날**이므로
+    // 먹이를 안 적은 기록은 항목이 0개다. 그래도 **챙긴 날**이므로
     // 빈 셀로 두지 않는다 — 예전엔 여기서 null 을 돌려줘 캘린더에서 통째로 사라졌다.
-    final routineOnly = recs.where((s) => s.isRoutineOnly).toList();
-    if (items.isEmpty && routineOnly.isEmpty) return null;
+    final foodless = recs.where((s) => s.isFoodless).toList();
+    if (items.isEmpty && foodless.isEmpty) return null;
     const maxLines = 3;
     final lines = <Widget>[
       for (final it in items)
@@ -535,10 +529,10 @@ class _CalendarViewState extends State<_CalendarView> {
               : (it.amt > 1 ? '${it.food} ${it.amt}' : it.food),
           muted: it.isRefused,
         ),
-      for (final s in routineOnly)
+      for (final s in foodless)
         CalendarCellLine(
           dotColor: AppColors.petButterInk,
-          label: s.routineTitle ?? '루틴 완료',
+          label: s.routineTitle ?? '먹이 미입력',
           muted: true,
         ),
     ];

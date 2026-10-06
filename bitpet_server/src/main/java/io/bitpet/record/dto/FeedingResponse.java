@@ -19,7 +19,6 @@ public record FeedingResponse(
         String memo,
         boolean refused,
         String routineTitle, // 루틴 완료로 생성된 기록이면 해당 루틴 제목 (수동 기록은 null)
-        boolean editable,    // false면 루틴 완료 합성 항목 → 실제 feeding_dtl 없음, 수정/삭제 불가
         Instant createdAt
 ) {
     public static FeedingResponse from(FeedingDtl f) {
@@ -33,7 +32,6 @@ public record FeedingResponse(
                 f.getSizeLabel(), f.getSupplement(),
                 f.getFedAt(), f.getMemo(), f.isRefused(),
                 routineTitle,
-                true, // 실제 feeding_dtl 기반 → 수정/삭제 가능
                 f.getCreatedAt()
         );
     }

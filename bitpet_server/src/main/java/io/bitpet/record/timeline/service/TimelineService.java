@@ -96,14 +96,14 @@ public class TimelineService {
                     });
         }
 
-        // 루틴 완료 로그 — dtl 기록이 없는 완료(먹이 정보 없는 FEEDING, 메모 없는 CUSTOM)를
-        // 루틴 제목을 내용으로 타임라인에 표시
-        if (targets.contains(RecordCategory.FEEDING)) {
-            queryRoutineOnlyLogs(items, petId, "FEEDING", "feeding_dtl", "fed_at",
-                    RecordCategory.FEEDING, fromInst, toInst, effectiveLimit);
-        }
+        // 루틴 완료 로그 — 대응하는 dtl 기록이 없는 완료를 루틴 제목으로 표시.
+        //
+        // FEEDING 은 여기 없다: 급여 루틴은 먹이를 안 적어도 feeding_dtl 을 남기므로
+        // (RoutineService 의 FEEDING 분기) dtl 없는 급여 완료 로그가 존재하지 않는다.
+        // 예전엔 FEEDING 도 여기서 끌어왔는데, 중복 제거를 시각 일치로 하는 바람에
+        // 기록의 날짜를 수정하면 루틴 로그가 유령 항목으로 되살아나 2개로 보였다.
         if (targets.contains(RecordCategory.MEMO)) {
-            queryRoutineOnlyLogs(items, petId, "CUSTOM", "memo_dtl", "logged_at",
+            queryRoutineOnlyLogs(items, petId, "CUSTOM", "memo_dtl",
                     RecordCategory.MEMO, fromInst, toInst, effectiveLimit);
         }
 
@@ -138,7 +138,7 @@ public class TimelineService {
                                 WHEN 'FROZEN_VEGE'  THEN '냉짱'
                                 WHEN 'FROZEN_MOUSE' THEN '마우스'
                                 WHEN 'FROZEN_RAT'   THEN '래트'
-                                ELSE COALESCE(food_type, '급여')
+                                ELSE COALESCE(NULLIF(food_type, ''), '급여')
                             END,
                             CASE WHEN size_label IS NOT NULL AND size_label <> ''
                                  THEN CONCAT(' ', size_label)
@@ -227,7 +227,7 @@ public class TimelineService {
      * dtl과 동시 저장된 로그는 NOT EXISTS로 제외해 중복 표시를 막는다.
      */
     private void queryRoutineOnlyLogs(List<RecordTimelineItem> items, Long petId,
-                                      String routineType, String dtlTable, String dtlTimeCol,
+                                      String routineType, String dtlTable,
                                       RecordCategory cat,
                                       Instant from, Instant to, int limit) {
         StringBuilder sb = new StringBuilder();
@@ -236,9 +236,11 @@ public class TimelineService {
           .append("JOIN routine_mst r ON r.id = l.routine_id ")
           .append("WHERE l.pet_id = ? AND l.status = 'COMPLETED' AND l.deleted_at IS NULL ")
           .append("AND r.routine_type = '").append(routineType).append("' ")
+          // 어느 회차에서 나온 기록인지는 routine_log_id 가 들고 있다.
+          // 시각(dtlTimeCol = executed_at)으로 맞추면 기록의 날짜를 수정하는 순간
+          // 짝이 끊겨 이 로그가 유령 항목으로 되살아난다.
           .append("AND NOT EXISTS (SELECT 1 FROM ").append(dtlTable).append(" d ")
-          .append("WHERE d.routine_id = l.routine_id AND d.pet_id = l.pet_id ")
-          .append("AND d.").append(dtlTimeCol).append(" = l.executed_at AND d.deleted_at IS NULL)");
+          .append("WHERE d.routine_log_id = l.id AND d.deleted_at IS NULL)");
         if (from != null) sb.append(" AND l.executed_at >= ?");
         if (to   != null) sb.append(" AND l.executed_at <= ?");
         sb.append(" ORDER BY logged_at DESC LIMIT ").append(limit);

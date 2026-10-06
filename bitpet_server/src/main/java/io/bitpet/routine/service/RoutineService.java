@@ -502,7 +502,18 @@ public class RoutineService {
 
         switch (routine.getRoutineType()) {
             case FEEDING -> {
-                List<FeedItemRequest> items = req.feedItems() != null ? req.feedItems() : List.of();
+                List<FeedItemRequest> given = req.feedItems() != null ? req.feedItems() : List.of();
+                // 먹이를 하나도 적지 않고 '완료'만 눌러도 **급여 기록은 남는다.**
+                // 루틴은 할 일을 챙기는 도구일 뿐이고, 수행했다는 사실 자체가 기록이다.
+                // 예전엔 이 반복문이 한 바퀴도 안 돌아 feeding_dtl 이 아예 안 생겼고,
+                // 그 결과 기록 화면에서 사라지고 수정·삭제도 할 수 없었다.
+                //
+                // 빈 항목은 food_type='' 로 저장된다 — "뭘 줬는지 아직 안 적음" 이고
+                // 거식(refused_yn='Y', food_type IS NULL) 과는 다른 상태다.
+                // (DB CHECK ck_feeding_dtl_food_type_by_refused 는 NOT NULL 만 보므로 통과)
+                List<FeedItemRequest> items = given.isEmpty()
+                        ? List.of(new FeedItemRequest(null, null, null, null, null, null))
+                        : given;
                 List<FeedItemResponse> saved = new ArrayList<>();
                 for (FeedItemRequest item : items) {
                     FeedingDtl d = feedingRepository.save(FeedingDtl.builder()
@@ -523,7 +534,7 @@ public class RoutineService {
                     saved.add(FeedItemResponse.from(d));
                 }
                 feedItems = saved;
-                if (!items.isEmpty()) memoStored = true;
+                memoStored = true; // 항상 한 행 이상 생기므로 메모는 그 행이 담는다
             }
             case CLEANING -> {
                 CleaningType cleaningType = req.cleaningType() != null

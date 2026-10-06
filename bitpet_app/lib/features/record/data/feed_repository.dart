@@ -108,15 +108,14 @@ class DioFeedRepository implements FeedRepository {
       date: '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}',
       time: '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}',
       routineTitle: r.routineTitle,
-      editable: r.editable,
       items: [
-        // 합성 항목(먹이 입력 없이 완료한 급여 루틴)은 먹이 정보가 아예 없다.
-        // 거식(refused)으로 떨어뜨리면 "거부했다"는 **없던 사실**이 되므로 빈 목록으로 둔다.
-        if (r.editable)
-          if (r.refused || r.foodType == null)
-            FeedItem.refused()
-          else
-            FeedItem(
+        // food_type 이 비어 있으면 "뭘 줬는지 아직 안 적음" 이다 (루틴을 먹이 없이 완료).
+        // 거식(refused)으로 떨어뜨리면 "거부했다"는 **없던 사실**이 생기므로
+        // 항목을 비워 둔다 — 기록 자체는 멀쩡하고 수정도 된다.
+        if (r.refused)
+          FeedItem.refused()
+        else if (r.foodType != null && r.foodType!.isNotEmpty)
+          FeedItem(
               food: FoodType.labelForCode(r.foodType!),
               foodCode: r.foodType,
               amt: isMl ? 0 : (r.amount?.toInt() ?? 0),
@@ -170,10 +169,18 @@ class DioFeedRepository implements FeedRepository {
 
   @override
   Future<FeedSession> updateSession(int petId, FeedSession session) async {
-    final item = session.items.isNotEmpty ? session.items.first : const FeedItem(food: '귀뚜라미', amt: 1);
     final fedAt = DateTime.parse(
         '${session.date}T${session.time.length == 5 ? "${session.time}:00" : session.time}');
-    final data = item.toForm().toApiMap(fedAt: fedAt);
+    // 먹이를 아직 안 적은 기록 — 시각·메모만 고치는 경우다.
+    // 예전엔 여기서 '귀뚜라미 1마리'를 지어내 보냈다. 준 적 없는 먹이가 기록에 남는다.
+    final item = session.items.isNotEmpty ? session.items.first : null;
+    final data = item != null
+        ? item.toForm().toApiMap(fedAt: fedAt)
+        : <String, dynamic>{
+            'refused': false,
+            'foodType': '',
+            'fedAt': fedAt.toUtc().toIso8601String(),
+          };
     data['memo'] = session.memo; // 빈 문자열도 전송해 메모 제거 반영
     final res = await _dio.patch('/feedings/${session.id}', data: data);
     final apiRes = ApiResponse.fromJson(

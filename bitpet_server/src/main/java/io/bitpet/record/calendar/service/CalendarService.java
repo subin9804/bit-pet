@@ -77,8 +77,9 @@ public class CalendarService {
         }
 
         // dtl 없는 루틴 완료(먹이 정보 없는 FEEDING, 메모 없는 CUSTOM)도 캘린더에 합산
-        mergeRoutineOnlyCounts(dayMap, null, userId, "FEEDING", "feeding_dtl", "fed_at", "FEEDING", start, end);
-        mergeRoutineOnlyCounts(dayMap, null, userId, "CUSTOM", "memo_dtl", "logged_at", "MEMO", start, end);
+        // FEEDING 은 빠져 있다 — 급여 루틴은 먹이를 안 적어도 feeding_dtl 을 남기므로
+        // 이미 위 집계에 포함돼 있고, 여기서 또 세면 하루 개수가 두 배가 된다.
+        mergeRoutineOnlyCounts(dayMap, null, userId, "CUSTOM", "memo_dtl", "MEMO", start, end);
 
         List<CalendarDayDto> days = dayMap.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())
@@ -171,11 +172,9 @@ public class CalendarService {
         }
 
         // dtl 없는 루틴 완료(먹이 정보 없는 FEEDING, 메모 없는 CUSTOM)도 캘린더에 합산
-        if (targets.contains(RecordCategory.FEEDING)) {
-            mergeRoutineOnlyCounts(dayMap, petId, null, "FEEDING", "feeding_dtl", "fed_at", "FEEDING", start, end);
-        }
+        // FEEDING 은 빠져 있다 — 위 주석 참고
         if (targets.contains(RecordCategory.MEMO)) {
-            mergeRoutineOnlyCounts(dayMap, petId, null, "CUSTOM", "memo_dtl", "logged_at", "MEMO", start, end);
+            mergeRoutineOnlyCounts(dayMap, petId, null, "CUSTOM", "memo_dtl", "MEMO", start, end);
         }
 
         List<CalendarDayDto> days = dayMap.entrySet().stream()
@@ -196,7 +195,7 @@ public class CalendarService {
      */
     private void mergeRoutineOnlyCounts(Map<LocalDate, Map<String, Integer>> dayMap,
                                         Long petId, Long userId,
-                                        String routineType, String dtlTable, String dtlTimeCol,
+                                        String routineType, String dtlTable,
                                         String categoryKey, LocalDate start, LocalDate end) {
         StringBuilder sb = new StringBuilder();
         sb.append("SELECT DATE(l.executed_at AT TIME ZONE 'Asia/Seoul') AS day, COUNT(*) AS cnt ")
@@ -210,9 +209,10 @@ public class CalendarService {
           .append(userId != null
                   ? "AND p.user_id = ? AND p.deleted_at IS NULL "
                   : "AND l.pet_id = ? ")
+          // 짝은 routine_log_id 로 찾는다 — 시각으로 맞추면 기록의 날짜를 수정하는 순간
+          // 짝이 끊겨 같은 날이 두 번 세어진다 (TimelineService 와 같은 이유).
           .append("AND NOT EXISTS (SELECT 1 FROM ").append(dtlTable).append(" d ")
-          .append("WHERE d.routine_id = l.routine_id AND d.pet_id = l.pet_id ")
-          .append("AND d.").append(dtlTimeCol).append(" = l.executed_at AND d.deleted_at IS NULL) ")
+          .append("WHERE d.routine_log_id = l.id AND d.deleted_at IS NULL) ")
           .append("AND DATE(l.executed_at AT TIME ZONE 'Asia/Seoul') BETWEEN ? AND ? ")
           .append("GROUP BY day");
 

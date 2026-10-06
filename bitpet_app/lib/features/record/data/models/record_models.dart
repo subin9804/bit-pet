@@ -53,9 +53,6 @@ class FeedingRecord {
   final bool refused;
   /// 루틴 완료로 생긴 기록이면 그 루틴 제목 (직접 적은 기록은 null)
   final String? routineTitle;
-  /// false = 먹이 입력 없이 완료한 급여 루틴을 서버가 합성해 내려준 항목.
-  /// 실제 `feeding_dtl` 행이 없으므로 수정·삭제 경로로 보내면 안 된다.
-  final bool editable;
 
   const FeedingRecord({
     required this.id,
@@ -70,7 +67,6 @@ class FeedingRecord {
     this.memo,
     this.refused = false,
     this.routineTitle,
-    this.editable = true,
   });
 
   factory FeedingRecord.fromJson(Map<String, dynamic> json) => FeedingRecord(
@@ -90,8 +86,6 @@ class FeedingRecord {
         fedAt: DateTime.parse(json['fedAt'] as String),
         memo: json['memo'] as String?,
         routineTitle: json['routineTitle'] as String?,
-        // 구버전 서버는 이 필드를 안 내린다 → 수정 가능으로 둔다
-        editable: json['editable'] as bool? ?? true,
       );
 }
 
