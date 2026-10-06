@@ -107,19 +107,23 @@ class DioFeedRepository implements FeedRepository {
       id: r.id.toString(),
       date: '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}',
       time: '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}',
+      routineTitle: r.routineTitle,
+      editable: r.editable,
       items: [
-        // 거식이면 서버가 먹이 정보를 안 준다 (food_type NULL)
-        if (r.refused || r.foodType == null)
-          FeedItem.refused()
-        else
-          FeedItem(
-            food: FoodType.labelForCode(r.foodType!),
-            foodCode: r.foodType,
-            amt: isMl ? 0 : (r.amount?.toInt() ?? 0),
-            sizeLabel: r.sizeLabel,
-            mlAmount: isMl ? r.amount : null,
-            supplement: r.supplement,
-          ),
+        // 합성 항목(먹이 입력 없이 완료한 급여 루틴)은 먹이 정보가 아예 없다.
+        // 거식(refused)으로 떨어뜨리면 "거부했다"는 **없던 사실**이 되므로 빈 목록으로 둔다.
+        if (r.editable)
+          if (r.refused || r.foodType == null)
+            FeedItem.refused()
+          else
+            FeedItem(
+              food: FoodType.labelForCode(r.foodType!),
+              foodCode: r.foodType,
+              amt: isMl ? 0 : (r.amount?.toInt() ?? 0),
+              sizeLabel: r.sizeLabel,
+              mlAmount: isMl ? r.amount : null,
+              supplement: r.supplement,
+            ),
       ],
       memo: r.memo ?? '',
     );

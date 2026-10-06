@@ -125,6 +125,11 @@ class FeedSession {
   final String time; // "HH:mm"
   final List<FeedItem> items;
   final String memo;
+  /// 루틴 완료로 생긴 기록이면 그 루틴 제목
+  final String? routineTitle;
+  /// false = 실제 급여 행이 없는 합성 항목(먹이 입력 없이 완료한 급여 루틴).
+  /// 수정·삭제 버튼을 내려야 한다 — 보내면 서버에서 404 나 남의 행을 건드린다.
+  final bool editable;
 
   const FeedSession({
     required this.id,
@@ -132,6 +137,8 @@ class FeedSession {
     required this.time,
     required this.items,
     required this.memo,
+    this.routineTitle,
+    this.editable = true,
   });
 
   factory FeedSession.fromJson(Map<String, dynamic> json) => FeedSession(
@@ -142,6 +149,8 @@ class FeedSession {
             .map((e) => FeedItem.fromJson(e as Map<String, dynamic>))
             .toList(),
         memo:  json['memo'] as String? ?? '',
+        routineTitle: json['routineTitle'] as String?,
+        editable: json['editable'] as bool? ?? true,
       );
 
   Map<String, dynamic> toJson() => {
@@ -150,9 +159,17 @@ class FeedSession {
         'time':  time,
         'items': items.map((i) => i.toJson()).toList(),
         'memo':  memo,
+        if (routineTitle != null) 'routineTitle': routineTitle,
+        'editable': editable,
       };
 
   int get totalAmt => items.fold(0, (s, i) => s + i.amt);
+
+  /// 먹이 항목 없이 '완료'만 남은 루틴 기록. 셀·카드에서 다르게 그린다.
+  bool get isRoutineOnly => items.isEmpty;
+
+  /// 그런 항목에 붙일 한 줄. 무엇을 줬는지는 모르지만 **챙겼다는 사실**은 남는다.
+  String get routineOnlyLabel => '[${routineTitle ?? '루틴'}] 완료';
 
   FeedSession copyWith({
     String? date, String? time,
@@ -164,6 +181,8 @@ class FeedSession {
         time:  time  ?? this.time,
         items: items ?? this.items,
         memo:  memo  ?? this.memo,
+        routineTitle: routineTitle,
+        editable: editable,
       );
 }
 

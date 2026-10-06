@@ -607,26 +607,34 @@ class _RecordCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 날짜 컬럼 — 일/시각을 **한 줄**로 둔다.
+          //
+          // 세로로 쌓으면 글자 배율을 키운 기기에서 카드가 그만큼 길어지고,
+          // 폭을 52로 주면 시각('14:30')이 간당간당해 줄바꿈까지 된다.
+          // FittedBox(scaleDown) 이면 좁아질 때 줄바꿈 대신 함께 줄어든다.
+          // ('9월'은 목록에 이미 `2026.09` 월 구분선이 있어 중복이라 빼 뒀다.)
           if (showDate)
             SizedBox(
-              // 42로는 시각('14:30', 12sp 고정폭 5글자)이 간당간당해서
-              // 기기 폰트 배율에 따라 줄바꿈되고, 그만큼 카드가 세로로
-              // 늘어나 목록 전체에 빈 공간이 생긴다. 폭을 넉넉히 주고
-              // 줄바꿈 자체를 막는다.
-              width: 52,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Text(entry.dateStr.substring(8),
-                      maxLines: 1, softWrap: false,
-                      style: AppTextStyles.monoBody),
-                  // '9월'은 목록에 이미 `2026.09` 월 구분선이 있어 중복이다.
-                  // 내용은 한 줄뿐인데 이 열이 세 줄이라 카드만 쓸데없이 높았다.
-                  const SizedBox(height: 2),
-                  Text(entry.timeStr,
-                      maxLines: 1, softWrap: false,
-                      style: AppTextStyles.monoXxs),
-                ],
+              width: 76,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text(entry.dateStr.substring(8), // dd
+                          maxLines: 1, softWrap: false,
+                          style: AppTextStyles.monoBody),
+                      const SizedBox(width: 6),
+                      Text(entry.timeStr,
+                          maxLines: 1, softWrap: false,
+                          style: AppTextStyles.monoXxs),
+                    ],
+                  ),
+                ),
               ),
             ),
           if (showDate) const SizedBox(width: 12),

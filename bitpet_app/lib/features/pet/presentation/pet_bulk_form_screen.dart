@@ -658,7 +658,8 @@ class _CountStepperState extends State<_CountStepper> {
     if (raw.isEmpty) return;              // 지우는 중 — 아직 판정하지 않는다
     final n = int.tryParse(raw);
     if (n == null) return;
-    final clamped = n.clamp(1, math.max(1, widget.max));
+    // num.clamp 는 int 를 넣어도 num 을 돌려준다 — toInt() 없이는 컴파일이 안 된다
+    final clamped = n.clamp(1, math.max(1, widget.max)).toInt();
     if (clamped != n) _setText('$clamped');   // 상한을 넘겨 적으면 바로 깎아 보여준다
     widget.onChanged(clamped);
   }

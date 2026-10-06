@@ -79,6 +79,13 @@ class _FeedDetailScreenState extends ConsumerState<FeedDetailScreen> {
   }
 
   void _openEdit(FeedSession s) {
+    // 먹이 입력 없이 완료한 급여 루틴은 실제 급여 행이 없다 — 편집 시트를 열면
+    // 저장할 대상이 없어 404 가 되고, id 가 routine_log 라 남의 행을 건드릴 수도 있다.
+    if (!s.editable) {
+      showToast(context, '루틴 완료로 기록된 항목은 수정할 수 없어요.',
+          type: ToastType.info);
+      return;
+    }
     setState(() {
       _editor = FeedEditorState(
         isEdit: true, editId: s.id,
@@ -368,24 +375,31 @@ class SessionCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 날짜 컬럼
+          // 날짜 컬럼 — 일/시각을 **한 줄**로 둔다.
+          // 세로로 쌓으면 글자 배율을 키운 기기에서 카드가 그만큼 길어지고,
+          // 목록 전체에 빈 공간이 생긴다. 좁아지면 줄바꿈 대신 함께 줄어든다.
           if (showDate)
             SizedBox(
-              width: 42,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Text(
-                    session.date.substring(8), // dd
-                    style: AppTextStyles.monoBody,
+              width: 76,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text(session.date.substring(8), // dd
+                          maxLines: 1, softWrap: false,
+                          style: AppTextStyles.monoBody),
+                      const SizedBox(width: 6),
+                      Text(session.time,
+                          maxLines: 1, softWrap: false,
+                          style: AppTextStyles.monoXxs),
+                    ],
                   ),
-                  Text(
-                    '${int.parse(session.date.substring(5,7))}월',
-                    style: AppTextStyles.monoXxs,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(session.time, style: AppTextStyles.monoXxs),
-                ],
+                ),
               ),
             ),
           if (showDate) const SizedBox(width: 12),
@@ -417,6 +431,29 @@ class SessionCard extends StatelessWidget {
                     ],
                   ),
                 )),
+                // 먹이를 적지 않고 완료한 급여 루틴 — 무엇을 줬는지는 모르지만
+                // '챙겼다'는 사실은 남는다. 카드가 비어 보이지 않게 한 줄 띄운다.
+                if (session.isRoutineOnly)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 8, height: 8,
+                        margin: const EdgeInsets.only(top: 4),
+                        decoration: const BoxDecoration(
+                          color: AppColors.paleInk3,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(session.routineOnlyLabel,
+                            style: const TextStyle(
+                                fontSize: 14, fontWeight: FontWeight.w600,
+                                color: AppColors.paleInk2)),
+                      ),
+                    ],
+                  ),
                 if (session.memo.isNotEmpty)
                   Text(session.memo,
                       style: TextStyle(
@@ -424,20 +461,22 @@ class SessionCard extends StatelessWidget {
               ],
             ),
           ),
-          // 수정 버튼
-          GestureDetector(
-            onTap: onEdit,
-            child: Container(
-              width: 30, height: 30,
-              decoration: BoxDecoration(
-                color: AppColors.paleBg,
-                border: Border.all(color: AppColors.paleLine),
-                borderRadius: AppRadius.brMd,
+          // 수정 버튼 — 합성 항목은 고칠 대상이 없으므로 버튼 자체를 두지 않는다.
+          // 눌리는 버튼을 두고 거절하면 "왜 안 되지"를 눌러보고 나서야 알게 된다.
+          if (session.editable)
+            GestureDetector(
+              onTap: onEdit,
+              child: Container(
+                width: 30, height: 30,
+                decoration: BoxDecoration(
+                  color: AppColors.paleBg,
+                  border: Border.all(color: AppColors.paleLine),
+                  borderRadius: AppRadius.brMd,
+                ),
+                child: const Icon(Icons.edit_outlined,
+                    size: 16, color: AppColors.paleInk2),
               ),
-              child: const Icon(Icons.edit_outlined,
-                  size: 16, color: AppColors.paleInk2),
             ),
-          ),
         ],
       ),
     );
@@ -482,21 +521,33 @@ class _CalendarViewState extends State<_CalendarView> {
     final recs = byDate[date];
     if (recs == null || recs.isEmpty) return null;
     final items = recs.expand((s) => s.items).toList();
-    if (items.isEmpty) return null;
+    // 먹이 없이 완료한 급여 루틴은 항목이 0개다. 그래도 **챙긴 날**이므로
+    // 빈 셀로 두지 않는다 — 예전엔 여기서 null 을 돌려줘 캘린더에서 통째로 사라졌다.
+    final routineOnly = recs.where((s) => s.isRoutineOnly).toList();
+    if (items.isEmpty && routineOnly.isEmpty) return null;
     const maxLines = 3;
+    final lines = <Widget>[
+      for (final it in items)
+        CalendarCellLine(
+          dotColor: it.isRefused ? AppColors.paleInk3 : _dotColor(it.food),
+          label: it.isRefused
+              ? '거식'
+              : (it.amt > 1 ? '${it.food} ${it.amt}' : it.food),
+          muted: it.isRefused,
+        ),
+      for (final s in routineOnly)
+        CalendarCellLine(
+          dotColor: AppColors.petButterInk,
+          label: s.routineTitle ?? '루틴 완료',
+          muted: true,
+        ),
+    ];
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final it in items.take(maxLines))
-          CalendarCellLine(
-            dotColor: it.isRefused ? AppColors.paleInk3 : _dotColor(it.food),
-            label: it.isRefused
-                ? '거식'
-                : (it.amt > 1 ? '${it.food} ${it.amt}' : it.food),
-            muted: it.isRefused,
-          ),
-        if (items.length > maxLines) CalendarCellMore(items.length - maxLines),
+        ...lines.take(maxLines),
+        if (lines.length > maxLines) CalendarCellMore(lines.length - maxLines),
       ],
     );
   }

@@ -98,8 +98,68 @@ public class RecordService {
 
     public List<FeedingResponse> listFeedings(Long userId, Long petId) {
         verifyPetOwnership(userId, petId);
-        return feedingRepository.findAllByPetIdOrderByFedAtDesc(petId)
-                .stream().map(FeedingResponse::from).toList();
+        List<FeedingDtl> rows = feedingRepository.findAllByPetIdOrderByFedAtDesc(petId);
+
+        // 루틴發 기록에는 루틴 제목을 붙여 "직접 적은 것"과 구분되게 한다
+        Map<Long, String> titles = findRoutineTitles(rows.stream()
+                .map(FeedingDtl::getRoutineId).filter(java.util.Objects::nonNull)
+                .collect(Collectors.toSet()));
+
+        List<FeedingResponse> items = new ArrayList<>(rows.stream()
+                .map(f -> FeedingResponse.from(f, titles.get(f.getRoutineId())))
+                .toList());
+        items.addAll(fetchDtlLessFeedingRoutineLogs(petId));
+        items.sort(Comparator.comparing(FeedingResponse::fedAt).reversed());
+        return items;
+    }
+
+    /**
+     * 먹이를 하나도 입력하지 않고 완료한 급여 루틴을 급여 기록으로 집계한다.
+     *
+     * <p>먹이 항목이 없으면 {@code feeding_dtl} 행이 생기지 않는다(빈 dtl 금지 원칙).
+     * 그 결과 "급여 루틴을 완료했는데 급여 기록 어디에도 안 보인다"가 됐다 —
+     * 캘린더 집계({@code CalendarService.mergeRoutineOnlyCounts})는 이미 세고 있었는데
+     * 목록만 비어 있어서 더 혼란스러웠다. 집계는 메모 쪽과 같은 방식이다
+     * ({@code MemoService.fetchCustomRoutineMemos}).
+     *
+     * <p>⚠️ 합성 항목이므로 {@code editable=false} 다. id 는 {@code routine_log_dtl.id} 라
+     * feeding_dtl 의 id 와 겹칠 수 있다 — 수정·삭제 경로로 보내면 남의 행을 건드린다.
+     */
+    private List<FeedingResponse> fetchDtlLessFeedingRoutineLogs(Long petId) {
+        String sql = """
+                SELECT rl.id, rl.pet_id, rl.routine_id, rl.executed_at, rl.created_at,
+                       COALESCE(rm.title, '루틴') AS title
+                FROM routine_log_dtl rl
+                JOIN routine_mst rm ON rm.id = rl.routine_id
+                WHERE rl.pet_id = ?
+                  AND rm.routine_type = 'FEEDING'
+                  AND rl.status = 'COMPLETED'
+                  AND rl.deleted_at IS NULL
+                  AND NOT EXISTS (
+                      SELECT 1 FROM feeding_dtl f
+                      WHERE f.routine_log_id = rl.id AND f.deleted_at IS NULL)
+                ORDER BY rl.executed_at DESC
+                """;
+        return jdbc.query(sql, ps -> ps.setLong(1, petId), (rs, i) -> {
+            Instant fedAt = rs.getTimestamp("executed_at").toInstant();
+            Instant createdAt = rs.getTimestamp("created_at").toInstant();
+            return new FeedingResponse(
+                    rs.getLong("id"), rs.getLong("pet_id"), rs.getLong("routine_id"),
+                    null, null, null, null, null,
+                    fedAt, null, false,
+                    rs.getString("title"), false, createdAt);
+        });
+    }
+
+    /** 루틴 id → 제목 (soft delete된 루틴도 기록 표시를 위해 조회) */
+    private Map<Long, String> findRoutineTitles(Set<Long> routineIds) {
+        if (routineIds.isEmpty()) return Map.of();
+        String in = routineIds.stream().map(id -> "?").collect(Collectors.joining(","));
+        List<Object> args = new ArrayList<>(routineIds);
+        return jdbc.query("SELECT id, title FROM routine_mst WHERE id IN (" + in + ")",
+                        args.toArray(),
+                        (rs, i) -> Map.entry(rs.getLong("id"), rs.getString("title")))
+                .stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
     @Transactional

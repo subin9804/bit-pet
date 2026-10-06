@@ -208,17 +208,21 @@ class _DayCell extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: selected ? accent : AppColors.card,
-          border: Border(
-            right: const BorderSide(color: AppColors.paleLineSoft),
-            bottom: const BorderSide(color: AppColors.paleLineSoft),
-            top: selected
-                ? const BorderSide(color: AppColors.primary, width: 1.5)
-                : BorderSide.none,
-            left: selected
-                ? const BorderSide(color: AppColors.primary, width: 1.5)
-                : BorderSide.none,
+          border: const Border(
+            right: BorderSide(color: AppColors.paleLineSoft),
+            bottom: BorderSide(color: AppColors.paleLineSoft),
           ),
         ),
+        // 선택 표시는 **사방 테두리**로, 그리고 레이아웃에 끼지 않는 자리에 그린다.
+        //
+        // 예전엔 위·왼쪽만 1.5px 테두리를 둬서 ① 한쪽만 두꺼워 기울어 보이고
+        // ② 진짜 border 라 그 셀만 내용이 1.5px 밀려, 날짜를 옮길 때마다 숫자가 움찔했다.
+        // foregroundDecoration 은 자식 위에 덧그릴 뿐 크기를 건드리지 않는다.
+        foregroundDecoration: selected
+            ? const BoxDecoration(
+                border: Border.fromBorderSide(
+                    BorderSide(color: AppColors.primary, width: 1.5)))
+            : null,
         padding: const EdgeInsets.fromLTRB(4, 4, 4, 4),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -235,9 +239,11 @@ class _DayCell extends StatelessWidget {
                 child: isToday
                     ? Container(
                         height: 18,
-                        constraints: const BoxConstraints(minWidth: 18),
-                        padding: const EdgeInsets.symmetric(horizontal: 5),
-                        alignment: Alignment.center,
+                        // 숫자를 감싸는 만큼만. minWidth 18 + center 로 두면
+                        // **오늘 칸만 숫자가 가운데로 쏠려** 다른 날과 x 가 어긋났다
+                        // (들어오면 오늘이 선택돼 있으니 "선택된 날만 가운데정렬"로 읽힌다).
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        alignment: Alignment.centerLeft,
                         decoration: const BoxDecoration(
                           color: AppColors.primary,
                           borderRadius: AppRadius.brPill,
