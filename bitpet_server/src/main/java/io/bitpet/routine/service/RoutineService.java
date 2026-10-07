@@ -417,6 +417,8 @@ public class RoutineService {
         }
         // 미완료·커스텀 메모는 memo_dtl 에 저장됨
         for (MemoDtl d : memoRepository.findByRoutineLogIdIn(logIds)) {
+            // 빈 content 는 "메모 미입력" 이므로 루틴 탭에 메모로 띄우지 않는다
+            if (d.getContent() == null || d.getContent().isBlank()) continue;
             memoByLog.putIfAbsent(d.getRoutineLogId(), d.getContent());
         }
 
@@ -511,9 +513,14 @@ public class RoutineService {
                 // 빈 항목은 food_type='' 로 저장된다 — "뭘 줬는지 아직 안 적음" 이고
                 // 거식(refused_yn='Y', food_type IS NULL) 과는 다른 상태다.
                 // (DB CHECK ck_feeding_dtl_food_type_by_refused 는 NOT NULL 만 보므로 통과)
-                List<FeedItemRequest> items = given.isEmpty()
-                        ? List.of(new FeedItemRequest(null, null, null, null, null, null))
-                        : given;
+                //
+                // ⚠️ 빈 행 보충은 **완료(COMPLETED)에서만** 한다. 미완료(REFUSED)는
+                // 수행하지 않은 것이므로 입력한 내용이 없으면 남길 기록도 없다.
+                List<FeedItemRequest> items = !given.isEmpty()
+                        ? given
+                        : status == RoutineLogStatus.COMPLETED
+                            ? List.of(new FeedItemRequest(null, null, null, null, null, null))
+                            : List.<FeedItemRequest>of();
                 List<FeedItemResponse> saved = new ArrayList<>();
                 for (FeedItemRequest item : items) {
                     FeedingDtl d = feedingRepository.save(FeedingDtl.builder()
@@ -534,7 +541,7 @@ public class RoutineService {
                     saved.add(FeedItemResponse.from(d));
                 }
                 feedItems = saved;
-                memoStored = true; // 항상 한 행 이상 생기므로 메모는 그 행이 담는다
+                memoStored = !saved.isEmpty(); // 행이 생겼으면 메모는 그 행이 담는다
             }
             case CLEANING -> {
                 CleaningType cleaningType = req.cleaningType() != null
@@ -568,13 +575,17 @@ public class RoutineService {
                 }
             }
             case CUSTOM -> {
-                if (memo != null) {
+                // 메모를 안 적고 '완료'만 눌러도 **기록은 남는다** — '완료' 자체가 기록이다.
+                // content = '' 는 "메모를 아직 안 적음" 이라는 사실 그대로의 상태다
+                // (feeding_dtl.food_type = '' 와 같은 취급).
+                // 미완료(REFUSED)는 수행하지 않은 것이므로 메모가 없으면 남길 기록도 없다.
+                if (memo != null || status == RoutineLogStatus.COMPLETED) {
                     memoRepository.save(MemoDtl.builder()
                             .petId(petId)
                             .routineId(routine.getId())
                             .routineLogId(logId)
                             .createdByUserId(userId)
-                            .content(memo)
+                            .content(memo != null ? memo : "")
                             .loggedAt(executedAt)
                             .build());
                     memoStored = true;

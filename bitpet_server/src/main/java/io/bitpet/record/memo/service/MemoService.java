@@ -125,10 +125,6 @@ public class MemoService {
         List<MemoResponse> items = new ArrayList<>(
                 rows.stream().map(this::buildResponse).toList());
 
-        // 태그 필터 없을 때만 CUSTOM 루틴 메모 추가
-        if (tagCodes == null || tagCodes.isEmpty()) {
-            items.addAll(fetchCustomRoutineMemos(petId, from, to));
-        }
 
         items.sort(Comparator.comparing(MemoResponse::loggedAt).reversed());
         return items;
@@ -198,41 +194,6 @@ public class MemoService {
     // private helpers
     // -------------------------------------------------------------------------
 
-    private List<MemoResponse> fetchCustomRoutineMemos(Long petId, LocalDate from, LocalDate to) {
-        // CUSTOM 루틴 '완료' 로그를 메모로 집계.
-        // 완료 시 메모를 남기면 같은 시각의 memo_dtl이 생성되므로(이중 표시 방지)
-        // 대응하는 memo_dtl이 없는 로그만 포함한다.
-        // 메모가 있는 CUSTOM 완료는 memo_dtl 로 저장되어 일반 메모 목록에 표시되므로(NOT EXISTS로 제외),
-        // 여기 포함되는 것은 '메모 없는 완료'뿐 → "[루틴제목] 완료" 로 표시.
-        // (routine_log_dtl.memo 는 V47에서 제거됨)
-        String sql = """
-                SELECT rl.id, rl.pet_id, rl.executed_at, rl.created_at,
-                       COALESCE(rm.title, '루틴') AS title
-                FROM routine_log_dtl rl
-                JOIN routine_mst rm ON rm.id = rl.routine_id
-                WHERE rl.pet_id = ?
-                  AND rm.routine_type = 'CUSTOM'
-                  AND rl.status = 'COMPLETED'
-                  AND rl.deleted_at IS NULL
-                  AND NOT EXISTS (
-                      SELECT 1 FROM memo_dtl m
-                      WHERE m.routine_id = rl.routine_id AND m.pet_id = rl.pet_id
-                        AND m.logged_at = rl.executed_at AND m.deleted_at IS NULL)
-                ORDER BY rl.executed_at DESC
-                """;
-        Instant fromInst = from != null ? from.atStartOfDay(SEOUL).toInstant() : null;
-        Instant toInst   = to   != null ? to.plusDays(1).atStartOfDay(SEOUL).toInstant() : null;
-        return jdbc.query(sql, ps -> ps.setLong(1, petId), (rs, i) -> {
-            Instant loggedAt = rs.getTimestamp("executed_at").toInstant();
-            if (fromInst != null && loggedAt.isBefore(fromInst)) return null;
-            if (toInst   != null && !loggedAt.isBefore(toInst)) return null;
-            Instant createdAt = rs.getTimestamp("created_at").toInstant();
-            String title = rs.getString("title");
-            String content = "[" + title + "] 완료";
-            return new MemoResponse(rs.getLong("id"), rs.getLong("pet_id"),
-                    content, loggedAt, List.of(), null, null, false, createdAt, createdAt);
-        }).stream().filter(m -> m != null).toList();
-    }
 
     private MemoResponse buildResponse(MemoDtl memo) {
         List<MemoTagRls> tagLinks = tagRlsRepo.findByMemoId(memo.getId());

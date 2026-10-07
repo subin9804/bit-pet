@@ -96,16 +96,11 @@ public class TimelineService {
                     });
         }
 
-        // 루틴 완료 로그 — 대응하는 dtl 기록이 없는 완료를 루틴 제목으로 표시.
-        //
-        // FEEDING 은 여기 없다: 급여 루틴은 먹이를 안 적어도 feeding_dtl 을 남기므로
-        // (RoutineService 의 FEEDING 분기) dtl 없는 급여 완료 로그가 존재하지 않는다.
-        // 예전엔 FEEDING 도 여기서 끌어왔는데, 중복 제거를 시각 일치로 하는 바람에
-        // 기록의 날짜를 수정하면 루틴 로그가 유령 항목으로 되살아나 2개로 보였다.
-        if (targets.contains(RecordCategory.MEMO)) {
-            queryRoutineOnlyLogs(items, petId, "CUSTOM", "memo_dtl",
-                    RecordCategory.MEMO, fromInst, toInst, effectiveLimit);
-        }
+        // ⛔ 루틴 완료 로그는 여기에 끌어오지 않는다.
+        // 타임라인·캘린더에 보이는 것은 **기록뿐**이다 (2026-10-07 확정).
+        // 루틴은 할 일을 챙기게 하고 했는지 확인하는 도구이고, 루틴의 날짜는
+        // "알림이 갈 날짜"일 뿐 수행한 날짜가 아니다 — 그래서 기록의 날짜를
+        // 옮겨도 루틴 로그는 따라가지 않고, 둘을 같이 보여주면 어긋난다.
 
         // 전체 시간 역순 정렬 후 limit 적용
         List<RecordTimelineItem> sorted = items.stream()
@@ -164,7 +159,8 @@ public class TimelineService {
             }
             case MEMO -> {
                 table = "memo_dtl"; timeCol = "logged_at";
-                summaryExpr = "SUBSTRING(content, 1, 20)";
+                // 빈 content = "메모 미입력" (메모 없이 완료한 CUSTOM 루틴 기록)
+                summaryExpr = "COALESCE(NULLIF(SUBSTRING(content, 1, 20), ''), '메모 미입력')";
             }
             case MATING -> {
                 // mating_dtl has male_pet_id / female_pet_id, not pet_id
@@ -226,45 +222,6 @@ public class TimelineService {
      * (먹이 정보 없는 FEEDING 완료 → FEEDING, 메모 없는 CUSTOM 완료 → MEMO)
      * dtl과 동시 저장된 로그는 NOT EXISTS로 제외해 중복 표시를 막는다.
      */
-    private void queryRoutineOnlyLogs(List<RecordTimelineItem> items, Long petId,
-                                      String routineType, String dtlTable,
-                                      RecordCategory cat,
-                                      Instant from, Instant to, int limit) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("SELECT l.id, l.executed_at AS logged_at, r.title AS routine_title ")
-          .append("FROM routine_log_dtl l ")
-          .append("JOIN routine_mst r ON r.id = l.routine_id ")
-          .append("WHERE l.pet_id = ? AND l.status = 'COMPLETED' AND l.deleted_at IS NULL ")
-          .append("AND r.routine_type = '").append(routineType).append("' ")
-          // 어느 회차에서 나온 기록인지는 routine_log_id 가 들고 있다.
-          // 시각(dtlTimeCol = executed_at)으로 맞추면 기록의 날짜를 수정하는 순간
-          // 짝이 끊겨 이 로그가 유령 항목으로 되살아난다.
-          .append("AND NOT EXISTS (SELECT 1 FROM ").append(dtlTable).append(" d ")
-          .append("WHERE d.routine_log_id = l.id AND d.deleted_at IS NULL)");
-        if (from != null) sb.append(" AND l.executed_at >= ?");
-        if (to   != null) sb.append(" AND l.executed_at <= ?");
-        sb.append(" ORDER BY logged_at DESC LIMIT ").append(limit);
-
-        jdbc.query(sb.toString(),
-                ps -> {
-                    int idx = 1;
-                    ps.setLong(idx++, petId);
-                    if (from != null) ps.setTimestamp(idx++, Timestamp.from(from));
-                    if (to   != null) ps.setTimestamp(idx++, Timestamp.from(to));
-                },
-                rs -> {
-                    String title = rs.getString("routine_title");
-                    items.add(new RecordTimelineItem(
-                            cat,
-                            rs.getLong("id"),
-                            rs.getTimestamp("logged_at").toInstant(),
-                            title,
-                            title,
-                            null,
-                            null // routine_log 기반 — 개별 기록 상세 URL 없음
-                    ));
-                });
-    }
 
     private String buildDetailUrl(RecordCategory cat, long id) {
         return switch (cat) {

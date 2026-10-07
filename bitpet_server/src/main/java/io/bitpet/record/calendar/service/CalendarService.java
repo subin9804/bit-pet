@@ -76,10 +76,10 @@ public class CalendarService {
             }
         }
 
-        // dtl 없는 루틴 완료(먹이 정보 없는 FEEDING, 메모 없는 CUSTOM)도 캘린더에 합산
-        // FEEDING 은 빠져 있다 — 급여 루틴은 먹이를 안 적어도 feeding_dtl 을 남기므로
-        // 이미 위 집계에 포함돼 있고, 여기서 또 세면 하루 개수가 두 배가 된다.
-        mergeRoutineOnlyCounts(dayMap, null, userId, "CUSTOM", "memo_dtl", "MEMO", start, end);
+        // ⛔ 캘린더에 보이는 것은 **기록뿐**이다 (2026-10-07 확정).
+        // 루틴 완료 로그를 여기 합산하면 기록이 아닌 것이 캘린더에 뜬다.
+        // 루틴의 날짜는 "알림이 갈 날짜"이고 수행한 날짜가 아니라서, 기록의 날짜를
+        // 옮기면 루틴 로그와 어긋난다 — 짝을 맞추려 할 게 아니라 안 보여주는 게 맞다.
 
         List<CalendarDayDto> days = dayMap.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())
@@ -171,11 +171,10 @@ public class CalendarService {
             }
         }
 
-        // dtl 없는 루틴 완료(먹이 정보 없는 FEEDING, 메모 없는 CUSTOM)도 캘린더에 합산
-        // FEEDING 은 빠져 있다 — 위 주석 참고
-        if (targets.contains(RecordCategory.MEMO)) {
-            mergeRoutineOnlyCounts(dayMap, petId, null, "CUSTOM", "memo_dtl", "MEMO", start, end);
-        }
+        // ⛔ 캘린더에 보이는 것은 **기록뿐**이다 (2026-10-07 확정).
+        // 루틴 완료 로그를 여기 합산하면 기록이 아닌 것이 캘린더에 뜬다.
+        // 루틴의 날짜는 "알림이 갈 날짜"이고 수행한 날짜가 아니라서, 기록의 날짜를
+        // 옮기면 루틴 로그와 어긋난다 — 짝을 맞추려 할 게 아니라 안 보여주는 게 맞다.
 
         List<CalendarDayDto> days = dayMap.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())
@@ -193,42 +192,6 @@ public class CalendarService {
      * petId 지정 시 개체별, userId 지정 시 유저 전체 집계.
      * dtl과 동시 저장된 로그는 NOT EXISTS로 제외해 이중 카운트를 막는다.
      */
-    private void mergeRoutineOnlyCounts(Map<LocalDate, Map<String, Integer>> dayMap,
-                                        Long petId, Long userId,
-                                        String routineType, String dtlTable,
-                                        String categoryKey, LocalDate start, LocalDate end) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("SELECT DATE(l.executed_at AT TIME ZONE 'Asia/Seoul') AS day, COUNT(*) AS cnt ")
-          .append("FROM routine_log_dtl l ")
-          .append("JOIN routine_mst r ON r.id = l.routine_id ");
-        if (userId != null) {
-            sb.append("JOIN pet_mst p ON p.id = l.pet_id ");
-        }
-        sb.append("WHERE l.status = 'COMPLETED' AND l.deleted_at IS NULL ")
-          .append("AND r.routine_type = '").append(routineType).append("' ")
-          .append(userId != null
-                  ? "AND p.user_id = ? AND p.deleted_at IS NULL "
-                  : "AND l.pet_id = ? ")
-          // 짝은 routine_log_id 로 찾는다 — 시각으로 맞추면 기록의 날짜를 수정하는 순간
-          // 짝이 끊겨 같은 날이 두 번 세어진다 (TimelineService 와 같은 이유).
-          .append("AND NOT EXISTS (SELECT 1 FROM ").append(dtlTable).append(" d ")
-          .append("WHERE d.routine_log_id = l.id AND d.deleted_at IS NULL) ")
-          .append("AND DATE(l.executed_at AT TIME ZONE 'Asia/Seoul') BETWEEN ? AND ? ")
-          .append("GROUP BY day");
-
-        jdbc.query(sb.toString(),
-                ps -> {
-                    ps.setLong(1, userId != null ? userId : petId);
-                    ps.setObject(2, start);
-                    ps.setObject(3, end);
-                },
-                rs -> {
-                    LocalDate date = rs.getDate("day").toLocalDate();
-                    int cnt = rs.getInt("cnt");
-                    dayMap.computeIfAbsent(date, k -> new HashMap<>())
-                            .merge(categoryKey, cnt, Integer::sum);
-                });
-    }
 
     private String buildSql(RecordCategory cat) {
         if (cat == RecordCategory.MATING) {

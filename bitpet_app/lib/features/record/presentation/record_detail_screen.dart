@@ -46,8 +46,6 @@ class RecordEntry {
   final String timeStr;   // HH:mm
   final String summary;
   final dynamic raw;
-  // false면 수정/삭제 불가 (예: 루틴 완료로 자동 생성된 합성 메모)
-  final bool editable;
 
   const RecordEntry({
     required this.id,
@@ -55,7 +53,6 @@ class RecordEntry {
     required this.timeStr,
     required this.summary,
     required this.raw,
-    this.editable = true,
   });
 }
 
@@ -136,12 +133,6 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
   }
 
   void _openEdit(RecordEntry entry) {
-    if (!entry.editable) {
-      // 루틴 완료로 자동 생성된 기록 — 실제 메모가 아니라 수정/삭제 불가
-      showToast(context, '루틴 완료로 기록된 항목은 수정할 수 없어요.',
-          type: ToastType.info);
-      return;
-    }
     setState(() {
       _editor = _EditorState(
         isEdit: true, editId: entry.id,
@@ -181,7 +172,9 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
                 .toList();
         final tagLabel = tagMatches.isEmpty ? null : tagMatches.first.labelKo;
         final content = rawContent.isNotEmpty ? rawContent : (tagLabel ?? '');
-        if (content.isEmpty) {
+        // 추가할 때만 내용을 요구한다. 수정은 **날짜만** 고치는 경우가 있어서 통과시킨다
+        // (메모 없이 완료한 루틴 기록 — 빈 내용이 정상 상태다).
+        if (content.isEmpty && !e.isEdit) {
           showToast(context, '내용을 입력하거나 분류를 선택하세요',
               type: ToastType.error);
           return;
@@ -372,8 +365,7 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
 
   RecordEntry _fromMemo(Memo r) => RecordEntry(
     id: r.id, dateStr: _dateStr(r.loggedAt),
-    timeStr: _timeStr(r.loggedAt), summary: r.displayContent, raw: r,
-    editable: r.editable);
+    timeStr: _timeStr(r.loggedAt), summary: r.displayContent, raw: r);
 
   /// 교배는 **상대가 있어야 성립**하는 유일한 기록이다. 결과(성공/실패)만 적어두면
   /// 같은 철에 여러 번 합사한 목록이 전부 똑같아 보여서 어느 줄이 뭔지 구분이 안 된다.
@@ -679,24 +671,18 @@ class _RecordCard extends StatelessWidget {
               ],
             ),
           ),
-          // 루틴 완료로 자동 생성된 항목은 수정할 수 없다. 버튼을 없애지 않고
-          // 흐리게만 두는 건, 자리가 사라지면 카드 폭이 제각각이 되어 목록이
-          // 흔들리기 때문이다. 눌리면 왜 안 되는지 토스트가 뜬다.
+          // 기록은 전부 수정할 수 있다 — "수정 못 하는 기록" 같은 건 없다.
           GestureDetector(
             onTap: onEdit,
-            child: Opacity(
-              opacity: entry.editable ? 1 : 0.4,
-              child: Container(
-                width: 30, height: 30,
-                decoration: BoxDecoration(
-                  color: AppColors.paleBg,
-                  border: Border.all(color: AppColors.paleLine),
-                  borderRadius: AppRadius.brMd,
-                ),
-                child: Icon(
-                    entry.editable ? Icons.edit_outlined : Icons.lock_outline,
-                    size: 16, color: AppColors.paleInk2),
+            child: Container(
+              width: 30, height: 30,
+              decoration: BoxDecoration(
+                color: AppColors.paleBg,
+                border: Border.all(color: AppColors.paleLine),
+                borderRadius: AppRadius.brMd,
               ),
+              child: Icon(Icons.edit_outlined,
+                  size: 16, color: AppColors.paleInk2),
             ),
           ),
         ],
@@ -1103,6 +1089,8 @@ class _EditorSheetState extends State<_EditorSheet> {
   bool get _canSave {
     if (widget.recordType == 'memo') {
       // 내용을 적었거나, 분류를 하나 골랐으면 저장 가능 (FAB 메모 폼과 동일)
+      // 수정일 때는 빈 내용도 저장 가능 — 날짜만 고치는 경우가 있다
+      if (widget.editor.isEdit) return true;
       final hasContent =
           (widget.editor.form['content'] as String? ?? '').trim().isNotEmpty;
       final hasTag =

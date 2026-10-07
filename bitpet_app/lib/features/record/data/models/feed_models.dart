@@ -164,8 +164,8 @@ class FeedSession {
   bool get isFoodless => items.isEmpty;
 
   /// 그런 항목에 붙일 한 줄. 무엇을 줬는지는 몰라도 **챙겼다는 사실**은 남는다.
-  String get foodlessLabel =>
-      routineTitle != null ? '[$routineTitle] 완료' : '먹이 미입력';
+  /// ⛔ 루틴 제목을 붙이지 않는다 — 이건 루틴이 아니라 **급여 기록**이다.
+  String get foodlessLabel => '먹이 미입력';
 
   FeedSession copyWith({
     String? date, String? time,

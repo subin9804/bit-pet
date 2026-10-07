@@ -302,7 +302,10 @@ public class RecordService {
                         "MEMO", m.getId(), m.getPetId(),
                         petNameMap.getOrDefault(m.getPetId(), ""),
                         petColorMap.get(m.getPetId()),
-                        m.getLoggedAt(), "", m.getContent())));
+                        m.getLoggedAt(),
+                        // 빈 content 는 memo 칸이 비므로 요약 쪽에 라벨을 둔다
+                        m.getContent() == null || m.getContent().isBlank() ? "메모 미입력" : "",
+                        m.getContent())));
 
         // MATING: 교배 양쪽 개체 모두 표시 (한 교배당 최대 2개 칩)
         matingRepository.findByPetIdsAndDateRange(petIds, from, to).forEach(m -> {
@@ -326,45 +329,11 @@ public class RecordService {
                     l.getLaidAt(), summary, l.getMemo()));
         });
 
-        // 부가정보 없는 루틴 완료 (먹이 정보 없는 FEEDING, 메모 없는 CUSTOM)
-        // — dtl 기록이 없어도 "[루틴제목] 완료"로 표시. dtl과 동시 저장된 로그는 제외
-        String routineOnlySql = """
-                SELECT l.id, l.pet_id, l.executed_at, r.title, r.routine_type
-                FROM routine_log_dtl l
-                JOIN routine_mst r ON r.id = l.routine_id
-                JOIN pet_mst p ON p.id = l.pet_id
-                WHERE p.user_id = ? AND p.deleted_at IS NULL
-                  AND l.status = 'COMPLETED' AND l.deleted_at IS NULL
-                  AND r.routine_type IN ('FEEDING', 'CUSTOM')
-                  AND l.executed_at >= ? AND l.executed_at < ?
-                  AND NOT EXISTS (
-                      SELECT 1 FROM feeding_dtl f
-                      WHERE r.routine_type = 'FEEDING'
-                        AND f.routine_id = l.routine_id AND f.pet_id = l.pet_id
-                        AND f.fed_at = l.executed_at AND f.deleted_at IS NULL)
-                  AND NOT EXISTS (
-                      SELECT 1 FROM memo_dtl m
-                      WHERE r.routine_type = 'CUSTOM'
-                        AND m.routine_id = l.routine_id AND m.pet_id = l.pet_id
-                        AND m.logged_at = l.executed_at AND m.deleted_at IS NULL)
-                """;
-        jdbc.query(routineOnlySql,
-                ps -> {
-                    ps.setLong(1, userId);
-                    ps.setTimestamp(2, java.sql.Timestamp.from(from));
-                    ps.setTimestamp(3, java.sql.Timestamp.from(to));
-                },
-                rs -> {
-                    Long petId = rs.getLong("pet_id");
-                    String recordType = "FEEDING".equals(rs.getString("routine_type"))
-                            ? "FEEDING" : "MEMO";
-                    all.add(RecentRecordResponse.of(
-                            recordType, rs.getLong("id"), petId,
-                            petNameMap.getOrDefault(petId, ""),
-                            petColorMap.get(petId),
-                            rs.getTimestamp("executed_at").toInstant(),
-                            "[" + rs.getString("title") + "] 완료", null));
-                });
+        // ⛔ 루틴 완료 로그는 최근 기록에 끌어오지 않는다 (2026-10-07 확정).
+        // 보이는 것은 **기록뿐**이다. 루틴의 날짜는 "알림이 갈 날짜"이고 실제 수행한
+        // 날짜가 아니라서, 기록의 날짜를 옮기면 루틴 로그와 반드시 어긋난다 —
+        // 여기 있던 짝 맞추기(f.fed_at = l.executed_at)가 그래서 끊겨, 날짜를 수정하면
+        // 옛 날짜에 "[루틴제목] 완료" 유령이 남았다.
 
         all.sort(Comparator.comparing(RecentRecordResponse::createdAt).reversed());
         return all;

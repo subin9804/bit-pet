@@ -532,7 +532,7 @@ class _CalendarViewState extends State<_CalendarView> {
       for (final s in foodless)
         CalendarCellLine(
           dotColor: AppColors.petButterInk,
-          label: s.routineTitle ?? '먹이 미입력',
+          label: s.foodlessLabel,
           muted: true,
         ),
     ];

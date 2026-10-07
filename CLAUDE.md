@@ -219,8 +219,9 @@ PostgreSQL이 재정규화하는데 의미는 같다.)
   + `post_category_cd` 에 KIDS 어린이 게시판 시드),
   V13(`photo_dtl.thumb_s3_key` — 앱이 업로드 시점에 만들어 같이 올리는 썸네일 키. NULL 허용 =
   기존 사진 백필 안 함, 앱이 `thumbnailUrl ?? url` 로 폴백).
-  V14(먹이 없이 완료한 급여 루틴의 `feeding_dtl` 백필 — `food_type=''`).
-  **다음은 V15.**
+  V14(먹이 없이 완료한 급여 루틴의 `feeding_dtl` 백필 — `food_type=''`),
+  V15(메모 없이 완료한 CUSTOM 루틴의 `memo_dtl` 백필 — `content=''`).
+  **다음은 V16.**
 - 코드성 시드(`memo_tag_cd`, `post_category_cd`, `serial_pool_stat_mst`)는 베이스라인 하단에 들어 있다.
   종·모프 마스터는 그대로 `R__01`/`R__02` 담당.
 - ⚠️ **`R__02` 는 파일에 없는 공식 모프를 매 실행마다 지운다** (개체가 물고 있으면 FK RESTRICT 라
@@ -316,8 +317,25 @@ PostgreSQL이 재정규화하는데 의미는 같다.)
 - ⛔ **루틴 로그 ↔ dtl 짝은 반드시 `routine_log_id` 로 찾는다.** 시각 일치(`fed_at = executed_at`)로
   맞추던 코드가 `TimelineService`·`CalendarService` 에 있었는데, 기록의 **날짜를 수정하는 순간**
   짝이 끊겨 루틴 로그가 유령 항목으로 되살아나 같은 기록이 2개로 보였다
-- ℹ️ 아직 안 지킨 곳: CUSTOM 루틴을 메모 없이 완료하면 `memo_dtl` 이 안 생긴다 (`content` NOT NULL),
-  WEIGHT 루틴은 체중 없이 완료할 수 없다(체중 필수 원칙). 둘 다 별도 판단 필요
+- ⛔ **캘린더·타임라인·최근기록에 보이는 것은 기록뿐이다.** 루틴 완료 로그를 읽는 쪽에서
+  끌어오는 코드는 **전부 삭제했다** (`RecordService` 최근기록 SQL, `TimelineService.queryRoutineOnlyLogs`,
+  `CalendarService.mergeRoutineOnlyCounts`, `MemoService.fetchCustomRoutineMemos`).
+  루틴의 날짜는 **"알림이 갈 날짜"** 이고 실제 수행한 날짜가 아니다 — 기록의 날짜를 옮겨도
+  루틴은 따라가지 않는다(따라가게 만들지도 말 것). 그래서 짝을 맞추려 할 게 아니라
+  **루틴 로그를 기록 화면에 안 보여주는 것**이 답이다
+- ⛔ **표시에 `routineTitle` 을 붙이지 않는다.** `[루틴제목] 완료` / `[루틴제목] 내용` 같은 표기는
+  전부 제거했다. DTO 필드는 남아 있지만 **화면에 쓰지 않는다**
+- ⛔ **`editable` 플래그는 없다.** `MemoResponse.editable`, `Memo.editable`, `RecordEntry.editable`,
+  잠금 아이콘·"수정할 수 없어요" 토스트 전부 삭제 — 기록은 전부 수정된다
+- **`'완료'` 라는 것 자체가 기록이다.** CUSTOM 루틴을 **메모 없이 완료해도 `memo_dtl` 한 행**을
+  남긴다 (`content = ''`, V15 백필). `food_type = ''` 와 같은 취급 — "아직 안 적음"이라는
+  사실 그대로의 상태다. 표시는 **'메모 미입력'** (급여의 '먹이 미입력' 과 같은 형태)
+- ⚠️ **빈 행 보충은 완료(COMPLETED)에서만.** 미완료(REFUSED)는 수행하지 않은 것이라
+  입력한 내용이 없으면 남길 기록도 없다 (`RoutineService.saveSingleLog` 의 status 가드)
+- 메모 수정은 **빈 내용을 허용**한다 (`MemoUpdateRequest.content` 는 `@NotNull`).
+  메모 없이 완료한 기록의 **날짜만** 고치는 경우가 있다. 새로 만들 때는 여전히 내용이 필요하다
+- ℹ️ 남은 예외: **WEIGHT 루틴은 체중 없이 완료할 수 없다**(체중 필수 원칙) —
+  값이 없으면 기록할 게 없는 종류라 급여·메모와 같은 답이 아니다
 
 ### Memo 도메인 (v5)
 - `health_memo_dtl` → `memo_dtl` (V15 마이그레이션)
@@ -793,7 +811,7 @@ test → GHCR 이미지 빌드(**태그 = 커밋 SHA**) → SSH → `deploy/scri
 - 외부 시스템 영향(push·삭제·외부 API 호출)은 확인 후 진행
 - Flutter UI는 디자인 확정 전까지 **뼈대(Skeleton)만** 구현, 상세 UI는 별도 지시 대기
 - 새 Flyway 마이그레이션은 기존 파일 절대 수정 금지, 항상 다음 버전으로 신규 작성
-  (2026-08-19 스쿼시 이후 V2~V14 추가됨, **다음은 V15**. `V1__baseline_schema.sql` 수정 = 모든 DB 기동 불가)
+  (2026-08-19 스쿼시 이후 V2~V15 추가됨, **다음은 V16**. `V1__baseline_schema.sql` 수정 = 모든 DB 기동 불가)
 
 ---
 

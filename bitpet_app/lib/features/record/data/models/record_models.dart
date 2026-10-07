@@ -167,7 +167,6 @@ class Memo {
   final MemoVetExt? vetExt;
   final String? routineTitle; // 루틴 완료로 생성된 메모면 해당 루틴 제목
   // false면 루틴 완료 합성 항목 → 실제 memo가 아니라 수정/삭제 불가
-  final bool editable;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -179,7 +178,6 @@ class Memo {
     required this.tags,
     this.vetExt,
     this.routineTitle,
-    this.editable = true,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -194,14 +192,13 @@ class Memo {
             ? MemoVetExt.fromJson(json['vetExt'] as Map<String, dynamic>)
             : null,
         routineTitle: json['routineTitle'] as String?,
-        editable: json['editable'] as bool? ?? true,
         createdAt: DateTime.parse(json['createdAt'] as String),
         updatedAt: DateTime.parse(json['updatedAt'] as String),
       );
 
-  /// 목록 표시용 — 루틴發 메모는 "[루틴제목] 내용" (편집 시에는 content만 사용)
-  String get displayContent =>
-      routineTitle != null ? '[$routineTitle] $content' : content;
+  /// 목록 표시용. ⛔ 루틴 제목을 붙이지 않는다 — 이건 루틴이 아니라 **메모 기록**이다.
+  /// 내용이 비어 있으면 메모 없이 완료한 루틴 기록이다 ('완료' 자체가 기록).
+  String get displayContent => content.isEmpty ? '메모 미입력' : content;
 }
 
 // ── Mating (v5) ────────────────────────────────────────────
@@ -366,13 +363,10 @@ class TimelineItem {
             (json['loggedAt'] ?? json['recordedAt']) as String),
       );
 
-  /// 기록 표시 텍스트 — 루틴發 기록은 앞에 [루틴제목]을 붙인다.
-  /// 부가정보 없는 완료(summary == 루틴제목)는 "[제목] 완료"로 표시.
-  String get displayText {
-    if (routineTitle == null) return summary;
-    if (routineTitle == summary) return '[$routineTitle] 완료';
-    return '[$routineTitle] $summary';
-  }
+  /// 기록 표시 텍스트.
+  /// ⛔ 루틴 제목을 붙이지 않는다 — 캘린더·타임라인에 보이는 것은 **기록뿐**이고,
+  /// 루틴은 그 기록이 생긴 계기일 뿐이다 (2026-10-07 확정).
+  String get displayText => summary;
 }
 
 // ── 홈 화면 최근 기록 통합 피드 ──────────────────────────────
