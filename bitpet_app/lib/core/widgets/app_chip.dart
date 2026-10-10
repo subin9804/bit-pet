@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_dimens.dart';
+import '../theme/app_text_styles.dart';
 
-/// 공용 선택 칩 — 직사각형(라운드 없음), 필터·옵션 선택에 사용.
+/// 공용 선택 칩 — **알약**. 필터·옵션 선택에 쓴다.
 /// 앱 전체 칩은 이 위젯만 사용한다 (스타일 변경 시 여기 한 곳만 수정).
 ///
-/// 기본: 선택 시 primary 배경 + 흰 글자, 미선택 시 card 배경 + paleLine 테두리.
+/// 기본: 선택 시 먹색 배경 + 흰 글자, 미선택 시 흰 배경 + 연한 테두리.
 /// 화면 톤에 따라 selectedColor/selectedTextColor/selectedBorderColor만 덮어쓴다.
+///
+/// ⚠️ 모서리는 brMd(12) 직각에 가까운 사각이었다. 카드·시트·버튼·알림 배지까지
+/// 전부 둥근 화면에서 칩만 각이 서 있어 옛 테마의 잔재로 보였다.
 class AppChip extends StatelessWidget {
   /// 가로 스크롤 필터칩 바(row)의 표준 높이.
   /// 칩을 `SizedBox(height: ...)` + 좌우 스크롤 ListView로 배치할 때 이 값을 쓴다.
@@ -48,13 +52,14 @@ class AppChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = selected ? (selectedColor ?? AppColors.primary) : AppColors.card;
+    final bg =
+        selected ? (selectedColor ?? AppColors.primary) : AppColors.surface;
     final fg = selected
-        ? (selectedTextColor ?? Colors.white)
-        : AppColors.paleInk2;
+        ? (selectedTextColor ?? AppColors.bg)
+        : AppColors.ink2;
     final borderColor = selected
         ? (selectedBorderColor ?? Colors.transparent)
-        : AppColors.paleLine;
+        : AppColors.line;
 
     final chip = AnimatedContainer(
       duration: const Duration(milliseconds: 150),
@@ -64,28 +69,23 @@ class AppChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: bg,
         border: Border.all(color: borderColor),
-        borderRadius: AppRadius.brMd,
+        borderRadius: AppRadius.brPill,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(label,
-              style: TextStyle(
-                fontSize: 12,
+              style: AppTextStyles.caption.copyWith(
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                 color: fg,
               )),
           if (count != null) ...[
             const SizedBox(width: 4),
             Text('$count',
-                style: TextStyle(
-                  fontFamily: 'monospace',
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: selected
-                      ? fg.withValues(alpha: 0.6)
-                      : AppColors.paleInk3,
-                )),
+                style: AppTextStyles.mono(12, FontWeight.w700,
+                    color: selected
+                        ? fg.withValues(alpha: 0.6)
+                        : AppColors.ink3)),
           ],
         ],
       ),

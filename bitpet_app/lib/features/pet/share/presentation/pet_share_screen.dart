@@ -24,7 +24,7 @@ class PetShareScreen extends ConsumerWidget {
     final sentAsync = ref.watch(petSentInvitationsProvider(petId));
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.canvas,
       appBar: AppBar(title: const Text('공유 관리')),
       body: RefreshIndicator(
         onRefresh: () async {

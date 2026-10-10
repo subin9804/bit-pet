@@ -20,7 +20,7 @@ class UserProfileScreen extends ConsumerWidget {
     final async = ref.watch(userProfileProvider(userId));
 
     return Scaffold(
-      backgroundColor: AppColors.paleBg,
+      backgroundColor: AppColors.canvas,
       appBar: AppBar(
         backgroundColor: AppColors.paleBg,
         elevation: 0,
@@ -96,7 +96,7 @@ class _Body extends StatelessWidget {
         const SizedBox(height: 20),
         const Text('공개 개체',
             style: TextStyle(
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: FontWeight.w700,
                 color: AppColors.paleInk2,
                 letterSpacing: 0.4)),

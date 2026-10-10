@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/api/api_response.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/upload/image_upload.dart';
+import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/app_toggle.dart';
 import '../../../core/widgets/pet_avatar.dart';
 import '../../../core/widgets/step_shell.dart';
@@ -220,10 +221,8 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
 
   // ── 액션 ──────────────────────────────────────────────────────────────────
   Future<void> _openSpeciesSheet() async {
-    final result = await showModalBottomSheet<Species>(
+    final result = await showAppSheet<Species>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => SpeciesBottomSheet(initialSelection: _species),
     );
     if (result != null) {
@@ -243,10 +242,8 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
     final species = _species;
     if (species == null) return;
 
-    final result = await showModalBottomSheet<List<Morph>>(
+    final result = await showAppSheet<List<Morph>>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => MorphPickerSheet(
         species: species,
         initialSelection: _selectedMorphs,
@@ -302,7 +299,7 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
                               Text(
                                 m.nameKo,
                                 style: const TextStyle(
-                                  fontSize: 12.5,
+                                  fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                   color: AppColors.paleBg,
                                 ),
@@ -336,7 +333,7 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
                       ? '종을 먼저 선택하세요'
                       : (_selectedMorphs.isEmpty ? '모프 추가' : '모프 변경'),
                   style: TextStyle(
-                    fontSize: 13.5,
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: disabled ? AppColors.paleInk3 : AppColors.primary,
                   ),
@@ -349,13 +346,13 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: const [
                   Icon(Icons.warning_amber_rounded,
-                      size: 16, color: Color(0xFFCC8800)),
+                      size: 16, color: AppColors.warning),
                   SizedBox(width: 4),
                   Text(
                     '건강 우려 모프가 포함되어 있어요',
                     style: TextStyle(
-                        fontSize: 10.5,
-                        color: Color(0xFFCC8800),
+                        fontSize: 12,
+                        color: AppColors.warning,
                         fontWeight: FontWeight.w600),
                   ),
                 ],
@@ -368,10 +365,8 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
   }
 
   Future<void> _openParentSheet({required bool isFather}) async {
-    final result = await showModalBottomSheet<PetCard>(
+    final result = await showAppSheet<PetCard>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => ParentPetBottomSheet(
         isFather: isFather,
         initialSelection: isFather ? _fatherPet : _motherPet,
@@ -414,10 +409,8 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
 
   Future<void> _pickYearMonth() async {
     final now = DateTime.now();
-    final result = await showModalBottomSheet<(int, int)>(
+    final result = await showAppSheet<(int, int)>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => _YearMonthPickerSheet(
         initialYear: _hatchYear ?? now.year,
         initialMonth: _hatchMonth ?? now.month,
@@ -726,7 +719,7 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
                   const Text(
                     '나중에 바꿀 수 있어요',
                     style: TextStyle(
-                      fontSize: 11.5,
+                      fontSize: 12,
                       fontWeight: FontWeight.w500,
                       color: AppColors.paleInk3,
                     ),
@@ -1055,14 +1048,14 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
   Widget build(BuildContext context) {
     if (!_initialized) {
       return Scaffold(
-        backgroundColor: AppColors.paleBg,
+        backgroundColor: AppColors.canvas,
         body: const SafeArea(
           child: Center(child: CircularProgressIndicator()),
         ),
       );
     }
     return Scaffold(
-      backgroundColor: AppColors.paleBg,
+      backgroundColor: AppColors.canvas,
       body: SafeArea(
         child: StepShell(
           headerTitle: widget.petId == null ? '개체 등록' : '개체 수정',
@@ -1161,7 +1154,7 @@ class _DateField extends StatelessWidget {
               const SizedBox(width: 8),
               const Text(
                 '모르겠어요',
-                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: AppColors.paleInk2),
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.paleInk2),
               ),
             ],
           ),
@@ -1276,7 +1269,7 @@ class _ParentTile extends StatelessWidget {
                   children: [
                     Text(
                       isFather ? '부 (수컷)' : '모 (암컷)',
-                      style: const TextStyle(fontSize: 11, color: AppColors.paleInk3, fontWeight: FontWeight.w600),
+                      style: const TextStyle(fontSize: 12, color: AppColors.paleInk3, fontWeight: FontWeight.w600),
                     ),
                     const Text(
                       '일련번호로 검색해 추가',
@@ -1323,7 +1316,7 @@ class _ParentTile extends StatelessWidget {
                       overflow: TextOverflow.ellipsis),
                   Text(
                     '${pet!.serialNo} · ${pet!.speciesName}',
-                    style: const TextStyle(fontSize: 11, color: AppColors.paleInk3),
+                    style: const TextStyle(fontSize: 12, color: AppColors.paleInk3),
                     overflow: TextOverflow.ellipsis,
                   ),
                   // 남의 개체를 부모로 걸 수 있으므로, 내 개체가 아니면 소유자를 드러낸다
@@ -1334,13 +1327,14 @@ class _ParentTile extends StatelessWidget {
                           : pet!.owner.userId == null
                               ? (pet!.owner.nickname ?? '비공개')
                               : '@${pet!.owner.nickname}',
-                      style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                      style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
                       overflow: TextOverflow.ellipsis,
                     ),
                 ],
               ),
             ),
             IconButton(
+              tooltip: '선택 지우기',
               onPressed: onClear,
               icon: const Icon(Icons.close, size: 20),
               color: AppColors.paleInk3,
@@ -1516,7 +1510,7 @@ class _HatchDateField extends StatelessWidget {
               const SizedBox(width: 8),
               const Text(
                 '정확하지 않아요',
-                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: AppColors.paleInk2),
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.paleInk2),
               ),
             ],
           ),
@@ -1547,7 +1541,7 @@ class _PrecisionTab extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            fontSize: 12.5,
+            fontSize: 13,
             fontWeight: active ? FontWeight.w700 : FontWeight.w500,
             color: active ? AppColors.primary : AppColors.paleInk2,
           ),
@@ -1606,38 +1600,18 @@ class _YearMonthPickerSheetState extends State<_YearMonthPickerSheet> {
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.paleBg,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-      ),
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+    // 홈 대시보드의 연·월 선택 시트와 같은 골격이다 (AppSheet 슬롯).
+    // 키보드 회피(viewInsets)도 AppSheet 가 직접 처리한다.
+    return AppSheet(
+      title: '태어난 시기를 선택하세요',
+      primaryLabel: '$_year년 $_month월 선택',
+      onPrimary: () => Navigator.pop(context, (_year, _month)),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // 핸들
-          Center(
-            child: Container(
-              width: 40, height: 4,
-              margin: const EdgeInsets.only(top: 8, bottom: 16),
-              decoration: BoxDecoration(color: AppColors.paleLine, borderRadius: BorderRadius.circular(2)),
-            ),
-          ),
-          // 헤더
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-            child: Row(
-              children: [
-                const Text(
-                  '태어난 시기를 선택하세요',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.primary),
-                ),
-              ],
-            ),
-          ),
           // 연도 선택
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+            padding: const EdgeInsets.only(bottom: 16),
             child: Row(
               children: [
                 GestureDetector(
@@ -1682,7 +1656,7 @@ class _YearMonthPickerSheetState extends State<_YearMonthPickerSheet> {
           ),
           // 월 그리드
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+            padding: EdgeInsets.zero,
             child: GridView.count(
               crossAxisCount: 4,
               shrinkWrap: true,
@@ -1726,31 +1700,6 @@ class _YearMonthPickerSheetState extends State<_YearMonthPickerSheet> {
                   ),
                 );
               }),
-            ),
-          ),
-          // 확인 버튼
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
-            child: GestureDetector(
-              onTap: () => Navigator.pop(context, (_year, _month)),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                decoration: BoxDecoration(
-                  borderRadius: AppRadius.brMd,
-                  color: AppColors.primary,
-                ),
-                child: Center(
-                  child: Text(
-                    '$_year년 ${_month}월 선택',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.paleBg,
-                    ),
-                  ),
-                ),
-              ),
             ),
           ),
         ],

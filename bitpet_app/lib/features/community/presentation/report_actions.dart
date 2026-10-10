@@ -11,37 +11,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_response.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/app_sheet.dart';
+import '../../../core/widgets/confirm_modal.dart';
 import '../data/models/report_models.dart';
 import '../data/post_repository.dart';
 
-/// 바텀시트 공통 껍데기 (손잡이 + 라운드 상단)
-Future<T?> showBitpetSheet<T>(BuildContext context, Widget child) {
-  return showModalBottomSheet<T>(
+/// 커뮤니티 메뉴/선택 시트. 껍데기는 [AppSheet] 한 곳에 있다 —
+/// 핸들 크기·모서리 반경을 여기서 따로 정하던 동안은 같은 앱의 시트인데
+/// 손잡이만 36px 로 혼자 작았다.
+///
+/// 제목이 있는 이유: 이 시트는 **무엇에 대한 메뉴인지**가 안 보이면
+/// '신고하기'가 글을 신고하는 건지 댓글을 신고하는 건지 알 수 없다.
+Future<T?> showBitpetSheet<T>(
+  BuildContext context,
+  Widget child, {
+  required String title,
+  String? subtitle,
+}) {
+  return showAppSheet<T>(
     context: context,
-    backgroundColor: AppColors.card,
-    isScrollControlled: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-    ),
-    builder: (_) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(height: 8),
-          Container(
-            width: 36,
-            height: 4,
-            decoration: BoxDecoration(
-              color: AppColors.paleLine,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(height: 12),
-          child,
-          const SizedBox(height: 8),
-        ],
-      ),
-    ),
+    builder: (_) => AppSheet(title: title, subtitle: subtitle, child: child),
   );
 }
 
@@ -65,6 +54,7 @@ List<Widget> reportBlockTiles({
   final what = targetType == ReportTargetType.comment ? '댓글' : '게시글';
   return [
     ListTile(
+      contentPadding: EdgeInsets.zero,
       leading: const Icon(Icons.flag_outlined, color: AppColors.commHot),
       title: Text('$what 신고하기',
           style: TextStyle(color: AppColors.commHot)),
@@ -82,6 +72,7 @@ List<Widget> reportBlockTiles({
       },
     ),
     ListTile(
+      contentPadding: EdgeInsets.zero,
       leading: const Icon(Icons.block, color: AppColors.primary),
       title: const Text('차단하기'),
       subtitle: Text('$authorName 님의 글과 댓글이 보이지 않습니다',
@@ -120,22 +111,15 @@ Future<void> showReportSheet({
 
   final reason = await showBitpetSheet<ReportReason>(
     context,
+    // 제목·보조 줄을 AppSheet 로 올렸다. 본문 안에서 직접 그리던 동안은
+    // 같은 시트인데도 제목의 크기·여백이 다른 시트들과 어긋났다.
     Column(
       mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
-          child: Text('신고 사유를 선택해주세요',
-              style: AppTextStyles.bodyBold.copyWith(fontSize: 15)),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-          child: Text('신고하면 작성자가 함께 차단됩니다. 신고는 취소할 수 없어요.',
-              style: AppTextStyles.monoXs),
-        ),
         ...reasons.map(
           (r) => ListTile(
+            contentPadding: EdgeInsets.zero,
             title: Text(r.label, style: AppTextStyles.body),
             trailing: const Icon(Icons.chevron_right_rounded,
                 size: 20, color: AppColors.paleInk3),
@@ -144,6 +128,8 @@ Future<void> showReportSheet({
         ),
       ],
     ),
+    title: '신고 사유를 선택해주세요',
+    subtitle: '신고하면 작성자가 함께 차단됩니다. 신고는 취소할 수 없어요.',
   );
   if (reason == null || !context.mounted) return;
 
@@ -166,23 +152,14 @@ Future<void> confirmBlock({
   required String nickname,
   required VoidCallback onDone,
 }) async {
-  final ok = await showDialog<bool>(
-    context: context,
-    builder: (_) => AlertDialog(
-      title: const Text('사용자 차단'),
-      content: Text('$nickname 님을 차단할까요?\n'
-          '서로의 글과 댓글이 보이지 않게 됩니다. 차단은 마이페이지에서 해제할 수 있어요.'),
-      actions: [
-        TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('취소')),
-        TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('차단')),
-      ],
-    ),
+  final ok = await ConfirmModal.show(
+    context,
+    title: '사용자 차단',
+    message: '$nickname 님을 차단할까요?\n'
+        '서로의 글과 댓글이 보이지 않게 됩니다. 차단은 마이페이지에서 해제할 수 있어요.',
+    confirmLabel: '차단',
   );
-  if (ok != true || !context.mounted) return;
+  if (!ok || !context.mounted) return;
 
   try {
     await ref.read(postRepositoryProvider).blockUser(userId);

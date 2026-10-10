@@ -282,146 +282,145 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
   @override
   Widget build(BuildContext context) {
     final routine = widget.routine;
-    final screenH   = MediaQuery.of(context).size.height;
-    final keyboardH = MediaQuery.of(context).viewInsets.bottom;
-    // 카드 높이. 상한이 524 고정이라 요즘 폰에서는 화면 위아래가 남는데도 개체 목록만
-    // 좁게 스크롤됐다 — 개체가 많을수록 손해다. 화면 비율로 바꿔 큰 폰에서 실제로 커지게 한다.
-    // (작은 폰에서는 screenH - 112 쪽이 먼저 걸려 예전과 거의 같다)
-    final cardH = (screenH - 112 - keyboardH).clamp(0.0, screenH * 0.82);
+    final media   = MediaQuery.of(context);
 
-    return Material(
-      type: MaterialType.transparency,
-      child: Stack(
-        children: [
-          GestureDetector(
-            onTap: () => Navigator.of(context).pop(),
-            child: Container(color: const Color(0x801C1610)),
-          ),
-          // 키보드가 올라오면 그만큼 위로 밀어 입력창을 가리지 않게 함 (일괄 완료와 동일)
-          AnimatedPadding(
-            duration: const Duration(milliseconds: 150),
-            padding: EdgeInsets.only(bottom: keyboardH),
-            child: Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 380),
-                child: SizedBox(
-                  height: cardH,
-                  child: Container(
+    // ⚠️ 이 시트는 `AppSheet` 의 7슬롯을 쓰지 않는다 — 개체를 한 장씩 넘기는
+    // 캐러셀이라 '이전/다음'이 필요한데, 7슬롯에는 주 버튼 하나 자리뿐이다
+    // (FabRecordSheet 와 같은 예외). 대신 **껍데기는 완전히 같게** 맞춘다:
+    // surface 바탕 · brSheet 모서리 · 40×4 핸들 · 스크림 · 최대 높이 0.9.
+    //
+    // ⛔ 헤더 eyebrow 의 `개별 완료 · 09:00` 중 시각은 지웠다 — 루틴에 수행
+    //    시각은 없다. 그 자리는 '몇 마리 끝났나'가 쓴다.
+    return Padding(
+      padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
+      child: Container(
+        // ⚠️ `height: 0.9` 고정이었다 — 개체가 1마리여도 시트가 화면 끝까지
+        // 올라와 빈 공간만 가득했다. `AppSheet` 과 같은 방식으로 **최대치만**
+        // 정하고 높이는 내용이 결정한다(아래 `mainAxisSize.min`).
+        constraints: BoxConstraints(
+          maxHeight: (media.size.height - media.viewInsets.bottom) * 0.9,
+        ),
+        // ⚠️ 흰 바탕에 연회색 블록을 얹고 있었다 — 앱의 규칙(**연회색 바탕 +
+        // 흰 카드**)과 정확히 **반대**라 같은 내용인데 다른 앱처럼 보였다.
+        // 시트도 하나의 화면이다: 바탕은 `canvas`, 내용은 흰 카드.
+        decoration: const BoxDecoration(
+          color: AppColors.canvas,
+          borderRadius: AppRadius.brSheet,
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 그랩 핸들 — AppSheet 의 것과 같은 치수·색·여백
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(top: AppSpacing.md, bottom: AppSpacing.lg),
+              decoration: const BoxDecoration(
+                color: AppColors.border,
+                borderRadius: AppRadius.brPill,
+              ),
+            ),
+
+            // ── 헤더 ───────────────────────────────────────────
+            // 타입색(복숭아·하늘·세이지·라일락) 밴드를 폭 전체에 깔던 자리다.
+            // 밴드는 연녹 한 가지로 통일하고, 타입색은 아이콘 타일에만 남겼다 —
+            // 색이 날라야 하는 정보는 '무슨 루틴이냐' 하나뿐이다.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.xxl, 0, AppSpacing.xxl, AppSpacing.lg),
+              child: Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: AppColors.paleBg,
+                      color: _accent,
                       borderRadius: AppRadius.brMd,
-                      border: Border.all(color: AppColors.paleLine),
                     ),
-                    clipBehavior: Clip.antiAlias,
+                    child: RecordTypeIcon(routine.routineType.name,
+                        size: AppIconSize.md, color: AppColors.ink),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // ── 헤더 밴드 ──────────────────────────────
-                        Container(
-                          color: _accent,
-                          padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 42, height: 42,
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.62),
-                                  borderRadius: AppRadius.brLg,
-                                ),
-                                child: RecordTypeIcon(widget.routine.routineType.name,
-                                    size: 21, color: AppColors.primary),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      '개별 완료 · ${routine.alarmTime ?? '--:--'}',
-                                      style: AppTextStyles.mono(10, FontWeight.w700,
-                                          color: AppColors.paleInk2),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      routine.title,
-                                      style: const TextStyle(
-                                          fontSize: 17, fontWeight: FontWeight.w800,
-                                          color: AppColors.primary,
-                                          letterSpacing: -0.4),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.6),
-                                  borderRadius: AppRadius.brPill,
-                                ),
-                                child: Text.rich(
-                                  TextSpan(
-                                    style: AppTextStyles.mono(12, FontWeight.w700),
-                                    children: [
-                                      TextSpan(text: '$_completedCount'),
-                                      TextSpan(
-                                        text: ' / ${_pets.length} 완료',
-                                        style: const TextStyle(
-                                            color: AppColors.paleInk2),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        // ── peek 캐러셀 ────────────────────────────
-                        Expanded(
-                          child: PageView.builder(
-                            controller: _page,
-                            onPageChanged: (i) {
-                              final prev = _idx;
-                              setState(() => _idx = i);
-                              // 앞으로 슬라이드할 때 이전 개체 조건부 저장
-                              if (i > prev) _saveIfNeeded(_pets[prev]);
-                            },
-                            itemCount: _pets.length,
-                            itemBuilder: (_, i) => _PetPage(
-                              pet: _pets[i],
-                              rec: _rec[_pets[i].petId]!,
-                              isFeed: _isFeed,
-                              isWeight: _isWeight,
-                              accent: _accent,
-                              saving: _saving,
-                              onComplete: () => _completePet(_pets[i]),
-                              onUndo: () => _undoPet(_pets[i]),
-                              onChanged: () => setState(() {}),
-                            ),
-                          ),
-                        ),
-
-                        // ── 푸터 ───────────────────────────────────
-                        _Footer(
-                          isLast: _isLast,
-                          canPrev: _idx > 0,
-                          onCancel: () => Navigator.of(context).pop(),
-                          onPrev: () => _go(_idx - 1),
-                          onNext: _handleNext,
-                          onFinish: _handleFinish,
-                        ),
+                        Text('개체별 완료', style: AppTextStyles.heading),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(routine.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.caption),
                       ],
                     ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+                    decoration: const BoxDecoration(
+                      color: AppColors.brandTint,
+                      borderRadius: AppRadius.brPill,
+                    ),
+                    child: Text.rich(
+                      TextSpan(
+                        style: AppTextStyles.mono(12, FontWeight.w700,
+                            color: AppColors.brandTintInk),
+                        children: [
+                          TextSpan(text: '$_completedCount'),
+                          TextSpan(text: ' / ${_pets.length}'),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // ── peek 캐러셀 ────────────────────────────────────
+            // `PageView` 는 높이가 유한해야 한다. 한 장의 내용 길이가 개체마다
+            // 다르므로(체중 칸·급여 아코디언) **장 높이를 고정하고 안에서
+            // 스크롤**한다 — 장마다 시트 높이가 들썩이면 넘길 때마다 화면이 뛴다.
+            // `Flexible` 로 감싸 키보드가 올라와 자리가 줄면 같이 줄어든다.
+            Flexible(
+              child: SizedBox(
+                height: (media.size.height * 0.46).clamp(280.0, 460.0),
+                child: PageView.builder(
+                  controller: _page,
+                  onPageChanged: (i) {
+                    final prev = _idx;
+                    setState(() => _idx = i);
+                    // 앞으로 슬라이드할 때 이전 개체 조건부 저장
+                    if (i > prev) _saveIfNeeded(_pets[prev]);
+                  },
+                  itemCount: _pets.length,
+                  itemBuilder: (_, i) => _PetPage(
+                    pet: _pets[i],
+                    rec: _rec[_pets[i].petId]!,
+                    isFeed: _isFeed,
+                    isWeight: _isWeight,
+                    accent: _accent,
+                    saving: _saving,
+                    onComplete: () => _completePet(_pets[i]),
+                    onUndo: () => _undoPet(_pets[i]),
+                    onChanged: () => setState(() {}),
                   ),
                 ),
               ),
             ),
-          ),
-          ),
-        ],
+
+            // ── 푸터 ───────────────────────────────────────────
+            _Footer(
+              isLast: _isLast,
+              canPrev: _idx > 0,
+              onPrev: () => _go(_idx - 1),
+              onNext: _handleNext,
+              onFinish: _handleFinish,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -454,144 +453,162 @@ class _PetPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+        padding: const EdgeInsets.fromLTRB(AppSpacing.xxl, 0, AppSpacing.xxl,
+            AppSpacing.xxl),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 개체 식별행
-            Row(
-              children: [
-                Container(
-                  width: 50, height: 50,
-                  decoration: BoxDecoration(
-                    color: AppColors.bgAlt,
-                    borderRadius: AppRadius.brLg,
-                  ),
-                  child: pet.imageUrl != null
-                      ? ClipRRect(
-                          borderRadius: AppRadius.brLg,
-                          child: AppNetworkImage(pet.imageUrl,
-                              fit: BoxFit.cover,
-                              memWidth: 150,
-                              placeholder: AppIcon(AppIcons.petLine,
-                                  size: 24, color: AppColors.primary)))
-                      : AppIcon(AppIcons.petLine, size: 24, color: AppColors.primary),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            // 개체 + 완료 버튼은 **한 덩어리**다 ("이 개체를 끝냈나").
+            // 연회색 바탕 위의 흰 카드 — 홈 화면의 섹션들과 같은 규칙.
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              decoration: AppDecor.card,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
                     children: [
-                      Text(pet.petName,
-                          style: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w700,
-                              color: AppColors.primary, letterSpacing: -0.3),
-                          overflow: TextOverflow.ellipsis),
-                      if (pet.speciesName.isNotEmpty)
-                        Text(pet.speciesName,
-                            style: TextStyle(
-                                fontSize: 11.5, fontWeight: FontWeight.w600,
-                                color: AppColors.paleInk2),
-                            overflow: TextOverflow.ellipsis),
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: const BoxDecoration(
+                          color: AppColors.canvas,
+                          borderRadius: AppRadius.brMd,
+                        ),
+                        child: pet.imageUrl != null
+                            ? ClipRRect(
+                                borderRadius: AppRadius.brMd,
+                                child: AppNetworkImage(pet.imageUrl,
+                                    fit: BoxFit.cover,
+                                    memWidth: 150,
+                                    placeholder: const AppIcon(AppIcons.petLine,
+                                        size: AppIconSize.md,
+                                        color: AppColors.ink3)),
+                              )
+                            : const AppIcon(AppIcons.petLine,
+                                size: AppIconSize.md, color: AppColors.ink3),
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(pet.petName,
+                                style: AppTextStyles.subheading,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis),
+                            if (pet.speciesName.isNotEmpty) ...[
+                              const SizedBox(height: 2),
+                              Text(pet.speciesName,
+                                  style: AppTextStyles.caption,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      // 완료 알약 — 먹색(`primary`) 채움이었다. 검은 블록은
+                      // '완료'보다 '잠김'으로 읽힌다. 홈 루틴 행의 완료 표시와
+                      // 같은 연녹 알약을 쓴다.
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.sm, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: rec.done
+                              ? AppColors.brandTint
+                              : AppColors.bgAlt,
+                          borderRadius: AppRadius.brPill,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (rec.done) ...[
+                              const Icon(Icons.check,
+                                  size: 13, color: AppColors.brandTintInk),
+                              const SizedBox(width: 3),
+                            ],
+                            Text(rec.done ? '완료' : '대기',
+                                style: AppTextStyles.label.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: rec.done
+                                        ? AppColors.brandTintInk
+                                        : AppColors.ink3)),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
-                ),
-                // 대기/완료 칩
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: rec.done ? AppColors.primary : AppColors.paleBgAlt,
-                    borderRadius: AppRadius.brPill,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (rec.done) ...[
-                        const Icon(Icons.check, size: 16, color: AppColors.paleBg),
-                        const SizedBox(width: 4),
-                      ],
-                      Text(rec.done ? '완료' : '대기',
-                          style: TextStyle(
-                              fontSize: 11, fontWeight: FontWeight.w700,
-                              color: rec.done
-                                  ? AppColors.paleBg
-                                  : AppColors.paleInk3)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
+                  const SizedBox(height: AppSpacing.lg),
 
-            // 완료/미완료 버튼
-            GestureDetector(
-              onTap: saving ? null : (rec.done ? onUndo : onComplete),
-              child: Container(
-                width: double.infinity, height: 48,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: rec.done ? AppColors.paleBgAlt : AppColors.primary,
-                  border: rec.done ? Border.all(color: AppColors.paleLine) : null,
-                  borderRadius: AppRadius.brMd,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  // 주 동작. 손으로 그린 `GestureDetector` + `Container` 였고
+                  // 채움색이 먹색이라 브랜드색 버튼이 쓰이는 다른 시트들과
+                  // 혼자 달랐다. 테마 버튼을 그대로 쓴다(폭이 유한한 자리라
+                  // `minimumSize` 의 무한 minWidth 가 문제되지 않는다).
+                  SizedBox(
+                    height: 48,
+                    child: rec.done
+                        ? OutlinedButton.icon(
+                            onPressed: saving ? null : onUndo,
+                            icon: const Icon(Icons.check_circle_outline,
+                                size: AppIconSize.md),
+                            label: const Text('완료 취소'),
+                          )
+                        : ElevatedButton.icon(
+                            onPressed: saving ? null : onComplete,
+                            icon: const Icon(Icons.check, size: AppIconSize.md),
+                            label: const Text('이 개체 완료'),
+                          ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    rec.done
+                        ? '다시 누르면 완료가 취소돼요'
+                        : isWeight
+                            ? '몸무게를 적고 완료를 눌러주세요'
+                            : '입력만 하고 넘기면 미완료로 저장돼요',
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.caption,
+                  ),
+                ],
+              ),
+            ),
+
+            // 몸무게 입력 (WEIGHT 루틴 — 필수)
+            // 라벨+입력칸이 바탕에 맨몸으로 떠 있었다. 아래 아코디언들과 같은
+            // 층으로 보이게 흰 카드로 묶는다 — 다만 이건 접히지 않는다(필수).
+            if (isWeight) ...[
+              const SizedBox(height: AppSpacing.md),
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                decoration: AppDecor.card,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Icon(rec.done ? Icons.check_circle_outline : Icons.check,
-                        size: 20,
-                        color: rec.done ? AppColors.paleInk2 : AppColors.paleBg),
-                    const SizedBox(width: 8),
-                    Text(
-                      rec.done ? '완료됨' : '이 개체 완료',
-                      style: TextStyle(
-                          fontSize: 14.5, fontWeight: FontWeight.w700,
-                          color: rec.done ? AppColors.paleInk2 : AppColors.paleBg),
+                    Text('몸무게 (g) *', style: AppTextStyles.label),
+                    const SizedBox(height: AppSpacing.sm),
+                    TextField(
+                      controller: rec.weightCtrl,
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                      onChanged: (v) {
+                        rec.weight = v;
+                        rec.dirty = true;
+                        onChanged();
+                      },
+                      style: AppTextStyles.body,
+                      decoration: AppInputStyles.textarea(hintText: '예: 52.5')
+                          .copyWith(suffixText: 'g'),
                     ),
                   ],
                 ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Center(
-              child: Text(
-                rec.done
-                    ? '다시 클릭하면 완료가 취소돼요'
-                    : isWeight
-                        ? '몸무게 입력 후 완료를 눌러주세요'
-                        : '완료하려면 위 버튼 · 입력만 하고 넘기면 미완료로 저장돼요',
-                style: TextStyle(
-                    fontSize: 11, fontWeight: FontWeight.w600,
-                    color: AppColors.paleInk3),
-              ),
-            ),
-            const SizedBox(height: 8),
-
-            // 몸무게 입력 (WEIGHT 루틴 — 필수)
-            if (isWeight) ...[
-              const SizedBox(height: 8),
-              Text('몸무게 (g) *',
-                  style: TextStyle(
-                      fontSize: 12, fontWeight: FontWeight.w700,
-                      color: AppColors.paleInk2)),
-              const SizedBox(height: 8),
-              TextField(
-                controller: rec.weightCtrl,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                onChanged: (v) {
-                  rec.weight = v;
-                  rec.dirty = true;
-                  onChanged();
-                },
-                style: const TextStyle(fontSize: 14, color: AppColors.primary),
-                decoration: AppInputStyles.textarea(hintText: '예: 52.5')
-                    .copyWith(suffixText: 'g'),
               ),
             ],
 
             // 급여 내용 아코디언 (feed 타입만)
             if (isFeed)
               ConfirmAccordion(
+                onCanvas: true,
                 label: '급여 내용',
                 optional: true,
                 summary: null,
@@ -615,6 +632,7 @@ class _PetPage extends StatelessWidget {
 
             // 메모 아코디언
             ConfirmAccordion(
+              onCanvas: true,
               label: '메모',
               optional: true,
               summary: null,
@@ -631,7 +649,7 @@ class _PetPage extends StatelessWidget {
                   rec.dirty = true;
                 },
                 maxLines: 2,
-                style: const TextStyle(fontSize: 13, color: AppColors.primary),
+                style: AppTextStyles.sub,
                 decoration: AppInputStyles.textarea(
                   hintText: '예: 1마리 남김 · 식욕 좋음',
                 ),
@@ -647,7 +665,6 @@ class _PetPage extends StatelessWidget {
 class _Footer extends StatelessWidget {
   final bool isLast;
   final bool canPrev;
-  final VoidCallback onCancel;
   final VoidCallback onPrev;
   final VoidCallback onNext;
   final VoidCallback onFinish;
@@ -655,7 +672,6 @@ class _Footer extends StatelessWidget {
   const _Footer({
     required this.isLast,
     required this.canPrev,
-    required this.onCancel,
     required this.onPrev,
     required this.onNext,
     required this.onFinish,
@@ -663,68 +679,47 @@ class _Footer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ⛔ 주 버튼 옆에 '취소'를 두지 않는다 — 시트는 핸들을 내리거나 바깥을 눌러
+    //    닫는다. 여기 있던 '취소'는 '이전'과 뜻이 겹쳐 셋 중 뭘 누를지 멈칫했다.
     return Container(
       decoration: const BoxDecoration(
-        color: AppColors.paleBg,
-        border: Border(top: BorderSide(color: AppColors.paleLineSoft)),
+        color: AppColors.surface,
+        border: Border(top: BorderSide(color: AppColors.line)),
       ),
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.xxl,
+        AppSpacing.md,
+        AppSpacing.xxl,
+        MediaQuery.of(context).padding.bottom + AppSpacing.lg,
+      ),
       child: Row(
         children: [
-          if (!isLast) ...[
-            _FooterBtn(label: '취소', onTap: onCancel),
-            const SizedBox(width: 8),
-          ],
           _FooterBtn(label: '이전', onTap: canPrev ? onPrev : null),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
-            child: isLast
-                ? GestureDetector(
-                    onTap: onFinish,
-                    child: Container(
-                      height: 48,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: AppRadius.brMd,
-                      ),
+            child: SizedBox(
+              // 7슬롯 주 버튼과 같은 52px — 시트마다 버튼 높이가 다르면
+              // 같은 동작인데 다른 화면처럼 보인다.
+              height: 52,
+              child: isLast
+                  ? ElevatedButton.icon(
+                      onPressed: onFinish,
+                      icon: const Icon(Icons.check, size: AppIconSize.sm),
+                      label: const Text('종료'),
+                    )
+                  : OutlinedButton(
+                      onPressed: onNext,
                       child: const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.check, size: 16, color: AppColors.paleBg),
-                          SizedBox(width: 8),
-                          Text('종료',
-                              style: TextStyle(
-                                  fontSize: 14, fontWeight: FontWeight.w700,
-                                  color: AppColors.paleBg)),
-                        ],
-                      ),
-                    ),
-                  )
-                : GestureDetector(
-                    onTap: onNext,
-                    child: Container(
-                      height: 48,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: AppColors.card,
-                        border: Border.all(color: AppColors.paleLine),
-                        borderRadius: AppRadius.brMd,
-                      ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text('다음',
-                              style: TextStyle(
-                                  fontSize: 14, fontWeight: FontWeight.w700,
-                                  color: AppColors.primary)),
-                          SizedBox(width: 4),
+                          Text('다음'),
+                          SizedBox(width: AppSpacing.xs),
                           AppIcon(AppIcons.chevronRight,
-                              size: 16, color: AppColors.paleInk2),
+                              size: AppIconSize.sm, color: AppColors.ink2),
                         ],
                       ),
                     ),
-                  ),
+            ),
           ),
         ],
       ),
@@ -739,26 +734,18 @@ class _FooterBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final disabled = onTap == null;
-    return GestureDetector(
-      onTap: onTap,
-      child: Opacity(
-        opacity: disabled ? 0.4 : 1,
-        child: Container(
-          height: 48,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: AppColors.card,
-            border: Border.all(color: AppColors.paleLine),
-            borderRadius: AppRadius.brMd,
-          ),
-          child: Text(label,
-              style: const TextStyle(
-                  fontSize: 14, fontWeight: FontWeight.w700,
-                  color: AppColors.paleInk2)),
-        ),
+    // ⚠️ 앱 테마의 `minimumSize: Size.fromHeight(52)` 는 **minWidth 가 무한**이다
+    // (`Size.fromHeight` 의 width 는 double.infinity). 그래서 테마를 그대로 쓰는
+    // 버튼은 **폭이 유한한 자리에만** 놓을 수 있다 — `Row` 의 비(非)flex 자식처럼
+    // 폭 제약이 무한한 자리에 두면 `BoxConstraints forces an infinite width` 로
+    // 시트가 통째로 안 뜬다. 여기서는 minWidth 를 유한값으로 덮어쓴다.
+    return OutlinedButton(
+      onPressed: onTap,
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size(76, 52),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
       ),
+      child: Text(label),
     );
   }
 }

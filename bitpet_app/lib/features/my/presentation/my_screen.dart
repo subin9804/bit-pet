@@ -5,7 +5,9 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/upload/image_upload.dart';
+import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/confirm_modal.dart';
+import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../../../core/widgets/user_avatar.dart';
 import '../../auth/data/models/auth_models.dart';
@@ -21,54 +23,79 @@ class MyScreen extends ConsumerWidget {
     final userAsync = ref.watch(authStateProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.canvas,
       appBar: AppBar(
-        title: const Text('MY'),
+        title: const Text('마이'),
       ),
       body: userAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, __) =>
             const Center(child: Text('프로필 로드 실패')),
         data: (user) => ListView(
+          padding: const EdgeInsets.only(bottom: 24),
           children: [
-            // 프로필 영역 — 카드 없이 플랫 레이아웃
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+            // 프로필은 연녹 면 위에 올린다 — 개체 상세 헤더와 같은 처리라
+            // "여기가 이 화면의 주인"이라는 것이 색으로 먼저 읽힌다.
+            Container(
+              margin: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxl),
+              padding: const EdgeInsets.all(AppSpacing.xl),
+              decoration: const BoxDecoration(
+                color: AppColors.brandTintSoft,
+                borderRadius: AppRadius.brLg,
+              ),
               child: Row(
                 children: [
                   _ProfileAvatar(
                     imageUrl: user?.profileImageUrl,
                     colorKey: user?.profileColor,
                   ),
-                  const SizedBox(width: 16),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(user?.name ?? '사용자',
-                          style: AppTextStyles.h3),
-                      const SizedBox(height: 4),
-                      Text(user?.email ?? '',
-                          style: AppTextStyles.caption),
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        color: AppColors.bg2,
-                        child: Text(
-                          user?.userType == 'BREEDER' ? 'BREEDER' : 'GENERAL',
-                          style: AppTextStyles.label
-                              .copyWith(color: AppColors.textSecondary,
-                                  letterSpacing: 1.0),
+                  const SizedBox(width: AppSpacing.lg),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(user?.name ?? '사용자',
+                            style: AppTextStyles.h3,
+                            overflow: TextOverflow.ellipsis),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(user?.email ?? '',
+                            style: AppTextStyles.caption,
+                            overflow: TextOverflow.ellipsis),
+                        const SizedBox(height: AppSpacing.sm),
+                        // 알약이다. 각진 회색 띠였을 때는 '라벨'이 아니라
+                        // 눌리는 버튼처럼 보였다.
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+                          decoration: const BoxDecoration(
+                            color: AppColors.brandTint,
+                            borderRadius: AppRadius.brPill,
+                          ),
+                          child: Text(
+                            user?.userType == 'BREEDER' ? '브리더' : '일반',
+                            style: AppTextStyles.label.copyWith(
+                                color: AppColors.brandTintInk,
+                                fontWeight: FontWeight.w700),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
 
+            // ── 메뉴를 두 덩어리로 나눈 이유 ───────────────────────
+            //
+            // 전에는 공유 관리부터 앱 정보까지 **여덟 줄이 한 줄기로 흘렀다.**
+            // 그래서 '이름표 관리'(개체에 붙이는 물건)와 '차단 목록'(커뮤니티)이
+            // 같은 무게로 붙어 있었고, 찾는 것이 어느 쪽인지 알 수 없어
+            // 매번 여덟 줄을 처음부터 읽어야 했다.
+            //
+            // 기준은 **"개체에 관한 것 / 내 계정에 관한 것"** 이다. 기능의 중요도나
+            // 사용 빈도로 나누지 말 것 — 그건 사람마다 달라서 다음에 또 뒤집힌다.
+            const _GroupTitle('사육'),
             // 공유 관리 허브 — 공유코드·받은 초대·개체 공유 시작
             const _ShareManageItem(),
             // NFC 이름표 — 연결 확인·기본 동작 변경·해제
@@ -81,6 +108,8 @@ class MyScreen extends ConsumerWidget {
             _PedigreeNicknameToggle(
               value: user?.showNicknameInPedigree ?? true,
             ),
+
+            const _GroupTitle('계정'),
             _MenuItem(
               icon: Icons.notifications_outlined,
               label: '알림 설정',
@@ -112,9 +141,14 @@ class MyScreen extends ConsumerWidget {
               onTap: () => context.push('/my/about'),
             ),
 
-            const SizedBox(height: 24),
-
-            // 메뉴 그룹 2 — 계정
+            // 이 둘은 **제목을 붙이지 않는다.** '계정' 그룹에 넣으면 설정 항목들과
+            // 같은 무게가 되는데, 하나는 세션을 끊고 하나는 계정을 지운다.
+            // 선 하나로 떼어놓는 편이 "여기부터는 되돌아오지 않는 영역"으로 읽힌다.
+            const Padding(
+              padding: EdgeInsets.fromLTRB(
+                  AppSpacing.xl, AppSpacing.xxl, AppSpacing.xl, AppSpacing.sm),
+              child: Divider(height: 1, color: AppColors.divider),
+            ),
             _MenuItem(
               icon: Icons.logout,
               label: '로그아웃',
@@ -136,10 +170,25 @@ class MyScreen extends ConsumerWidget {
               labelColor: AppColors.error,
               onTap: () => _startWithdraw(context, ref),
             ),
-            const SizedBox(height: 12),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// 메뉴 그룹 제목. [SectionHeader] 를 쓰지만 좌우 여백은 메뉴 줄(20)과 맞춘다 —
+/// 제목이 항목보다 안쪽에 있으면 어디까지가 그 그룹인지 흐려진다.
+class _GroupTitle extends StatelessWidget {
+  final String title;
+
+  const _GroupTitle(this.title);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, 0),
+      child: SectionHeader(title: title),
     );
   }
 }
@@ -234,7 +283,11 @@ class _ProfileAvatarState extends ConsumerState<_ProfileAvatar> {
             bottom: 0,
             child: Container(
               padding: const EdgeInsets.all(4),
-              color: AppColors.primary,
+              // 둥근 아바타 위에 각진 배지가 얹혀 있었다. 같은 형태를 따라간다.
+              decoration: const BoxDecoration(
+                color: AppColors.primary,
+                shape: BoxShape.circle,
+              ),
               child: _uploading
                   // 카메라 배지 자리를 대신 차지하므로 아이콘과 같은 크기여야 한다.
                   ? const SizedBox(
@@ -273,10 +326,8 @@ Future<void> _startWithdraw(BuildContext context, WidgetRef ref) async {
 
   bool handOver = true;
   if (shared.isNotEmpty) {
-    final choice = await showModalBottomSheet<bool>(
+    final choice = await showAppSheet<bool>(
       context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
       builder: (_) => _SharedPetChoiceSheet(sharedPets: shared),
     );
     if (choice == null || !context.mounted) return; // 취소
@@ -323,70 +374,43 @@ class _SharedPetChoiceSheetState extends State<_SharedPetChoiceSheet> {
   @override
   Widget build(BuildContext context) {
     final pets = widget.sharedPets;
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.paleBg,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Column(
+    // 제목·보조 줄·주 버튼은 AppSheet 슬롯에 맡긴다. 개체 목록은 미리보기라
+    // 길지 않아서 ListView 를 쓰지 않는다 — AppSheet 가 이미 스크롤이고,
+    // Flexible 은 높이가 무한한 그 안에서 터진다.
+    return AppSheet(
+      title: '함께 보는 개체가 ${pets.length}마리 있어요',
+      subtitle: '탈퇴하면 이 개체들은 어떻게 할까요?',
+      primaryLabel: '다음',
+      // '모두 삭제'를 고른 상태면 되돌릴 수 없는 길이라 버튼을 경고색으로.
+      isDangerous: !_handOver,
+      onPrimary: () => Navigator.pop(context, _handOver),
+      child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.only(top: 8, bottom: 16),
-                decoration: BoxDecoration(
-                    color: AppColors.paleLine,
-                    borderRadius: BorderRadius.circular(2)),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
-              child: Text('함께 보는 개체가 ${pets.length}마리 있어요',
-                  style: AppTextStyles.h3),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-              child: Text('탈퇴하면 이 개체들은 어떻게 할까요?',
-                  style: AppTextStyles.caption),
-            ),
-            Flexible(
-              child: ListView.builder(
-                shrinkWrap: true,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                itemCount: pets.length,
-                itemBuilder: (_, i) {
-                  final p = pets[i];
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      children: [
-                        const Text('🦎', style: TextStyle(fontSize: 15)),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(p.petName,
-                              style: AppTextStyles.body,
-                              overflow: TextOverflow.ellipsis),
-                        ),
-                        Text(
-                          _handOver
-                              ? '→ ${p.recipientNickname ?? '함께 보던 사육자'}'
-                              : '삭제',
-                          style: AppTextStyles.caption.copyWith(
-                              color: _handOver
-                                  ? AppColors.textSecondary
-                                  : AppColors.error),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ),
+            ...pets.map((p) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      const Text('🦎', style: TextStyle(fontSize: 15)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(p.petName,
+                            style: AppTextStyles.body,
+                            overflow: TextOverflow.ellipsis),
+                      ),
+                      Text(
+                        _handOver
+                            ? '→ ${p.recipientNickname ?? '함께 보던 사육자'}'
+                            : '삭제',
+                        style: AppTextStyles.caption.copyWith(
+                            color: _handOver
+                                ? AppColors.textSecondary
+                                : AppColors.error),
+                      ),
+                    ],
+                  ),
+                )),
             const SizedBox(height: 16),
             _ChoiceRow(
               selected: _handOver,
@@ -401,29 +425,8 @@ class _SharedPetChoiceSheetState extends State<_SharedPetChoiceSheet> {
               danger: true,
               onTap: () => setState(() => _handOver = false),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('취소'),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: () => Navigator.pop(context, _handOver),
-                      child: const Text('다음'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ],
         ),
-      ),
     );
   }
 }

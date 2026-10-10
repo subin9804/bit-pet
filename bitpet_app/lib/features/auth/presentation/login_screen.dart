@@ -83,7 +83,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final isLoading = ref.watch(authStateProvider).isLoading;
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.canvas,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
@@ -272,7 +272,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       fallbackIcon: Text(
                         'G',
                         style: AppTextStyles.subheading.copyWith(
-                          color: const Color(0xFF4285F4),
+                          color: AppColors.google,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
@@ -417,7 +417,7 @@ class _InputField extends StatelessWidget {
             focusedErrorBorder: const UnderlineInputBorder(
               borderSide: BorderSide(color: AppColors.error, width: 1.5),
             ),
-            errorStyle: const TextStyle(fontSize: 11, color: AppColors.error),
+            errorStyle: const TextStyle(fontSize: 12, color: AppColors.error),
           ),
         ),
       ],

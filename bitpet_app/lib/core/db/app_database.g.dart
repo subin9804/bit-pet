@@ -6111,6 +6111,221 @@ class FeedRecentTableCompanion extends UpdateCompanion<FeedRecentTableData> {
   }
 }
 
+class $UiPrefTableTable extends UiPrefTable
+    with TableInfo<$UiPrefTableTable, UiPrefTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $UiPrefTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _keyMeta = const VerificationMeta('key');
+  @override
+  late final GeneratedColumn<String> key = GeneratedColumn<String>(
+    'key',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(maxTextLength: 100),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _valueMeta = const VerificationMeta('value');
+  @override
+  late final GeneratedColumn<String> value = GeneratedColumn<String>(
+    'value',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(maxTextLength: 500),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [key, value];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'ui_pref_dtl';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<UiPrefTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('key')) {
+      context.handle(
+        _keyMeta,
+        key.isAcceptableOrUnknown(data['key']!, _keyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_keyMeta);
+    }
+    if (data.containsKey('value')) {
+      context.handle(
+        _valueMeta,
+        value.isAcceptableOrUnknown(data['value']!, _valueMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_valueMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {key};
+  @override
+  UiPrefTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return UiPrefTableData(
+      key: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}key'],
+      )!,
+      value: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}value'],
+      )!,
+    );
+  }
+
+  @override
+  $UiPrefTableTable createAlias(String alias) {
+    return $UiPrefTableTable(attachedDatabase, alias);
+  }
+}
+
+class UiPrefTableData extends DataClass implements Insertable<UiPrefTableData> {
+  /// 설정 키. 값을 꺼낼 때 오타가 나도 조용히 null 이 되므로 상수로만 쓸 것
+  /// (`UiPrefKeys`).
+  final String key;
+
+  /// 값은 전부 문자열로 둔다. 타입별 컬럼을 만들면 설정 하나 늘 때마다
+  /// 마이그레이션을 쓰게 된다 — 불리언은 `'1'`/`'0'` 으로 적는다.
+  final String value;
+  const UiPrefTableData({required this.key, required this.value});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['key'] = Variable<String>(key);
+    map['value'] = Variable<String>(value);
+    return map;
+  }
+
+  UiPrefTableCompanion toCompanion(bool nullToAbsent) {
+    return UiPrefTableCompanion(key: Value(key), value: Value(value));
+  }
+
+  factory UiPrefTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return UiPrefTableData(
+      key: serializer.fromJson<String>(json['key']),
+      value: serializer.fromJson<String>(json['value']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'key': serializer.toJson<String>(key),
+      'value': serializer.toJson<String>(value),
+    };
+  }
+
+  UiPrefTableData copyWith({String? key, String? value}) =>
+      UiPrefTableData(key: key ?? this.key, value: value ?? this.value);
+  UiPrefTableData copyWithCompanion(UiPrefTableCompanion data) {
+    return UiPrefTableData(
+      key: data.key.present ? data.key.value : this.key,
+      value: data.value.present ? data.value.value : this.value,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('UiPrefTableData(')
+          ..write('key: $key, ')
+          ..write('value: $value')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(key, value);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is UiPrefTableData &&
+          other.key == this.key &&
+          other.value == this.value);
+}
+
+class UiPrefTableCompanion extends UpdateCompanion<UiPrefTableData> {
+  final Value<String> key;
+  final Value<String> value;
+  final Value<int> rowid;
+  const UiPrefTableCompanion({
+    this.key = const Value.absent(),
+    this.value = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  UiPrefTableCompanion.insert({
+    required String key,
+    required String value,
+    this.rowid = const Value.absent(),
+  }) : key = Value(key),
+       value = Value(value);
+  static Insertable<UiPrefTableData> custom({
+    Expression<String>? key,
+    Expression<String>? value,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (key != null) 'key': key,
+      if (value != null) 'value': value,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  UiPrefTableCompanion copyWith({
+    Value<String>? key,
+    Value<String>? value,
+    Value<int>? rowid,
+  }) {
+    return UiPrefTableCompanion(
+      key: key ?? this.key,
+      value: value ?? this.value,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (key.present) {
+      map['key'] = Variable<String>(key.value);
+    }
+    if (value.present) {
+      map['value'] = Variable<String>(value.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('UiPrefTableCompanion(')
+          ..write('key: $key, ')
+          ..write('value: $value, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -6129,6 +6344,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $FeedRecentTableTable feedRecentTable = $FeedRecentTableTable(
     this,
   );
+  late final $UiPrefTableTable uiPrefTable = $UiPrefTableTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -6143,6 +6359,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     routineLogTable,
     pendingOpTable,
     feedRecentTable,
+    uiPrefTable,
   ];
 }
 
@@ -10557,6 +10774,145 @@ typedef $$FeedRecentTableTableProcessedTableManager =
       FeedRecentTableData,
       PrefetchHooks Function()
     >;
+typedef $$UiPrefTableTableCreateCompanionBuilder =
+    UiPrefTableCompanion Function({
+      required String key,
+      required String value,
+      Value<int> rowid,
+    });
+typedef $$UiPrefTableTableUpdateCompanionBuilder =
+    UiPrefTableCompanion Function({
+      Value<String> key,
+      Value<String> value,
+      Value<int> rowid,
+    });
+
+class $$UiPrefTableTableFilterComposer
+    extends Composer<_$AppDatabase, $UiPrefTableTable> {
+  $$UiPrefTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get key => $composableBuilder(
+    column: $table.key,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get value => $composableBuilder(
+    column: $table.value,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$UiPrefTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $UiPrefTableTable> {
+  $$UiPrefTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get key => $composableBuilder(
+    column: $table.key,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get value => $composableBuilder(
+    column: $table.value,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$UiPrefTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $UiPrefTableTable> {
+  $$UiPrefTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get key =>
+      $composableBuilder(column: $table.key, builder: (column) => column);
+
+  GeneratedColumn<String> get value =>
+      $composableBuilder(column: $table.value, builder: (column) => column);
+}
+
+class $$UiPrefTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $UiPrefTableTable,
+          UiPrefTableData,
+          $$UiPrefTableTableFilterComposer,
+          $$UiPrefTableTableOrderingComposer,
+          $$UiPrefTableTableAnnotationComposer,
+          $$UiPrefTableTableCreateCompanionBuilder,
+          $$UiPrefTableTableUpdateCompanionBuilder,
+          (
+            UiPrefTableData,
+            BaseReferences<_$AppDatabase, $UiPrefTableTable, UiPrefTableData>,
+          ),
+          UiPrefTableData,
+          PrefetchHooks Function()
+        > {
+  $$UiPrefTableTableTableManager(_$AppDatabase db, $UiPrefTableTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$UiPrefTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$UiPrefTableTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$UiPrefTableTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> key = const Value.absent(),
+                Value<String> value = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => UiPrefTableCompanion(key: key, value: value, rowid: rowid),
+          createCompanionCallback:
+              ({
+                required String key,
+                required String value,
+                Value<int> rowid = const Value.absent(),
+              }) => UiPrefTableCompanion.insert(
+                key: key,
+                value: value,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$UiPrefTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $UiPrefTableTable,
+      UiPrefTableData,
+      $$UiPrefTableTableFilterComposer,
+      $$UiPrefTableTableOrderingComposer,
+      $$UiPrefTableTableAnnotationComposer,
+      $$UiPrefTableTableCreateCompanionBuilder,
+      $$UiPrefTableTableUpdateCompanionBuilder,
+      (
+        UiPrefTableData,
+        BaseReferences<_$AppDatabase, $UiPrefTableTable, UiPrefTableData>,
+      ),
+      UiPrefTableData,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -10579,4 +10935,6 @@ class $AppDatabaseManager {
       $$PendingOpTableTableTableManager(_db, _db.pendingOpTable);
   $$FeedRecentTableTableTableManager get feedRecentTable =>
       $$FeedRecentTableTableTableManager(_db, _db.feedRecentTable);
+  $$UiPrefTableTableTableManager get uiPrefTable =>
+      $$UiPrefTableTableTableManager(_db, _db.uiPrefTable);
 }

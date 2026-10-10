@@ -9,56 +9,81 @@ import 'package:flutter/material.dart';
 /// '원본 토큰' 구역에만 리터럴이 있고 나머지는 전부 그 별칭**이다.
 /// ⛔ 별칭 자리에 새 `Color(0x...)` 를 적지 말 것.
 ///
-/// ## 브랜드 초록
+/// ## 브랜드 초록 — 한 색을 세 단계로 운용한다
 ///
-/// 로고색(#5FCFA0)은 흰 글씨 대비가 1.92:1 라 버튼에 쓸 수 없다. 그래서 **칠하는 색과
-/// 누르는 색을 나눈다** — 일러스트·로고는 [brandIllust], 실제 조작 대상은 [brandAction]
-/// (#1B7F59, 흰 글씨 4.97:1 통과).
+/// "밝아서 눈에 들어오는 색"과 "흰 글씨가 읽히는 색"은 동시에 성립하지 않는다. 그래서
+/// 하나의 에메랄드를 **쓰는 자리에 따라 단을 바꿔서** 쓴다 (흰 배경 위 실측 대비):
+///
+/// | 토큰 | 값 | 대비 | 쓰는 곳 | 금지 |
+/// |---|---|---|---|---|
+/// | [brandIllust] | `#16B26A` | 2.76:1 | 로고·스플래시·큰 장식 | 글씨·아이콘 |
+/// | [brandIcon]   | `#0E9B5B` | 3.58:1 | 아이콘·그래프 선·진행 바 | 글씨 |
+/// | [brandAction] | `#0B7A4B` | 5.39:1 | 버튼·FAB·링크·탭 활성·흰 글씨 배경 | — |
+///
+/// ⛔ [brandIllust]·[brandIcon] 위에 흰 글씨를 올리지 말 것. 글씨가 필요하면
+/// [brandAction] 이상이거나, 배경을 [brandTint] 로 깔고 [brandTintInk] 를 쓴다.
 abstract final class AppColors {
   // ══════════════════════════════════════════════════════════
   // 원본 토큰 — 리터럴은 여기에만 있다
   // ══════════════════════════════════════════════════════════
 
-  // ── 브랜드 램프 10단계 ────────────────────────────────────
-  static const brand50  = Color(0xFFF2FAF5);
-  static const brand100 = Color(0xFFDBF2DF); // 지정색
-  static const brand200 = Color(0xFFB5E3C8);
-  static const brand300 = Color(0xFF86D2AC);
-  static const brand400 = Color(0xFF5FCFA0); // 로고색
-  static const brand500 = Color(0xFF2FAE7D);
-  static const brand600 = Color(0xFF1B7F59); // 액션 (흰 글씨 통과선)
-  static const brand700 = Color(0xFF146848);
-  static const brand800 = Color(0xFF0F5138);
-  static const brand900 = Color(0xFF0B3E2B);
+  // ── 브랜드 램프 10단계 (에메랄드) ──────────────────────────
+  // 2026-10-09 리뉴얼. 각 단의 흰 글씨 / 흰 배경 대비는 실측값이다.
+  static const brand50  = Color(0xFFEDFBF4); // 1.07
+  static const brand100 = Color(0xFFD6F5E6); // 1.16 — 틴트 배경
+  static const brand200 = Color(0xFFAEEBCE); // 1.35
+  static const brand300 = Color(0xFF74DEAF); // 1.64
+  static const brand400 = Color(0xFF3ACB8E); // 2.08
+  static const brand500 = Color(0xFF16B26A); // 2.76 — 포인트(장식 전용)
+  static const brand600 = Color(0xFF0E9B5B); // 3.58 — 아이콘·그래프 통과선(3:1)
+  static const brand700 = Color(0xFF0B7A4B); // 5.39 — 액션(흰 글씨 통과선 4.5:1)
+  static const brand800 = Color(0xFF0A6140); // 7.51
+  static const brand900 = Color(0xFF07422C); // 11.51
 
-  /// 기본 버튼·탭바 활성·FAB·링크·체크/토글 on. 글씨는 흰색.
-  static const brandAction = brand600;
+  /// 기본 버튼·탭바 활성·FAB·링크·체크/토글 on. 글씨는 흰색 (5.39:1).
+  static const brandAction = brand700;
 
-  /// 버튼 눌림 상태.
-  static const brandPressed = brand700;
+  /// 버튼 눌림 상태 (7.51:1).
+  static const brandPressed = brand800;
 
-  /// 보조 버튼·선택 상태·칩 배경·아바타 바탕·오늘 날짜. 글씨는 [brandTintInk].
+  /// 보조 버튼·선택 상태·칩 배경·아바타 바탕·오늘 날짜. 글씨는 [brandTintInk] (6.46:1).
   static const brandTint = brand100;
-  static const brandTintInk = Color(0xFF14503A);
+  static const brandTintInk = brand800;
 
   /// 섹션 배경·강조 영역·빈 상태 바탕. 글씨는 본문색 그대로.
   static const brandTintSoft = brand50;
 
-  /// 로고·일러스트·그래프 선·스플래시. **버튼에 쓰지 말 것** (흰 글씨가 안 읽힌다).
-  static const brandIllust = brand400;
+  /// 로고·스플래시·큰 면적 장식. **글씨도 아이콘도 안 된다** — 흰 배경 위 2.76:1 이라
+  /// 비텍스트 기준 3:1 조차 못 넘는다. 의미를 전달하는 아이콘·그래프 선은 [brandIcon].
+  static const brandIllust = brand500;
+
+  /// 아이콘·그래프 선·진행 바처럼 **의미를 전달하는 비텍스트 요소**. 흰 배경 위 3.58:1.
+  /// 여기에 글씨를 올리지 말 것 (본문 4.5:1 미달). 글씨는 [brandAction] 이상.
+  static const brandIcon = brand600;
 
   // ── 중립색 (초록 쪽으로 미세하게 기울인 회색) ──────────────
   static const bg    = Color(0xFFFFFFFF);
   static const bgAlt = Color(0xFFF4F7F5); // 보조 배경 / 버튼 배경
+
+  /// **화면 바탕.** 카드가 아닌 모든 자리 — `Scaffold.backgroundColor` 가 기본 쓰임.
+  ///
+  /// 카드([card])가 흰색이므로 바탕도 흰색이면 **섹션 경계가 사라진다.** 디자인은
+  /// "연회색 바탕 위에 흰 박스" 가 기본 골격이고, 그 연회색이 이 값이다.
+  /// ⛔ 카드·시트·앱바 배경에 쓰지 말 것 — 그쪽은 [card] / [surface] 다.
+  static const canvas = Color(0xFFF4F6F5);
   static const line  = Color(0xFFE6EBE7); // 테두리 · 구분선
   static const ink   = Color(0xFF121A15); // 본문
   static const ink2  = Color(0xFF5B665F); // 보조 텍스트
   static const ink3  = Color(0xFF909A94); // 비활성 · 힌트
 
   // ── 의미색 ───────────────────────────────────────────────
-  static const success = brand600;
+  // success 는 스낵바처럼 흰 글씨를 올리는 배경으로도 쓰이므로 액션과 같은 단을 쓴다.
+  // brand600 은 흰 글씨 3.58:1 로 미달이다.
+  static const success = brandAction;
   static const warning = Color(0xFFC77B12);
   static const error   = Color(0xFFC0392B);
+  /// 삭제 버튼 테두리처럼 '위험하지만 아직 누르지 않은' 선. [error] 의 40% 알파.
+  static const errorLine = Color(0x66C0392B);
   static const info    = Color(0xFF2B6FB8);
 
   // ── 성별 ─────────────────────────────────────────────────
@@ -83,8 +108,18 @@ abstract final class AppColors {
   static const petCoralInk  = Color(0xFF703C3A);
 
   // ── 소셜 (브랜드 규정색이라 손대지 않는다) ──────────────────
-  static const kakao = Color(0xFFFEE500);
-  static const naver = Color(0xFF03C75A);
+  static const kakao  = Color(0xFFFEE500);
+  static const naver  = Color(0xFF03C75A);
+  static const google = Color(0xFF4285F4);
+
+  // ── 오버레이 / 그림자 ──────────────────────────────────────
+  // 모달·바텀시트 뒤를 덮는 막. 따뜻한 쪽으로 기울인 검정이라 초록 UI 와 안 싸운다.
+  static const scrim      = Color(0x801C1610);
+  // 사진 위 그라데이션처럼 내용이 보여야 하는 막.
+  static const scrimPhoto = Color(0x99000000);
+  static const scrimLight = Color(0x70000000);
+  // 카드 그림자용 저채도 검정.
+  static const shadowSoft = Color(0x14000000);
 
   // ── 토글 off ─────────────────────────────────────────────
   static const toggleOff = Color(0xFFDDE3DF);

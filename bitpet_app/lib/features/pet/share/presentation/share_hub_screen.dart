@@ -22,7 +22,7 @@ class ShareHubScreen extends ConsumerWidget {
         );
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.canvas,
       appBar: AppBar(title: const Text('공유 관리')),
       body: RefreshIndicator(
         onRefresh: () async {
@@ -170,6 +170,7 @@ class _ShareCodeCard extends ConsumerWidget {
           const Spacer(),
           codeAsync.maybeWhen(
             data: (code) => IconButton(
+              tooltip: '공유 코드 복사',
               icon: const Icon(Icons.copy, size: 20),
               color: AppColors.textSecondary,
               onPressed: () async {

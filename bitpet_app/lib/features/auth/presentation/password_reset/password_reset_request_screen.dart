@@ -55,7 +55,7 @@ class _PasswordResetRequestScreenState
     final isLoading = ref.watch(passwordResetProvider).isLoading;
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.canvas,
       appBar: passwordResetAppBar(context),
       body: SafeArea(
         child: SingleChildScrollView(

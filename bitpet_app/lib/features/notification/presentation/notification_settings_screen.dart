@@ -78,7 +78,7 @@ class _NotificationSettingsScreenState
     final notifier = ref.read(notificationPrefProvider.notifier);
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.canvas,
       appBar: AppBar(
         title: Text('알림 설정', style: AppTextStyles.title),
         backgroundColor: AppColors.bg,

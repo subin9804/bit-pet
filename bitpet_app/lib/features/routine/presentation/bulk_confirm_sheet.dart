@@ -1,6 +1,5 @@
-// 01c · 루틴 일괄 완료 확인 — 센터 모달 다이얼로그
-// TODAY 루틴 카드의 "일괄 완료" → 배정된 모든 개체를 한 번에 완료 처리.
-// showDialog(barrierColor: transparent) 로 띄우며 자체 딤을 그린다.
+// 루틴 '모두 완료' 시트 — 배정된 개체를 한 번에 완료 처리.
+// 홈 루틴 행의 '모두 완료' 알약에서 `showAppSheet` 로 열린다.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
@@ -8,6 +7,7 @@ import '../../../core/theme/app_dimens.dart';
 import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_input_styles.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../../record/presentation/widgets/feed_items_editor.dart';
 import '../data/models/routine_models.dart';
@@ -108,341 +108,139 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
     final pets    = routine.petStatuses;
     final done    = pets.where((s) => s.isCompleted).length;
     final pending = pets.length - done;
-    final screenH   = MediaQuery.of(context).size.height;
-    final keyboardH = MediaQuery.of(context).viewInsets.bottom;
-    // 상한 524 고정이면 큰 폰에서 화면이 남는데도 목록만 좁게 스크롤된다 (개별 완료와 같은 이유).
-    // 작은 폰에서는 screenH - 112 쪽이 먼저 걸려 예전 크기와 거의 같다.
-    final cardH = (screenH - 112 - keyboardH).clamp(0.0, screenH * 0.82);
 
-    return Material(
-      type: MaterialType.transparency,
-      child: Stack(
+    // 각진 센터 다이얼로그였다 — 자체 딤, 타입색 밴드 헤더, 그리고 주 버튼 옆
+    // '취소'. 앱의 다른 시트와 껍데기가 달라 이 모달만 테마 밖에 있었다.
+    // 7슬롯 시트로 옮기면 모서리·핸들·스크림·키보드 회피가 전부 공통이 된다.
+    //
+    // ⛔ eyebrow 의 `BULK COMPLETE · 09:00` 은 지웠다. 루틴은 그 날 했냐 안 했냐가
+    //    전부고, 알람 시각을 완료 화면에 띄우면 늦게 누른 것처럼 읽힌다.
+    return AppSheet(
+      title: '모두 완료',
+      subtitle: pending > 0
+          ? '${routine.title} · 남은 $pending마리를 한 번에'
+          : routine.title,
+      primaryLabel: pending > 0 ? '$pending마리 완료' : '이미 다 끝났어요',
+      onPrimary: pending > 0 ? _confirm : null,
+      busy: _saving,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 딤 백드롭 (탭 시 닫힘)
-          GestureDetector(
-            onTap: () => Navigator.of(context).pop(),
-            child: Container(color: const Color(0x801C1610)),
-          ),
-          // 센터 다이얼로그 (키보드가 올라오면 그만큼 위로 밀어줌)
-          AnimatedPadding(
-            duration: const Duration(milliseconds: 150),
-            padding: EdgeInsets.only(bottom: keyboardH),
-            child: Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 380),
-                child: SizedBox(
-                  height: cardH,
-                  child: Container(
-                  color: AppColors.bg,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // 헤더 밴드
-                      Container(
-                        color: _accent,
-                        padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 48, height: 48,
-                              color: Colors.white.withValues(alpha: 0.62),
-                              child: RecordTypeIcon(widget.routine.routineType.name,
-                                  size: 24, color: AppColors.textPrimary),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'BULK COMPLETE · ${routine.alarmTime ?? '--:--'}',
-                                    style: AppTextStyles.mono(10, FontWeight.w700,
-                                        color: AppColors.textSecondary),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    routine.title,
-                                    style: const TextStyle(
-                                        fontSize: 19, fontWeight: FontWeight.w800,
-                                        color: AppColors.textPrimary,
-                                        letterSpacing: -0.5),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // 본문 (스크롤)
-                      Flexible(
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // 질문
-                              _QuestionText(title: routine.title, accent: _accent),
-                              const SizedBox(height: 20),
-
-                              // 대상 개체 아코디언
-                              ConfirmAccordion(
-                                label: '대상 개체',
-                                summary: done > 0
-                                    ? '대기 ${pending}마리'
-                                    : '${pets.length}마리',
-                                summaryActive: true,
-                                open: _petsOpen,
-                                onToggle: () =>
-                                    setState(() => _petsOpen = !_petsOpen),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Wrap(
-                                      spacing: 8,
-                                      runSpacing: 8,
-                                      children: pets
-                                          .map((s) => _NameChip(status: s))
-                                          .toList(),
-                                    ),
-                                    if (done > 0) ...[
-                                      const SizedBox(height: 8),
-                                      Text.rich(
-                                        TextSpan(
-                                          style: const TextStyle(
-                                              fontSize: 11.5,
-                                              color: AppColors.paleInk2,
-                                              height: 1.5,
-                                              fontWeight: FontWeight.w500),
-                                          children: [
-                                            const TextSpan(text: '이미 완료된 '),
-                                            TextSpan(
-                                                text: '$done마리',
-                                                style: const TextStyle(
-                                                    fontWeight: FontWeight.w700,
-                                                    color: AppColors.primary)),
-                                            const TextSpan(text: '는 그대로 두고, 남은 '),
-                                            TextSpan(
-                                                text: '$pending마리',
-                                                style: const TextStyle(
-                                                    fontWeight: FontWeight.w700,
-                                                    color: AppColors.primary)),
-                                            const TextSpan(text: '만 완료로 바꿔요.'),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-
-                              // 몸무게 입력 (WEIGHT 타입 — 개체별 필수)
-                              if (_isWeight) ...[
-                                const SizedBox(height: 16),
-                                Text('몸무게 (g) *',
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w700,
-                                        color: AppColors.paleInk2)),
-                                const SizedBox(height: 8),
-                                ...pets.where((s) => !s.isCompleted).map(
-                                  (pet) => Padding(
-                                    padding: const EdgeInsets.only(bottom: 8),
-                                    child: Row(
-                                      children: [
-                                        SizedBox(
-                                          width: 88,
-                                          child: Text(
-                                            pet.petName,
-                                            style: const TextStyle(
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w700,
-                                                color: AppColors.primary),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: TextField(
-                                            controller:
-                                                _weightCtrlFor(pet.petId),
-                                            keyboardType: const TextInputType
-                                                .numberWithOptions(
-                                                decimal: true),
-                                            onChanged: (_) => setState(() {}),
-                                            style: const TextStyle(
-                                                fontSize: 13,
-                                                color: AppColors.primary),
-                                            decoration: AppInputStyles
-                                                .textarea(hintText: '예: 52.5')
-                                                .copyWith(suffixText: 'g'),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                              ],
-
-                              // 급여 내용 아코디언 (feed 타입만)
-                              if (_isFeed)
-                                ConfirmAccordion(
-                                  label: '급여 내용',
-                                  optional: true,
-                                  summary: null,
-                                  summaryActive: false,
-                                  open: _feedOpen,
-                                  onToggle: () =>
-                                      setState(() => _feedOpen = !_feedOpen),
-                                  child: FeedItemsEditor(
-                                    items: _feedItems,
-                                    bandColor: _accent,
-                                    onChanged: (items) =>
-                                        setState(() => _feedItems = items),
-                                  ),
-                                ),
-
-                              // 메모 아코디언
-                              ConfirmAccordion(
-                                label: '메모',
-                                optional: true,
-                                summary: null,
-                                summaryActive: false,
-                                open: _memoOpen,
-                                onToggle: () =>
-                                    setState(() => _memoOpen = !_memoOpen),
-                                child: TextField(
-                                  onChanged: (v) => _memo = v,
-                                  maxLines: 2,
-                                  style: const TextStyle(
-                                      fontSize: 13, color: AppColors.primary),
-                                  decoration: AppInputStyles.textarea(
-                                    hintText: '예: 1마리 남김 · 식욕 좋음',
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      // 푸터
-                      Container(
-                        decoration: const BoxDecoration(
-                          color: AppColors.bg,
-                          border: Border(top: BorderSide(color: AppColors.divider)),
-                        ),
-                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-                        child: Row(
-                          children: [
-                            GestureDetector(
-                              onTap: () => Navigator.of(context).pop(),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 20, vertical: 16),
-                                decoration: BoxDecoration(
-                                  borderRadius: AppRadius.brMd,
-                                  color: AppColors.bg2,
-                                  border: Border.all(color: AppColors.border),
-                                ),
-                                child: const Text('취소',
-                                    style: TextStyle(
-                                        fontSize: 15, fontWeight: FontWeight.w700,
-                                        color: AppColors.textSecondary)),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: GestureDetector(
-                                onTap: _saving ? null : _confirm,
-                                child: Container(
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 16),
-                                  alignment: Alignment.center,
-                                  // 바로 옆 `취소` 와 같은 `brMd`. `color:` 만 주면
-                                  // 라운드가 없어 한 줄에 선 두 버튼의 모서리가 어긋난다.
-                                  decoration: const BoxDecoration(
-                                    color: AppColors.primary,
-                                    borderRadius: AppRadius.brMd,
-                                  ),
-                                  child: _saving
-                                      ? const SizedBox(
-                                          width: 20, height: 20,
-                                          child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              color: Colors.white))
-                                      : const Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Icon(Icons.check,
-                                                size: 16,
-                                                color: Colors.white),
-                                            SizedBox(width: 8),
-                                            Text('확인',
-                                                style: TextStyle(
-                                                    fontSize: 15,
-                                                    fontWeight: FontWeight.w700,
-                                                    color: Colors.white)),
-                                          ],
-                                        ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+          // 대상 개체
+          ConfirmAccordion(
+            label: '대상 개체',
+            summary: done > 0 ? '대기 $pending마리' : '${pets.length}마리',
+            summaryActive: true,
+            open: _petsOpen,
+            onToggle: () => setState(() => _petsOpen = !_petsOpen),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
+                  children: pets.map((s) => _NameChip(status: s)).toList(),
+                ),
+                if (done > 0) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Text.rich(
+                    TextSpan(
+                      style: AppTextStyles.caption,
+                      children: [
+                        const TextSpan(text: '이미 완료된 '),
+                        TextSpan(
+                            text: '$done마리',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.ink)),
+                        const TextSpan(text: '는 그대로 두고, 남은 '),
+                        TextSpan(
+                            text: '$pending마리',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.ink)),
+                        const TextSpan(text: '만 완료로 바꿔요.'),
                       ],
                     ),
                   ),
+                ],
+              ],
+            ),
+          ),
+
+          // 몸무게 — WEIGHT 루틴은 개체별 실측값이 필수다 (서버도 거부한다)
+          if (_isWeight) ...[
+            const SizedBox(height: AppSpacing.lg),
+            Text('몸무게 (g) *', style: AppTextStyles.label),
+            const SizedBox(height: AppSpacing.sm),
+            ...pets.where((s) => !s.isCompleted).map(
+              (pet) => Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 88,
+                      child: Text(pet.petName,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTextStyles.sub.copyWith(
+                              fontWeight: FontWeight.w700)),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: TextField(
+                        controller: _weightCtrlFor(pet.petId),
+                        keyboardType:
+                            const TextInputType.numberWithOptions(decimal: true),
+                        onChanged: (_) => setState(() {}),
+                        style: AppTextStyles.sub,
+                        decoration: AppInputStyles.textarea(hintText: '예: 52.5')
+                            .copyWith(suffixText: 'g'),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
+          ],
+
+          // 급여 내용 (FEEDING 만)
+          if (_isFeed)
+            ConfirmAccordion(
+              label: '급여 내용',
+              optional: true,
+              summary: null,
+              summaryActive: false,
+              open: _feedOpen,
+              onToggle: () => setState(() => _feedOpen = !_feedOpen),
+              child: FeedItemsEditor(
+                items: _feedItems,
+                bandColor: _accent,
+                onChanged: (items) => setState(() => _feedItems = items),
+              ),
+            ),
+
+          // 메모
+          ConfirmAccordion(
+            label: '메모',
+            optional: true,
+            summary: null,
+            summaryActive: false,
+            open: _memoOpen,
+            onToggle: () => setState(() => _memoOpen = !_memoOpen),
+            child: TextField(
+              onChanged: (v) => _memo = v,
+              maxLines: 2,
+              style: AppTextStyles.sub,
+              decoration: AppInputStyles.textarea(
+                hintText: '예: 1마리 남김 · 식욕 좋음',
+              ),
             ),
           ),
-        ]
-      ),
-    );
-  }
-}
-
-// ── 질문 텍스트 ───────────────────────────────────────────────
-class _QuestionText extends StatelessWidget {
-  final String title;
-  final Color accent;
-  const _QuestionText({required this.title, required this.accent});
-
-  @override
-  Widget build(BuildContext context) {
-    return Text.rich(
-      TextSpan(
-        style: const TextStyle(
-            fontSize: 17, fontWeight: FontWeight.w700,
-            color: AppColors.primary, letterSpacing: -0.4, height: 1.45),
-        children: [
-          const TextSpan(text: '루틴에 포함된 모든 개체의\n'),
-          WidgetSpan(
-            alignment: PlaceholderAlignment.middle,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-              color: accent,
-              child: Text("'$title'",
-                  style: const TextStyle(
-                      fontSize: 17, fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary)),
-            ),
-          ),
-          const TextSpan(text: '를 완료 처리할까요?'),
         ],
       ),
     );
   }
 }
-
 
 class _NameChip extends StatelessWidget {
   final TodayPetStatus status;
@@ -459,10 +257,9 @@ class _NameChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.fromLTRB(4, 4, 8, 4),
         decoration: BoxDecoration(
-          color: done ? AppColors.bg2 : AppColors.brandTint,
+          color: done ? AppColors.bgAlt : AppColors.brandTint,
           borderRadius: AppRadius.brPill,
-          border: Border.all(
-              color: done ? AppColors.border : Colors.transparent),
+          border: Border.all(color: done ? AppColors.line : Colors.transparent),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -477,24 +274,25 @@ class _NameChip extends StatelessWidget {
                       fit: BoxFit.cover,
                       memWidth: 100,
                       placeholder: AppIcon(AppIcons.petLine,
-                          size: 16, color: AppColors.textPrimary))
-                  : AppIcon(AppIcons.petLine, size: 16, color: AppColors.textPrimary),
+                          size: AppIconSize.sm, color: AppColors.ink))
+                  : AppIcon(AppIcons.petLine,
+                      size: AppIconSize.sm, color: AppColors.ink),
             ),
             const SizedBox(width: 8),
             Text(
               status.petName,
-              style: TextStyle(
-                fontSize: 12, fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
+              style: AppTextStyles.label.copyWith(
+                color: AppColors.ink,
                 decoration: done
                     ? TextDecoration.lineThrough
                     : TextDecoration.none,
-                decorationColor: AppColors.textDisabled,
+                decorationColor: AppColors.ink3,
               ),
             ),
             if (done) ...[
-              const SizedBox(width: 4),
-              const Icon(Icons.check, size: 16, color: AppColors.textDisabled),
+              const SizedBox(width: AppSpacing.xs),
+              const Icon(Icons.check,
+                  size: AppIconSize.sm, color: AppColors.ink3),
             ],
           ],
         ),

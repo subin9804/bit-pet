@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_sheet.dart';
 import '../../data/models/pet_models.dart';
 import '../../providers/pet_provider.dart';
 import '../../../../core/theme/app_dimens.dart';
@@ -62,92 +63,34 @@ class _SpeciesBottomSheetState extends ConsumerState<SpeciesBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.87,
-      decoration: const BoxDecoration(
-        color: AppColors.paleBg,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-      ),
+    // 'SELECT SPECIES' eyebrow 라벨·핸들·푸터 '취소'는 걷어냈다. 고른 종은
+    // 헤더의 회색 칩이 아니라 주 버튼 글자가 이미 말해준다.
+    //
+    // 본문은 좌우 2단(대분류 레일 + 종 목록)이라 **높이가 정해져야** 한다 —
+    // AppSheet 안은 높이가 무한한 스크롤이라 Expanded 를 그대로 둘 수 없다.
+    return AppSheet(
+      title: '종 선택',
+      primaryLabel:
+          _selectedSpecies == null ? '종을 선택하세요' : '${_selectedSpecies!.nameKo} 선택',
+      onPrimary: _selectedSpecies == null
+          ? null
+          : () => Navigator.pop(context, _selectedSpecies),
       child: Column(
         children: [
-          _buildHandle(),
-          _buildHeader(),
           _buildSearchField(),
           const SizedBox(height: 4),
-          Expanded(child: _buildBody()),
-          _buildFooter(),
+          SizedBox(
+            height: MediaQuery.of(context).size.height * 0.5,
+            child: _buildBody(),
+          ),
         ],
       ),
     );
   }
 
-  // ── 드래그 핸들
-  Widget _buildHandle() => Center(
-        child: Container(
-          margin: const EdgeInsets.only(top: 12, bottom: 4),
-          width: 40,
-          height: 4,
-          decoration: BoxDecoration(
-            color: AppColors.paleLine,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-      );
-
-  // ── 헤더
-  Widget _buildHeader() => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'SELECT SPECIES',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.paleInk3,
-                      letterSpacing: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    '종 선택',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (_selectedSpecies != null)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  borderRadius: AppRadius.brMd,
-                  color: AppColors.paleBgAlt,
-                  border: Border.all(color: AppColors.paleLine),
-                ),
-                child: Text(
-                  _selectedSpecies!.nameKo,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ),
-          ],
-        ),
-      );
-
-  // ── 검색 필드
+  // ── 검색 필드 (좌우 여백은 AppSheet 가 준다)
   Widget _buildSearchField() => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+        padding: const EdgeInsets.only(top: 8),
         child: Container(
           decoration: BoxDecoration(
             borderRadius: AppRadius.brLg,
@@ -198,7 +141,7 @@ class _SpeciesBottomSheetState extends ConsumerState<SpeciesBottomSheet> {
           );
         }
         return ListView.builder(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+          padding: const EdgeInsets.symmetric(vertical: 8),
           itemCount: filtered.length,
           itemBuilder: (_, i) {
             final sp = filtered[i];
@@ -290,75 +233,6 @@ class _SpeciesBottomSheetState extends ConsumerState<SpeciesBottomSheet> {
     );
   }
 
-  // ── 하단 버튼
-  Widget _buildFooter() => SafeArea(
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-          decoration: const BoxDecoration(
-            border: Border(top: BorderSide(color: AppColors.paleLineSoft)),
-          ),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 80,
-                child: GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    decoration: BoxDecoration(
-                      borderRadius: AppRadius.brLg,
-                      color: AppColors.surface,
-                      border: Border.all(color: AppColors.paleLine),
-                    ),
-                    child: const Center(
-                      child: Text(
-                        '취소',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14,
-                          color: AppColors.paleInk2,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: GestureDetector(
-                  onTap: _selectedSpecies == null
-                      ? null
-                      : () => Navigator.pop(context, _selectedSpecies),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 150),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    decoration: BoxDecoration(
-                      color: _selectedSpecies != null
-                          ? AppColors.primary
-                          : AppColors.paleLine,
-                    ),
-                    child: Center(
-                      child: Text(
-                        _selectedSpecies == null
-                            ? '종을 선택하세요'
-                            : '${_selectedSpecies!.nameKo} 선택',
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14,
-                          color: _selectedSpecies != null
-                              ? AppColors.paleBg
-                              : AppColors.paleInk3,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
 }
 
 // ── subcategory 레일 ────────────────────────────────────────────────────────
@@ -409,7 +283,7 @@ class _SubcategoryRail extends StatelessWidget {
                   Text(
                     label,
                     style: TextStyle(
-                      fontSize: 13.5,
+                      fontSize: 14,
                       fontWeight: isSel ? FontWeight.w700 : FontWeight.w500,
                       color: isSel ? AppColors.primary : AppColors.paleInk2,
                     ),
@@ -418,7 +292,7 @@ class _SubcategoryRail extends StatelessWidget {
                   Text(
                     '$count종',
                     style: const TextStyle(
-                      fontSize: 10,
+                      fontSize: 12,
                       color: AppColors.paleInk3,
                       fontWeight: FontWeight.w600,
                     ),
@@ -515,7 +389,7 @@ class _SpeciesRow extends StatelessWidget {
                           child: Text(
                             subcategoryLabel!,
                             style: TextStyle(
-                              fontSize: 10,
+                              fontSize: 12,
                               fontWeight: FontWeight.w700,
                               color: isSelected
                                   ? AppColors.paleBg.withValues(alpha: 0.85)
@@ -531,7 +405,7 @@ class _SpeciesRow extends StatelessWidget {
                     Text(
                       species.nameEn!,
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 12,
                         color: isSelected
                             ? AppColors.paleBg.withValues(alpha: 0.7)
                             : AppColors.paleInk3,

@@ -12,7 +12,7 @@ class RoutinesPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.canvas,
       appBar: AppBar(
         backgroundColor: AppColors.bg,
         elevation: 0,
@@ -24,7 +24,7 @@ class RoutinesPage extends StatelessWidget {
             Text(
               'routine',
               style: AppTextStyles.label.copyWith(
-                fontSize: 11,
+                fontSize: 12,
                 color: AppColors.textDisabled,
                 letterSpacing: 1.5,
               ),

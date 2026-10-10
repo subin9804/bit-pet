@@ -439,13 +439,13 @@ class _RoutineFormScreenState extends ConsumerState<RoutineFormScreen> {
                             ),
                             child: Text(
                               '${_petIds.length}마리',
-                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.primary),
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary),
                             ),
                           ),
                           const SizedBox(width: 8),
                           Text(
                             '$_cycleSummaryFull · $_alarmTime',
-                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: _typeInk),
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _typeInk),
                           ),
                         ],
                       ),
@@ -483,7 +483,7 @@ class _RoutineFormScreenState extends ConsumerState<RoutineFormScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.paleBg,
+      backgroundColor: AppColors.canvas,
       body: SafeArea(
         child: StepShell(
           headerTitle: _isEditing ? '루틴 수정' : '루틴 등록',
@@ -674,7 +674,7 @@ class _PetSelectorStep extends ConsumerWidget {
                         petFilter == 'all' && petQuery.isEmpty ? '전체 선택' : '보이는 개체 모두 선택',
                         style: const TextStyle(
                           fontWeight: FontWeight.w700,
-                          fontSize: 12.5,
+                          fontSize: 13,
                           color: AppColors.paleInk2,
                         ),
                       ),
@@ -750,13 +750,13 @@ class _PetSelectorStep extends ConsumerWidget {
                             const SizedBox(height: 8),
                             Text(
                               p.name,
-                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5, color: AppColors.primary),
+                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.primary),
                               overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 1),
                             Text(
                               p.speciesName,
-                              style: const TextStyle(fontSize: 9.5, color: AppColors.paleInk3, fontWeight: FontWeight.w600),
+                              style: const TextStyle(fontSize: 12, color: AppColors.paleInk3, fontWeight: FontWeight.w600),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ],
@@ -821,7 +821,7 @@ class _CycleStep extends StatelessWidget {
         const Padding(
           padding: EdgeInsets.only(bottom: 8),
           child: Text('시작일', style: TextStyle(
-            fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.primary, letterSpacing: -0.2,
+            fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primary, letterSpacing: -0.2,
           )),
         ),
         GestureDetector(
@@ -867,7 +867,7 @@ class _CycleStep extends StatelessWidget {
                         fontWeight: FontWeight.w700, fontSize: 15, color: AppColors.primary,
                       )),
                       const Text('이 날짜부터 반복이 시작돼요', style: TextStyle(
-                        fontSize: 11, color: AppColors.paleInk3, fontWeight: FontWeight.w600,
+                        fontSize: 12, color: AppColors.paleInk3, fontWeight: FontWeight.w600,
                       )),
                     ],
                   ),
@@ -909,7 +909,7 @@ class _CycleStep extends StatelessWidget {
         const SizedBox(height: 20),
         // 반복 주기 세그먼트
         const Text('반복 주기', style: TextStyle(
-          fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.primary, letterSpacing: -0.2,
+          fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primary, letterSpacing: -0.2,
         )),
         const SizedBox(height: 8),
         Container(
@@ -941,7 +941,7 @@ class _CycleStep extends StatelessWidget {
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
-                          fontSize: 12.5,
+                          fontSize: 13,
                           color: cycleMode == entry.key ? AppColors.primary : AppColors.paleInk2,
                         ),
                       ),
@@ -1115,7 +1115,7 @@ class _MonthdayPicker extends StatelessWidget {
       children: [
         const Text(
           '반복할 날짜를 모두 탭하세요 · 여러 날 선택 가능',
-          style: TextStyle(fontSize: 11, color: AppColors.paleInk3, fontWeight: FontWeight.w600),
+          style: TextStyle(fontSize: 12, color: AppColors.paleInk3, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 8),
         GridView.builder(
@@ -1185,7 +1185,7 @@ class _MonthdayPicker extends StatelessWidget {
                 )),
                 const Spacer(),
                 const Text('매월 마지막 날', style: TextStyle(
-                  fontSize: 11, color: AppColors.paleInk3, fontWeight: FontWeight.w600,
+                  fontSize: 12, color: AppColors.paleInk3, fontWeight: FontWeight.w600,
                 )),
               ],
             ),
@@ -1200,7 +1200,7 @@ class _MonthdayPicker extends StatelessWidget {
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               const Text('매월', style: TextStyle(
-                fontSize: 11, color: AppColors.paleInk3, fontWeight: FontWeight.w700,
+                fontSize: 12, color: AppColors.paleInk3, fontWeight: FontWeight.w700,
               )),
               ...( monthDays.toList()..sort()).map((d) => Container(
                 padding: const EdgeInsets.fromLTRB(8, 4, 4, 4),
@@ -1212,7 +1212,7 @@ class _MonthdayPicker extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(d == 32 ? '말일' : '$d일', style: const TextStyle(
-                      fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primary,
+                      fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary,
                     )),
                     const SizedBox(width: 4),
                     GestureDetector(
@@ -1376,7 +1376,7 @@ class _AlarmStep extends StatelessWidget {
                       )),
                       Text(
                         alarmOn ? '$cycleSummary · $_timeStr에 알려드려요' : '알림 없이 루틴만 기록해요',
-                        style: const TextStyle(fontSize: 11, color: AppColors.paleInk3, fontWeight: FontWeight.w600),
+                        style: const TextStyle(fontSize: 12, color: AppColors.paleInk3, fontWeight: FontWeight.w600),
                       ),
                     ],
                   ),
@@ -1512,7 +1512,7 @@ class _TimeSpinnerState extends State<_TimeSpinner> {
                     onSubmitted: (_) => _commit(),
                   )
                 : Text(label, style: const TextStyle(
-                    fontSize: 34, fontWeight: FontWeight.w700, color: AppColors.primary,
+                    fontSize: 30, fontWeight: FontWeight.w700, color: AppColors.primary,
                   )),
           ),
         ),

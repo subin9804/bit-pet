@@ -6,9 +6,10 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/app_sheet.dart';
+import '../../../core/widgets/section_header.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../notification/providers/notification_provider.dart';
-import '../../pet/data/models/pet_models.dart';
 import '../../pet/data/anniversary.dart';
 import '../../pet/presentation/widgets/anniversary_view.dart';
 import '../../pet/providers/pet_provider.dart';
@@ -20,7 +21,8 @@ import '../../routine/providers/routine_provider.dart';
 import '../../routine/presentation/bulk_confirm_sheet.dart';
 import '../../routine/presentation/per_pet_confirm_sheet.dart';
 import '../../routine/presentation/routine_postpone_sheet.dart';
-import '../../../core/widgets/app_network_image.dart';
+import '../../../core/widgets/user_avatar.dart';
+import 'widgets/home_banner.dart';
 
 // ignore_for_file: prefer_const_constructors_in_immutables
 
@@ -34,8 +36,6 @@ class DashboardTab extends ConsumerStatefulWidget {
 
 class _DashboardTabState extends ConsumerState<DashboardTab>
     with WidgetsBindingObserver {
-  final _pageController = PageController(viewportFraction: 0.88);
-  int _currentPage = 0;
 
   @override
   void initState() {
@@ -46,7 +46,7 @@ class _DashboardTabState extends ConsumerState<DashboardTab>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _pageController.dispose();
+
     super.dispose();
   }
 
@@ -62,28 +62,23 @@ class _DashboardTabState extends ConsumerState<DashboardTab>
   @override
   Widget build(BuildContext context) {
     final authAsync    = ref.watch(authStateProvider);
-    final userName     = authAsync.valueOrNull?.name ?? '사용자';
 
     final todayAsync   = ref.watch(todayRoutinesProvider);
-    final recentAsync  = ref.watch(recentRecordsProvider);
     final unread       = ref.watch(unreadNotificationCountProvider);
-    final petsAsync    = ref.watch(petListProvider);
-
-    final allRoutines  = todayAsync.valueOrNull ?? [];
-    final remaining    = allRoutines.where((r) => !r.isAllCompleted).length;
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.canvas,
       body: Column(
         children: [
           // ── 헤더 (고정) ────────────────────────────────────────
           SafeArea(
             bottom: false,
             child: _Header(
-              userName: userName,
-              remainingCount: remaining,
               hasUnread: unread > 0,
               onBellTap: () => context.push('/notifications'),
+              onProfileTap: () => context.push('/my'),
+              profileImageUrl: authAsync.valueOrNull?.profileImageUrl,
+              profileColor: authAsync.valueOrNull?.profileColor,
             ),
           ),
 
@@ -93,7 +88,6 @@ class _DashboardTabState extends ConsumerState<DashboardTab>
               color: AppColors.primary,
               onRefresh: () async {
                 ref.invalidate(todayRoutinesProvider);
-                ref.invalidate(recentRecordsProvider);
                 // 당겨서 새로고침인데 캘린더만 옛 값으로 남아 있으면 새로고침이
                 // 안 먹은 것처럼 보인다
                 ref.invalidate(homeCalendarProvider);
@@ -106,66 +100,35 @@ class _DashboardTabState extends ConsumerState<DashboardTab>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 8),
 
-                    // ── TODAY 섹션 ──────────────────────────────
+                    // ── 배너 (공지·이벤트·홍보) ──────────────────
+                    // ⚠️ 내용은 아직 하드코딩이다 (`home_banner.dart`).
+                    // 히어로 **위**에 두되 높이는 화면의 1/7~1/8 로 묶어,
+                    // 홈을 열었을 때 '오늘 할 일'이 접히지 않게 한다.
+                    const Padding(
+                      padding: EdgeInsets.fromLTRB(20, 0, 20, AppSpacing.lg),
+                      child: HomeBanner(),
+                    ),
+
+                    // ── 오늘 할 일 ──────────────────────────────
+                    //
+                    // '내 개체' 가로 아바타 줄은 여기 있었는데 없앴다. 하단 탭에
+                    // '내 개체'가 따로 있어서 같은 목록을 두 곳에서 보여주고 있었고,
+                    // 홈의 줄은 폭이 모자라 이름이 잘려 오히려 못 알아봤다.
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-                      child: Row(
-                        children: [
-                          Text('TODAY',
-                              style: AppTextStyles.mono(11, FontWeight.w700,
-                                  color: AppColors.textDisabled)),
-                          const Spacer(),
-                          todayAsync.whenOrNull(data: (r) => Text(
-                            '${r.length - remaining} / ${r.length}',
-                            style: AppTextStyles.mono(11, FontWeight.w700,
-                                color: AppColors.textDisabled),
-                          )) ?? const SizedBox.shrink(),
-                        ],
-                      ),
-                    ),
-                    _TodayDeck(
-                      todayAsync: todayAsync,
-                      currentPage: _currentPage,
-                      pageController: _pageController,
-                      onPageChanged: (i) => setState(() => _currentPage = i),
-                    ),
-
-                    // ── 내 개체 섹션 ──────────────────────────────
-                    _SectionHeader(
-                      title: '내 개체',
-                      trailing: '전체보기',
-                      onTap: () => context.go('/pets'),
-                    ),
-                    SizedBox(
-                      height: 96,
-                      child: petsAsync.when(
-                        loading: () => const Center(
-                            child: CircularProgressIndicator(strokeWidth: 2)),
-                        error: (_, __) =>
-                            const Center(child: Text('개체 로드 실패')),
-                        data: (pets) => ListView(
-                          scrollDirection: Axis.horizontal,
-                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
-                          children: [
-                            _AddPetButton(onTap: () => context.push('/pets/new')),
-                            ...pets.map((p) => Padding(
-                                  padding: const EdgeInsets.only(left: 16),
-                                  child: _PetAvatarItem(
-                                    pet: p,
-                                    onTap: () => context.push('/pets/${p.id}'),
-                                  ),
-                                )),
-                          ],
-                        ),
-                      ),
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+                      child: _TodayHero(todayAsync: todayAsync),
                     ),
 
                     // ── 기록 캘린더 섹션 ─────────────────────────
-                    _SectionHeader(title: '기록 캘린더'),
+                    const SizedBox(height: AppSpacing.x32),
+                    const Padding(
+                      padding: EdgeInsets.fromLTRB(20, 0, 20, 0),
+                      child: SectionHeader(title: '기록 캘린더'),
+                    ),
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+                      padding: EdgeInsets.fromLTRB(20, 0, 20, 0),
                       child: _HomeCalendar(),
                     ),
                   ],
@@ -181,89 +144,91 @@ class _DashboardTabState extends ConsumerState<DashboardTab>
 
 // ── 헤더 ──────────────────────────────────────────────────────
 class _Header extends StatelessWidget {
-  final String userName;
-  final int remainingCount;
   final bool hasUnread;
   final VoidCallback onBellTap;
 
+  /// 우상단 프로필 아바타. 하단 탭에서 '마이'를 빼고 중앙 ＋ 를 넣었으므로
+  /// 설정으로 가는 유일한 입구가 여기다.
+  final String? profileImageUrl;
+  final String? profileColor;
+  final VoidCallback onProfileTap;
+
   const _Header({
-    required this.userName,
-    required this.remainingCount,
     required this.hasUnread,
     required this.onBellTap,
+    required this.onProfileTap,
+    this.profileImageUrl,
+    this.profileColor,
   });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+      padding: const EdgeInsets.fromLTRB(20, AppSpacing.md, 20, AppSpacing.lg),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 'tailog'(Courier 12px) + '안녕, OO님 / 오늘의 루틴 N개' 2단이었다.
+          // 인사말은 **읽을 때마다 같은 말**이라 두 번째부터는 자리만 차지하고,
+          // 남은 개수는 바로 아래 히어로가 `done/total` 로 이미 말한다.
+          // 헤더는 "여기가 어디냐"만 답하면 된다 — 로고 하나.
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'tailog',
-                  style: TextStyle(
-                    fontFamily: 'Courier New',
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textDisabled,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                RichText(
-                  text: TextSpan(
-                    style: const TextStyle(
-                      fontFamily: 'Pretendard',
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                      letterSpacing: -0.7,
-                      height: 1.2,
-                    ),
-                    children: [
-                      TextSpan(text: '안녕, $userName님\n'),
-                      TextSpan(
-                        text: '오늘의 루틴 $remainingCount개',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w500,
-                          fontSize: 16,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Image.asset(
+                'assets/branding/inapp_logo.png',
+                // 원본 2499×720(≈3.47:1). 높이만 주고 비율은 맡긴다.
+                height: 26,
+                fit: BoxFit.contain,
+                // 워드마크가 안 뜨면 헤더가 통째로 비어 어디인지 알 수 없게
+                // 된다 — 글자로라도 남긴다.
+                errorBuilder: (_, _, _) => Text('tailog',
+                    style: AppTextStyles.screenTitle),
+              ),
             ),
           ),
-          // 알림 버튼 — 직각 컨테이너
+          const SizedBox(width: AppSpacing.md),
+          // 알림 — 각진 36×36 블록이었다. 옆의 원형 아바타와 나란히 서는
+          // 자리라 둘의 모양이 다르면 한 쌍으로 안 읽힌다.
           GestureDetector(
             onTap: onBellTap,
             child: Stack(
               children: [
                 Container(
-                  width: 36, height: 36,
-                  color: AppColors.bg2,
+                  width: 36,
+                  height: 36,
+                  alignment: Alignment.center,
+                  decoration: const BoxDecoration(
+                    color: AppColors.bgAlt,
+                    shape: BoxShape.circle,
+                  ),
                   child: const Icon(Icons.notifications_none_outlined,
-                      size: 20, color: AppColors.textPrimary),
+                      size: AppIconSize.md, color: AppColors.ink),
                 ),
                 if (hasUnread)
                   Positioned(
-                    right: 7, top: 7,
+                    right: 6,
+                    top: 6,
                     child: Container(
-                      width: 7, height: 7,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFE05C3A),
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: AppColors.commNotifDot,
                         shape: BoxShape.circle,
+                        border: Border.all(color: AppColors.canvas, width: 1.5),
                       ),
                     ),
                   ),
               ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          GestureDetector(
+            onTap: onProfileTap,
+            child: UserAvatar(
+              imageUrl: profileImageUrl,
+              colorKey: profileColor,
+              size: 36,
+              borderWidth: 2,
             ),
           ),
         ],
@@ -272,555 +237,354 @@ class _Header extends StatelessWidget {
   }
 }
 
-// ── TODAY 덱 ──────────────────────────────────────────────────
-
-/// 루틴 카드 기준 높이. PageView 는 자식 높이를 스스로 못 정하므로 고정값이 필요하다.
-const _kCardHeight = 200.0;
-
-/// 카드 높이. 기본은 [_kCardHeight] 이고, **넘칠 때만** 그만큼 키운다.
-///
-/// 카드 전체를 배율만큼 곱하면 안 된다 — 아이콘 40px·패딩·간격은 배율과
-/// 무관해서, 늘어난 몫이 전부 아래쪽 빈 공간으로 남는다. 그래서 고정 요소와
-/// 배율을 타는 요소를 나눠 더한다.
-///
-/// 실측(배율 1.0 기준): 고정 92(세로 패딩 32 + 간격 32 + 버튼 패딩·테두리 18
-/// + 아이콘이 텍스트보다 큰 몫 10) + 배율을 타는 텍스트 84 = 176.
-///
-/// ℹ️ 이 카드의 오버플로는 **세로가 아니라 가로**였다. 아래 액션 버튼 두 개의
-/// 라벨이 `Flexible` 없이 놓여 있어서, 좁은 화면이나 큰 글자에서 flex 칸을
-/// 넘겼다. 높이 추정은 멀쩡했으므로 여기선 여유만 조금 더 준다.
-double _cardHeight(BuildContext context) {
-  final scale = MediaQuery.textScalerOf(context).scale(14) / 14;
-  final content = 92 + 84 * scale.clamp(1.0, 2.5);
-  return content <= _kCardHeight ? _kCardHeight : content + 12;
-}
-
-class _TodayDeck extends StatelessWidget {
+// ── 오늘 할 일 히어로 ─────────────────────────────────────────
+//
+// 예전엔 가로로 넘기는 카드 덱(PageView)이었다. 루틴이 5개면 5번 넘겨야 전부
+// 보이는데, **몇 개가 남았는지는 넘겨 보기 전엔 알 수 없었다.** 홈에서 알고 싶은
+// 건 "오늘 뭐가 남았나" 하나라서, 넘기지 않고 한눈에 들어오는 세로 목록으로 바꿨다.
+//
+// ⛔ **시간을 표기하지 않는다.** 루틴의 날짜는 '알림이 갈 날짜'일 뿐이고 수행 시각이
+// 아니다. 남은 시간·다음 루틴 시각을 띄우면 **안 지켰을 때 늦은 것처럼 보이는데**,
+// 루틴은 그 날 안에 했냐 안 했냐가 전부다.
+//
+// 행 조작은 4개다. 현행 카드의 세 버튼(일괄 완료·개별 완료·미루기)을 하나도 없애지
+// 않고 행 안으로 접어 넣은 것이다 — 버튼을 지우면 "홈에서 내용까지 적는" 쓰임이
+// 사라져서 개체 상세까지 다시 들어가야 한다.
+//
+// | 조작 | 결과 |
+// |---|---|
+// | 본문 탭 | 개별 완료 시트 (개체마다 먹이·체중·메모를 적는다) |
+// | '모두 완료' 알약 | 연결된 개체 전원 완료 |
+// | **완료된 행 탭** | 같은 시트가 **적어둔 내용이 복원된 채** 열린다 = 수정 |
+// | 길게 누르기 | 미루기 |
+class _TodayHero extends StatelessWidget {
   final AsyncValue<List<TodayRoutine>> todayAsync;
-  final int currentPage;
-  final PageController pageController;
-  final ValueChanged<int> onPageChanged;
 
-  const _TodayDeck({
-    required this.todayAsync,
-    required this.currentPage,
-    required this.pageController,
-    required this.onPageChanged,
-  });
+  const _TodayHero({required this.todayAsync});
+
+  /// 홈에 펼쳐 두는 행 수. 넘치는 만큼은 '더 보기'로 넘긴다.
+  static const _maxRows = 3;
 
   @override
   Widget build(BuildContext context) {
-    final cardHeight = _cardHeight(context);
     return todayAsync.when(
-      loading: () => SizedBox(
-        height: cardHeight,
-        child: const Center(
-            child: CircularProgressIndicator(
-                strokeWidth: 2, color: AppColors.primary)),
+      loading: () => const _HeroShell(
+        child: SizedBox(
+          height: 96,
+          child: Center(
+              child: CircularProgressIndicator(
+                  strokeWidth: 2, color: AppColors.brandAction)),
+        ),
       ),
-      error: (_, __) => SizedBox(
-        height: cardHeight,
-        child: const Center(child: Text('루틴을 불러올 수 없어요')),
+      error: (_, __) => const _HeroShell(
+        child: SizedBox(
+          height: 96,
+          child: Center(child: Text('루틴을 불러올 수 없어요')),
+        ),
       ),
-      data: (allRoutines) {
-        final routines = [...allRoutines]..sort((a, b) {
-          if (a.isAllCompleted == b.isAllCompleted) return 0;
-          return a.isAllCompleted ? 1 : -1;
-        });
-        if (routines.isEmpty) {
-          return Container(
-            margin: const EdgeInsets.symmetric(horizontal: 20),
-            padding: const EdgeInsets.all(32),
-            // 카드가 있을 자리를 대신하는 상자다. 카드는 둥근데 빈 자리만
-            // 각지면 '아직 안 그려진 것'처럼 보인다.
-            decoration: const BoxDecoration(
-              color: AppColors.bg2,
-              borderRadius: AppRadius.brLg,
-            ),
-            child: const Center(
-              child: Text('오늘 예정된 루틴이 없어요',
-                  style: TextStyle(
-                      fontSize: 14, color: AppColors.textSecondary,
-                      fontWeight: FontWeight.w500)),
-            ),
-          );
-        }
+      data: (all) {
+        if (all.isEmpty) return const _HeroEmpty();
 
-        return Column(
-          children: [
-            SizedBox(
-              height: cardHeight,
-              child: PageView.builder(
-                controller: pageController,
-                onPageChanged: onPageChanged,
-                itemCount: routines.length,
-                itemBuilder: (_, i) => Padding(
-                  padding: EdgeInsets.only(
-                      left: i == 0 ? 20 : 0,
-                      right: 8),
-                  child: _TodayRoutineCard(
-                    routine: routines[i],
-                    index: i,
-                    total: routines.length,
-                  ),
+        // 미완료를 위로. 끝난 일이 위에 쌓여 있으면 남은 일을 찾아 읽어야 한다.
+        final routines = [...all]..sort((a, b) {
+            if (a.isAllCompleted == b.isAllCompleted) return 0;
+            return a.isAllCompleted ? 1 : -1;
+          });
+
+        final done = routines.where((r) => r.isAllCompleted).length;
+        final total = routines.length;
+        final shown = routines.take(_maxRows).toList();
+        final hidden = total - shown.length;
+
+        return _HeroShell(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Text('오늘 할 일', style: AppTextStyles.subheading),
+                  const Spacer(),
+                  Text('$done',
+                      style: AppTextStyles.mono(15, FontWeight.w700,
+                          color: AppColors.brandAction)),
+                  Text(' / $total',
+                      style: AppTextStyles.mono(15, FontWeight.w700,
+                          color: AppColors.ink3)),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+
+              // 진행 바 — 의미를 전달하는 비텍스트 요소라 brandIcon(3.58:1).
+              ClipRRect(
+                borderRadius: AppRadius.brPill,
+                child: LinearProgressIndicator(
+                  value: total == 0 ? 0 : done / total,
+                  minHeight: 6,
+                  backgroundColor: AppColors.line,
+                  valueColor: const AlwaysStoppedAnimation(AppColors.brandIcon),
                 ),
               ),
-            ),
-            if (routines.length > 1)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(routines.length, (i) {
-                    final active = i == currentPage;
-                    return AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      width: active ? 18 : 5,
-                      height: 4,
-                      // 4px 짜리 점이라 알약이 곧 형태다. 각지면 눈금으로 읽힌다.
-                      decoration: BoxDecoration(
-                        color: active ? AppColors.primary : AppColors.divider,
-                        borderRadius: AppRadius.brPill,
-                      ),
-                    );
-                  }),
+              const SizedBox(height: AppSpacing.lg),
+
+              ...shown.map((r) => _RoutineRow(routine: r)),
+
+              if (hidden > 0)
+                InkWell(
+                  onTap: () => context.go('/routines'),
+                  borderRadius: AppRadius.brSm,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('$hidden개 더 보기',
+                            style: AppTextStyles.caption.copyWith(
+                                color: AppColors.brandAction,
+                                fontWeight: FontWeight.w600)),
+                        const SizedBox(width: AppSpacing.xs),
+                        const Icon(Icons.keyboard_arrow_down,
+                            size: AppIconSize.sm, color: AppColors.brandAction),
+                      ],
+                    ),
+                  ),
                 ),
-              )
-            else
-              const SizedBox(height: 8),
-          ],
+            ],
+          ),
         );
       },
     );
   }
 }
 
-// ── TODAY 루틴 카드 ───────────────────────────────────────────
-class _TodayRoutineCard extends StatelessWidget {
-  final TodayRoutine routine;
-  final int index;
-  final int total;
-
-  const _TodayRoutineCard({
-    required this.routine,
-    required this.index,
-    required this.total,
-  });
-
-  Color get _bg => switch (routine.routineType) {
-        RoutineType.FEEDING  => AppColors.petPeach,
-        RoutineType.CLEANING => AppColors.petSky,
-        RoutineType.WEIGHT   => AppColors.petSage,
-        RoutineType.CUSTOM   => AppColors.petLilac,
-      };
-
-  String get _typeLabel => switch (routine.routineType) {
-        RoutineType.FEEDING  => 'FEEDING',
-        RoutineType.CLEANING => 'CLEANING',
-        RoutineType.WEIGHT   => 'WEIGHT',
-        RoutineType.CUSTOM   => 'CUSTOM',
-      };
-
-  void _openBulk(BuildContext context) {
-    showDialog(
-      context: context,
-      barrierColor: Colors.transparent,
-      builder: (_) => BulkConfirmSheet(routine: routine),
-    );
-  }
-
-  void _openPerPet(BuildContext context) {
-    showDialog(
-      context: context,
-      barrierColor: Colors.transparent,
-      builder: (_) => PerPetConfirmSheet(routine: routine),
-    );
-  }
+/// 히어로 바깥 상자. 로딩·오류·내용이 같은 모양이어야 화면이 덜컥이지 않는다.
+class _HeroShell extends StatelessWidget {
+  final Widget child;
+  const _HeroShell({required this.child});
 
   @override
   Widget build(BuildContext context) {
-    final allDone   = routine.isAllCompleted;
-    final done      = routine.completedPetCount;
-    final totalPets = routine.totalPetCount;
-
-    return Opacity(
-      opacity: allDone ? 0.60 : 1.0,
-      child: Container(
-        // 홈에서 가로로 넘겨 보는 카드다. 한 장씩 떠 있다는 게 형태로
-        // 읽혀야 넘길 수 있는 물건인 줄 안다 — 라운드와 옅은 그림자가 그 역할이다.
-        // 바탕색이 루틴 종류마다 달라서 AppDecor.cardRaised 를 그대로 못 쓴다.
-        decoration: BoxDecoration(
-          color: _bg,
-          borderRadius: AppRadius.brLg,
-          boxShadow: AppShadows.elev1,
-        ),
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 시각 + 인덱스
-            Row(
-              children: [
-                Text(
-                  routine.alarmTime ?? '--:--',
-                  style: AppTextStyles.mono(11, FontWeight.w700,
-                      color: AppColors.textSecondary),
-                ),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.55),
-                    borderRadius: AppRadius.brSm,
-                  ),
-                  child: Text(
-                    '${(index + 1).toString().padLeft(2, '0')} / ${total.toString().padLeft(2, '0')}',
-                    style: AppTextStyles.mono(10, FontWeight.w700,
-                        color: AppColors.textSecondary),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // 아이콘 + 제목 + 마리수
-            Row(
-              children: [
-                Container(
-                  width: 40, height: 40,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.55),
-                    borderRadius: AppRadius.brMd,
-                  ),
-                  child: RecordTypeIcon(routine.routineType.name,
-                      size: 20, color: AppColors.textPrimary),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(_typeLabel,
-                          style: AppTextStyles.mono(9, FontWeight.w700,
-                              color: AppColors.textSecondary)),
-                      const SizedBox(height: 1),
-                      Text(
-                        routine.title,
-                        style: TextStyle(
-                          fontSize: 17, fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary, letterSpacing: -0.4,
-                          decoration: allDone
-                              ? TextDecoration.lineThrough
-                              : TextDecoration.none,
-                          decorationColor: AppColors.textSecondary,
-                        ),
-                        // maxLines 없이 ellipsis만 주면 줄바꿈은 그대로 일어난다.
-                        // 카드 높이가 고정(_kCardHeight)이라 긴 제목이 두 줄이 되는 순간
-                        // 바닥이 넘쳤다 — 한 줄로 못박는다.
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.6),
-                    borderRadius: AppRadius.brSm,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.person_outline,
-                          size: 12, color: AppColors.textPrimary),
-                      const SizedBox(width: 4),
-                      Text('$totalPets마리',
-                          style: AppTextStyles.mono(10, FontWeight.w700)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-
-            // 진행도
-            Row(
-              children: [
-                const Spacer(),
-                Text('$done / $totalPets 완료',
-                    style: AppTextStyles.mono(11, FontWeight.w700,
-                        color: AppColors.textSecondary)),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // 액션 버튼 — border-radius 0
-            //
-            // 미루기는 원래 카드 맨 위 오른쪽에 10sp 알약으로 있었다. 바로 옆 '01/02'
-            // 인덱스 배지와 크기·색·서체가 똑같아서 **버튼이 아니라 표시로 읽혔고**,
-            // 기능이 있는 줄 모른 채 지나쳤다. 실제 동작이니 실제 버튼 자리로 내린다.
-            Row(
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: GestureDetector(
-                    onTap: allDone ? null : () => _openBulk(context),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        borderRadius: AppRadius.brMd,
-                        color: allDone ? Colors.transparent : AppColors.primary,
-                        // 완료 상태에만 테두리를 주면 그 카드만 2px 더 높아져
-                        // 완료된 카드부터 바닥이 넘친다. 두께는 항상 1px로 두고 색만 바꾼다.
-                        border: Border.all(
-                          color: allDone
-                              ? AppColors.textSecondary
-                              : Colors.transparent,
-                          width: 1,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          if (!allDone) ...[
-                            const Icon(Icons.check,
-                                size: 16, color: Colors.white),
-                            const SizedBox(width: 4),
-                          ],
-                          // 두 버튼이 한 줄을 flex 3:3 으로 나눠 쓰는 자리다.
-                          // Flexible 없이 두면 좁은 화면이나 큰 글자에서 라벨이
-                          // 칸을 넘어 카드가 가로로 터진다 — 이게 '루틴 카드
-                          // overflowed' 의 실제 원인이었다.
-                          Flexible(
-                            child: Text(
-                              allDone ? '완료됨' : '일괄 완료',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 13, fontWeight: FontWeight.w700,
-                                color: allDone
-                                    ? AppColors.textSecondary
-                                    : Colors.white,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  flex: 3,
-                  child: GestureDetector(
-                    onTap: () => _openPerPet(context),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        borderRadius: AppRadius.brMd,
-                        color: Colors.white.withValues(alpha: 0.65),
-                        // 왼쪽 버튼과 높이를 맞추기 위한 투명 테두리
-                        border: Border.all(color: Colors.transparent, width: 1),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.view_list_outlined,
-                              size: 16, color: AppColors.textPrimary),
-                          const SizedBox(width: 4),
-                          Flexible(
-                            child: Text('개별 완료',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                    fontSize: 13, fontWeight: FontWeight.w700,
-                                    color: AppColors.textPrimary)),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                // 미루기 — 루틴 단위라 연결된 개체 전부가 밀린다 (시트에서 고지).
-                // 완료된 카드에는 미룰 게 없어 자리 자체를 없앤다.
-                if (!allDone) ...[
-                  const SizedBox(width: 8),
-                  Expanded(
-                    flex: 2,
-                    child: GestureDetector(
-                      onTap: () => showRoutinePostponeSheet(context, routine),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          borderRadius: AppRadius.brMd,
-                          color: Colors.white.withValues(alpha: 0.65),
-                          // 나머지 두 버튼과 높이를 맞추기 위한 투명 테두리
-                          border: Border.all(color: Colors.transparent, width: 1),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.snooze,
-                                size: 16, color: AppColors.textPrimary),
-                            const SizedBox(width: 4),
-                            const Text('미루기',
-                                style: TextStyle(
-                                    fontSize: 13, fontWeight: FontWeight.w700,
-                                    color: AppColors.textPrimary)),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ],
-        ),
-      ),
+    return Container(
+      decoration: AppDecor.cardRaised,
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      child: child,
     );
   }
-
 }
 
-// ── 섹션 헤더 ─────────────────────────────────────────────────
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  final String? trailing;
-  final VoidCallback? onTap;
-
-  const _SectionHeader({
-    required this.title,
-    this.trailing,
-    this.onTap,
-  });
+/// 빈 상태 — 그림 1 + 한 줄 + 버튼 1개. ⛔ 버튼을 둘 두지 말 것.
+class _HeroEmpty extends StatelessWidget {
+  const _HeroEmpty();
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return _HeroShell(
+      child: Column(
         children: [
-          Text(title,
-              style: const TextStyle(
-                  fontSize: 16, fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary, letterSpacing: -0.3)),
-          if (trailing != null)
-            GestureDetector(
-              onTap: onTap,
-              child: Text(trailing!,
-                  style: TextStyle(
-                      fontSize: 12, color: AppColors.textDisabled)),
+          Container(
+            width: 56,
+            height: 56,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(
+              color: AppColors.brandTintSoft,
+              shape: BoxShape.circle,
             ),
+            child: const Icon(Icons.task_alt,
+                size: AppIconSize.lg, color: AppColors.brandIcon),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text('오늘 예정된 루틴이 없어요', style: AppTextStyles.bodyBold),
+          const SizedBox(height: AppSpacing.lg),
+          TextButton(
+            onPressed: () => context.push('/routines/new'),
+            child: const Text('루틴 만들기'),
+          ),
         ],
       ),
     );
   }
 }
 
-// ── 내 개체 아바타 ─────────────────────────────────────────────
-class _PetAvatarItem extends StatelessWidget {
-  final Pet pet;
-  final VoidCallback onTap;
+// ── 루틴 행 ───────────────────────────────────────────────────
+class _RoutineRow extends StatelessWidget {
+  final TodayRoutine routine;
 
-  const _PetAvatarItem({required this.pet, required this.onTap});
+  const _RoutineRow({required this.routine});
 
-  Widget get _placeholderIcon => AppIcon(
-        AppIcons.species(pet.speciesSubcategory),
-        size: 24,
-        color: AppColors.primary.withValues(alpha: 0.4),
-      );
+  Color get _tint => switch (routine.routineType) {
+        RoutineType.FEEDING  => AppColors.petPeach,
+        RoutineType.CLEANING => AppColors.petSky,
+        RoutineType.WEIGHT   => AppColors.petSage,
+        RoutineType.CUSTOM   => AppColors.petLilac,
+      };
+
+  /// 본문 탭 — 개체마다 내용을 적는 시트. 완료된 행도 같은 곳으로 간다.
+  /// 시트가 저장된 로그를 복원하므로 그대로 고치면 된다 (`_loadSavedLogs`).
+  void _openPerPet(BuildContext context) {
+    showAppSheet<void>(
+      context: context,
+      builder: (_) => PerPetConfirmSheet(routine: routine),
+    );
+  }
+
+  void _openBulk(BuildContext context) {
+    showAppSheet<void>(
+      context: context,
+      builder: (_) => BulkConfirmSheet(routine: routine),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: SizedBox(
-        width: 64,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 60,
-              height: 60,
-              clipBehavior: Clip.hardEdge,
-              decoration: const BoxDecoration(
-                color: AppColors.bgAlt,
-                borderRadius: AppRadius.brLg,
-              ),
-              // 사진이 없는 개체의 자리지킴 아이콘이다. 먹색(textPrimary)이면
-              // 사진 있는 개체보다 오히려 더 튀어서 목록이 얼룩덜룩해진다.
-              // '내 개체' 탭 아바타와 같은 옅기로 맞춘다.
-              child: pet.profileImageUrl != null
-                  ? AppNetworkImage(
-                      pet.profileImageUrl,
-                      fit: BoxFit.cover,
-                      memWidth: 220,
-                      placeholder: _placeholderIcon,
+    final allDone = routine.isAllCompleted;
+
+    // 조작은 그대로 4개지만 **셋이 숨어 있었다** — 본문을 눌러야 개체별 완료가
+    // 열리고, 미루기는 길게 눌러야 나왔다. 길게 누르기는 눌러 보기 전엔 있는지
+    // 알 수 없는 조작이라, 쓰는 사람에겐 사실상 없는 기능이다.
+    // 그래서 둘을 **보조 줄의 글자 버튼**으로 꺼냈다. 알약(모두 완료)은 그대로
+    // 오른쪽에 두고, 본문 탭·길게 누르기도 아는 사람을 위해 남겼다.
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          InkWell(
+            onTap: () => _openPerPet(context),
+            onLongPress:
+                allDone ? null : () => showRoutinePostponeSheet(context, routine),
+            borderRadius: AppRadius.brMd,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+              child: Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: _tint,
+                      borderRadius: AppRadius.brMd,
+                    ),
+                    child: RecordTypeIcon(routine.routineType.name,
+                        size: AppIconSize.md, color: AppColors.ink),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          routine.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTextStyles.bodyBold.copyWith(
+                            color: allDone ? AppColors.ink3 : AppColors.ink,
+                            decoration: allDone
+                                ? TextDecoration.lineThrough
+                                : TextDecoration.none,
+                            decorationColor: AppColors.ink3,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${routine.completedPetCount} / ${routine.totalPetCount}마리',
+                          style: AppTextStyles.caption,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+
+                  // 알약 — 전원 완료. 끝난 행에서는 누를 게 없어 표시로만 남는다.
+                  if (allDone)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+                      decoration: const BoxDecoration(
+                        color: AppColors.brandTint,
+                        borderRadius: AppRadius.brPill,
+                      ),
+                      child: const Icon(Icons.check,
+                          size: AppIconSize.sm, color: AppColors.brandTintInk),
                     )
-                  : _placeholderIcon,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              pet.name,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                  else
+                    Material(
+                      color: AppColors.brandAction,
+                      borderRadius: AppRadius.brPill,
+                      child: InkWell(
+                        onTap: () => _openBulk(context),
+                        borderRadius: AppRadius.brPill,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+                          child: Text('모두 완료',
+                              style: AppTextStyles.caption.copyWith(
+                                  color: AppColors.bg,
+                                  fontWeight: FontWeight.w700)),
+                        ),
+                      ),
+                    ),
+                ],
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
             ),
-          ],
-        ),
+          ),
+
+          // 보조 줄 — 아이콘 타일 폭(36+12)만큼 들여써서 제목 줄에 맞춘다.
+          Padding(
+            padding: const EdgeInsets.only(left: 48),
+            child: Row(
+              children: [
+                _RowAction(
+                  icon: Icons.checklist_rtl,
+                  // 완료된 행에서 같은 시트는 '적어둔 내용 고치기'로 열린다
+                  // (`_loadSavedLogs` 가 저장된 로그를 되살린다).
+                  label: allDone ? '기록 수정' : '개체별 완료',
+                  onTap: () => _openPerPet(context),
+                ),
+                if (!allDone) ...[
+                  const SizedBox(width: AppSpacing.md),
+                  _RowAction(
+                    icon: Icons.snooze,
+                    label: '미루기',
+                    onTap: () => showRoutinePostponeSheet(context, routine),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-// ── 개체 추가 버튼 ──────────────────────────────────────────────
-class _AddPetButton extends StatelessWidget {
+/// 루틴 행의 보조 동작 한 개. 아이콘 + 글자 — 아이콘만 두면 뜻이 읽히지 않는다.
+class _RowAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
   final VoidCallback onTap;
 
-  const _AddPetButton({required this.onTap});
+  const _RowAction(
+      {required this.icon, required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return InkWell(
       onTap: onTap,
-      child: SizedBox(
-        width: 64,
-        child: Column(
+      borderRadius: AppRadius.brSm,
+      child: Padding(
+        // 글자만 보면 터치 영역이 12px 높이밖에 안 된다 — 세로 패딩으로
+        // 손가락이 닿는 높이(약 32px)를 확보한다.
+        padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xs, vertical: AppSpacing.sm),
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                borderRadius: AppRadius.brLg,
-                border: Border.all(color: AppColors.border, width: 1.5),
-              ),
-              child: const Icon(Icons.add, size: 24, color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              '추가',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary,
-              ),
-            ),
+            Icon(icon, size: AppIconSize.sm, color: AppColors.brandAction),
+            const SizedBox(width: AppSpacing.xs),
+            Text(label,
+                style: AppTextStyles.caption.copyWith(
+                    color: AppColors.brandAction,
+                    fontWeight: FontWeight.w600)),
           ],
         ),
       ),
@@ -871,11 +635,10 @@ class _HomeCalendarState extends ConsumerState<_HomeCalendar> {
 
   Future<void> _pickYearMonth() async {
     final now = DateTime.now();
-    final result = await showModalBottomSheet<DateTime>(
+    final result = await showAppSheet<DateTime>(
       context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (_) => _YearMonthPicker(current: _month, maxDate: DateTime(now.year, now.month)),
+      builder: (_) => _YearMonthPicker(
+          current: _month, maxDate: DateTime(now.year, now.month)),
     );
     if (result != null) {
       setState(() {
@@ -914,54 +677,52 @@ class _HomeCalendarState extends ConsumerState<_HomeCalendar> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 캘린더 컨테이너 — 테두리 없이 구분선으로만
+        // 바탕이 연회색([AppColors.canvas])이므로 캘린더는 **흰 카드 한 장**이다.
+        // 위아래 선만 긋던 띠 모양은 바탕이 흰색이던 시절의 것으로, 지금은
+        // 섹션 경계가 안 보인다.
         Container(
-          decoration: const BoxDecoration(
-            color: AppColors.card,
-            border: Border(
-              top: BorderSide(color: AppColors.divider),
-              bottom: BorderSide(color: AppColors.divider),
-            ),
-          ),
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+          decoration: AppDecor.cardRaised,
+          padding: const EdgeInsets.all(AppSpacing.lg),
           child: Column(
             children: [
               // 월 네비게이션
               Row(children: [
-                GestureDetector(
-                  onTap: _prev,
-                  child: const Icon(Icons.chevron_left,
-                      size: 20, color: AppColors.textSecondary),
+                IconButton(
+                  tooltip: '지난 달',
+                  onPressed: _prev,
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.chevron_left,
+                      size: AppIconSize.md, color: AppColors.ink2),
                 ),
-                const SizedBox(width: 8),
-                const Icon(Icons.calendar_today_outlined,
-                    size: 16, color: AppColors.textPrimary),
-                const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: _pickYearMonth,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '${_month.year}년 ${_month.month}월',
-                        style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary),
+                Expanded(
+                  child: InkWell(
+                    onTap: _pickYearMonth,
+                    borderRadius: AppRadius.brSm,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: AppSpacing.xs),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text('${_month.year}년 ${_month.month}월',
+                              style: AppTextStyles.subheading),
+                          const SizedBox(width: AppSpacing.xs),
+                          const Icon(Icons.expand_more,
+                              size: AppIconSize.sm, color: AppColors.ink3),
+                        ],
                       ),
-                      const SizedBox(width: 4),
-                      const Icon(Icons.expand_more, size: 16, color: AppColors.textDisabled),
-                    ],
+                    ),
                   ),
                 ),
-                const Spacer(),
-                GestureDetector(
-                  onTap: isCurrentMonth ? null : _next,
-                  child: AppIcon(AppIcons.chevronRight,
-                      size: 20,
-                      color: isCurrentMonth
-                          ? AppColors.divider
-                          : AppColors.textSecondary),
+                IconButton(
+                  tooltip: '다음 달',
+                  // 다음 달은 아직 오지 않았다 — 빈 달을 열어 두면 기록이
+                  // 사라진 것처럼 보인다.
+                  onPressed: isCurrentMonth ? null : _next,
+                  visualDensity: VisualDensity.compact,
+                  icon: AppIcon(AppIcons.chevronRight,
+                      size: AppIconSize.md,
+                      color: isCurrentMonth ? AppColors.line : AppColors.ink2),
                 ),
               ]),
               const SizedBox(height: 8),
@@ -971,12 +732,11 @@ class _HomeCalendarState extends ConsumerState<_HomeCalendar> {
                     .map((d) => Expanded(
                           child: Center(
                             child: Text(d,
-                                style: TextStyle(
-                                  fontSize: 11,
+                                style: AppTextStyles.label.copyWith(
                                   fontWeight: FontWeight.w700,
                                   color: d == '일'
-                                      ? AppColors.error.withValues(alpha: 0.5)
-                                      : AppColors.textDisabled,
+                                      ? AppColors.error
+                                      : AppColors.ink3,
                                 )),
                           ),
                         ))
@@ -997,7 +757,7 @@ class _HomeCalendarState extends ConsumerState<_HomeCalendar> {
 
         // 선택일 기록
         if (_selDate != null) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           _DayRecordSection(
             dateStr: _selDate!,
             weekKo: _weekKo,
@@ -1031,10 +791,8 @@ class _DayRecordSection extends StatelessWidget {
   };
 
   void _openDetail(BuildContext ctx, String type, List<RecentRecord> recs) {
-    showModalBottomSheet(
+    showAppSheet<void>(
       context: ctx,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
       builder: (_) => _CategoryDetailSheet(
         type: type,
         label: _catLabel[type] ?? type,
@@ -1049,87 +807,70 @@ class _DayRecordSection extends StatelessWidget {
     final header = '${dt.month}.${dt.day} (${weekKo[dt.weekday % 7]})';
     final totalCount = recordsAsync.valueOrNull?.length ?? 0;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Row(
+    // 캘린더와 같은 흰 카드 한 장 — 날짜 머리줄, 기념일, 기록이 한 상자 안에
+    // 들어가야 "고른 날의 묶음"으로 읽힌다. 예전엔 셋이 각각 떠 있었다.
+    return Container(
+      decoration: AppDecor.cardRaised,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(header,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary, letterSpacing: -0.2)),
+              Text(header, style: AppTextStyles.subheading),
               if (recordsAsync.hasValue)
                 Text('$totalCount건',
                     style: AppTextStyles.mono(12, FontWeight.w700,
-                        color: AppColors.textSecondary)),
+                        color: AppColors.ink2)),
             ],
           ),
-        ),
-        const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.md),
 
-        // 기념일 — 기록보다 위. 건수(N건)에는 세지 않는다, 기록이 아니니까.
-        if (anniversaries.isNotEmpty) ...[
-          Container(
-            width: double.infinity,
-            color: AppColors.card,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-            child: Column(
-              children: [
-                for (final a in anniversaries)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: AnniversaryRow(anniversary: a),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-        ],
-
-        recordsAsync.when(
-          loading: () => const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16),
-            child: Center(child: CircularProgressIndicator(strokeWidth: 1.5)),
-          ),
-          error: (_, __) => const SizedBox.shrink(),
-          data: (records) {
-            // 기념일 줄이 이미 있으면 '기록이 없어요'를 붙이지 않는다 — 모순으로 읽힌다
-            if (records.isEmpty && anniversaries.isNotEmpty) {
-              return const SizedBox.shrink();
-            }
-            if (records.isEmpty) {
-              return Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 20),
-                margin: const EdgeInsets.symmetric(horizontal: 20),
-                color: AppColors.bg2,
-                child: const Center(
-                  child: Text('이 날의 기록이 없어요',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500,
-                          color: AppColors.textDisabled)),
-                ),
-              );
-            }
-
-            final grouped = <String, List<RecentRecord>>{};
-            for (final r in records) {
-              grouped.putIfAbsent(r.recordType, () => []).add(r);
-            }
-            final categories = _catOrder.where((c) => grouped.containsKey(c)).toList();
-
-            // 리스트 아이템 + 구분선 구조
-            return Container(
-              decoration: const BoxDecoration(
-                color: AppColors.card,
-                border: Border(
-                  top: BorderSide(color: AppColors.divider),
-                  bottom: BorderSide(color: AppColors.divider),
-                ),
+          // 기념일 — 기록보다 위. 건수(N건)에는 세지 않는다, 기록이 아니니까.
+          if (anniversaries.isNotEmpty) ...[
+            for (final a in anniversaries)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                child: AnniversaryRow(anniversary: a),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
-              child: Column(
+            const SizedBox(height: AppSpacing.sm),
+          ],
+
+          recordsAsync.when(
+            loading: () => const Padding(
+              padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
+              child: Center(child: CircularProgressIndicator(strokeWidth: 1.5)),
+            ),
+            error: (_, __) => const SizedBox.shrink(),
+            data: (records) {
+              // 기념일 줄이 이미 있으면 '기록이 없어요'를 붙이지 않는다 — 모순으로 읽힌다
+              if (records.isEmpty && anniversaries.isNotEmpty) {
+                return const SizedBox.shrink();
+              }
+              if (records.isEmpty) {
+                return Container(
+                  width: double.infinity,
+                  padding:
+                      const EdgeInsets.symmetric(vertical: AppSpacing.xl),
+                  decoration: const BoxDecoration(
+                    color: AppColors.canvas,
+                    borderRadius: AppRadius.brMd,
+                  ),
+                  child: Center(
+                      child: Text('이 날의 기록이 없어요',
+                          style: AppTextStyles.caption)),
+                );
+              }
+
+              final grouped = <String, List<RecentRecord>>{};
+              for (final r in records) {
+                grouped.putIfAbsent(r.recordType, () => []).add(r);
+              }
+              final categories =
+                  _catOrder.where((c) => grouped.containsKey(c)).toList();
+
+              return Column(
                 children: categories.map((type) {
                   final recs = grouped[type]!;
                   return _CategoryRow(
@@ -1139,11 +880,11 @@ class _DayRecordSection extends StatelessWidget {
                     onTap: () => _openDetail(context, type, recs),
                   );
                 }).toList(),
-              ),
-            );
-          },
-        ),
-      ],
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1169,7 +910,7 @@ class _CategoryRow extends StatelessWidget {
     'MEMO'     => AppColors.catMemo,
     'MATING'   => AppColors.catMating,
     'LAYING'   => AppColors.catLaying,
-    _ => AppColors.bg2,
+    _ => AppColors.bgAlt,
   };
 
   static Color _catIconInk(String t) => switch (t) {
@@ -1179,7 +920,7 @@ class _CategoryRow extends StatelessWidget {
     'MEMO'     => AppColors.catMemoInk,
     'MATING'   => AppColors.catMatingInk,
     'LAYING'   => AppColors.catLayingInk,
-    _ => AppColors.textSecondary,
+    _ => AppColors.ink2,
   };
 
   @override
@@ -1194,18 +935,25 @@ class _CategoryRow extends StatelessWidget {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
         child: Row(children: [
-          // 카테고리 아이콘 — 직각 컨테이너
+          // 직각 타일이었다 — 카드·시트·알약이 전부 둥근 화면에서 여기만
+          // 각이 서 있어 옛 테마의 잔재로 보였다. 루틴 행의 타입 타일과 같은
+          // 둥글기를 쓴다.
           Container(
-            width: 28, height: 28,
-            color: chipBg,
+            width: 30,
+            height: 30,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: chipBg,
+              borderRadius: AppRadius.brSm,
+            ),
             child: RecordTypeIcon(type,
-                size: 13,
+                size: AppIconSize.sm,
                 color: _catIconInk(type),
                 fallback: Icons.circle_outlined),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.md),
           // '몸무게'·'메이팅' 3글자가 줄바꿈되지 않을 만큼 확보.
           // 시스템 글자 크기를 키운 기기에서도 넘치지 않도록 배율을 반영한다.
           SizedBox(
@@ -1215,35 +963,45 @@ class _CategoryRow extends StatelessWidget {
                 maxLines: 1,
                 softWrap: false,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
-                    color: AppColors.textSecondary)),
+                style: AppTextStyles.caption.copyWith(
+                    fontWeight: FontWeight.w700, color: AppColors.ink)),
           ),
           const Spacer(),
           // 개체 칩들 — 직각
+          // 개체 이름 칩 — 알약. 기록 종류색을 그대로 입어 어느 카테고리의
+          // 개체인지 왼쪽 타일과 색으로 묶인다.
           ...visible.map((n) => Padding(
-            padding: const EdgeInsets.only(left: 4),
+            padding: const EdgeInsets.only(left: AppSpacing.xs),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              color: chipBg,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm, vertical: 3),
+              decoration: BoxDecoration(
+                color: chipBg,
+                borderRadius: AppRadius.brPill,
+              ),
               child: Text(n,
-                  style: TextStyle(
-                      fontSize: 11, fontWeight: FontWeight.w600,
-                      color: _catIconInk(type)),
+                  style: AppTextStyles.label
+                      .copyWith(color: _catIconInk(type)),
                   overflow: TextOverflow.ellipsis),
             ),
           )),
           if (overflow > 0) Padding(
-            padding: const EdgeInsets.only(left: 4),
+            padding: const EdgeInsets.only(left: AppSpacing.xs),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              color: AppColors.bg2,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm, vertical: 3),
+              decoration: const BoxDecoration(
+                color: AppColors.bgAlt,
+                borderRadius: AppRadius.brPill,
+              ),
               child: Text('+$overflow',
                   style: AppTextStyles.mono(11, FontWeight.w700,
-                      color: AppColors.textSecondary)),
+                      color: AppColors.ink2)),
             ),
           ),
-          const SizedBox(width: 4),
-          const AppIcon(AppIcons.chevronRight, size: 16, color: AppColors.textDisabled),
+          const SizedBox(width: AppSpacing.xs),
+          const AppIcon(AppIcons.chevronRight,
+              size: AppIconSize.sm, color: AppColors.ink3),
         ]),
       ),
     );
@@ -1279,27 +1037,13 @@ class _CategoryDetailSheet extends StatelessWidget {
     }
     final petKeys = petGroups.keys.toList();
 
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.bg,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+    return AppSheet(
+      title: label,
+      // 목록만 있는 시트다 — 고르면 바로 닫히므로 주 버튼이 없다.
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Center(
-            child: Container(
-              width: 36, height: 4,
-              margin: const EdgeInsets.symmetric(vertical: 12),
-              color: AppColors.divider,
-            ),
-          ),
-          Text(label,
-              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary, letterSpacing: -0.3)),
-          const SizedBox(height: 16),
           ConstrainedBox(
             constraints: BoxConstraints(
               maxHeight: MediaQuery.of(context).size.height * 0.55,
@@ -1475,7 +1219,7 @@ class _DayCell extends StatelessWidget {
         'MEMO'     => AppColors.catMemoInk,
         'MATING'   => AppColors.catMatingInk,
         'LAYING'   => AppColors.catLayingInk,
-        _ => AppColors.textDisabled,
+        _ => AppColors.ink3,
       };
 
   /// 이 날 찍을 기념일 종류 (해칭 먼저, 중복 제거)
@@ -1492,21 +1236,30 @@ class _DayCell extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          // 선택일은 `AppColors.primary`(먹색 #121A15) 정사각형이었다. 검은 블록은
+          // 눌린 것보다 **꺼진 것**처럼 보이고, 테마의 유일한 강조색이 에메랄드인데
+          // 그 강조가 달력에만 없었다. 선택 = 브랜드 **원**, 오늘 = 연녹 원으로
+          // 두 단계를 만든다(둘 다 해당하면 선택이 이긴다 — 더 최근의 내 동작).
           Container(
-            width: 26,
-            height: 26,
+            width: 28,
+            height: 28,
             alignment: Alignment.center,
-            color: isSelected
-                ? AppColors.primary
-                : isToday
-                    ? AppColors.bg2
-                    : Colors.transparent,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isSelected
+                  ? AppColors.brandAction
+                  : isToday
+                      ? AppColors.brandTint
+                      : Colors.transparent,
+            ),
             child: Text(
               '$day',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: isSelected ? Colors.white : AppColors.textPrimary,
+              style: AppTextStyles.label.copyWith(
+                color: isSelected
+                    ? AppColors.bg
+                    : isToday
+                        ? AppColors.brandTintInk
+                        : AppColors.ink,
               ),
             ),
           ),
@@ -1576,22 +1329,11 @@ class _YearMonthPickerState extends State<_YearMonthPicker> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.bg,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      padding: EdgeInsets.fromLTRB(20, 0, 20, MediaQuery.of(context).padding.bottom + 24),
+    return AppSheet(
+      title: '연·월 선택',
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Center(
-            child: Container(
-              width: 36, height: 4,
-              margin: const EdgeInsets.symmetric(vertical: 12),
-              color: AppColors.divider,
-            ),
-          ),
           // 연도 선택
           Row(
             mainAxisAlignment: MainAxisAlignment.center,

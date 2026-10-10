@@ -326,7 +326,7 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) => Text(
     text,
     style: const TextStyle(
-      fontSize: 11.5, fontWeight: FontWeight.w700,
+      fontSize: 12, fontWeight: FontWeight.w700,
       color: AppColors.paleInk2, letterSpacing: 0.3,
     ),
   );

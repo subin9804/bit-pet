@@ -22,7 +22,7 @@ class PublicPetScreen extends ConsumerWidget {
     final async = ref.watch(publicPetProvider(petId));
 
     return Scaffold(
-      backgroundColor: AppColors.paleBg,
+      backgroundColor: AppColors.canvas,
       appBar: AppBar(
         backgroundColor: AppColors.paleBg,
         elevation: 0,

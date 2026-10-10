@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/skeleton_loader.dart';
 import '../../../core/widgets/toast_message.dart';
@@ -42,7 +43,19 @@ class _RecordScreenState extends ConsumerState<RecordScreen> {
     };
 
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: AppBar(
+        title: Text(title),
+        // ⛔ 이 ＋ 를 다시 FAB 으로 내리지 말 것. 하단 내비 중앙에 기록 ＋ 가
+        // 있어서, 떠 있는 FAB 은 **그 바로 위에 겹쳐 ＋ 가 세로로 두 개**가 된다.
+        // 이쪽 ＋ 는 "이 종류의 기록"을 바로 여는 것이라 뜻도 다르다.
+        actions: [
+          IconButton(
+            tooltip: '기록 추가',
+            icon: const Icon(Icons.add),
+            onPressed: () => _showInputSheet(context),
+          ),
+        ],
+      ),
       body: switch (widget.recordType) {
         'weight'   => _WeightList(petId: widget.petId),
         'feeding'  => _FeedingList(petId: widget.petId),
@@ -52,21 +65,12 @@ class _RecordScreenState extends ConsumerState<RecordScreen> {
         'laying'   => _LayingList(petId: widget.petId),
         _ => const EmptyState(message: '알 수 없는 기록 유형'),
       },
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showInputSheet(context),
-        child: const Icon(Icons.add),
-      ),
     );
   }
 
   void _showInputSheet(BuildContext context) {
-    showModalBottomSheet(
+    showAppSheet<void>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
       builder: (_) => _InputSheet(
         petId: widget.petId,
         recordType: widget.recordType,
@@ -90,11 +94,17 @@ class _WeightList extends ConsumerWidget {
     final async = ref.watch(weightListProvider(petId));
     return async.when(
       loading: () => const SkeletonCardList(),
-      error: (e, _) => EmptyState(message: e.toString()),
+      error: (e, _) => const EmptyState(
+          message: '불러오지 못했어요',
+          subMessage: '연결을 확인하고 당겨서 새로고침해 주세요.',
+          icon: Icons.cloud_off,
+          tone: EmptyTone.neutral),
       data: (records) {
         if (records.isEmpty) {
           return const EmptyState(
-              message: '체중 기록이 없어요', icon: Icons.monitor_weight_outlined);
+              message: '체중 기록이 없어요',
+              subMessage: '오른쪽 위 ＋ 로 첫 기록을 남겨 보세요.',
+              icon: Icons.monitor_weight_outlined);
         }
         return ListView.separated(
           padding: const EdgeInsets.all(16),
@@ -152,11 +162,17 @@ class _FeedingList extends ConsumerWidget {
     final async = ref.watch(feedingListProvider(petId));
     return async.when(
       loading: () => const SkeletonCardList(),
-      error: (e, _) => EmptyState(message: e.toString()),
+      error: (e, _) => const EmptyState(
+          message: '불러오지 못했어요',
+          subMessage: '연결을 확인하고 당겨서 새로고침해 주세요.',
+          icon: Icons.cloud_off,
+          tone: EmptyTone.neutral),
       data: (records) {
         if (records.isEmpty) {
           return const EmptyState(
-              message: '급여 기록이 없어요', icon: Icons.restaurant_outlined);
+              message: '급여 기록이 없어요',
+              subMessage: '오른쪽 위 ＋ 로 첫 기록을 남겨 보세요.',
+              icon: Icons.restaurant_outlined);
         }
         return ListView.separated(
           padding: const EdgeInsets.all(16),
@@ -219,11 +235,17 @@ class _CleaningList extends ConsumerWidget {
     final async = ref.watch(cleaningListProvider(petId));
     return async.when(
       loading: () => const SkeletonCardList(),
-      error: (e, _) => EmptyState(message: e.toString()),
+      error: (e, _) => const EmptyState(
+          message: '불러오지 못했어요',
+          subMessage: '연결을 확인하고 당겨서 새로고침해 주세요.',
+          icon: Icons.cloud_off,
+          tone: EmptyTone.neutral),
       data: (records) {
         if (records.isEmpty) {
           return const EmptyState(
-              message: '청소 기록이 없어요', icon: Icons.cleaning_services_outlined);
+              message: '청소 기록이 없어요',
+              subMessage: '오른쪽 위 ＋ 로 첫 기록을 남겨 보세요.',
+              icon: Icons.cleaning_services_outlined);
         }
         return ListView.separated(
           padding: const EdgeInsets.all(16),
@@ -285,11 +307,17 @@ class _MemoList extends ConsumerWidget {
     final async = ref.watch(memoListProvider(petId));
     return async.when(
       loading: () => const SkeletonCardList(),
-      error: (e, _) => EmptyState(message: e.toString()),
+      error: (e, _) => const EmptyState(
+          message: '불러오지 못했어요',
+          subMessage: '연결을 확인하고 당겨서 새로고침해 주세요.',
+          icon: Icons.cloud_off,
+          tone: EmptyTone.neutral),
       data: (records) {
         if (records.isEmpty) {
           return const EmptyState(
-              message: '메모가 없어요', icon: Icons.note_alt_outlined);
+              message: '메모가 없어요',
+              subMessage: '오른쪽 위 ＋ 로 첫 메모를 남겨 보세요.',
+              icon: Icons.note_alt_outlined);
         }
         return ListView.separated(
           padding: const EdgeInsets.all(16),
@@ -344,11 +372,17 @@ class _MatingList extends ConsumerWidget {
     final async = ref.watch(matingListProvider(petId));
     return async.when(
       loading: () => const SkeletonCardList(),
-      error: (e, _) => EmptyState(message: e.toString()),
+      error: (e, _) => const EmptyState(
+          message: '불러오지 못했어요',
+          subMessage: '연결을 확인하고 당겨서 새로고침해 주세요.',
+          icon: Icons.cloud_off,
+          tone: EmptyTone.neutral),
       data: (records) {
         if (records.isEmpty) {
           return const EmptyState(
-              message: '교배 기록이 없어요', icon: Icons.favorite_outline);
+              message: '교배 기록이 없어요',
+              subMessage: '오른쪽 위 ＋ 로 첫 기록을 남겨 보세요.',
+              icon: Icons.favorite_outline);
         }
         return ListView.separated(
           padding: const EdgeInsets.all(16),
@@ -409,11 +443,17 @@ class _LayingList extends ConsumerWidget {
     final async = ref.watch(layingListProvider(petId));
     return async.when(
       loading: () => const SkeletonCardList(),
-      error: (e, _) => EmptyState(message: e.toString()),
+      error: (e, _) => const EmptyState(
+          message: '불러오지 못했어요',
+          subMessage: '연결을 확인하고 당겨서 새로고침해 주세요.',
+          icon: Icons.cloud_off,
+          tone: EmptyTone.neutral),
       data: (records) {
         if (records.isEmpty) {
           return const EmptyState(
-              message: '산란 기록이 없어요', icon: Icons.egg_outlined);
+              message: '산란 기록이 없어요',
+              subMessage: '오른쪽 위 ＋ 로 첫 기록을 남겨 보세요.',
+              icon: Icons.egg_outlined);
         }
         return ListView.separated(
           padding: const EdgeInsets.all(16),
@@ -547,18 +587,30 @@ class _InputSheetState extends ConsumerState<_InputSheet> {
     }
   }
 
+  /// 기록 종류 이름은 시트 제목(AppSheet 슬롯 2)이 맡는다 —
+  /// 본문 첫 줄에 같은 말을 또 쓰지 않는다.
+  String get _title => switch (widget.recordType) {
+        'weight' => '체중 입력',
+        'feeding' => '급여 기록',
+        'cleaning' => '청소 기록',
+        'memo' => '메모 작성',
+        'mating' => '교배 기록',
+        'laying' => '산란 기록',
+        _ => '기록 추가',
+      };
+
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-          16, 16, 16, MediaQuery.of(context).viewInsets.bottom + 16),
+    return AppSheet(
+      title: _title,
+      busy: _isLoading,
+      primaryLabel: '저장',
+      onPrimary: _save,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (widget.recordType == 'weight') ...[
-            Text('체중 입력', style: AppTextStyles.h3),
-            const SizedBox(height: 16),
             TextFormField(
               controller: _weightCtrl,
               keyboardType:
@@ -568,16 +620,12 @@ class _InputSheetState extends ConsumerState<_InputSheet> {
               autofocus: true,
             ),
           ] else if (widget.recordType == 'feeding') ...[
-            Text('급여 기록', style: AppTextStyles.h3),
-            const SizedBox(height: 16),
             FeedComposerFields(
               form: _feedForm,
               onChanged: (f) => setState(() => _feedForm = f),
               showMemo: false,
             ),
           ] else if (widget.recordType == 'cleaning') ...[
-            Text('청소 기록', style: AppTextStyles.h3),
-            const SizedBox(height: 16),
             SegmentedButton<CleaningType>(
               segments: const [
                 ButtonSegment(value: CleaningType.FULL, label: Text('전체')),
@@ -590,8 +638,6 @@ class _InputSheetState extends ConsumerState<_InputSheet> {
                   setState(() => _cleaningType = s.first),
             ),
           ] else if (widget.recordType == 'memo') ...[
-            Text('메모 작성', style: AppTextStyles.h3),
-            const SizedBox(height: 16),
             TextFormField(
               controller: _contentCtrl,
               decoration: AppInputStyles.textarea(hintText: '내용 *'),
@@ -599,8 +645,6 @@ class _InputSheetState extends ConsumerState<_InputSheet> {
               autofocus: true,
             ),
           ] else if (widget.recordType == 'mating') ...[
-            Text('교배 기록', style: AppTextStyles.h3),
-            const SizedBox(height: 16),
             SegmentedButton<bool?>(
               segments: const [
                 ButtonSegment(value: null,  label: Text('미정')),
@@ -612,8 +656,6 @@ class _InputSheetState extends ConsumerState<_InputSheet> {
                   setState(() => _matingSuccess = s.first),
             ),
           ] else if (widget.recordType == 'laying') ...[
-            Text('산란 기록', style: AppTextStyles.h3),
-            const SizedBox(height: 16),
             TextFormField(
               controller: _countCtrl,
               keyboardType: TextInputType.number,
@@ -627,16 +669,6 @@ class _InputSheetState extends ConsumerState<_InputSheet> {
               controller: _memoCtrl,
               decoration: const InputDecoration(labelText: '메모 (선택)'),
             ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: _isLoading ? null : _save,
-            child: _isLoading
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2))
-                : const Text('저장'),
-          ),
         ],
       ),
     );

@@ -36,7 +36,7 @@ class ConfirmModal extends StatefulWidget {
   }) async {
     final result = await showDialog<bool>(
       context: context,
-      barrierColor: const Color(0x801C1610),
+      barrierColor: AppColors.scrim,
       builder: (_) => ConfirmModal(
         title: title,
         message: message,

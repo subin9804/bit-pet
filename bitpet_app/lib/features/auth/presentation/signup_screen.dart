@@ -266,7 +266,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       child: Text(
                         _profileImage == null ? '사진 추가' : '사진 지우기',
                         style: const TextStyle(
-                          fontSize: 11,
+                          fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: AppColors.paleInk2,
                         ),
@@ -282,7 +282,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       const Text(
                         'PROFILE COLOR',
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 12,
                           fontWeight: FontWeight.w700,
                           color: AppColors.paleInk2,
                           letterSpacing: 0.3,
@@ -365,11 +365,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                           ? '✓ 사용 가능한 닉네임입니다'
                           : '✗ ${_nickReason ?? '사용할 수 없는 닉네임입니다'}',
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: _nickAvailable == true
-                            ? const Color(0xFF3A8854)
-                            : const Color(0xFFCC4422),
+                            ? AppColors.success
+                            : AppColors.error,
                       ),
                     ),
                   ] else if (_nickText.length >= 2) ...[
@@ -378,7 +378,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     const Text(
                       '중복확인을 눌러 주세요',
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: AppColors.paleInk3,
                       ),
@@ -409,10 +409,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           final Color stColor = st == 0
               ? Colors.transparent
               : st == 1
-                  ? const Color(0xFFCC4422)
+                  ? AppColors.error
                   : st == 2
-                      ? const Color(0xFFCC8800)
-                      : const Color(0xFF3A8854);
+                      ? AppColors.warning
+                      : AppColors.success;
           final stLabel = ['', '약함', '보통', '강함'][st];
 
           return Column(
@@ -472,11 +472,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                             ? '✓ 사용 가능한 이메일입니다'
                             : '✗ 이미 가입된 이메일입니다',
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: _emailAvailable == true
-                              ? const Color(0xFF3A8854)
-                              : const Color(0xFFCC4422),
+                              ? AppColors.success
+                              : AppColors.error,
                         ),
                       ),
                     ],
@@ -526,7 +526,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                           Text(
                             stLabel,
                             style: TextStyle(
-                              fontSize: 10,
+                              fontSize: 12,
                               fontWeight: FontWeight.w700,
                               color: stColor,
                             ),
@@ -566,11 +566,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       Text(
                         _pw2Match ? '✓ 일치합니다' : '✗ 비밀번호가 다릅니다',
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: _pw2Match
-                              ? const Color(0xFF3A8854)
-                              : const Color(0xFFCC4422),
+                              ? AppColors.success
+                              : AppColors.error,
                         ),
                       ),
                     ],
@@ -679,7 +679,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.paleBg,
+      backgroundColor: AppColors.canvas,
       body: SafeArea(
         child: StepShell(
           headerTitle: '회원가입',
@@ -792,7 +792,7 @@ class _TermsItem extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                         fontSize: 12,
                         color: badge == '필수'
-                            ? const Color(0xFFCC4422)
+                            ? AppColors.error
                             : AppColors.paleInk3,
                       ),
                     ),

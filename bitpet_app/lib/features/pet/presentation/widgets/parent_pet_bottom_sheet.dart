@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/nfc/nfc_pet_scan_sheet.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/widgets/app_sheet.dart';
 import '../../data/models/pet_models.dart';
 import '../../data/pet_repository.dart';
 import '../../providers/pet_provider.dart';
@@ -101,30 +102,32 @@ class _ParentPetBottomSheetState
   Widget build(BuildContext context) {
     final petsAsync = ref.watch(petListProvider);
 
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.85,
-      decoration: const BoxDecoration(
-        color: AppColors.bg,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+    // 'SELECT PARENT' eyebrow 라벨·핸들·푸터 '취소'는 걷어냈다 — 제목과 보조
+    // 줄, 주 버튼은 AppSheet 슬롯이 맡는다. Expanded 도 쓸 수 없다(AppSheet
+    // 안은 높이가 무한한 스크롤이다).
+    return AppSheet(
+      title: '$_genderLabel 개체 선택',
+      subtitle: '내 개체는 이름·종으로, 남의 개체는 일련번호로 찾을 수 있어요',
+      primaryLabel: '연결',
+      onPrimary:
+          _selectedPet == null ? null : () => Navigator.pop(context, _selectedPet),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildHandle(),
-          _buildHeader(),
           _buildSearchField(),
           _buildScanRow(),
           const SizedBox(height: 12),
-          Expanded(
-            child: petsAsync.when(
-              loading: () =>
-                  const Center(child: CircularProgressIndicator()),
-              error: (_, __) =>
-                  const Center(child: Text('개체 목록을 불러오지 못했어요')),
-              data: _buildBody,
+          petsAsync.when(
+            loading: () => const Padding(
+              padding: EdgeInsets.symmetric(vertical: 48),
+              child: Center(child: CircularProgressIndicator()),
             ),
+            error: (_, __) => const Padding(
+              padding: EdgeInsets.symmetric(vertical: 48),
+              child: Center(child: Text('개체 목록을 불러오지 못했어요')),
+            ),
+            data: _buildBody,
           ),
-          _buildBottomButtons(),
         ],
       ),
     );
@@ -132,37 +135,9 @@ class _ParentPetBottomSheetState
 
   // ─── Section builders ─────────────────────────────────────────────────────
 
-  Widget _buildHandle() => Center(
-        child: Container(
-          margin: const EdgeInsets.only(top: 12, bottom: 4),
-          width: 40,
-          height: 4,
-          decoration: BoxDecoration(
-            color: AppColors.border,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-      );
-
-  Widget _buildHeader() => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('SELECT PARENT', style: AppTextStyles.label),
-            const SizedBox(height: 4),
-            Text('$_genderLabel 개체 선택', style: AppTextStyles.h2),
-            const SizedBox(height: 4),
-            Text(
-              '내 개체는 이름·종으로, 남의 개체는 일련번호로 찾을 수 있어요',
-              style: AppTextStyles.caption,
-            ),
-          ],
-        ),
-      );
-
+  // 좌우 여백은 AppSheet 가 준다 — 자체 패딩은 세로만 남긴다.
   Widget _buildSearchField() => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+        padding: EdgeInsets.zero,
         child: TextField(
           controller: _searchCtrl,
           textInputAction: TextInputAction.search,
@@ -185,7 +160,7 @@ class _ParentPetBottomSheetState
   /// '목록에서 선택'의 짝 — 개체에 달린 NFC 이름표를 찍어서 고른다.
   /// 케이지 앞에서 개체를 고를 때 이름·일련번호를 기억해 낼 필요가 없어진다.
   Widget _buildScanRow() => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+        padding: const EdgeInsets.only(top: 8),
         child: GestureDetector(
           onTap: _scanTag,
           behavior: HitTestBehavior.opaque,
@@ -243,8 +218,8 @@ class _ParentPetBottomSheetState
           p.speciesName.toLowerCase().contains(q);
     }).map(PetCard.fromPet).toList();
 
-    return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // 일련번호 검색 결과 / 검색 유도 — 내 목록에 없을 때가 정확히 남의 개체를 거는 상황이다
         if (_remoteFound != null) ...[
@@ -292,42 +267,6 @@ class _ParentPetBottomSheetState
     );
   }
 
-  Widget _buildBottomButtons() => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-          child: Row(
-            children: [
-              // 취소
-              SizedBox(
-                width: 72,
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(0, 52),
-                    padding: EdgeInsets.zero,
-                  ),
-                  child: const Text('취소'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              // 연결
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: _selectedPet == null
-                      ? null
-                      : () => Navigator.pop(context, _selectedPet),
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(0, 52),
-                    disabledBackgroundColor: AppColors.bg2,
-                    disabledForegroundColor: AppColors.textDisabled,
-                  ),
-                  child: const Text('연결'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
 }
 
 // ─── 일련번호 검색 유도 타일 ──────────────────────────────────────────────────
@@ -383,7 +322,7 @@ class _SerialSearchTile extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(error!,
                         style: const TextStyle(
-                            fontSize: 11, color: AppColors.female)),
+                            fontSize: 12, color: AppColors.female)),
                   ],
                 ],
               ),

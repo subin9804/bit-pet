@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_response.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/pet_avatar.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../../pet/data/models/pet_models.dart';
@@ -20,10 +21,8 @@ Future<TagResolveResult?> showTagLinkSheet(
   required String tagCd,
   int? initialPetId,
 }) {
-  return showModalBottomSheet<TagResolveResult>(
+  return showAppSheet<TagResolveResult>(
     context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
     builder: (_) => TagLinkSheet(tagCd: tagCd, initialPetId: initialPetId),
   );
 }
@@ -75,56 +74,19 @@ class _TagLinkSheetState extends ConsumerState<TagLinkSheet> {
   Widget build(BuildContext context) {
     final petsAsync = ref.watch(petListProvider);
 
-    return Container(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.82,
-      ),
-      decoration: const BoxDecoration(
-        color: AppColors.card,
-        border: Border(top: BorderSide(color: AppColors.paleLine)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Column(
+    // 태그 코드는 제목 옆 회색 칩이었다 — 보조 줄로 내려 제목 줄을 비운다.
+    // '나중에' 버튼은 지웠다: 밖을 눌러 닫으면 그게 '나중에'다 (AppSheet 공통 규칙).
+    return AppSheet(
+      title: '어느 개체에 연결할까요?',
+      subtitle: '${widget.tagCd} · 이 태그를 찍으면 선택한 개체로 바로 들어갑니다.',
+      busy: _saving,
+      primaryLabel: '이 개체에 연결',
+      onPrimary: _petId == null ? null : _submit,
+      child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // ── 헤더 ──────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('어느 개체에 연결할까요?', style: AppTextStyles.h3),
-                        const SizedBox(height: 4),
-                        Text(
-                          '이 태그를 찍으면 선택한 개체로 바로 들어갑니다.',
-                          style: AppTextStyles.caption,
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    color: AppColors.bg2,
-                    child: Text(
-                      widget.tagCd,
-                      style: AppTextStyles.mono(11, FontWeight.w700,
-                          color: AppColors.textSecondary),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // ── 개체 목록 ─────────────────────────────────────
-            Flexible(
-              child: petsAsync.when(
+            petsAsync.when(
                 loading: () => const Padding(
                   padding: EdgeInsets.symmetric(vertical: 48),
                   child: Center(child: CircularProgressIndicator()),
@@ -144,81 +106,21 @@ class _TagLinkSheetState extends ConsumerState<TagLinkSheet> {
                               style: TextStyle(color: AppColors.textSecondary))),
                     );
                   }
-                  return ListView.builder(
-                    shrinkWrap: true,
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    itemCount: selectable.length,
-                    itemBuilder: (_, i) => _PetRow(
-                      pet: selectable[i],
-                      selected: selectable[i].id == _petId,
-                      onTap: () => setState(() => _petId = selectable[i].id),
-                    ),
+                  // ListView 를 쓰지 않는다 — AppSheet 가 이미 스크롤이라
+                  // 안쪽에 또 두면 스크롤이 겹친다.
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: selectable
+                        .map((p) => _PetRow(
+                              pet: p,
+                              selected: p.id == _petId,
+                              onTap: () => setState(() => _petId = p.id),
+                            ))
+                        .toList(growable: false),
                   );
                 },
-              ),
-            ),
-
-            const Divider(height: 1, color: AppColors.paleLine),
-
-            // ── 액션 ─────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => Navigator.of(context).pop(),
-                      child: Container(
-                        height: 48,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          borderRadius: AppRadius.brMd,
-                          border: Border.all(color: AppColors.paleLine),
-                        ),
-                        child: const Text('나중에',
-                            style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textSecondary)),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    flex: 2,
-                    child: GestureDetector(
-                      onTap: _petId == null ? null : _submit,
-                      child: Container(
-                        height: 48,
-                        alignment: Alignment.center,
-                        color: _petId == null
-                            ? AppColors.bg2
-                            : AppColors.primary,
-                        child: _saving
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: Colors.white),
-                              )
-                            : Text(
-                                '이 개체에 연결',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                  color: _petId == null
-                                      ? AppColors.textDisabled
-                                      : AppColors.paleBg,
-                                ),
-                              ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
             ),
           ],
-        ),
       ),
     );
   }
@@ -235,7 +137,7 @@ class _PetRow extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+        margin: const EdgeInsets.symmetric(vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           borderRadius: AppRadius.brLg,

@@ -311,20 +311,26 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         || _step == _FabStep.simpleForm;
     final screenH = MediaQuery.of(context).size.height;
 
+    // ⚠️ 이 시트만 `AppSheet` 의 7슬롯 골격을 쓰지 않는다 — 7단계 마법사라
+    // 단계마다 제목이 바뀌고 **'뒤로'가 필요**한데, 7슬롯에는 뒤로 자리가
+    // 의도적으로 없다(주 버튼 하나 규칙). 대신 **껍데기는 완전히 같게** 맞춘다:
+    // 배경·모서리(brSheet)·핸들(40×4, border 색)·스크림·최대 높이 0.9.
+    // 띄우는 쪽도 `showAppSheet` 를 쓴다.
     final sheet = Container(
+      constraints: BoxConstraints(maxHeight: screenH * 0.9),
       decoration: const BoxDecoration(
-        color: AppColors.paleBg,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+        color: AppColors.surface,
+        borderRadius: AppRadius.brSheet,
       ),
       child: Column(
         mainAxisSize: isFormStep ? MainAxisSize.max : MainAxisSize.min,
         children: [
-          // 그랩 핸들
+          // 그랩 핸들 — AppSheet 의 것과 같은 치수·색·여백
           Container(
-            width: 44, height: 4,
-            margin: const EdgeInsets.fromLTRB(0, 8, 0, 8),
-            decoration: BoxDecoration(
-              color: AppColors.paleLine,
+            width: 40, height: 4,
+            margin: const EdgeInsets.only(top: 12, bottom: 16),
+            decoration: const BoxDecoration(
+              color: AppColors.border,
               borderRadius: AppRadius.brPill,
             ),
           ),
@@ -382,7 +388,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
           const SizedBox(height: 4),
           Text(
             _petLocked ? '종류를 고르면 바로 입력해요' : '종류를 고르면 대상 개체를 선택해요',
-            style: const TextStyle(fontSize: 11.5, color: AppColors.paleInk3,
+            style: const TextStyle(fontSize: 12, color: AppColors.paleInk3,
                 fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 16),
@@ -438,12 +444,12 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                         const Text('개체 추가',
                             style: TextStyle(
                                 fontWeight: FontWeight.w700,
-                                fontSize: 14.5,
+                                fontSize: 15,
                                 color: AppColors.primary)),
                         const SizedBox(height: 1),
                         Text('새로운 반려동물 등록',
                             style: TextStyle(
-                                fontSize: 11.5, color: AppColors.paleInk2,
+                                fontSize: 12, color: AppColors.paleInk2,
                                 fontWeight: FontWeight.w500)),
                       ],
                     ),
@@ -586,7 +592,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
             child: Text(
               '아래 급여 목록을 모든 개체에 동일하게 기록해요',
               textAlign: TextAlign.right,
-              style: TextStyle(fontSize: 11, color: AppColors.paleInk2),
+              style: TextStyle(fontSize: 12, color: AppColors.paleInk2),
             ),
           ),
         ],
@@ -797,7 +803,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                             Text(
                               '${activePet.speciesName}${activePet.latestWeightG != null ? ' · ${activePet.latestWeightG!.toStringAsFixed(0)}g' : ''}',
                               style: TextStyle(
-                                  fontSize: 11, color: AppColors.paleInk2),
+                                  fontSize: 12, color: AppColors.paleInk2),
                             ),
                           ],
                         ),
@@ -1355,7 +1361,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                           const SizedBox(width: 8),
                           Text(t.labelKo,
                               style: TextStyle(
-                                  fontSize: 12.5,
+                                  fontSize: 13,
                                   fontWeight: FontWeight.w700,
                                   color: sel
                                       ? AppColors.petLilacInk
@@ -1545,7 +1551,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                                         Text(
                                           '${p.speciesName} · ${p.gender == 'MALE' ? '♂ 수컷' : p.gender == 'FEMALE' ? '♀ 암컷' : '미확인'}',
                                           style: const TextStyle(
-                                              fontSize: 11,
+                                              fontSize: 12,
                                               color: AppColors.paleInk2),
                                         ),
                                       ],
@@ -2015,7 +2021,7 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
                             const SizedBox(height: 4),
                             Text(p.speciesName,
                                 style: TextStyle(
-                                    fontSize: 10, color: AppColors.paleInk2,
+                                    fontSize: 12, color: AppColors.paleInk2,
                                     fontWeight: FontWeight.w600),
                                 overflow: TextOverflow.ellipsis),
                             const SizedBox(height: 4),
@@ -2086,7 +2092,7 @@ class _CompactTypeCard extends StatelessWidget {
             Text(type.ko,
                 style: const TextStyle(
                     fontWeight: FontWeight.w700,
-                    fontSize: 13.5,
+                    fontSize: 14,
                     color: AppColors.primary,
                     letterSpacing: -0.2)),
           ],
@@ -2250,7 +2256,7 @@ class _SavedBanner extends StatelessWidget {
                         color: AppColors.primary)),
                 const SizedBox(height: 4),
                 Text('수정하려면 미완료로 되돌린 뒤 다시 완료하세요',
-                    style: TextStyle(fontSize: 11, color: AppColors.paleInk2)),
+                    style: TextStyle(fontSize: 12, color: AppColors.paleInk2)),
               ],
             ),
           ),
@@ -2504,7 +2510,7 @@ class _SelectBarBtn extends StatelessWidget {
             const SizedBox(width: 4),
             Text(label,
                 style: TextStyle(
-                    fontSize: 11, fontWeight: FontWeight.w700,
+                    fontSize: 12, fontWeight: FontWeight.w700,
                     color: disabled ? AppColors.paleInk3 : AppColors.primary)),
           ],
         ),
@@ -2545,7 +2551,7 @@ class _PartnerResultCard extends StatelessWidget {
                         color: AppColors.primary)),
                 Text(
                   '${pet.speciesName} · ${pet.serialNo}',
-                  style: const TextStyle(fontSize: 11, color: AppColors.paleInk2),
+                  style: const TextStyle(fontSize: 12, color: AppColors.paleInk2),
                 ),
               ],
             ),

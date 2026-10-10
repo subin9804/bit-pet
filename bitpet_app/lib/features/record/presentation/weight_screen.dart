@@ -59,7 +59,7 @@ class _WeightScreenState extends ConsumerState<WeightScreen> {
     final weightsAsync = ref.watch(weightListProvider(widget.petId));
 
     return Scaffold(
-      backgroundColor: AppColors.paleBg,
+      backgroundColor: AppColors.canvas,
       body: Column(
         children: [
           SafeArea(
@@ -402,7 +402,7 @@ class _WeightBody extends StatelessWidget {
                             latest != null
                                 ? '직전 기록 ${formatWeight(latest.weightG)}g'
                                 : '첫 기록을 입력하세요',
-                            style: TextStyle(fontSize: 11, color: AppColors.paleInk3),
+                            style: TextStyle(fontSize: 12, color: AppColors.paleInk3),
                           ),
                         ],
                       ),
@@ -897,7 +897,7 @@ class _BigChartPainter extends CustomPainter {
         text:
             '${d.year}.${d.month.toString().padLeft(2, '0')}.${d.day.toString().padLeft(2, '0')}',
         style: TextStyle(
-            fontSize: 9,
+            fontSize: 12,
             fontWeight: FontWeight.w600,
             color: Colors.white.withValues(alpha: 0.7)),
       ),
@@ -1024,7 +1024,7 @@ class _StatCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(label,
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700,
                     color: AppColors.paleInk2)),
             const SizedBox(height: 4),
             Text(value, style: AppTextStyles.monoMd),

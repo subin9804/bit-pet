@@ -4,9 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_icons.dart';
-import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_chip.dart';
+import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/app_toggle.dart';
+import '../../../core/widgets/confirm_modal.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/pet_avatar.dart';
 import '../../../core/widgets/skeleton_loader.dart';
@@ -106,23 +107,17 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
   }
 
   Future<void> _deleteRoutine(Routine r) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('루틴 삭제'),
-        content: Text('"${r.title}" 루틴을 삭제할까요?'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('취소')),
-          TextButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              style: TextButton.styleFrom(foregroundColor: AppColors.error),
-              child: const Text('삭제')),
-        ],
-      ),
+    final ok = await ConfirmModal.show(
+      context,
+      title: '루틴 삭제',
+      // 루틴을 지워도 기록은 남는다 — 지우는 걸 망설이는 이유가 대개 이것이라
+      // 확인 문구에서 먼저 답해준다.
+      message: '"${r.title}" 루틴을 삭제할까요?\n'
+          '이미 남긴 기록은 지워지지 않아요.',
+      confirmLabel: '삭제',
+      isDangerous: true,
     );
-    if (ok == true) {
+    if (ok) {
       try {
         await ref.read(routineRepositoryProvider).deleteRoutine(r.id);
         ref.read(routineListProvider.notifier).load();
@@ -215,7 +210,11 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
         Expanded(
           child: routinesAsync.when(
             loading: () => const SkeletonCardList(),
-            error: (e, _) => EmptyState(message: e.toString()),
+            error: (e, _) => const EmptyState(
+                message: '불러오지 못했어요',
+                subMessage: '연결을 확인하고 당겨서 새로고침해 주세요.',
+                icon: Icons.cloud_off,
+                tone: EmptyTone.neutral),
             data: (all) {
               final q = _query.toLowerCase();
               final visible = all.where((r) {
@@ -228,12 +227,14 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
               }).toList();
 
               if (visible.isEmpty) {
+                final searching = _query.isNotEmpty;
                 return EmptyState(
-                  message: _query.isNotEmpty ? '검색 결과가 없어요' : '등록된 루틴이 없어요',
-                  subMessage: _query.isEmpty
-                      ? '급여·청소·체중 측정 주기를 설정해보세요'
-                      : null,
-                  icon: Icons.schedule,
+                  message: searching ? '검색 결과가 없어요' : '등록된 루틴이 없어요',
+                  subMessage: searching
+                      ? '다른 말로 찾아보세요.'
+                      : '급여·청소·체중 재는 주기를 정해두면 그날 홈에 올라와요.',
+                  icon: searching ? Icons.search_off : Icons.event_repeat,
+                  tone: searching ? EmptyTone.neutral : EmptyTone.brand,
                 );
               }
 
@@ -339,7 +340,7 @@ class _RoutineCard extends ConsumerWidget {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
-                                  fontSize: 11,
+                                  fontSize: 12,
                                   fontWeight: FontWeight.w700,
                                   color: AppColors.textSecondary,
                                 ),
@@ -447,10 +448,8 @@ class _RoutineCard extends ConsumerWidget {
   }
 
   void _openPetPickerSheet(BuildContext context) {
-    showModalBottomSheet(
+    showAppSheet<void>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => _RoutinePetPickerSheet(routine: routine),
     );
   }
@@ -466,10 +465,8 @@ class _RoutineCard extends ConsumerWidget {
   }
 
   void _openCalendarSheet(BuildContext context) {
-    showModalBottomSheet(
+    showAppSheet<void>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => _CalendarSheet(routine: routine),
     );
   }
@@ -534,7 +531,7 @@ class _PostponedBannerState extends ConsumerState<_PostponedBanner> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: FontWeight.w700,
               color: AppColors.textDisabled,
             ),
@@ -556,7 +553,7 @@ class _PostponedBannerState extends ConsumerState<_PostponedBanner> {
                 : const Text(
                     '되돌리기',
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: FontWeight.w700,
                       color: AppColors.primary,
                       decoration: TextDecoration.underline,
@@ -649,55 +646,14 @@ class _CalendarSheetState extends ConsumerState<_CalendarSheet> {
     final now       = DateTime.now();
     final isCurMonth = _month.year == now.year && _month.month == now.month;
 
-    return ConstrainedBox(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.78,
-      ),
-      child: Container(
-        decoration: const BoxDecoration(
-          color: AppColors.paleBg,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-          // 핸들
-          Center(
-            child: Container(
-              width: 40, height: 4,
-              margin: const EdgeInsets.only(top: 8, bottom: 16),
-              decoration: BoxDecoration(color: AppColors.paleLine,
-                  borderRadius: BorderRadius.circular(2)),
-            ),
-          ),
-          // 헤더
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-                AppSpacing.screenH, 0, AppSpacing.screenH, AppSpacing.md),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('CALENDAR',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
-                        color: AppColors.paleInk2, letterSpacing: 0.4)),
-                const SizedBox(height: 4),
-                Text('${widget.routine.title} · 수행 캘린더',
-                    style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700,
-                        color: AppColors.primary, letterSpacing: -0.4)),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          // 스크롤 영역 — Flexible로 남은 공간 채우되 내용 적으면 줄어듦
-          Flexible(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.screenH,
-                  AppSpacing.lg, AppSpacing.screenH, AppSpacing.section),
-              child: logsAsync.when(
+    return AppSheet(
+      title: '수행 캘린더',
+      subtitle: widget.routine.title,
+      child: logsAsync.when(
                 loading: () => const Center(
                     child: Padding(padding: EdgeInsets.all(40),
                         child: CircularProgressIndicator())),
-                error: (e, _) => Text('$e'),
+                error: (e, _) => const Text('기록을 불러오지 못했어요'),
                 data: (logs) {
                   // 로컬 날짜 기준 완료 petIds 집계
                   final completedByDay = <int, Set<int>>{};
@@ -770,7 +726,7 @@ class _CalendarSheetState extends ConsumerState<_CalendarSheet> {
                       Row(
                         children: _wk.map((w) => Expanded(
                           child: Text(w, textAlign: TextAlign.center,
-                              style: const TextStyle(fontSize: 11,
+                              style: const TextStyle(fontSize: 12,
                                   fontWeight: FontWeight.w700, color: AppColors.paleInk3)),
                         )).toList(),
                       ),
@@ -853,13 +809,8 @@ class _CalendarSheetState extends ConsumerState<_CalendarSheet> {
                     ],
                   );
                 },
-              ),
-            ),
-          ),
-        ],
       ),
-    ),
-  );
+    );
   }
 }
 
@@ -954,7 +905,7 @@ class _StatusLabel extends StatelessWidget {
       Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color)),
       const SizedBox(width: 4),
       Text('$count마리',
-          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
               color: AppColors.paleInk3)),
     ]);
   }
@@ -1029,7 +980,7 @@ class _Leg extends StatelessWidget {
       ),
       const SizedBox(width: 4),
       Text(label, style: const TextStyle(
-          fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.paleInk2)),
+          fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.paleInk2)),
     ]);
   }
 }
@@ -1092,79 +1043,16 @@ class _RoutinePetPickerSheetState
     final bg  = _rtypeBg(widget.routine.routineType);
     final ink = _rtypeInk(widget.routine.routineType);
 
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.paleBg,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-      ),
-      padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom),
+    return AppSheet(
+      title: '개체 추가·제거',
+      subtitle: widget.routine.title,
+      busy: _saving,
+      // 선택 개수는 버튼에 붙인다 — 헤더에 또 두면 같은 숫자가 두 번 보인다.
+      primaryLabel: '${_selectedIds.length}마리로 저장',
+      onPrimary: _save,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ── 핸들 ──
-          Center(
-            child: Container(
-              width: 40, height: 4,
-              margin: const EdgeInsets.only(top: 8, bottom: 16),
-              decoration: BoxDecoration(
-                color: AppColors.paleLine,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          // ── 헤더 ──
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-                AppSpacing.screenH, 0, AppSpacing.screenH, AppSpacing.md),
-            child: Row(
-              children: [
-                Container(
-                  width: 34, height: 34,
-                  decoration: BoxDecoration(
-                    color: bg,
-                    borderRadius: AppRadius.brPill,
-                  ),
-                  child: RecordTypeIcon(widget.routine.routineType.name,
-                      size: 18, color: AppColors.primary),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('개체 추가·제거', style: TextStyle(
-                        fontSize: 11, fontWeight: FontWeight.w700,
-                        color: AppColors.paleInk2, letterSpacing: 0.3,
-                      )),
-                      Text(widget.routine.title, style: const TextStyle(
-                        fontSize: 17, fontWeight: FontWeight.w700,
-                        color: AppColors.primary, letterSpacing: -0.3,
-                      )),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: bg,
-                    borderRadius: AppRadius.brPill,
-                  ),
-                  child: Text(
-                    '${_selectedIds.length}마리',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      fontFamily: 'monospace',
-                      color: ink,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
           // ── 개체 그리드 ──
           ConstrainedBox(
             constraints: BoxConstraints(
@@ -1177,11 +1065,11 @@ class _RoutinePetPickerSheetState
                   child: CircularProgressIndicator(),
                 ),
               ),
-              error: (e, _) => Center(
+              error: (e, _) => const Center(
                 child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text('$e',
-                      style: const TextStyle(color: AppColors.paleInk3)),
+                  padding: EdgeInsets.all(24),
+                  child: Text('개체를 불러오지 못했어요',
+                      style: TextStyle(color: AppColors.paleInk3)),
                 ),
               ),
               data: (pets) {
@@ -1196,10 +1084,7 @@ class _RoutinePetPickerSheetState
                 }
                 return GridView.builder(
                   shrinkWrap: true,
-                  padding:
-                      const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.screenH,
-                          vertical: AppSpacing.lg),
+                  padding: EdgeInsets.zero,
                   gridDelegate:
                       const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 3,
@@ -1264,7 +1149,7 @@ class _RoutinePetPickerSheetState
                               p.name,
                               style: const TextStyle(
                                 fontWeight: FontWeight.w700,
-                                fontSize: 12.5,
+                                fontSize: 13,
                                 color: AppColors.textPrimary,
                               ),
                               overflow: TextOverflow.ellipsis,
@@ -1273,7 +1158,7 @@ class _RoutinePetPickerSheetState
                             Text(
                               p.speciesName,
                               style: const TextStyle(
-                                fontSize: 9.5,
+                                fontSize: 12,
                                 color: AppColors.textDisabled,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -1286,85 +1171,6 @@ class _RoutinePetPickerSheetState
                   },
                 );
               },
-            ),
-          ),
-          // ── 푸터 ──
-          Container(
-            decoration: const BoxDecoration(
-              border: Border(top: BorderSide(color: AppColors.divider)),
-            ),
-            padding: const EdgeInsets.fromLTRB(AppSpacing.screenH,
-                AppSpacing.md, AppSpacing.screenH, AppSpacing.section),
-            child: Row(
-              children: [
-                GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 16),
-                    decoration: BoxDecoration(
-                      borderRadius: AppRadius.brMd,
-                      color: AppColors.bg2,
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: const Text('취소',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14,
-                          color: AppColors.textPrimary,
-                        )),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: _saving ? null : _save,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
-                      alignment: Alignment.center,
-                      padding:
-                          const EdgeInsets.symmetric(vertical: 16),
-                      color: _saving
-                          ? AppColors.textDisabled
-                          : AppColors.primary,
-                      child: _saving
-                          ? const SizedBox(
-                              width: 20, height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : Row(
-                              mainAxisAlignment:
-                                  MainAxisAlignment.center,
-                              children: [
-                                const Text('저장',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 14,
-                                      color: Colors.white,
-                                    )),
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 4),
-                                  color: Colors.white.withValues(alpha: 0.18),
-                                  child: Text(
-                                    '${_selectedIds.length}마리',
-                                    style: const TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                    ),
-                  ),
-                ),
-              ],
             ),
           ),
         ],

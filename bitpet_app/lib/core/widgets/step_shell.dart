@@ -167,7 +167,7 @@ class _StepShellState extends State<StepShell> {
                 Text(
                   _step.desc!,
                   style: const TextStyle(
-                    fontSize: 12.5,
+                    fontSize: 13,
                     color: AppColors.paleInk2,
                     fontWeight: FontWeight.w500,
                     height: 1.5,
@@ -283,7 +283,7 @@ class _StepTopBar extends StatelessWidget {
                 Text(
                   '${idx + 1} / $total',
                   style: const TextStyle(
-                    fontSize: 10,
+                    fontSize: 12,
                     color: AppColors.paleInk3,
                     fontWeight: FontWeight.w700,
                   ),
@@ -543,7 +543,7 @@ class StepSummary extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(r.k, style: const TextStyle(
-                            fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.paleInk3,
+                            fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.paleInk3,
                           )),
                           const SizedBox(width: 12),
                           Expanded(
@@ -593,7 +593,7 @@ class SField extends StatelessWidget {
             textBaseline: TextBaseline.alphabetic,
             children: [
               Text(label, style: const TextStyle(
-                fontSize: 13.5,
+                fontSize: 14,
                 fontWeight: FontWeight.w700,
                 color: AppColors.primary,
                 letterSpacing: -0.2,
@@ -601,7 +601,7 @@ class SField extends StatelessWidget {
               if (hint != null) ...[
                 const Spacer(),
                 Text(hint!, style: const TextStyle(
-                  fontSize: 11,
+                  fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: AppColors.paleInk3,
                 )),
@@ -724,7 +724,7 @@ class PaleSegment extends StatelessWidget {
                   boxShadow: sel
                       ? const [
                           BoxShadow(
-                            color: Color(0x14000000),
+                            color: AppColors.shadowSoft,
                             blurRadius: 4,
                             offset: Offset(0, 1),
                           ),

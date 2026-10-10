@@ -12,6 +12,7 @@ import 'tables/routine_table.dart';
 import 'tables/routine_log_table.dart';
 import 'tables/pending_op_table.dart';
 import 'tables/feed_recent_table.dart';
+import 'tables/ui_pref_table.dart';
 
 part 'app_database.g.dart';
 
@@ -25,13 +26,14 @@ part 'app_database.g.dart';
   RoutineLogTable,
   PendingOpTable,
   FeedRecentTable,
+  UiPrefTable,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
   AppDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -58,6 +60,11 @@ class AppDatabase extends _$AppDatabase {
           // 채워넣을 과거 데이터도 없다 — 빈 테이블로 시작해 쓰는 대로 쌓인다.
           if (from < 5) {
             await m.createTable(feedRecentTable);
+          }
+          // v5 → v6: ui_pref_dtl 신설 (보기 방식 같은 화면 설정 — 기기 로컬).
+          // 서버 스키마와 무관하고 채워넣을 과거 값도 없다 — 빈 테이블로 시작한다.
+          if (from < 6) {
+            await m.createTable(uiPrefTable);
           }
         },
         beforeOpen: (details) async {

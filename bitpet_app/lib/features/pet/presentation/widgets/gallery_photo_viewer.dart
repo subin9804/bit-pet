@@ -6,6 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../data/models/photo_models.dart';
 import '../../../../core/widgets/app_network_image.dart';
+import '../../../../core/widgets/app_sheet.dart';
 
 /// 뷰어에서 고른 동작. [action] 은 'profile' / 'delete'.
 typedef GalleryViewerResult = ({String action, PetPhoto photo});
@@ -73,27 +74,30 @@ class _GalleryPhotoViewerState extends State<GalleryPhotoViewer> {
   Future<void> _openMenu() async {
     final photo = _current;
     final isProfile = widget.profilePhotoId == photo.id;
-    final action = await showModalBottomSheet<String>(
+    // 갤러리 탭의 사진 메뉴와 **같은 시트**다 (AppSheet 슬롯).
+    // 고르면 바로 닫히므로 주 버튼이 없다.
+    final action = await showAppSheet<String>(
       context: context,
-      backgroundColor: AppColors.card,
-      builder: (sheetCtx) => SafeArea(
+      builder: (sheetCtx) => AppSheet(
+        title: '사진',
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SizedBox(height: 8),
             if (!isProfile)
               ListTile(
+                contentPadding: EdgeInsets.zero,
                 leading:
                     const Icon(Icons.star_outline, color: AppColors.primary),
                 title: const Text('대표 사진으로 설정'),
                 onTap: () => Navigator.pop(sheetCtx, 'profile'),
               ),
             ListTile(
+              contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.delete_outline, color: AppColors.error),
               title: const Text('삭제', style: TextStyle(color: AppColors.error)),
               onTap: () => Navigator.pop(sheetCtx, 'delete'),
             ),
-            const SizedBox(height: 8),
           ],
         ),
       ),
@@ -144,7 +148,7 @@ class _GalleryPhotoViewerState extends State<GalleryPhotoViewer> {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Color(0x99000000), Color(0x00000000)],
+                  colors: [AppColors.scrimPhoto, Colors.transparent],
                 ),
               ),
               child: SafeArea(
@@ -154,6 +158,7 @@ class _GalleryPhotoViewerState extends State<GalleryPhotoViewer> {
                   child: Row(
                     children: [
                       IconButton(
+                        tooltip: '닫기',
                         onPressed: () => Navigator.pop(context),
                         icon: const Icon(Icons.close, color: Colors.white),
                       ),
@@ -165,6 +170,7 @@ class _GalleryPhotoViewerState extends State<GalleryPhotoViewer> {
                       ),
                       const Spacer(),
                       IconButton(
+                        tooltip: '사진 메뉴',
                         onPressed: _openMenu,
                         icon: const Icon(Icons.more_vert, color: Colors.white),
                       ),
@@ -185,7 +191,7 @@ class _GalleryPhotoViewerState extends State<GalleryPhotoViewer> {
                 gradient: LinearGradient(
                   begin: Alignment.bottomCenter,
                   end: Alignment.topCenter,
-                  colors: [Color(0x99000000), Color(0x00000000)],
+                  colors: [AppColors.scrimPhoto, Colors.transparent],
                 ),
               ),
               child: SafeArea(
@@ -207,7 +213,7 @@ class _GalleryPhotoViewerState extends State<GalleryPhotoViewer> {
                               SizedBox(width: 4),
                               Text('대표',
                                   style: TextStyle(
-                                      fontSize: 11,
+                                      fontSize: 12,
                                       fontWeight: FontWeight.w700,
                                       color: AppColors.primary)),
                             ],

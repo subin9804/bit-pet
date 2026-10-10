@@ -5,6 +5,7 @@ import '../../data/models/pet_models.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_dimens.dart';
 import '../../../../core/widgets/app_network_image.dart';
+import '../../../../core/widgets/app_sheet.dart';
 
 /// 가계도 부모 카드 — 좌측 썸네일 + 우측 2줄.
 ///
@@ -101,7 +102,7 @@ class PedigreeParentCard extends StatelessWidget {
                         if (card.isDeceased) ...[
                           const SizedBox(width: 4),
                           const Text('🕊',
-                              style: TextStyle(fontSize: 11)),
+                              style: TextStyle(fontSize: 12)),
                         ],
                       ],
                     ),
@@ -198,9 +199,8 @@ class _ThumbFallback extends StatelessWidget {
 /// 상세로 못 들어가는 개체라 여기서 보여주는 것 이상은 서버도 내려주지 않는다
 /// (사육 기록·메모·체중은 애초에 [PetCard]에 없다).
 Future<void> showPetCardSheet(BuildContext context, PetCard card) {
-  return showModalBottomSheet(
+  return showAppSheet<void>(
     context: context,
-    backgroundColor: Colors.transparent,
     builder: (_) => _PetCardSheet(card: card),
   );
 }
@@ -226,63 +226,26 @@ class _PetCardSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.paleBg,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.only(top: 8, bottom: 16),
-              decoration: BoxDecoration(
-                  color: AppColors.paleLine,
-                  borderRadius: BorderRadius.circular(2)),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('PRIVATE',
-                      style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.paleInk2,
-                          letterSpacing: 0.4)),
-                  const SizedBox(height: 4),
-                  Text(card.name,
-                      style: const TextStyle(
-                          fontSize: 19,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primary,
-                          letterSpacing: -0.4)),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-              child: Column(
-                children: [
-                  _SheetRow(label: '종', value: card.speciesName.isEmpty ? '-' : card.speciesName),
-                  _SheetRow(label: '모프', value: card.morphLabel.isEmpty ? '-' : card.morphLabel),
-                  _SheetRow(label: '성별', value: _genderLabel),
-                  _SheetRow(label: '해칭일', value: _hatchLabel),
-                  const SizedBox(height: 16),
-                  const Text(
-                    '비공개 개체라 여기까지만 볼 수 있어요',
-                    style: TextStyle(fontSize: 12, color: AppColors.paleInk3),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+    return AppSheet(
+      title: card.name,
+      // 'PRIVATE' 라벨이 제목 위에 있었다. 왜 짧은지는 맨 아래 한 줄이
+      // 이미 말해주므로 보조 줄은 비워 둔다.
+      child: Column(
+        children: [
+          _SheetRow(
+              label: '종',
+              value: card.speciesName.isEmpty ? '-' : card.speciesName),
+          _SheetRow(
+              label: '모프',
+              value: card.morphLabel.isEmpty ? '-' : card.morphLabel),
+          _SheetRow(label: '성별', value: _genderLabel),
+          _SheetRow(label: '해칭일', value: _hatchLabel),
+          const SizedBox(height: 16),
+          const Text(
+            '비공개 개체라 여기까지만 볼 수 있어요',
+            style: TextStyle(fontSize: 12, color: AppColors.paleInk3),
+          ),
+        ],
       ),
     );
   }

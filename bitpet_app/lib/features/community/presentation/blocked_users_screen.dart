@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/confirm_modal.dart';
 import '../data/models/report_models.dart';
 import '../data/post_repository.dart';
 import '../../../core/widgets/app_network_image.dart';
@@ -21,23 +22,14 @@ class BlockedUsersScreen extends ConsumerWidget {
 
   Future<void> _unblock(
       BuildContext context, WidgetRef ref, BlockedUser user) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('차단 해제'),
-        content: Text('${user.nickname} 님의 차단을 해제할까요?\n'
-            '다시 서로의 글과 댓글이 보이게 됩니다.'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('취소')),
-          TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('해제')),
-        ],
-      ),
+    final ok = await ConfirmModal.show(
+      context,
+      title: '차단 해제',
+      message: '${user.nickname} 님의 차단을 해제할까요?\n'
+          '다시 서로의 글과 댓글이 보이게 됩니다.',
+      confirmLabel: '해제',
     );
-    if (ok != true) return;
+    if (!ok) return;
     try {
       await ref.read(postRepositoryProvider).unblockUser(user.userId);
       ref.invalidate(blockedUsersProvider);
@@ -54,11 +46,12 @@ class BlockedUsersScreen extends ConsumerWidget {
     final blockedAsync = ref.watch(blockedUsersProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.paleBg,
+      backgroundColor: AppColors.canvas,
       appBar: AppBar(
         backgroundColor: AppColors.paleBg,
         elevation: 0,
         leading: IconButton(
+          tooltip: '뒤로',
           icon: const Icon(Icons.arrow_back_ios_new_rounded,
               size: 16, color: AppColors.primary),
           onPressed: () => context.pop(),

@@ -24,7 +24,7 @@ class MyTagsScreen extends ConsumerWidget {
     final tagsAsync = ref.watch(myTagsProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.canvas,
       appBar: AppBar(title: const Text('이름표 관리')),
       // 주문 버튼은 목록 상태와 무관하게 늘 바닥에 붙어 있는다.
       // 이름표가 없는 사람(사러 가야 함)과 이미 쓰는 사람(더 사러 감) 둘 다 필요하다.
@@ -168,9 +168,10 @@ class _TagRow extends ConsumerWidget {
               ),
             ),
             IconButton(
-              icon: const Icon(Icons.more_horiz,
+              tooltip: '연결 해제',
+              icon: const Icon(Icons.link_off,
                   size: 20, color: AppColors.textSecondary),
-              onPressed: () => _showMenu(context, ref),
+              onPressed: () => _confirmUnlink(context, ref),
             ),
           ],
         ),
@@ -178,29 +179,7 @@ class _TagRow extends ConsumerWidget {
     );
   }
 
-  Future<void> _showMenu(BuildContext context, WidgetRef ref) async {
-    final action = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: AppColors.card,
-      builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              dense: true,
-              leading: const Icon(Icons.link_off, size: 20, color: AppColors.error),
-              title: Text('연결 해제',
-                  style: AppTextStyles.body.copyWith(color: AppColors.error)),
-              onTap: () => Navigator.of(context).pop('unlink'),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (action == null || !context.mounted) return;
-
-    if (action != 'unlink') return;
-
+  Future<void> _confirmUnlink(BuildContext context, WidgetRef ref) async {
     final repo = ref.read(tagRepositoryProvider);
     try {
       final ok = await ConfirmModal.show(

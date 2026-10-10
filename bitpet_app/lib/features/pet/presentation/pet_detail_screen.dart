@@ -3,9 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/api_response.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/confirm_modal.dart';
 import '../../../core/widgets/skeleton_loader.dart';
+import '../../../core/widgets/stat_card.dart';
 import '../../../core/widgets/toast_message.dart';
+import '../../../core/utils/weight_format.dart';
 import '../../record/presentation/fab_record_sheet.dart';
 import '../data/models/pet_models.dart';
 import '../providers/pet_provider.dart';
@@ -48,11 +51,8 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
     if (type == null || type.isEmpty) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      showModalBottomSheet(
+      showAppSheet<void>(
         context: context,
-        isScrollControlled: true,
-        useSafeArea: true,
-        backgroundColor: Colors.transparent,
         builder: (_) => FabRecordSheet(
           initialTypeId: type,
           initialPetId: widget.petId,
@@ -66,7 +66,14 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
     final petAsync = ref.watch(petDetailProvider(widget.petId));
 
     return Scaffold(
-      backgroundColor: AppColors.paleBg,
+      backgroundColor: AppColors.canvas,
+      // ⛔ 여기에 하단 고정 버튼을 두지 말 것. 이 화면은 하단 내비 안쪽이라
+      // 무엇을 깔아도 **내비 바 위에 한 층 더 쌓인다** — 기록 버튼을 뒀더니
+      // 내비 중앙 ＋ 와 같은 동작이 60px 간격으로 두 개가 됐고, 바닥 세이프에어리어도
+      // 두 번 들어가 빈 띠가 생겼다. 기록은 내비 중앙 ＋ 가 받고, 그 ＋ 는 이 화면에서
+      // **이 개체로 미리 채워진다** (`HomeScreen._detailPetId`).
+      //
+      // 수정 진입점도 여기가 아니다 — TopBar 연필과 점세개 메뉴에 이미 둘이 있다.
       body: petAsync.when(
         loading: () => const _LoadingSkeleton(),
         error:   (e, _) => Center(child: Text(e.toString())),
@@ -86,18 +93,36 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
               // ── 스크롤 본문 ─────────────────────────────────
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.only(bottom: 110),
+                  // 하단 내비 바가 자리를 차지하므로 예전의 110 은 과하다.
+                  padding: const EdgeInsets.only(bottom: 20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // 히어로 프로필 카드
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                      // ── 연녹 헤더 밴드 ──────────────────────
+                      //
+                      // 개체 상세는 '그 개체의 공간'이어야 하는데 지금까지는 배경이
+                      // 목록 화면과 똑같아서 어디로 들어왔는지가 색으로 구분되지
+                      // 않았다. 밴드는 브랜드 틴트 한 겹뿐이다 (글씨가 올라가지
+                      // 않는 면이라 brand50 로도 대비 문제가 없다).
+                      Container(
+                        width: double.infinity,
+                        color: AppColors.brandTintSoft,
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 36),
                         child: PetHeroCard(pet: pet),
                       ),
-                      const SizedBox(height: 16),
 
-                      // 기본 정보 카드
+                      // 통계 3칸을 밴드 위로 28px 끌어올려 걸친다. 밴드와 본문이
+                      // 카드 한 줄로 이어져 경계가 선이 아니라 면이 된다.
+                      Transform.translate(
+                        offset: const Offset(0, -28),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: _PetStats(pet: pet),
+                        ),
+                      ),
+
+                      // 기본 정보 카드 — 위 Transform 이 28px 끌어올린 뒤라
+                      // 여기서 그만큼을 돌려주지 않으면 간격이 비어 보인다.
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
                         child: PetInfoGrid(pet: pet, petId: widget.petId),
@@ -440,6 +465,59 @@ class _TopBar extends StatelessWidget {
 }
 
 // ── 로딩 스켈레톤 ────────────────────────────────────────────
+// ── 통계 카드 3칸 ─────────────────────────────────────────────
+//
+// 전부 이미 받아둔 `Pet` 에서 나오는 값이다 — 이 줄을 위해 새 API 를 만들지 않았다.
+// 값이 없으면 `0` 이 아니라 `-` 로 둔다 (StatCard 가 그렇게 그린다).
+class _PetStats extends StatelessWidget {
+  final Pet pet;
+
+  const _PetStats({required this.pet});
+
+  /// 함께한 날 — 입양일이 있으면 그 날부터, 없으면 해칭일부터 센다.
+  /// 둘 다 없는 개체(분양받아 날짜를 모르는 경우)는 셀 근거가 없으므로 null.
+  int? get _days {
+    final from = pet.adoptionDate ?? pet.hatchingDate;
+    if (from == null) return null;
+    final d = DateTime.now().difference(from).inDays;
+    return d < 0 ? null : d + 1;
+  }
+
+  /// 나이 — 개월. 12개월을 넘으면 연 단위로 바꿔 보여준다.
+  (String, String)? get _age {
+    final h = pet.hatchingDate;
+    if (h == null) return null;
+    final months = (DateTime.now().difference(h).inDays / 30.44).floor();
+    if (months < 0) return null;
+    if (months < 12) return ('$months', '개월');
+    return ((months / 12).floor().toString(), '년');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final age = _age;
+    final days = _days;
+
+    return StatCardRow(
+      cards: [
+        StatCard(
+          label: '최근 체중',
+          value: pet.latestWeightG == null
+              ? null
+              : formatWeight(pet.latestWeightG!),
+          unit: 'g',
+        ),
+        StatCard(label: '나이', value: age?.$1, unit: age?.$2),
+        StatCard(
+          label: '함께한 날',
+          value: days?.toString(),
+          unit: '일',
+        ),
+      ],
+    );
+  }
+}
+
 class _LoadingSkeleton extends StatelessWidget {
   const _LoadingSkeleton();
 

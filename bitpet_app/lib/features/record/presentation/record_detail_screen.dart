@@ -7,6 +7,7 @@ import '../../../core/theme/app_input_styles.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_buttons.dart';
 import '../../../core/widgets/app_chip.dart';
+import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/confirm_modal.dart';
 import '../../../core/widgets/month_grid_calendar.dart';
 import '../../../core/widgets/skeleton_loader.dart';
@@ -290,7 +291,7 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
     final petName = petAsync.whenOrNull(data: (p) => p.name) ?? '';
 
     return Scaffold(
-      backgroundColor: AppColors.paleBg,
+      backgroundColor: AppColors.canvas,
       body: Stack(
         children: [
           Column(
@@ -763,11 +764,8 @@ class _CalendarViewState extends ConsumerState<_CalendarView> {
   }
 
   void _openDaySheet(String date, List<RecordEntry> recs) {
-    showModalBottomSheet(
+    showAppSheet<void>(
       context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Colors.transparent,
       builder: (sheetCtx) => _DaySheet(
         date: date,
         entries: recs,
@@ -832,53 +830,14 @@ class _DaySheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
-      initialChildSize: entries.isEmpty ? 0.34 : 0.55,
-      minChildSize: 0.28,
-      maxChildSize: 0.9,
-      expand: false,
-      builder: (context, scrollCtrl) => Container(
-        // 위쪽 모서리만 둥글게. 테두리는 Border.all 로 둔다 —
-        // BoxDecoration 은 모서리가 둥글면 균일한 테두리만 허용해서
-        // Border(top: …) 과 borderRadius 를 같이 쓰면 런타임에 죽는다.
-        // (아래쪽 선은 화면 밖으로 나가 보이지 않는다)
-        clipBehavior: Clip.antiAlias,
-        decoration: const BoxDecoration(
-          color: AppColors.paleBg,
-          border: Border.fromBorderSide(
-              BorderSide(color: AppColors.paleLine, width: 1.5)),
-          borderRadius: AppRadius.brSheet,
-        ),
-        child: Column(
-          children: [
-            Container(
-              width: 40, height: 4,
-              margin: const EdgeInsets.symmetric(vertical: 8),
-              color: AppColors.paleLine,
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  RichText(text: TextSpan(
-                    style: AppTextStyles.paleSectionTitle,
-                    children: [
-                      TextSpan(text:
-                        '${int.parse(date.substring(5, 7))}.${int.parse(date.substring(8))} '),
-                      TextSpan(text: '(${_weekKo[DateTime.parse(date).weekday % 7]})',
-                          style: const TextStyle(fontWeight: FontWeight.w600,
-                              color: AppColors.paleInk2)),
-                    ],
-                  )),
-                  Text('${entries.length}건', style: AppTextStyles.monoSm),
-                ],
-              ),
-            ),
-            Expanded(
-              child: ListView(
-                controller: scrollCtrl,
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+    final d = DateTime.parse(date);
+    return AppSheet(
+      title: '${d.month}.${d.day} (${_weekKo[d.weekday % 7]})',
+      subtitle: '기록 ${entries.length}건',
+      primaryLabel: '이 날 기록 추가',
+      onPrimary: onAdd,
+      child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   if (entries.isEmpty)
                     Container(
@@ -900,35 +859,7 @@ class _DaySheet extends StatelessWidget {
                           child: _RecordCard(entry: e, accentColor: accentColor,
                               onEdit: () => onEdit(e), showDate: false),
                         )),
-                  const SizedBox(height: 4),
-                  GestureDetector(
-                    onTap: onAdd,
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      decoration: BoxDecoration(
-                        color: AppColors.card,
-                        border: Border.all(color: AppColors.paleLine),
-                        borderRadius: AppRadius.brLg,
-                      ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.add, size: 16, color: AppColors.primary),
-                          SizedBox(width: 8),
-                          Text('이 날 기록 추가',
-                              style: TextStyle(fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.primary)),
-                        ],
-                      ),
-                    ),
-                  ),
                 ],
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -1316,7 +1247,7 @@ class _EditorSheetState extends State<_EditorSheet> {
                                       const SizedBox(width: 8),
                                       Text(t.labelKo,
                                           style: TextStyle(
-                                              fontSize: 12.5,
+                                              fontSize: 13,
                                               fontWeight: FontWeight.w700,
                                               color: sel
                                                   ? AppColors.petLilacInk
@@ -1496,7 +1427,7 @@ class _EditorSheetState extends State<_EditorSheet> {
                             width: double.infinity,
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             decoration: BoxDecoration(
-                              border: Border.all(color: const Color(0x66E53935)),
+                              border: Border.all(color: AppColors.errorLine),
                               borderRadius: AppRadius.brMd,
                             ),
                             child: const Row(

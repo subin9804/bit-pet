@@ -142,7 +142,7 @@ class _PetHeroCardState extends State<PetHeroCard> {
                         child: Text(
                           isPublic ? '공개' : '비공개',
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: 12,
                             fontWeight: FontWeight.w700,
                             color: isPublic
                                 ? AppColors.brandTintInk
@@ -186,7 +186,7 @@ class _PetHeroCardState extends State<PetHeroCard> {
                       Text(
                         '$genderSymbol $genderLabel',
                         style: const TextStyle(
-                          fontSize: 11,
+                          fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: AppColors.primary,
                         ),
@@ -194,7 +194,7 @@ class _PetHeroCardState extends State<PetHeroCard> {
                       if (pet.latestWeightG != null) ...[
                         Text(
                           ' · ',
-                          style: TextStyle(fontSize: 11, color: AppColors.paleInk2),
+                          style: TextStyle(fontSize: 12, color: AppColors.paleInk2),
                         ),
                         Text(
                           '${formatWeight(pet.latestWeightG!)}g',

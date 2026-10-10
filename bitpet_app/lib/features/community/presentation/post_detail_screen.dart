@@ -6,6 +6,7 @@ import '../../../core/api/api_response.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/confirm_modal.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../data/models/post_models.dart';
 import '../data/models/report_models.dart';
@@ -112,11 +113,13 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                 },
               ),
       ),
+      title: isMine ? '내 게시글' : '게시글',
     );
   }
 
   List<Widget> _ownerTiles(BuildContext context, Post post) => [
         ListTile(
+          contentPadding: EdgeInsets.zero,
           leading: const Icon(Icons.edit_outlined, color: AppColors.primary),
           title: const Text('수정'),
           onTap: () {
@@ -125,26 +128,19 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
           },
         ),
         ListTile(
+          contentPadding: EdgeInsets.zero,
           leading: const Icon(Icons.delete_outline, color: AppColors.commHot),
           title: Text('삭제', style: TextStyle(color: AppColors.commHot)),
           onTap: () async {
             Navigator.pop(context);
-            final ok = await showDialog<bool>(
-              context: context,
-              builder: (_) => AlertDialog(
-                title: const Text('게시글 삭제'),
-                content: const Text('정말 삭제하시겠어요?'),
-                actions: [
-                  TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text('취소')),
-                  TextButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      child: const Text('삭제')),
-                ],
-              ),
+            final ok = await ConfirmModal.show(
+              context,
+              title: '게시글 삭제',
+              message: '정말 삭제하시겠어요? 되돌릴 수 없어요.',
+              confirmLabel: '삭제',
+              isDangerous: true,
             );
-            if (ok == true && context.mounted) {
+            if (ok && context.mounted) {
               await ref.read(postRepositoryProvider).deletePost(post.id);
               ref.invalidate(feedProvider);
               if (context.mounted) context.pop();
@@ -173,6 +169,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
           },
         ),
       ),
+      title: '댓글',
     );
   }
 
@@ -185,7 +182,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     final catById = {for (final c in categories) c.id: c};
 
     return Scaffold(
-      backgroundColor: AppColors.paleBg,
+      backgroundColor: AppColors.canvas,
       body: postAsync.when(
         loading: () =>
             const Center(child: CircularProgressIndicator(strokeWidth: 2)),
@@ -527,7 +524,7 @@ class _CategoryPill extends StatelessWidget {
           style: AppTextStyles.monoXs.copyWith(
             color: _catInk(code),
             fontWeight: FontWeight.w700,
-            fontSize: 11,
+            fontSize: 12,
           ),
         ),
       ),
@@ -610,7 +607,7 @@ class _CommentItem extends StatelessWidget {
                         child: Text(
                           '작성자',
                           style: AppTextStyles.monoXs.copyWith(
-                            fontSize: 9,
+                            fontSize: 12,
                             color: AppColors.commSellInk,
                             fontWeight: FontWeight.w700,
                           ),

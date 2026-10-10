@@ -39,10 +39,15 @@ import '../../features/record/presentation/feed_detail_screen.dart';
 import '../../features/nfc/presentation/tag_resolver_screen.dart';
 import '../../features/nfc/presentation/my_tags_screen.dart';
 import '../../features/nfc/providers/tag_provider.dart';
+import '../../features/splash/presentation/splash_screen.dart';
+import '../../features/splash/presentation/intro_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
-    initialLocation: '/home',
+    // 앱의 입구는 스플래시다. `/home` 으로 바로 들어가던 동안은 토큰 확인이
+    // 끝나기 전이라 아래 isLoggedIn 이 false 로 읽혀, **로그인해 둔 사람에게도
+    // 로그인 화면이 한 번 번쩍였다**.
+    initialLocation: '/',
     redirect: (context, state) {
       final authState = ref.read(authStateProvider);
       final isLoggedIn = authState.whenOrNull(data: (u) => u != null) ?? false;
@@ -54,8 +59,22 @@ final routerProvider = Provider<GoRouter>((ref) {
       // NFC 태그를 찍었는데 로그아웃 상태면, 로그인 후 그 태그로 돌아갈 수 있게 기억해 둔다
       if (!isLoggedIn && loc.startsWith('/t/')) {
         PendingTagLink.remember(state.uri.toString());
-        return '/login';
+        // 아직 토큰을 확인하는 중일 수도 있다 — 그 경우 스플래시로 보내고
+        // 로그인 여부가 정해진 뒤 위에서 기억한 링크로 돌아간다.
+        return authState.isLoading ? '/' : '/login';
       }
+
+      // 토큰을 확인하는 동안은 어디로도 보내지 않는다.
+      if (authState.isLoading) return loc == '/' ? null : '/';
+
+      // 스플래시·소개는 로그인한 사람이 머물 화면이 아니다. 반대로 로그아웃
+      // 상태의 다음 행선지(소개냐 로그인이냐)는 **SplashScreen 이 정한다** —
+      // 소개를 봤는지가 기기에 저장된 값이라 비동기로 읽어야 하고, redirect 는
+      // 동기 함수다.
+      if (loc == '/' || loc == '/intro') {
+        return isLoggedIn ? (PendingTagLink.take() ?? '/home') : null;
+      }
+
       if (!isLoggedIn && !isAuthRoute) return '/login';
       if (isLoggedIn && isAuthRoute) return PendingTagLink.take() ?? '/home';
       return null;
@@ -70,6 +89,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, state) =>
             TagResolverScreen(tagCd: state.pathParameters['tagCd']!),
       ),
+      GoRoute(path: '/', builder: (_, __) => const SplashScreen()),
+      GoRoute(path: '/intro', builder: (_, __) => const IntroScreen()),
       GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
       GoRoute(path: '/signup', builder: (_, __) => const SignupScreen()),
       GoRoute(
@@ -266,7 +287,7 @@ class _NotificationScreen extends ConsumerWidget {
                 subtitle: Text(n.body),
                 trailing: Text(
                   _ago(n.sentAt),
-                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
                 onTap: () {
                   ref.read(notificationRepositoryProvider).markRead(n.id);

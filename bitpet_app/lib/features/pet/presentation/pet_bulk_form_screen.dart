@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/api_response.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/confirm_modal.dart';
 import '../../../core/widgets/step_shell.dart';
 import '../../../core/widgets/toast_message.dart';
@@ -167,20 +168,16 @@ class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
   }
 
   Future<void> _openSpeciesSheet() async {
-    final result = await showModalBottomSheet<Species>(
+    final result = await showAppSheet<Species>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => SpeciesBottomSheet(initialSelection: _species),
     );
     if (result != null) setState(() => _species = result);
   }
 
   Future<void> _openParentSheet({required bool isFather}) async {
-    final result = await showModalBottomSheet<PetCard>(
+    final result = await showAppSheet<PetCard>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => ParentPetBottomSheet(
         isFather: isFather,
         initialSelection: isFather ? _fatherPet : _motherPet,
@@ -248,7 +245,7 @@ class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.paleBg,
+      backgroundColor: AppColors.canvas,
       body: SafeArea(
         child: Column(
           children: [
@@ -275,7 +272,7 @@ class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
                         SizedBox(height: 2),
                         Text('같은 조건으로 한 번에',
                             style: TextStyle(
-                                fontSize: 10,
+                                fontSize: 12,
                                 fontWeight: FontWeight.w700,
                                 color: AppColors.paleInk3)),
                       ],
@@ -356,7 +353,7 @@ class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
                               child: Text(
                                 '예: $_effectivePrefix 1, $_effectivePrefix 2 …',
                                 style: const TextStyle(
-                                    fontSize: 11.5,
+                                    fontSize: 12,
                                     fontWeight: FontWeight.w600,
                                     color: AppColors.paleInk3),
                               ),
@@ -576,6 +573,7 @@ class _TapField extends StatelessWidget {
             ),
             if (hasValue && onClear != null)
               IconButton(
+                tooltip: '선택 지우기',
                 onPressed: onClear,
                 icon: const Icon(Icons.close, size: 20),
                 color: AppColors.paleInk3,

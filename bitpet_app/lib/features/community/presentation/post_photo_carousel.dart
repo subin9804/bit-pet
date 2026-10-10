@@ -194,7 +194,7 @@ class _PostPhotoViewerState extends State<PostPhotoViewer> {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Color(0x99000000), Color(0x00000000)],
+                  colors: [AppColors.scrimPhoto, Colors.transparent],
                 ),
               ),
               child: SafeArea(
@@ -204,6 +204,7 @@ class _PostPhotoViewerState extends State<PostPhotoViewer> {
                   child: Row(
                     children: [
                       IconButton(
+                        tooltip: '닫기',
                         onPressed: () => Navigator.pop(context),
                         icon: const Icon(Icons.close, color: Colors.white),
                       ),

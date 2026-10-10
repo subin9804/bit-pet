@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/db/ui_prefs.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_chip.dart';
@@ -89,7 +90,7 @@ class PetListScreen extends ConsumerWidget {
     final selectedCount = ref.watch(selectedPetIdsProvider).length;
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.canvas,
       appBar: selecting
           ? _selectionAppBar(context, ref, selectedCount)
           : _normalAppBar(context, ref),
@@ -107,7 +108,7 @@ class PetListScreen extends ConsumerWidget {
         children: [
           Text('manage',
               style: AppTextStyles.label.copyWith(
-                  fontSize: 11,
+                  fontSize: 12,
                   color: AppColors.textDisabled,
                   letterSpacing: 1.5)),
           const Text('내 개체 관리'),
@@ -121,7 +122,7 @@ class PetListScreen extends ConsumerWidget {
           icon: const Icon(Icons.group_add, size: 16),
           label: const Text('공유·분양'),
           style: TextButton.styleFrom(
-            foregroundColor: AppColors.primary,
+            foregroundColor: AppColors.ink2,
             minimumSize: const Size(0, 36),
             padding: const EdgeInsets.symmetric(horizontal: 8),
             textStyle:
@@ -142,8 +143,8 @@ class PetListScreen extends ConsumerWidget {
             icon: const Icon(Icons.add, size: 16),
             label: const Text('추가'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
+              backgroundColor: AppColors.brandAction,
+              foregroundColor: AppColors.bg,
               minimumSize: const Size(0, 36),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
               textStyle: AppTextStyles.bodyBold.copyWith(fontSize: 13),
@@ -159,6 +160,7 @@ class PetListScreen extends ConsumerWidget {
     return AppBar(
       backgroundColor: AppColors.bg,
       leading: IconButton(
+        tooltip: '선택 모드 끝내기',
         icon: const Icon(Icons.close),
         onPressed: () => _exitSelection(ref),
       ),
@@ -301,7 +303,7 @@ class _SelectionAction extends StatelessWidget {
               const SizedBox(width: 8),
               Text(label,
                   style: TextStyle(
-                      fontSize: 13.5,
+                      fontSize: 14,
                       fontWeight: FontWeight.w700,
                       letterSpacing: -0.2,
                       color: content)),
@@ -325,12 +327,16 @@ class _PetTab extends ConsumerStatefulWidget {
 class _PetTabState extends ConsumerState<_PetTab> {
   String _query = '';
   int? _selectedSpeciesId;
-  bool _isGridView = true;
 
   @override
   Widget build(BuildContext context) {
     final petsAsync = ref.watch(petListProvider);
     final selecting = ref.watch(petSelectionModeProvider);
+
+    // 보기 방식은 화면 state 가 아니라 기기에 남는 설정이다. 전에는 로컬
+    // state 라서 탭을 벗어나기만 해도 2열로 돌아갔는데, 1열로 보는 사람은
+    // **매번 다시 눌러야 했다**. 고른 쪽이 그대로 있어야 고른 의미가 있다.
+    final isGridView = ref.watch(petListGridProvider);
 
     // 내 개체에 실제로 존재하는 종만 필터칩으로 노출 (등장 순서 유지, 중복 제거)
     final allPets = petsAsync.valueOrNull ?? const <Pet>[];
@@ -384,23 +390,27 @@ class _PetTabState extends ConsumerState<_PetTab> {
               Row(
                 children: [
                   IconButton(
+                    tooltip: '2열로 보기',
                     icon: Icon(Icons.grid_view,
-                        color: _isGridView
+                        color: isGridView
                             ? AppColors.primary
                             : AppColors.textDisabled,
                         size: 20),
-                    onPressed: () => setState(() => _isGridView = true),
+                    onPressed: () =>
+                        ref.read(petListGridProvider.notifier).set(true),
                     padding: EdgeInsets.zero,
                     constraints:
                         const BoxConstraints(minWidth: 32, minHeight: 32),
                   ),
                   IconButton(
+                    tooltip: '1열로 보기',
                     icon: Icon(Icons.list,
-                        color: !_isGridView
+                        color: !isGridView
                             ? AppColors.primary
                             : AppColors.textDisabled,
                         size: 20),
-                    onPressed: () => setState(() => _isGridView = false),
+                    onPressed: () =>
+                        ref.read(petListGridProvider.notifier).set(false),
                     padding: EdgeInsets.zero,
                     constraints:
                         const BoxConstraints(minWidth: 32, minHeight: 32),
@@ -416,9 +426,12 @@ class _PetTabState extends ConsumerState<_PetTab> {
           child: petsAsync.when(
             loading: () => const SkeletonCardList(),
             error: (e, _) => EmptyState(
-              message: '불러오기 실패',
-              subMessage: e.toString(),
-              icon: Icons.error_outline,
+              message: '불러오지 못했어요',
+              // 예전엔 `e.toString()` 을 그대로 띄웠다. 사용자는 읽을 수 없고
+              // 할 수 있는 것도 없는 글자다 — 원인은 로그로 본다.
+              subMessage: '연결을 확인하고 다시 시도해주세요.',
+              icon: Icons.cloud_off,
+              tone: EmptyTone.neutral,
               actionLabel: '다시 시도',
               onAction: () => ref.read(petListProvider.notifier).load(),
             ),
@@ -449,12 +462,29 @@ class _PetTabState extends ConsumerState<_PetTab> {
                         message: '분양·삭제할 수 있는 개체가 없어요',
                         subMessage: '공유받은 개체는 소유자만 관리할 수 있습니다.',
                         icon: Icons.group_outlined,
+                        // 여기서 사용자가 만들 것은 없다 — 연녹 원을 쓰면
+                        // "비었으니 채워보라"로 읽힌다.
+                        tone: EmptyTone.neutral,
                       )
                     : EmptyState(
-                        message: '개체가 없어요',
-                        icon: Icons.pets,
-                        actionLabel: '개체 등록',
-                        onAction: () => context.push('/pets/new'),
+                        message: _query.isEmpty && _selectedSpeciesId == null
+                            ? '아직 등록한 개체가 없어요'
+                            : '조건에 맞는 개체가 없어요',
+                        subMessage: _query.isEmpty && _selectedSpeciesId == null
+                            ? '첫 개체를 등록하면 기록을 쌓을 수 있어요.'
+                            : '검색어나 종 필터를 바꿔보세요.',
+                        icon: _query.isEmpty && _selectedSpeciesId == null
+                            ? Icons.pets
+                            : Icons.search_off,
+                        tone: _query.isEmpty && _selectedSpeciesId == null
+                            ? EmptyTone.brand
+                            : EmptyTone.neutral,
+                        actionLabel: _query.isEmpty && _selectedSpeciesId == null
+                            ? '개체 등록'
+                            : null,
+                        onAction: _query.isEmpty && _selectedSpeciesId == null
+                            ? () => context.push('/pets/new')
+                            : null,
                       );
               }
               return RefreshIndicator(
@@ -464,7 +494,7 @@ class _PetTabState extends ConsumerState<_PetTab> {
                     _PetCountLine(shown: pets.length, total: allPets.length),
                     if (hiddenShared > 0) _SharedHiddenNotice(hiddenShared),
                     Expanded(
-                      child: _isGridView
+                      child: isGridView
                           ? _PetGrid(pets: pets)
                           : _PetListView(pets: pets),
                     ),

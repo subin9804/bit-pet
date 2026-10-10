@@ -36,7 +36,7 @@ AnniversaryKind? _annivKindOf(String cat) => switch (cat) {
     };
 
 const _legendStyle = TextStyle(
-    fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.paleInk2);
+    fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.paleInk2);
 
 const _catLabel = {
   'FEEDING': '급여',
@@ -198,7 +198,7 @@ class _PetCalendarTabState extends ConsumerState<PetCalendarTab> {
                     child: Text(
                       weekKo[day.weekday % 7],
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: FontWeight.w700,
                         color: day.weekday == DateTime.sunday
                             ? AppColors.error
@@ -403,7 +403,7 @@ class _DayRecordRow extends StatelessWidget {
             children: [
               Text(_catLabel[cat] ?? cat,
                   style: const TextStyle(
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: FontWeight.w700,
                       color: AppColors.paleInk2)),
               Text(item.displayText,

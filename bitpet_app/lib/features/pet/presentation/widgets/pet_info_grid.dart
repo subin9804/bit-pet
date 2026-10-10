@@ -173,7 +173,7 @@ class _MorphRow extends StatelessWidget {
                             child: Text(
                               n,
                               style: const TextStyle(
-                                fontSize: 12.5,
+                                fontSize: 13,
                                 fontWeight: FontWeight.w600,
                                 color: AppColors.primary,
                               ),
@@ -228,7 +228,7 @@ class _Cell extends StatelessWidget {
                   child: Text(
                     chip!,
                     style: const TextStyle(
-                      fontSize: 10,
+                      fontSize: 12,
                       fontWeight: FontWeight.w700,
                       color: AppColors.petPeachInk,
                     ),

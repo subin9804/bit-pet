@@ -5,6 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_input_styles.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_buttons.dart';
+import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/confirm_modal.dart';
 import '../../../core/widgets/month_grid_calendar.dart';
 import '../../../core/widgets/skeleton_loader.dart';
@@ -149,7 +150,7 @@ class _FeedDetailScreenState extends ConsumerState<FeedDetailScreen> {
     final petName = petAsync.whenOrNull(data: (p) => p.name) ?? '';
 
     return Scaffold(
-      backgroundColor: AppColors.paleBg,
+      backgroundColor: AppColors.canvas,
       body: Stack(
         children: [
           Column(
@@ -547,11 +548,8 @@ class _CalendarViewState extends State<_CalendarView> {
   }
 
   void _openDaySheet(String date, List<FeedSession> recs) {
-    showModalBottomSheet(
+    showAppSheet<void>(
       context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Colors.transparent,
       builder: (sheetCtx) => _DaySheet(
         date: date,
         sessions: recs,
@@ -604,53 +602,14 @@ class _DaySheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
-      initialChildSize: sessions.isEmpty ? 0.34 : 0.55,
-      minChildSize: 0.28,
-      maxChildSize: 0.9,
-      expand: false,
-      builder: (context, scrollCtrl) => Container(
-        decoration: const BoxDecoration(
-          color: AppColors.paleBg,
-          border: Border(top: BorderSide(color: AppColors.paleLine, width: 1.5)),
-        ),
-        child: Column(
-          children: [
-            // 핸들
-            Container(
-              width: 40, height: 4,
-              margin: const EdgeInsets.symmetric(vertical: 8),
-              color: AppColors.paleLine,
-            ),
-            // 헤더
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  RichText(
-                    text: TextSpan(
-                      style: AppTextStyles.paleSectionTitle,
-                      children: [
-                        TextSpan(text:
-                          '${int.parse(date.substring(5,7))}.${int.parse(date.substring(8))} '),
-                        TextSpan(
-                          text: '(${_weekKo[DateTime.parse(date).weekday % 7]})',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.paleInk2),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Text('${sessions.length}회', style: AppTextStyles.monoSm),
-                ],
-              ),
-            ),
-            Expanded(
-              child: ListView(
-                controller: scrollCtrl,
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+    final d = DateTime.parse(date);
+    return AppSheet(
+      title: '${d.month}.${d.day} (${_weekKo[d.weekday % 7]})',
+      subtitle: '급여 ${sessions.length}회',
+      primaryLabel: '이 날 기록 추가',
+      onPrimary: onAdd,
+      child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   if (sessions.isEmpty)
                     Container(
@@ -674,35 +633,7 @@ class _DaySheet extends StatelessWidget {
                               onEdit: () => onEdit(s),
                               showDate: false),
                         )),
-                  const SizedBox(height: 4),
-                  GestureDetector(
-                    onTap: onAdd,
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      decoration: BoxDecoration(
-                        color: AppColors.card,
-                        border: Border.all(color: AppColors.paleLine),
-                        borderRadius: AppRadius.brLg,
-                      ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.add, size: 16, color: AppColors.primary),
-                          SizedBox(width: 8),
-                          Text('이 날 기록 추가',
-                              style: TextStyle(
-                                  fontSize: 13, fontWeight: FontWeight.w700,
-                                  color: AppColors.primary)),
-                        ],
-                      ),
-                    ),
-                  ),
                 ],
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -1029,7 +960,7 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
                                 padding: const EdgeInsets.symmetric(vertical: 12),
                                 decoration: BoxDecoration(
                                   border: Border.all(
-                                      color: const Color(0x66E53935)),
+                                      color: AppColors.errorLine),
                                   borderRadius: AppRadius.brMd,
                                 ),
                                 child: const Row(

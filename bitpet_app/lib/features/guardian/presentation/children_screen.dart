@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/confirm_modal.dart';
 import '../data/guardian_repository.dart';
 import 'child_create_screen.dart';
 import '../../../core/widgets/app_network_image.dart';
@@ -20,23 +21,18 @@ class ChildrenScreen extends ConsumerWidget {
 
   Future<void> _delete(
       BuildContext context, WidgetRef ref, ChildAccount child) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('자녀 계정 삭제'),
-        content: Text('${child.nickname} 님의 계정을 삭제할까요?\n'
-            '등록한 개체와 사육 기록도 함께 삭제되며, 되돌릴 수 없습니다.'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('취소')),
-          TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('삭제')),
-        ],
-      ),
+    // 되돌릴 수 없는 삭제라 **닉네임을 직접 입력**해야 확인이 열린다.
+    // 아이 계정과 그 아이의 기록이 버튼 한 번으로 사라지면 안 된다.
+    final ok = await ConfirmModal.show(
+      context,
+      title: '자녀 계정 삭제',
+      message: '${child.nickname} 님의 계정을 삭제할까요?\n'
+          '등록한 개체와 사육 기록도 함께 삭제되며, 되돌릴 수 없습니다.',
+      confirmLabel: '삭제',
+      isDangerous: true,
+      requireTextConfirmation: child.nickname,
     );
-    if (ok != true) return;
+    if (!ok) return;
     try {
       await ref.read(guardianRepositoryProvider).deleteChild(child.id);
       ref.invalidate(childrenProvider);
@@ -53,11 +49,12 @@ class ChildrenScreen extends ConsumerWidget {
     final childrenAsync = ref.watch(childrenProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.paleBg,
+      backgroundColor: AppColors.canvas,
       appBar: AppBar(
         backgroundColor: AppColors.paleBg,
         elevation: 0,
         leading: IconButton(
+          tooltip: '뒤로',
           icon: const Icon(Icons.arrow_back_ios_new_rounded,
               size: 16, color: AppColors.primary),
           onPressed: () => context.pop(),

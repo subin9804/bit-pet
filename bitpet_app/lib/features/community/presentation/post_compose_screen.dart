@@ -112,7 +112,7 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
     final categories = ref.watch(composableCategoriesProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.paleBg,
+      backgroundColor: AppColors.canvas,
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -418,7 +418,7 @@ class _Field extends StatelessWidget {
                 const Text(
                   ' *',
                   style: TextStyle(
-                    color: Color(0xFFCC5522),
+                    color: AppColors.error,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),

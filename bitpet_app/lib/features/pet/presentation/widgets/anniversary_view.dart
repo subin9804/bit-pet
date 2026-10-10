@@ -53,7 +53,7 @@ class AnniversaryRow extends StatelessWidget {
             children: [
               Text(anniversary.kindLabel,
                   style: const TextStyle(
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: FontWeight.w700,
                       color: anniversaryColor)),
               Text(anniversary.label,

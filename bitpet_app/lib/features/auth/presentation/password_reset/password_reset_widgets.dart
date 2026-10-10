@@ -16,6 +16,7 @@ PreferredSizeWidget passwordResetAppBar(BuildContext context) {
     scrolledUnderElevation: 0,
     centerTitle: true,
     leading: IconButton(
+      tooltip: '뒤로',
       icon: const Icon(Icons.arrow_back_ios_new,
           size: 20, color: AppColors.textPrimary),
       onPressed: () => Navigator.of(context).maybePop(),
@@ -120,7 +121,7 @@ class ResetInputField extends StatelessWidget {
         focusedErrorBorder: const UnderlineInputBorder(
           borderSide: BorderSide(color: AppColors.error, width: 1.5),
         ),
-        errorStyle: const TextStyle(fontSize: 11, color: AppColors.error),
+        errorStyle: const TextStyle(fontSize: 12, color: AppColors.error),
       ),
     );
   }

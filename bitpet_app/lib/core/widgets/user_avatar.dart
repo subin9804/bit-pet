@@ -71,7 +71,9 @@ class UserAvatar extends StatelessWidget {
       return Container(
         width: size,
         height: size,
-        color: color,
+        // 정사각형이었다. 카드·알약·버튼이 전부 둥근 테마에서 얼굴 자리만
+        // 각져 있으면 그 하나가 눈에 걸린다. 아바타는 원이 기본값이기도 하다.
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         alignment: Alignment.center,
         child: Text(emoji, style: TextStyle(fontSize: size * 0.43)),
       );
@@ -83,8 +85,8 @@ class UserAvatar extends StatelessWidget {
       width: size,
       height: size,
       padding: EdgeInsets.all(borderWidth),
-      color: color,
-      child: ClipRect(
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      child: ClipOval(
         child: localBytes != null
             ? Image.memory(localBytes!, fit: BoxFit.cover, width: size, height: size)
             : AppNetworkImage(
@@ -94,7 +96,7 @@ class UserAvatar extends StatelessWidget {
                 height: size,
                 memWidth: (size * 3).round(),
                 placeholder: Container(
-                  color: AppColors.bg2,
+                  color: AppColors.bgAlt,
                   alignment: Alignment.center,
                   child: Text(emoji, style: TextStyle(fontSize: size * 0.4)),
                 ),

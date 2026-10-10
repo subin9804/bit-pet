@@ -85,7 +85,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
     final categories = ref.watch(visibleCategoriesProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.paleBg,
+      backgroundColor: AppColors.canvas,
       body: SafeArea(
         bottom: false,
         child: Stack(
@@ -211,8 +211,10 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                 child: Container(
                   width: 50,
                   height: 50,
+                  // 홈 FAB 와 같은 '만들기' 동작이므로 같은 액션색을 쓴다.
+                  // 예전엔 primary(먹색)라서 홈은 초록, 커뮤니티는 검정으로 갈려 있었다.
                   decoration: const BoxDecoration(
-                    color: AppColors.primary,
+                    color: AppColors.brandAction,
                     borderRadius: AppRadius.brMd,
                   ),
                   child: const Icon(Icons.edit_outlined,
@@ -432,7 +434,7 @@ class _PostRow extends StatelessWidget {
                       const SizedBox(width: 4),
                       Text(post.authorName,
                           style: AppTextStyles.caption
-                              .copyWith(fontSize: 11)),
+                              .copyWith(fontSize: 12)),
                       const SizedBox(width: 8),
                       Text('·',
                           style: AppTextStyles.caption

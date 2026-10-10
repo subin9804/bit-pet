@@ -109,11 +109,12 @@ class _ChildCreateScreenState extends ConsumerState<ChildCreateScreen> {
     final birth = _birthDate;
 
     return Scaffold(
-      backgroundColor: AppColors.paleBg,
+      backgroundColor: AppColors.canvas,
       appBar: AppBar(
         backgroundColor: AppColors.paleBg,
         elevation: 0,
         leading: IconButton(
+          tooltip: '뒤로',
           icon: const Icon(Icons.arrow_back_ios_new_rounded,
               size: 16, color: AppColors.primary),
           onPressed: () => Navigator.of(context).pop(),
@@ -133,7 +134,7 @@ class _ChildCreateScreenState extends ConsumerState<ChildCreateScreen> {
               '자녀가 쓸 계정 정보를 보호자가 입력합니다.\n'
               '자녀는 이 이메일과 비밀번호로 직접 로그인해요.',
               style: TextStyle(
-                  fontSize: 12.5, height: 1.6, color: AppColors.paleInk3),
+                  fontSize: 13, height: 1.6, color: AppColors.paleInk3),
             ),
             const SizedBox(height: 20),
 
@@ -250,7 +251,7 @@ class _ChildCreateScreenState extends ConsumerState<ChildCreateScreen> {
               '자녀 계정은 어린이 게시판에서만 글·댓글을 남길 수 있어요.\n'
               '다른 게시판의 글은 읽을 수 있습니다.',
               style: TextStyle(
-                  fontSize: 11.5, height: 1.6, color: AppColors.paleInk3),
+                  fontSize: 12, height: 1.6, color: AppColors.paleInk3),
             ),
             const SizedBox(height: 24),
 
@@ -335,7 +336,7 @@ class _ConsentRow extends StatelessWidget {
             const SizedBox(width: 8),
             Text('[$badge] ',
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 12,
                   fontWeight: FontWeight.w700,
                   color: badge == '필수'
                       ? AppColors.primary
@@ -353,7 +354,7 @@ class _ConsentRow extends StatelessWidget {
                   padding: EdgeInsets.only(left: 8),
                   child: Text('보기',
                       style: TextStyle(
-                        fontSize: 11.5,
+                        fontSize: 12,
                         color: AppColors.paleInk2,
                         decoration: TextDecoration.underline,
                         decorationColor: AppColors.paleInk3,

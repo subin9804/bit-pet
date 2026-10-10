@@ -130,7 +130,7 @@ class _TagResolverScreenState extends ConsumerState<TagResolverScreen> {
       );
     }
     return const Scaffold(
-      backgroundColor: AppColors.paleBg,
+      backgroundColor: AppColors.canvas,
       body: Center(child: CircularProgressIndicator()),
     );
   }
@@ -168,7 +168,7 @@ class _TagMessage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.paleBg,
+      backgroundColor: AppColors.canvas,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32),

@@ -119,7 +119,7 @@ class _RecordTabState extends ConsumerState<RecordTab> {
                         Text(
                           _relativeDay(weightItem.recordedAt),
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: PalePalette.catInk('WEIGHT'),
                           ),
@@ -137,7 +137,7 @@ class _RecordTabState extends ConsumerState<RecordTab> {
                         weightItem?.summary ?? '—',
                         style: TextStyle(
                           fontFamily: 'monospace',
-                          fontSize: 30,
+                          fontSize: 34,
                           fontWeight: FontWeight.w700,
                           color: weightItem == null
                               ? AppColors.paleInk3
@@ -255,7 +255,7 @@ class _RecordTabState extends ConsumerState<RecordTab> {
                       Text(
                         _relativeDay(item.recordedAt),
                         style: const TextStyle(
-                          fontSize: 11,
+                          fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: AppColors.paleInk3,
                         ),

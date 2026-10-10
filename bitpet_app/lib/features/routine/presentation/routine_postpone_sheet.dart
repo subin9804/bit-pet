@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../data/models/routine_models.dart';
 import '../data/routine_repository.dart';
@@ -14,10 +15,8 @@ import '../../../core/theme/app_dimens.dart';
 /// 미루기 시트를 띄운다. 미뤘으면 true 를 돌려준다.
 Future<bool> showRoutinePostponeSheet(
     BuildContext context, TodayRoutine routine) async {
-  final result = await showModalBottomSheet<bool>(
+  final result = await showAppSheet<bool>(
     context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
     builder: (_) => RoutinePostponeSheet(routine: routine),
   );
   return result ?? false;
@@ -117,36 +116,24 @@ class _RoutinePostponeSheetState extends ConsumerState<RoutinePostponeSheet> {
     final pets = widget.routine.petStatuses;
     final petNames = pets.map((p) => p.petName).where((n) => n.isNotEmpty).toList();
 
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      padding: EdgeInsets.fromLTRB(
-          20, 12, 20, MediaQuery.of(context).padding.bottom + 16),
+    return AppSheet(
+      title: '루틴 미루기',
+      subtitle: widget.routine.title,
+      busy: _saving,
+      primaryLabel: '${_label(_selected)}로 미루기',
+      onPrimary: _submit,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Center(
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 16),
-              width: 40,
-              height: 4,
-              color: AppColors.border,
-            ),
-          ),
-          Text('루틴 미루기',
-              style: AppTextStyles.label.copyWith(color: AppColors.textDisabled)),
-          const SizedBox(height: 4),
-          Text(widget.routine.title, style: AppTextStyles.title),
-          const SizedBox(height: 12),
-
           // ── 고지: 루틴 단위라 연결된 개체 전부가 함께 밀린다 ───────────────
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            color: AppColors.bg2,
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: const BoxDecoration(
+              color: AppColors.bg2,
+              borderRadius: AppRadius.brMd,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -211,31 +198,6 @@ class _RoutinePostponeSheetState extends ConsumerState<RoutinePostponeSheet> {
                   '미룬 뒤에도 루틴 탭에서 되돌릴 수 있어요',
                   style: AppTextStyles.caption
                       .copyWith(color: AppColors.textDisabled),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          Row(
-            children: [
-              SizedBox(
-                width: 80,
-                child: OutlinedButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  style: OutlinedButton.styleFrom(minimumSize: const Size(0, 48)),
-                  child: const Text('취소'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: _saving ? null : _submit,
-                  style: ElevatedButton.styleFrom(minimumSize: const Size(0, 48)),
-                  child: _saving
-                      ? const CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 2)
-                      : Text('${_label(_selected)}로 미루기'),
                 ),
               ),
             ],

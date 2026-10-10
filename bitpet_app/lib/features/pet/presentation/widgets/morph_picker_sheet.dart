@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimens.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/widgets/app_sheet.dart';
 import '../../data/models/pet_models.dart';
 import '../../data/pet_repository.dart';
 import '../../providers/pet_provider.dart';
@@ -122,20 +123,25 @@ class _MorphPickerSheetState extends ConsumerState<MorphPickerSheet> {
   Widget build(BuildContext context) {
     final morphsAsync = ref.watch(morphsBySpeciesProvider(widget.species.id));
 
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.85,
-      decoration: const BoxDecoration(
-        color: AppColors.bg,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+    // 'SELECT MORPH' eyebrow 라벨·핸들·푸터 '취소'는 걷어냈다 — 제목·보조 줄·
+    // 주 버튼은 AppSheet 슬롯이 맡는다.
+    //
+    // 목록은 스크롤이 필요한 긴 목록이라 **높이가 정해져야** 한다 — AppSheet
+    // 안은 높이가 무한한 스크롤이라 Expanded 를 그대로 둘 수 없다.
+    return AppSheet(
+      title: '모프 선택',
+      subtitle: '${widget.species.nameKo} · 한글명·영문명·별칭으로 찾고, 없으면 직접 입력해요',
+      // 모프는 없어도 되는 정보라 0개 선택으로 닫는 것도 허용한다.
+      primaryLabel:
+          _selected.isEmpty ? '선택 안 함' : '${_selected.length}개 선택 · 완료',
+      onPrimary: () => _close(List<Morph>.from(_selected)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildHandle(),
-          _buildHeader(),
           _buildSearchField(),
           _buildSelectedStrip(),
-          Expanded(
+          SizedBox(
+            height: MediaQuery.of(context).size.height * 0.42,
             child: morphsAsync.when(
               // 목록이 오는 동안에도 **직접 입력은 막히지 않는다.** 스피너만 돌리면
               // 네트워크가 느린 자리에서 할 수 있는 게 기다리는 것뿐이 된다.
@@ -144,7 +150,6 @@ class _MorphPickerSheetState extends ConsumerState<MorphPickerSheet> {
               data: _buildList,
             ),
           ),
-          _buildBottomButtons(),
         ],
       ),
     );
@@ -152,41 +157,12 @@ class _MorphPickerSheetState extends ConsumerState<MorphPickerSheet> {
 
   // ─── Section builders ─────────────────────────────────────────────────────
 
-  Widget _buildHandle() => Center(
-        child: Container(
-          margin: const EdgeInsets.only(top: 12, bottom: 4),
-          width: 40,
-          height: 4,
-          decoration: BoxDecoration(
-            color: AppColors.border,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-      );
-
-  Widget _buildHeader() => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('SELECT MORPH', style: AppTextStyles.label),
-            const SizedBox(height: 4),
-            Text('모프 선택', style: AppTextStyles.h2),
-            const SizedBox(height: 4),
-            Text(
-              '${widget.species.nameKo} · 한글명·영문명·별칭으로 찾고, 없으면 직접 입력해요',
-              style: AppTextStyles.caption,
-            ),
-          ],
-        ),
-      );
-
   /// 검색 칸이 곧 **직접 입력 칸**이다. 칸을 둘로 나누면 "검색해도 없을 때만 쓰는 칸"
   /// 이라는 순서를 화면이 설명해야 하는데, 한 칸이면 치는 순간 아래에 '직접 추가'가
   /// 따라붙어 설명이 필요 없다. 라벨에 둘 다 적어둔 건 그 칸이 검색만 하는 줄 알고
   /// 직접 입력할 자리를 못 찾는 일이 있었기 때문이다.
   Widget _buildSearchField() => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+        padding: const EdgeInsets.only(top: 4),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -212,6 +188,7 @@ class _MorphPickerSheetState extends ConsumerState<MorphPickerSheet> {
                 suffixIcon: _query.isEmpty
                     ? null
                     : IconButton(
+                        tooltip: '검색어 지우기',
                         icon: const Icon(Icons.close, size: 20),
                         onPressed: () => setState(() {
                           _searchCtrl.clear();
@@ -231,14 +208,14 @@ class _MorphPickerSheetState extends ConsumerState<MorphPickerSheet> {
   Widget _buildSelectedStrip() {
     if (_selected.isEmpty) {
       return Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+        padding: const EdgeInsets.only(top: 16, bottom: 8),
         child: Text('아직 선택한 모프가 없어요', style: AppTextStyles.caption),
       );
     }
     return Container(
       width: double.infinity,
       constraints: const BoxConstraints(maxHeight: 132),
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      padding: const EdgeInsets.only(top: 16, bottom: 8),
       child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -265,7 +242,7 @@ class _MorphPickerSheetState extends ConsumerState<MorphPickerSheet> {
   Widget _buildLoading() {
     final q = _query.trim();
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.only(bottom: 8),
       children: [
         const Divider(height: 1, color: AppColors.border),
         const SizedBox(height: 8),
@@ -289,7 +266,7 @@ class _MorphPickerSheetState extends ConsumerState<MorphPickerSheet> {
   Widget _buildLoadError() {
     final q = _query.trim();
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+      padding: const EdgeInsets.only(top: 24, bottom: 8),
       children: [
         Center(
           child: Text(
@@ -334,7 +311,7 @@ class _MorphPickerSheetState extends ConsumerState<MorphPickerSheet> {
     final showAddTile = q.isNotEmpty && !exactExists;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.only(bottom: 8),
       children: [
         const Divider(height: 1, color: AppColors.border),
         const SizedBox(height: 8),
@@ -388,39 +365,6 @@ class _MorphPickerSheetState extends ConsumerState<MorphPickerSheet> {
     );
   }
 
-  Widget _buildBottomButtons() => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 72,
-                child: OutlinedButton(
-                  onPressed: () => _close(null),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(0, 52),
-                    padding: EdgeInsets.zero,
-                  ),
-                  child: const Text('취소'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              // 모프는 없어도 되는 정보라 0개 선택으로 닫는 것도 허용한다.
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () => _close(List<Morph>.from(_selected)),
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(0, 52),
-                  ),
-                  child: Text(_selected.isEmpty
-                      ? '선택 안 함'
-                      : '${_selected.length}개 선택 · 완료'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
 }
 
 // ─── 상단 고정 선택 칩 ────────────────────────────────────────────────────────
@@ -449,7 +393,7 @@ class _SelectedChip extends StatelessWidget {
             Text(
               morph.nameKo,
               style: const TextStyle(
-                fontSize: 12.5,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: AppColors.paleBg,
               ),
@@ -539,7 +483,7 @@ class _MorphRow extends StatelessWidget {
                           child: Text(
                             morph.nameEn!,
                             style: const TextStyle(
-                              fontSize: 11.5,
+                              fontSize: 12,
                               color: AppColors.paleInk2,
                             ),
                             overflow: TextOverflow.ellipsis,
@@ -558,7 +502,7 @@ class _MorphRow extends StatelessWidget {
                           child: const Text(
                             '직접 입력',
                             style: TextStyle(
-                              fontSize: 9.5,
+                              fontSize: 12,
                               fontWeight: FontWeight.w700,
                               color: AppColors.paleInk2,
                             ),
@@ -572,7 +516,7 @@ class _MorphRow extends StatelessWidget {
                           child: Icon(
                             Icons.warning_amber_rounded,
                             size: 16,
-                            color: Color(0xFFCC8800),
+                            color: AppColors.warning,
                           ),
                         ),
                       ],
@@ -584,7 +528,7 @@ class _MorphRow extends StatelessWidget {
                       child: Text(
                         '별칭: ${matchedAliases.join(', ')}',
                         style: const TextStyle(
-                          fontSize: 10.5,
+                          fontSize: 12,
                           color: AppColors.paleInk3,
                         ),
                       ),

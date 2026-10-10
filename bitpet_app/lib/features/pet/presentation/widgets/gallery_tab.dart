@@ -4,6 +4,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimens.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/upload/image_upload.dart';
+import '../../../../core/widgets/app_sheet.dart';
 import '../../../../core/widgets/confirm_modal.dart';
 import '../../../../core/widgets/toast_message.dart';
 import '../../data/models/photo_models.dart';
@@ -72,26 +73,28 @@ class _GalleryTabState extends ConsumerState<GalleryTab> {
   /// 사진 길게 누르기 → 뷰어를 거치지 않고 바로 메뉴
   Future<void> _onTileMenu(PetPhoto photo) async {
     final isProfile = widget.profilePhotoId == photo.id;
-    final action = await showModalBottomSheet<String>(
+    final action = await showAppSheet<String>(
       context: context,
-      backgroundColor: AppColors.card,
-      builder: (_) => SafeArea(
+      builder: (_) => AppSheet(
+        title: '사진',
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SizedBox(height: 8),
             if (!isProfile)
               ListTile(
-                leading: const Icon(Icons.star_outline, color: AppColors.primary),
+                contentPadding: EdgeInsets.zero,
+                leading:
+                    const Icon(Icons.star_outline, color: AppColors.primary),
                 title: const Text('대표 사진으로 설정'),
                 onTap: () => Navigator.pop(context, 'profile'),
               ),
             ListTile(
+              contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.delete_outline, color: AppColors.error),
               title: Text('삭제', style: TextStyle(color: AppColors.error)),
               onTap: () => Navigator.pop(context, 'delete'),
             ),
-            const SizedBox(height: 8),
           ],
         ),
       ),
@@ -272,7 +275,7 @@ class _PhotoTile extends StatelessWidget {
                 ),
                 child: Text(photo.tag!,
                     style: const TextStyle(
-                        fontSize: 9,
+                        fontSize: 12,
                         fontWeight: FontWeight.w700,
                         color: AppColors.primary)),
               ),

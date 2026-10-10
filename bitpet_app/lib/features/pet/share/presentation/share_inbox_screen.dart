@@ -20,7 +20,7 @@ class ShareInboxScreen extends ConsumerWidget {
     final batchesAsync = ref.watch(receivedBatchesProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.canvas,
       appBar: AppBar(title: const Text('받은 공유 초대')),
       body: batchesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),

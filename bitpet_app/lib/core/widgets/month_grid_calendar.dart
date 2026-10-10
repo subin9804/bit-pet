@@ -113,7 +113,7 @@ class MonthGridCalendar extends StatelessWidget {
                   _weekKo[i],
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: FontWeight.w700,
                     color: i == 0
                         ? AppColors.petCoralInk
@@ -313,7 +313,7 @@ class CalendarCellLine extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 9,
+                fontSize: 12,
                 height: 1.2,
                 fontWeight: FontWeight.w600,
                 color: muted ? AppColors.paleInk3 : AppColors.paleInk2,

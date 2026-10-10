@@ -33,7 +33,7 @@ class _MyActivityScreenState extends ConsumerState<MyActivityScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.canvas,
       appBar: AppBar(
         title: const Text('내 게시글'),
         bottom: TabBar(
@@ -341,7 +341,7 @@ class _MyCommentRow extends StatelessWidget {
                   child: Text(
                     comment.postTitle,
                     style: AppTextStyles.caption.copyWith(
-                      fontSize: 11,
+                      fontSize: 12,
                       fontStyle: dimmed ? FontStyle.italic : FontStyle.normal,
                     ),
                     maxLines: 1,

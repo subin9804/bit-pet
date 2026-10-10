@@ -8,7 +8,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import 'nfc_reader.dart';
 import 'pet_summary.dart';
-import '../../core/theme/app_dimens.dart';
+import '../widgets/app_sheet.dart';
 
 /// 태그를 찍어 개체 하나를 고르는 바텀시트. 고른 개체를 돌려주고, 취소하면 null.
 ///
@@ -24,11 +24,9 @@ Future<PetSummary?> showNfcPetScanSheet(
   String title = '이름표로 찾기',
   String? subtitle,
 }) {
-  return showModalBottomSheet<PetSummary>(
+  // 스캔 중에는 리더 모드로 NFC를 선점한다. 바깥을 눌러 닫으면 dispose에서 해제된다
+  return showAppSheet<PetSummary>(
     context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    // 스캔 중에는 리더 모드로 NFC를 선점한다. 바깥을 눌러 닫으면 dispose에서 해제된다
     builder: (_) => NfcPetScanSheet(title: title, subtitle: subtitle),
   );
 }
@@ -135,26 +133,16 @@ class _NfcPetScanSheetState extends ConsumerState<NfcPetScanSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.card,
-        border: Border(top: BorderSide(color: AppColors.paleLine)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-          child: Column(
+    // 주 버튼이 없는 시트다 — 태그를 찍는 것 말고 할 일이 없고,
+    // '취소'는 밖을 누르거나 내려 닫는 것으로 충분하다 (AppSheet 공통 규칙).
+    return AppSheet(
+      title: widget.title,
+      subtitle: widget.subtitle ?? '개체에 달린 이름표에 휴대폰 뒷면을 가까이 대주세요.',
+      child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(widget.title, style: AppTextStyles.h3),
-              const SizedBox(height: 4),
-              Text(
-                widget.subtitle ?? '개체에 달린 이름표에 휴대폰 뒷면을 가까이 대주세요.',
-                style: AppTextStyles.caption,
-              ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 16),
               Center(
                 child: Icon(
                   _nfcAvailable ? Icons.nfc : Icons.nfc_outlined,
@@ -185,29 +173,8 @@ class _NfcPetScanSheetState extends ConsumerState<NfcPetScanSheet> {
                   style: AppTextStyles.caption,
                 ),
               ],
-              const SizedBox(height: 32),
-              GestureDetector(
-                onTap: () => Navigator.of(context).pop(),
-                child: Container(
-                  height: 48,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    borderRadius: AppRadius.brMd,
-                    border: Border.all(color: AppColors.paleLine),
-                  ),
-                  child: const Text(
-                    '취소',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ),
-              ),
+              const SizedBox(height: 16),
             ],
-          ),
-        ),
       ),
     );
   }

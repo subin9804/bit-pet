@@ -78,7 +78,7 @@ class FeedComposerFields extends StatelessWidget {
           TextField(
             onChanged: (v) => onChanged(form.copyWith(memo: v)),
             maxLines: 2,
-            style: const TextStyle(fontSize: 13, color: AppColors.primary),
+            style: AppTextStyles.body,
             decoration: AppInputStyles.textarea(
               hintText: refused ? '거부 상황·컨디션 등 (선택)' : '특이사항 (선택)',
             ),
@@ -102,32 +102,16 @@ class FeedComposerFields extends StatelessWidget {
         const SizedBox(height: 8),
         DropdownButtonFormField<FoodType>(
           value: form.foodType,
-          decoration: InputDecoration(
-            hintText: '종류 선택',
-            hintStyle: TextStyle(fontSize: 14, color: AppColors.paleInk3, fontWeight: FontWeight.w500),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
-            border: UnderlineInputBorder(
-              borderRadius: AppRadius.brMd,
-              borderSide: const BorderSide(color: AppColors.paleLine),
-            ),
-            enabledBorder: UnderlineInputBorder(
-              borderRadius: AppRadius.brMd,
-              borderSide: const BorderSide(color: AppColors.paleLine),
-            ),
-            focusedBorder: UnderlineInputBorder(
-              borderRadius: AppRadius.brMd,
-              borderSide: BorderSide(color: bandColor, width: 1.5),
-            ),
-          ),
+          // 손으로 그린 밑줄·힌트였다 — 같은 시트의 다른 입력칸과 테두리
+          // 굵기·색이 미묘하게 달라 한 폼으로 안 읽혔다.
+          decoration: AppInputStyles.textarea(hintText: '종류 선택'),
           items: FoodType.all.map((ft) => DropdownMenuItem(
             value: ft,
-            child: Text(ft.label, style: const TextStyle(
-              fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.primary,
-            )),
+            child: Text(ft.label, style: AppTextStyles.bodyBold),
           )).toList(),
           onChanged: _selectType,
-          dropdownColor: AppColors.paleBg,
-          iconEnabledColor: AppColors.paleInk2,
+          dropdownColor: AppColors.surface,
+          iconEnabledColor: AppColors.ink3,
         ),
 
         // ── 서브 입력 ───────────────────────────────────────
@@ -160,27 +144,19 @@ class FeedSupplementChips extends StatelessWidget {
   });
 
   @override
+  // 손으로 그린 칩이었다 — 옆의 사이즈·마릿수 칩(공용 [AppChip])과 색·여백이
+  // 미묘하게 달라 같은 줄에서 두 종류로 보였다. 같은 위젯을 쓴다.
   Widget build(BuildContext context) => Wrap(
-    spacing: 7,
-    runSpacing: 7,
+    spacing: AppSpacing.sm,
+    runSpacing: AppSpacing.sm,
     children: FeedingSupplement.values.map((s) {
       final sel = selected == s;
-      return GestureDetector(
+      return AppChip(
+        label: s.label,
+        selected: sel,
         onTap: () => onSelect(sel ? null : s),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 140),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: sel ? AppColors.petLilac : AppColors.card,
-            border: Border.all(color: sel ? Colors.transparent : AppColors.paleLine),
-            borderRadius: AppRadius.brPill,
-          ),
-          child: Text(s.label,
-              style: TextStyle(
-                fontSize: 12, fontWeight: FontWeight.w700,
-                color: sel ? AppColors.primary : AppColors.paleInk2,
-              )),
-        ),
+        selectedColor: AppColors.brandTint,
+        selectedTextColor: AppColors.brandTintInk,
       );
     }).toList(),
   );
@@ -207,13 +183,17 @@ class FeedTypeChips extends StatelessWidget {
   Widget build(BuildContext context) => Wrap(
     spacing: 7,
     runSpacing: 7,
+    // 선택색은 **먹이 카테고리색(복숭아 `feedBand`)이 아니라 브랜드 틴트**다.
+    // 카테고리색은 "이 기록이 급여다"를 말하는 띠 색이고, 칩의 선택색은
+    // "내가 지금 이걸 골랐다"를 말한다 — 축이 다르다. 게다가 `feedBand` 는
+    // #EEECE6 베이지라 흰 칩과 거의 구분이 안 가서 고른 티가 안 났다.
     children: FoodType.all.map((ft) => GestureDetector(
       onTap: () => onSelect(ft),
       child: AppChip(
           label: ft.label,
           selected: selected == ft,
-          selectedColor: bandColor,
-          selectedTextColor: AppColors.primary),
+          selectedColor: AppColors.brandTint,
+          selectedTextColor: AppColors.brandTintInk),
     )).toList(),
   );
 }
@@ -242,21 +222,27 @@ class RefusedCheckbox extends StatelessWidget {
     child: AnimatedContainer(
       duration: const Duration(milliseconds: 140),
       padding: const EdgeInsets.fromLTRB(8, 8, 12, 8),
+      // ⚠️ 켜진 모양을 다른 칩과 **같게 두지 않는다.** 거식은 '골랐다'가 아니라
+      // "안 먹었다"는 사실이고, 브랜드 틴트로 칠하면 잘한 선택처럼 읽힌다.
+      // 빨간 테두리+글씨로 '주의 상태'로만 표시한다(채움 없음).
       decoration: BoxDecoration(
-        color: active ? bandColor : AppColors.card,
-        border: Border.all(color: active ? Colors.transparent : AppColors.paleLine),
+        color: active ? AppColors.bg : AppColors.surface,
+        border: Border.all(
+            color: active ? AppColors.error : AppColors.line,
+            width: active ? 1.5 : 1),
         borderRadius: AppRadius.brPill,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(active ? Icons.check_box : Icons.check_box_outline_blank,
-              size: 16, color: active ? AppColors.primary : AppColors.paleInk3),
-          const SizedBox(width: 8),
+              size: AppIconSize.sm,
+              color: active ? AppColors.error : AppColors.ink3),
+          const SizedBox(width: AppSpacing.sm),
           Text('거식',
-              style: TextStyle(
-                fontSize: 12.5, fontWeight: FontWeight.w700,
-                color: active ? AppColors.primary : AppColors.paleInk2,
+              style: AppTextStyles.caption.copyWith(
+                fontWeight: FontWeight.w700,
+                color: active ? AppColors.error : AppColors.ink2,
               )),
         ],
       ),
@@ -272,29 +258,17 @@ class _AddButton extends StatelessWidget {
   const _AddButton({required this.enabled, required this.bandColor, required this.onTap});
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: enabled ? onTap : null,
-    child: AnimatedContainer(
-      duration: const Duration(milliseconds: 140),
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: enabled ? bandColor : AppColors.paleBgAlt,
-        borderRadius: AppRadius.brLg,
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.add, size: 16, color: enabled ? AppColors.primary : AppColors.paleInk3),
-          const SizedBox(width: 8),
-          Text('추가하기',
-            style: TextStyle(
-              fontSize: 13, fontWeight: FontWeight.w700,
-              color: enabled ? AppColors.primary : AppColors.paleInk3,
-            )),
-        ],
-      ),
+  // 손으로 그린 버튼이었다(타입색 채움 + 12px 글자). 주 동작의 생김새를
+  // 화면마다 다르게 두지 않는다 — 테마 버튼 그대로, 높이는 시트의 52px.
+  // 폭이 유한한 자리(Column 의 stretch 자식)라 테마의 무한 minWidth 가
+  // 문제되지 않는다.
+  Widget build(BuildContext context) => SizedBox(
+    width: double.infinity,
+    height: 52,
+    child: ElevatedButton.icon(
+      onPressed: enabled ? onTap : null,
+      icon: const Icon(Icons.add, size: AppIconSize.md),
+      label: const Text('추가하기'),
     ),
   );
 }
@@ -306,11 +280,14 @@ class FeedFieldLabel extends StatelessWidget {
   const FeedFieldLabel(this.text, {this.optional = false});
 
   @override
+  // 'OPTIONAL' 9px mono 였다 — 본문 최소(12px)에 한참 못 미치고 한글 화면에
+  // 영문 라벨만 섞여 튀었다. 아코디언의 '선택' 과 같은 표기로 맞춘다.
   Widget build(BuildContext context) => Row(children: [
-    Text(text, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary, letterSpacing: -0.2)),
+    Text(text,
+        style: AppTextStyles.label.copyWith(color: AppColors.ink2)),
     if (optional) ...[
-      const SizedBox(width: 8),
-      Text('OPTIONAL', style: AppTextStyles.mono(9, FontWeight.w700, color: AppColors.paleInk3)),
+      const SizedBox(width: AppSpacing.sm),
+      Text('선택', style: AppTextStyles.label),
     ],
   ]);
 }
@@ -362,8 +339,8 @@ class _SizeCountInput extends StatelessWidget {
             child: AppChip(
                 label: s,
                 selected: sel,
-                selectedColor: bandColor,
-                selectedTextColor: AppColors.primary),
+                selectedColor: AppColors.brandTint,
+                selectedTextColor: AppColors.brandTintInk),
           );
         }).toList()),
         const SizedBox(height: 12),
@@ -392,10 +369,10 @@ class _MlOrVolumeInput extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(children: [
-          _ModeToggle(label: 'ml 직접입력', active: form.useMl, color: bandColor,
+          _ModeToggle(label: 'ml 직접입력', active: form.useMl,
               onTap: () => onChanged(form.copyWith(useMl: true, sizeLabel: null, mlAmount: null))),
           const SizedBox(width: 8),
-          _ModeToggle(label: '용량 선택', active: !form.useMl, color: bandColor,
+          _ModeToggle(label: '용량 선택', active: !form.useMl,
               onTap: () => onChanged(form.copyWith(useMl: false, mlAmount: null, sizeLabel: null))),
         ]),
         const SizedBox(height: 8),
@@ -405,7 +382,6 @@ class _MlOrVolumeInput extends StatelessWidget {
           _VolumeChips(
             options: form.foodType!.volumeOptions ?? [],
             selected: form.sizeLabel,
-            color: bandColor,
             onSelect: (v) => onChanged(form.copyWith(sizeLabel: form.sizeLabel == v ? null : v)),
           ),
       ],
@@ -427,10 +403,10 @@ class _VolumeInput extends StatelessWidget {
       FeedFieldLabel('용량', optional: true),
       const SizedBox(height: 8),
       Row(children: [
-        _ModeToggle(label: '용량 선택', active: !form.useCustomAmount, color: bandColor,
+        _ModeToggle(label: '용량 선택', active: !form.useCustomAmount,
             onTap: () => onChanged(form.copyWith(useCustomAmount: false, sizeLabel: null))),
         const SizedBox(width: 8),
-        _ModeToggle(label: '직접입력', active: form.useCustomAmount, color: bandColor,
+        _ModeToggle(label: '직접입력', active: form.useCustomAmount,
             onTap: () => onChanged(form.copyWith(useCustomAmount: true, sizeLabel: null))),
       ]),
       const SizedBox(height: 8),
@@ -446,7 +422,6 @@ class _VolumeInput extends StatelessWidget {
         _VolumeChips(
           options: form.foodType!.volumeOptions ?? [],
           selected: form.sizeLabel,
-          color: bandColor,
           onSelect: (v) => onChanged(form.copyWith(sizeLabel: form.sizeLabel == v ? null : v)),
         ),
     ],
@@ -477,16 +452,9 @@ class _CustomTextInput extends StatelessWidget {
           // 시점이 통째로 바뀐다. 칩을 고르는 것과 이름을 적는 것은 별개의 동작이라
           // 사용자가 입력란을 직접 누를 때 키보드가 올라오는 편이 덜 어지럽다.
           maxLength: 50,
-          style: const TextStyle(fontSize: 14, color: AppColors.primary),
-          decoration: InputDecoration(
-            hintText: '이름 직접 입력',
-            counterText: '',
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            border: UnderlineInputBorder(borderRadius: AppRadius.brMd,
-                borderSide: const BorderSide(color: AppColors.paleLine)),
-            enabledBorder: UnderlineInputBorder(borderRadius: AppRadius.brMd,
-                borderSide: const BorderSide(color: AppColors.paleLine)),
-          ),
+          style: AppTextStyles.body,
+          decoration: AppInputStyles.textarea(hintText: '이름 직접 입력')
+              .copyWith(counterText: ''),
         ),
         const SizedBox(height: 12),
         FeedFieldLabel('사이즈', optional: true),
@@ -498,8 +466,8 @@ class _CustomTextInput extends StatelessWidget {
             child: AppChip(
                 label: s,
                 selected: sel,
-                selectedColor: bandColor,
-                selectedTextColor: AppColors.primary),
+                selectedColor: AppColors.brandTint,
+                selectedTextColor: AppColors.brandTintInk),
           );
         }).toList()),
         const SizedBox(height: 12),
@@ -527,16 +495,9 @@ class _AmountTextInput extends StatelessWidget {
     initialValue: initial,
     onChanged: onChanged,
     maxLength: kAmountTextMaxLength,
-    style: const TextStyle(fontSize: 14, color: AppColors.primary),
-    decoration: InputDecoration(
-      hintText: hintText,
-      counterText: '',
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      border: UnderlineInputBorder(borderRadius: AppRadius.brMd,
-          borderSide: const BorderSide(color: AppColors.paleLine)),
-      enabledBorder: UnderlineInputBorder(borderRadius: AppRadius.brMd,
-          borderSide: const BorderSide(color: AppColors.paleLine)),
-    ),
+    style: AppTextStyles.body,
+    decoration: AppInputStyles.textarea(hintText: hintText)
+        .copyWith(counterText: ''),
   );
 }
 
@@ -552,8 +513,8 @@ class _CountStepper extends StatelessWidget {
     children: [
       Container(
         decoration: BoxDecoration(
-          color: AppColors.paleBg,
-          border: Border.all(color: AppColors.paleLine),
+          color: AppColors.canvas,
+          border: Border.all(color: AppColors.line),
           borderRadius: AppRadius.brMd,
         ),
         child: Row(children: [
@@ -574,8 +535,8 @@ class _CountStepper extends StatelessWidget {
           child: AppChip(
               label: '$n마리',
               selected: sel,
-              selectedColor: bandColor,
-              selectedTextColor: AppColors.primary),
+              selectedColor: AppColors.brandTint,
+              selectedTextColor: AppColors.brandTintInk),
         );
       }).toList()),
     ],
@@ -592,16 +553,9 @@ class _MlInput extends StatelessWidget {
   Widget build(BuildContext context) => TextField(
     keyboardType: const TextInputType.numberWithOptions(decimal: true),
     inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
-    style: const TextStyle(fontSize: 14, color: AppColors.primary),
-    decoration: InputDecoration(
-      hintText: '용량 (ml)',
-      suffixText: 'ml',
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      border: UnderlineInputBorder(borderRadius: AppRadius.brMd,
-          borderSide: const BorderSide(color: AppColors.paleLine)),
-      enabledBorder: UnderlineInputBorder(borderRadius: AppRadius.brMd,
-          borderSide: const BorderSide(color: AppColors.paleLine)),
-    ),
+    style: AppTextStyles.body,
+    decoration: AppInputStyles.textarea(hintText: '용량 (ml)')
+        .copyWith(suffixText: 'ml'),
     onChanged: (v) => onChanged(double.tryParse(v)),
   );
 }
@@ -610,9 +564,9 @@ class _MlInput extends StatelessWidget {
 class _VolumeChips extends StatelessWidget {
   final List<String> options;
   final String? selected;
-  final Color color;
   final ValueChanged<String> onSelect;
-  const _VolumeChips({required this.options, required this.selected, required this.color, required this.onSelect});
+  const _VolumeChips(
+      {required this.options, required this.selected, required this.onSelect});
 
   @override
   Widget build(BuildContext context) => Wrap(
@@ -622,8 +576,8 @@ class _VolumeChips extends StatelessWidget {
       child: AppChip(
           label: o,
           selected: selected == o,
-          selectedColor: color,
-          selectedTextColor: AppColors.primary),
+          selectedColor: AppColors.brandTint,
+          selectedTextColor: AppColors.brandTintInk),
     )).toList(),
   );
 }
@@ -632,24 +586,26 @@ class _VolumeChips extends StatelessWidget {
 class _ModeToggle extends StatelessWidget {
   final String label;
   final bool active;
-  final Color color;
   final VoidCallback onTap;
-  const _ModeToggle({required this.label, required this.active, required this.color, required this.onTap});
+  const _ModeToggle(
+      {required this.label, required this.active, required this.onTap});
 
   @override
   Widget build(BuildContext context) => GestureDetector(
     onTap: onTap,
     child: AnimatedContainer(
       duration: const Duration(milliseconds: 140),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
       decoration: BoxDecoration(
-        color: active ? color : AppColors.card,
-        border: Border.all(color: active ? Colors.transparent : AppColors.paleLine),
+        color: active ? AppColors.brandTint : AppColors.surface,
+        border: Border.all(
+            color: active ? AppColors.brandAction : AppColors.line),
         borderRadius: AppRadius.brPill,
       ),
-      child: Text(label, style: TextStyle(
-        fontSize: 12, fontWeight: FontWeight.w700,
-        color: active ? AppColors.primary : AppColors.paleInk2,
+      child: Text(label, style: AppTextStyles.label.copyWith(
+        fontWeight: FontWeight.w700,
+        color: active ? AppColors.brandTintInk : AppColors.ink2,
       )),
     ),
   );

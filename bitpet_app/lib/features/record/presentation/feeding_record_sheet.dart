@@ -483,7 +483,7 @@ class _SavedStatusRow extends StatelessWidget {
                 Text(
                   '수정하려면 미완료로 되돌린 뒤 다시 완료하세요',
                   style:
-                      AppTextStyles.caption.copyWith(fontSize: 10),
+                      AppTextStyles.caption.copyWith(fontSize: 12),
                 ),
               ],
             ),

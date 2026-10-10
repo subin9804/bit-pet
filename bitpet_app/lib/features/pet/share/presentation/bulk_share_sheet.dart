@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/api/api_response.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/widgets/app_sheet.dart';
 import '../../../../core/widgets/toast_message.dart';
 import '../data/models/share_models.dart';
 import '../data/share_repository.dart';
@@ -15,16 +16,9 @@ Future<bool?> showBulkShareSheet(
   required List<int> petIds,
   required ShareInviteType inviteType,
 }) {
-  return showModalBottomSheet<bool>(
+  return showAppSheet<bool>(
     context: context,
-    isScrollControlled: true,
-    backgroundColor: AppColors.surface,
-    builder: (_) => Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
-      child: _BulkShareSheet(petIds: petIds, inviteType: inviteType),
-    ),
+    builder: (_) => _BulkShareSheet(petIds: petIds, inviteType: inviteType),
   );
 }
 
@@ -77,54 +71,23 @@ class _BulkShareSheetState extends ConsumerState<_BulkShareSheet> {
   @override
   Widget build(BuildContext context) {
     final title = _isTransfer ? '분양 보내기' : '함께 키우기';
-    final accent = _isTransfer ? AppColors.error : AppColors.primary;
 
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: AppColors.paleLine,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            Row(
-              children: [
-                Icon(_isTransfer ? Icons.swap_horiz : Icons.group_add,
-                    color: accent, size: 20),
-                const SizedBox(width: 8),
-                Text(title, style: AppTextStyles.h2),
-                const SizedBox(width: 8),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text('$_count마리',
-                      style: AppTextStyles.label.copyWith(
-                          color: accent, fontWeight: FontWeight.w700)),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _isTransfer
-                  ? '선택한 $_count마리의 소유권이 상대방에게 넘어갑니다. 나는 사육자로 남아 기록은 계속 볼 수 있어요.'
-                  : '선택한 $_count마리를 상대방과 함께 관리합니다. 상대방이 사육자로 추가돼요.',
-              style: AppTextStyles.caption,
-            ),
-            const SizedBox(height: 16),
+    // 마릿수는 제목 옆 알약이 아니라 보조 줄에 둔다 — 제목 줄에 아이콘·알약이
+    // 같이 붙어 있어서 긴 제목이 눌리던 자리다 (AppSheet 슬롯 2).
+    return AppSheet(
+      title: title,
+      subtitle: _isTransfer
+          ? '선택한 $_count마리의 소유권이 상대방에게 넘어갑니다. 나는 사육자로 남아 기록은 계속 볼 수 있어요.'
+          : '선택한 $_count마리를 상대방과 함께 관리합니다. 상대방이 사육자로 추가돼요.',
+      busy: _busy,
+      isDangerous: _isTransfer,
+      primaryLabel:
+          _isTransfer ? '$_count마리 분양 보내기' : '$_count마리 함께 키우기',
+      onPrimary: _send,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
             TextField(
               controller: _codeController,
               textCapitalization: TextCapitalization.characters,
@@ -163,19 +126,7 @@ class _BulkShareSheetState extends ConsumerState<_BulkShareSheet> {
                 ),
               ),
             ],
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: _busy ? null : _send,
-                style: FilledButton.styleFrom(backgroundColor: accent),
-                child: Text(_busy
-                    ? '전송 중...'
-                    : (_isTransfer ? '$_count마리 분양 보내기' : '$_count마리 함께 키우기')),
-              ),
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }
