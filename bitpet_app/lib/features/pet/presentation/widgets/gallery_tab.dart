@@ -6,6 +6,7 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/upload/image_upload.dart';
 import '../../../../core/widgets/app_sheet.dart';
 import '../../../../core/widgets/confirm_modal.dart';
+import '../../../../core/widgets/empty_state.dart';
 import '../../../../core/widgets/toast_message.dart';
 import '../../data/models/photo_models.dart';
 import '../../data/pet_repository.dart';
@@ -84,8 +85,10 @@ class _GalleryTabState extends ConsumerState<GalleryTab> {
             if (!isProfile)
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading:
-                    const Icon(Icons.star_outline, color: AppColors.primary),
+                // `primary` 는 먹색이다 — 대표 사진은 이 개체의 '고른 것'이라
+                // 브랜드색이 맞다.
+                leading: const Icon(Icons.star_outline,
+                    color: AppColors.brandAction),
                 title: const Text('대표 사진으로 설정'),
                 onTap: () => Navigator.pop(context, 'profile'),
               ),
@@ -149,26 +152,42 @@ class _GalleryTabState extends ConsumerState<GalleryTab> {
             crossAxisCount: 3,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            crossAxisSpacing: 6,
-            mainAxisSpacing: 6,
+            crossAxisSpacing: AppSpacing.sm,
+            mainAxisSpacing: AppSpacing.sm,
             children: List.generate(
                 9,
-                (i) => Container(
-                      decoration: const BoxDecoration(color: AppColors.paleBgAlt),
+                // 사진 타일이 들어올 자리라 **모양이 같아야** 한다 — 각진
+                // 회색 네모가 떴다가 둥근 사진으로 바뀌면 한 번 덜컥한다.
+                (_) => Container(
+                      decoration: const BoxDecoration(
+                        color: AppColors.bgAlt,
+                        borderRadius: AppRadius.brMd,
+                      ),
                     )),
           ),
-          error: (_, __) => const SizedBox.shrink(),
+          error: (_, _) => const SizedBox.shrink(),
           data: (photos) {
             if (photos.isEmpty) {
-              return const _EmptyGallery();
+              // 앱의 다른 빈 자리와 같은 `EmptyState` 로 — 48px 회색
+              // 아이콘 한 개는 "비었다"보다 "꺼졌다"로 읽힌다.
+              return Container(
+                width: double.infinity,
+                decoration: AppDecor.cardRaised,
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                child: const EmptyState(
+                  icon: Icons.photo_library_outlined,
+                  message: '아직 사진이 없어요',
+                  subMessage: '아래 버튼으로 첫 사진을 추가해 보세요',
+                ),
+              );
             }
             return GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 3,
-                crossAxisSpacing: 6,
-                mainAxisSpacing: 6,
+                crossAxisSpacing: AppSpacing.sm,
+                mainAxisSpacing: AppSpacing.sm,
               ),
               itemCount: photos.length,
               itemBuilder: (_, i) => _PhotoTile(
@@ -180,18 +199,19 @@ class _GalleryTabState extends ConsumerState<GalleryTab> {
             );
           },
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: AppSpacing.cardGap),
 
         // 사진 추가 버튼
         GestureDetector(
           onTap: _uploading ? null : _addPhoto,
           child: Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 16),
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
             decoration: BoxDecoration(
               borderRadius: AppRadius.brLg,
-              color: AppColors.card,
-              border: Border.all(color: AppColors.paleLine, width: 1.5),
+              color: AppColors.surface,
+              border: Border.all(color: AppColors.line, width: 1.5),
+              boxShadow: AppShadows.elev1,
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -205,13 +225,12 @@ class _GalleryTabState extends ConsumerState<GalleryTab> {
                   )
                 else
                   const Icon(Icons.camera_alt_outlined,
-                      size: 20, color: AppColors.paleInk2),
-                const SizedBox(width: 8),
+                      size: AppIconSize.md, color: AppColors.ink2),
+                const SizedBox(width: AppSpacing.sm),
                 Text(_uploading ? '업로드 중…' : '사진 추가',
-                    style: const TextStyle(
-                        fontSize: 13,
+                    style: AppTextStyles.caption.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: AppColors.paleInk2)),
+                        color: AppColors.ink2)),
               ],
             ),
           ),
@@ -239,9 +258,14 @@ class _PhotoTile extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       onLongPress: onLongPress,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
+      // 타일이 **각진 네모**였다 — 둥근 모서리가 전부인 테마에서 사진만
+      // 직각이라 갤러리 탭만 다른 앱처럼 보였다. 배지·태그가 모서리에
+      // 붙어 있어서 `ClipRRect` 로 한 번에 깎는다.
+      child: ClipRRect(
+        borderRadius: AppRadius.brMd,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
           // 그리드 썸네일은 원본을 그대로 띄우지 않는다 — 한 화면에 열 몇 장이
           // 올라오는 자리라 원본 해상도로 디코딩하면 메모리가 순식간에 찬다.
           // `displayUrl` 은 서버 축소본(512px)이고, 없으면 원본으로 떨어진다
@@ -256,68 +280,63 @@ class _PhotoTile extends StatelessWidget {
                   color: AppColors.ink3, size: 28),
             ),
           ),
-          if (isProfile)
-            Positioned(
-              top: 4, left: 4,
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: const BoxDecoration(color: AppColors.primary),
-                child: const Icon(Icons.star, size: 12, color: Colors.white),
-              ),
-            ),
-          if (photo.tag != null)
-            Positioned(
-              bottom: 4, left: 4,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.7),
+            if (isProfile)
+              Positioned(
+                top: AppSpacing.xs, left: AppSpacing.xs,
+                // 먹색 네모였다. 대표 표시는 '고른 것'이라 브랜드색이고,
+                // 별 하나만 담는 자리라 원이 맞다.
+                child: Container(
+                  width: 20,
+                  height: 20,
+                  alignment: Alignment.center,
+                  decoration: const BoxDecoration(
+                    color: AppColors.brandAction,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.star,
+                      size: AppIconSize.badge, color: AppColors.bg),
                 ),
-                child: Text(photo.tag!,
-                    style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.primary)),
+              ),
+            if (photo.tag != null)
+              Positioned(
+                bottom: AppSpacing.xs, left: AppSpacing.xs,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface.withValues(alpha: 0.9),
+                    borderRadius: AppRadius.brPill,
+                  ),
+                  child: Text(photo.tag!,
+                      style: AppTextStyles.label.copyWith(
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0,
+                          color: AppColors.ink)),
+                ),
+              ),
+            Positioned(
+              top: AppSpacing.xs, right: AppSpacing.xs,
+              // 사진 위에 글씨를 바로 얹으면 밝은 사진에선 먹색이, 어두운
+              // 사진에선 흰색이 사라진다. 어두운 알약을 깔아 어느 사진에서나
+              // 같은 밝기로 읽히게 한다.
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.xs, vertical: 1),
+                decoration: BoxDecoration(
+                  color: AppColors.ink.withValues(alpha: 0.4),
+                  borderRadius: AppRadius.brPill,
+                ),
+                child: Text(
+                  '${photo.createdAt.month}.${photo.createdAt.day}',
+                  style: AppTextStyles.mono(9, FontWeight.w700,
+                      color: AppColors.bg),
+                ),
               ),
             ),
-          Positioned(
-            top: 4, right: 4,
-            child: Text(
-              '${photo.createdAt.month}.${photo.createdAt.day}',
-              style: AppTextStyles.mono(8, FontWeight.w700,
-                  color: AppColors.primary.withValues(alpha: 0.7)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _EmptyGallery extends StatelessWidget {
-  const _EmptyGallery();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 20),
-      child: Center(
-        child: Column(
-          children: [
-            Icon(Icons.photo_library_outlined,
-                size: 48, color: AppColors.paleInk3),
-            const SizedBox(height: 12),
-            Text('아직 사진이 없어요',
-                style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.paleInk3)),
-            const SizedBox(height: 4),
-            Text('아래 버튼으로 첫 사진을 추가해 보세요',
-                style: TextStyle(fontSize: 12, color: AppColors.paleInk3)),
           ],
         ),
       ),
     );
   }
 }
+

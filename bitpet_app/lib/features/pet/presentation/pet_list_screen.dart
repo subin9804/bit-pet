@@ -102,19 +102,14 @@ class PetListScreen extends ConsumerWidget {
 
   PreferredSizeWidget _normalAppBar(BuildContext context, WidgetRef ref) {
     return AppBar(
-      backgroundColor: AppColors.bg,
-      title: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('manage',
-              style: AppTextStyles.label.copyWith(
-                  fontSize: 12,
-                  color: AppColors.textDisabled,
-                  letterSpacing: 1.5)),
-          const Text('내 개체 관리'),
-        ],
-      ),
-      titleSpacing: 20,
+      // ⚠️ 흰 AppBar + 연회색 본문이면 머리만 다른 색으로 떠 있어 경계선이
+      // 생긴다 — 한 화면이 두 장으로 쪼개져 보였다. 헤더도 바탕색으로.
+      backgroundColor: AppColors.canvas,
+      // 제목 위에 영문 소제목('manage', 12px/자간 1.5)을 얹고 있었다.
+      // 홈 헤더에서 걷어낸 것과 같은 종류의 장식이다 — 두 줄짜리 제목이 되어
+      // AppBar 만 높아지고, 읽을 정보는 아래 한 줄뿐이다. 내비 라벨과 같은 말로.
+      title: const Text('내 개체'),
+      titleSpacing: AppSpacing.xl,
       actions: [
         TextButton.icon(
           onPressed: () =>
@@ -124,20 +119,20 @@ class PetListScreen extends ConsumerWidget {
           style: TextButton.styleFrom(
             foregroundColor: AppColors.ink2,
             minimumSize: const Size(0, 36),
-            padding: const EdgeInsets.symmetric(horizontal: 8),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
             textStyle:
-                const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                AppTextStyles.caption.copyWith(fontWeight: FontWeight.w700),
           ),
         ),
         IconButton(
           onPressed: () => context.push('/pets/bulk-new'),
-          icon: const Icon(Icons.library_add_outlined, size: 20),
-          color: AppColors.paleInk2,
+          icon: const Icon(Icons.library_add_outlined, size: AppIconSize.md),
+          color: AppColors.ink3,
           tooltip: '개체 일괄 등록',
           visualDensity: VisualDensity.compact,
         ),
         Padding(
-          padding: const EdgeInsets.only(right: 16, left: 0),
+          padding: const EdgeInsets.only(right: AppSpacing.xl, left: 0),
           child: ElevatedButton.icon(
             onPressed: () => context.push('/pets/new'),
             icon: const Icon(Icons.add, size: 16),
@@ -146,8 +141,10 @@ class PetListScreen extends ConsumerWidget {
               backgroundColor: AppColors.brandAction,
               foregroundColor: AppColors.bg,
               minimumSize: const Size(0, 36),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-              textStyle: AppTextStyles.bodyBold.copyWith(fontSize: 13),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg, vertical: 0),
+              textStyle:
+                  AppTextStyles.caption.copyWith(fontWeight: FontWeight.w700),
             ),
           ),
         ),
@@ -158,7 +155,7 @@ class PetListScreen extends ConsumerWidget {
   PreferredSizeWidget _selectionAppBar(
       BuildContext context, WidgetRef ref, int count) {
     return AppBar(
-      backgroundColor: AppColors.bg,
+      backgroundColor: AppColors.canvas,
       leading: IconButton(
         tooltip: '선택 모드 끝내기',
         icon: const Icon(Icons.close),
@@ -170,9 +167,9 @@ class PetListScreen extends ConsumerWidget {
         IconButton(
           onPressed:
               count == 0 ? null : () => _confirmAndDelete(context, ref, count),
-          icon: const Icon(Icons.delete_outline, size: 20),
+          icon: const Icon(Icons.delete_outline, size: AppIconSize.md),
           color: AppColors.error,
-          disabledColor: AppColors.textDisabled,
+          disabledColor: AppColors.ink3,
           tooltip: '선택한 개체 삭제',
         ),
         const SizedBox(width: 4),
@@ -182,11 +179,11 @@ class PetListScreen extends ConsumerWidget {
         child: Container(
           width: double.infinity,
           alignment: Alignment.centerLeft,
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.sm),
           child: Text(
             '함께 키우거나 분양·삭제할 개체를 선택하세요',
-            style: AppTextStyles.caption
-                .copyWith(color: AppColors.textSecondary),
+            style: AppTextStyles.caption,
           ),
         ),
       ),
@@ -215,10 +212,11 @@ class _ShareActionBar extends ConsumerWidget {
     final hasSelection = ref.watch(selectedPetIdsProvider).isNotEmpty;
     return SafeArea(
       child: Container(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+        padding: const EdgeInsets.fromLTRB(
+            AppSpacing.xl, AppSpacing.sm, AppSpacing.xl, AppSpacing.sm),
         decoration: const BoxDecoration(
           color: AppColors.surface,
-          border: Border(top: BorderSide(color: AppColors.paleLine)),
+          border: Border(top: BorderSide(color: AppColors.line)),
         ),
         child: Row(
           children: [
@@ -275,9 +273,12 @@ class _SelectionAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final filled = bg != null;
+    // ⚠️ 비워둔 쪽(함께 키우기)의 기본색이 `primary` 였다 — 이 토큰은 초록이
+    // 아니라 **먹색**이라 테두리·글씨가 검게 찍혀 옆의 코랄(분양)보다 무거워
+    // 보였다. 보조 액션이지만 '권하는' 동작이므로 브랜드 틴트 계열로 간다.
     final content = enabled
-        ? (fg ?? AppColors.primary)
-        : AppColors.textDisabled;
+        ? (fg ?? AppColors.brandTintInk)
+        : AppColors.ink3;
 
     return GestureDetector(
       onTap: enabled ? onTap : null,
@@ -288,25 +289,21 @@ class _SelectionAction extends StatelessWidget {
           height: 46,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: filled ? bg : AppColors.card,
+            color: filled ? bg : AppColors.surface,
             border: Border.all(
               color: filled
-                  ? (fg ?? AppColors.primary).withValues(alpha: 0.28)
-                  : (enabled ? AppColors.primary : AppColors.paleLine),
+                  ? (fg ?? AppColors.brandTintInk).withValues(alpha: 0.28)
+                  : (enabled ? AppColors.brandAction : AppColors.line),
             ),
             borderRadius: AppRadius.brMd,
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 20, color: content),
-              const SizedBox(width: 8),
+              Icon(icon, size: AppIconSize.md, color: content),
+              const SizedBox(width: AppSpacing.sm),
               Text(label,
-                  style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.2,
-                      color: content)),
+                  style: AppTextStyles.bodyBold.copyWith(color: content)),
             ],
           ),
         ),
@@ -348,80 +345,60 @@ class _PetTabState extends ConsumerState<_PetTab> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-          child: TextField(
-            onChanged: (v) => setState(() => _query = v),
-            decoration: const InputDecoration(
-              hintText: '이름 또는 종 검색...',
-              prefixIcon: Icon(Icons.search, size: 20),
-              contentPadding: EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.sm),
+          // 테마 기본 입력칸은 **밑줄**이다. 연회색 바탕에 밑줄 하나만 그어두면
+          // 옛 테마 그대로 보인다 — 바탕 위의 흰 카드로 띄워 다른 섹션과 같은 층에.
+          child: Container(
+            decoration: AppDecor.card,
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            child: TextField(
+              onChanged: (v) => setState(() => _query = v),
+              style: AppTextStyles.body,
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: '이름 또는 종 검색',
+                hintStyle:
+                    AppTextStyles.body.copyWith(color: AppColors.ink3),
+                prefixIcon: const Icon(Icons.search,
+                    size: AppIconSize.md, color: AppColors.ink3),
+                prefixIconConstraints: const BoxConstraints(
+                    minWidth: AppIconSize.lg, minHeight: AppIconSize.lg),
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                contentPadding: const EdgeInsets.fromLTRB(
+                    AppSpacing.sm, AppSpacing.md, 0, AppSpacing.md),
+              ),
             ),
           ),
         ),
         SizedBox(
           height: AppChip.barHeight,
-          child: Row(
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
             children: [
-              Expanded(
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  children: [
-                    AppChip(
-                      label: '전체',
-                      selected: _selectedSpeciesId == null,
-                      onTap: () => setState(() => _selectedSpeciesId = null),
-                    ),
-                    const SizedBox(width: 8),
-                    ...speciesChips.entries.map(
-                      (e) => Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: AppChip(
-                          label: e.value,
-                          selected: _selectedSpeciesId == e.key,
-                          onTap: () =>
-                              setState(() => _selectedSpeciesId = e.key),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+              AppChip(
+                label: '전체',
+                selected: _selectedSpeciesId == null,
+                onTap: () => setState(() => _selectedSpeciesId = null),
               ),
-              Row(
-                children: [
-                  IconButton(
-                    tooltip: '2열로 보기',
-                    icon: Icon(Icons.grid_view,
-                        color: isGridView
-                            ? AppColors.primary
-                            : AppColors.textDisabled,
-                        size: 20),
-                    onPressed: () =>
-                        ref.read(petListGridProvider.notifier).set(true),
-                    padding: EdgeInsets.zero,
-                    constraints:
-                        const BoxConstraints(minWidth: 32, minHeight: 32),
+              const SizedBox(width: AppSpacing.sm),
+              ...speciesChips.entries.map(
+                (e) => Padding(
+                  padding: const EdgeInsets.only(right: AppSpacing.sm),
+                  child: AppChip(
+                    label: e.value,
+                    selected: _selectedSpeciesId == e.key,
+                    onTap: () => setState(() => _selectedSpeciesId = e.key),
                   ),
-                  IconButton(
-                    tooltip: '1열로 보기',
-                    icon: Icon(Icons.list,
-                        color: !isGridView
-                            ? AppColors.primary
-                            : AppColors.textDisabled,
-                        size: 20),
-                    onPressed: () =>
-                        ref.read(petListGridProvider.notifier).set(false),
-                    padding: EdgeInsets.zero,
-                    constraints:
-                        const BoxConstraints(minWidth: 32, minHeight: 32),
-                  ),
-                  const SizedBox(width: 8),
-                ],
+                ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppSpacing.xs),
         Expanded(
           child: petsAsync.when(
             loading: () => const SkeletonCardList(),
@@ -491,7 +468,13 @@ class _PetTabState extends ConsumerState<_PetTab> {
                 onRefresh: () => ref.read(petListProvider.notifier).load(),
                 child: Column(
                   children: [
-                    _PetCountLine(shown: pets.length, total: allPets.length),
+                    _PetCountLine(
+                      shown: pets.length,
+                      total: allPets.length,
+                      isGrid: isGridView,
+                      onViewChanged: (v) =>
+                          ref.read(petListGridProvider.notifier).set(v),
+                    ),
                     if (hiddenShared > 0) _SharedHiddenNotice(hiddenShared),
                     Expanded(
                       child: isGridView
@@ -509,6 +492,83 @@ class _PetTabState extends ConsumerState<_PetTab> {
   }
 }
 
+/// 격자 ↔ 목록 보기 토글.
+///
+/// ⚠️ 전에는 `IconButton` 2개를 나란히 뒀는데, **아이콘이 거기 있는 줄도 모른다**는
+/// 지적을 받았다. 색만 다른 두 아이콘은 "버튼"으로 보이지 않는다 —
+/// 눌릴 수 있다는 걸 보여주는 건 테두리와 바탕이다. 흰 알약 안에서 고른 쪽만
+/// 틴트로 칠하는 분절 토글(segmented)로 바꿨다: 선택 상태와 나머지 선택지가
+/// 한눈에 같이 보인다.
+class _ViewToggle extends StatelessWidget {
+  final bool isGrid;
+  final ValueChanged<bool> onChanged;
+  const _ViewToggle({required this.isGrid, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: AppRadius.brPill,
+        border: Border.all(color: AppColors.line),
+      ),
+      child: Row(
+        children: [
+          _ViewToggleTile(
+            icon: Icons.grid_view,
+            tooltip: '격자로 보기',
+            active: isGrid,
+            onTap: () => onChanged(true),
+          ),
+          _ViewToggleTile(
+            icon: Icons.view_agenda_outlined,
+            tooltip: '목록으로 보기',
+            active: !isGrid,
+            onTap: () => onChanged(false),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ViewToggleTile extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final bool active;
+  final VoidCallback onTap;
+  const _ViewToggleTile({
+    required this.icon,
+    required this.tooltip,
+    required this.active,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          width: 36,
+          height: 28,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: active ? AppColors.brandTint : Colors.transparent,
+            borderRadius: AppRadius.brPill,
+          ),
+          child: Icon(icon,
+              size: 18,
+              color: active ? AppColors.brandTintInk : AppColors.ink3),
+        ),
+      ),
+    );
+  }
+}
+
 /// 지금 보고 있는 개체 수 한 줄.
 ///
 /// 검색·종 필터가 걸려 있으면 '전체 N마리 중'을 함께 보여준다 — 숫자만 띄우면
@@ -516,27 +576,46 @@ class _PetTabState extends ConsumerState<_PetTab> {
 class _PetCountLine extends StatelessWidget {
   final int shown;
   final int total;
-  const _PetCountLine({required this.shown, required this.total});
+
+  /// 보기 방식 토글을 이 줄의 오른쪽 끝에 함께 그린다.
+  /// ℹ️ 개체가 하나도 없으면 이 줄 자체가 안 그려지므로 토글도 사라진다 —
+  ///    보여줄 게 없는 자리에서 보기 방식을 고르게 할 이유가 없다.
+  final bool isGrid;
+  final ValueChanged<bool> onViewChanged;
+
+  const _PetCountLine({
+    required this.shown,
+    required this.total,
+    required this.isGrid,
+    required this.onViewChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
     final filtered = shown != total;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 6, 16, 2),
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.xl, AppSpacing.xs, AppSpacing.xl, AppSpacing.sm),
       child: Row(
         children: [
           Text(
             filtered ? '$shown마리' : '총 $shown마리',
             style: AppTextStyles.caption.copyWith(
-              color: AppColors.paleInk2,
+              color: AppColors.ink2,
               fontWeight: FontWeight.w600,
             ),
           ),
           if (filtered)
             Text(
               ' · 전체 $total마리 중',
-              style: AppTextStyles.caption.copyWith(color: AppColors.paleInk3),
+              style: AppTextStyles.caption.copyWith(color: AppColors.ink3),
             ),
+          const Spacer(),
+          // 보기 토글은 필터칩 줄 끝에 있었다. 거기는 가로 스크롤이 끝나는
+          // 자리라 칩이 많으면 칩이 토글에 바짝 붙어 **같은 줄의 또 다른 칩**
+          // 처럼 보였다. 이 줄은 스크롤이 없고 "지금 무엇을 보고 있나"를
+          // 말하는 줄이라 보기 방식과 축이 같다.
+          _ViewToggle(isGrid: isGrid, onChanged: onViewChanged),
         ],
       ),
     );
@@ -553,22 +632,27 @@ class _SharedHiddenNotice extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      margin: const EdgeInsets.fromLTRB(
+          AppSpacing.xl, AppSpacing.xs, AppSpacing.xl, 0),
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+      // 연회색 바탕 위의 연회색 박스였다 — 아무 경계도 못 만든다.
+      // 앱 규칙대로 바탕은 canvas, 내용은 흰 카드.
       decoration: BoxDecoration(
-        color: AppColors.paleBgAlt,
-        border: Border.all(color: AppColors.paleLineSoft),
+        color: AppColors.surface,
+        border: Border.all(color: AppColors.line),
         borderRadius: AppRadius.brMd,
       ),
       child: Row(
         children: [
-          const Icon(Icons.info_outline, size: 16, color: AppColors.paleInk3),
-          const SizedBox(width: 8),
+          const Icon(Icons.info_outline,
+              size: AppIconSize.sm, color: AppColors.ink3),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
               '공유받은 $count마리는 소유자만 관리할 수 있어 목록에서 뺐어요.',
               style: AppTextStyles.caption
-                  .copyWith(color: AppColors.paleInk2, height: 1.3),
+                  .copyWith(color: AppColors.ink2, height: 1.3),
             ),
           ),
         ],
@@ -584,11 +668,14 @@ class _PetGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GridView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      // ⛔ 3열로 늘렸다가 되돌렸다. 카드 폭이 ~110px 이 되면 이름·종·체중이
+      //    들어갈 자리가 없어 전부 말줄임이 걸린다 — 스크롤 길이를 줄이려고
+      //    **정보를 못 읽게 만드는** 교환이었다. 2열이 이 카드의 하한이다.
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
+        crossAxisSpacing: AppSpacing.md,
+        mainAxisSpacing: AppSpacing.md,
         childAspectRatio: 0.78,
       ),
       itemCount: pets.length,
@@ -616,7 +703,7 @@ class _PetCard extends ConsumerWidget {
   Color get _genderColor => switch (pet.gender) {
         'MALE' => AppColors.male,
         'FEMALE' => AppColors.female,
-        _ => AppColors.textDisabled,
+        _ => AppColors.ink3,
       };
 
   @override
@@ -638,15 +725,18 @@ class _PetCard extends ConsumerWidget {
           borderRadius: AppRadius.brLg,
           color: AppColors.surface,
           border: Border.all(
-            color: selected ? AppColors.primary : AppColors.border,
+            color: selected ? AppColors.brandAction : AppColors.border,
             width: selected ? 2 : 1,
           ),
+          // 선으로만 나눠서 카드가 바탕에 눌려 있었다. elev1 — 있는 줄 모를
+          // 만큼 옅고, 없으면 허전한 정도의 그림자다.
+          boxShadow: AppShadows.elev1,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              flex: 5,
+              flex: 6,
               child: Stack(
                 children: [
                   Container(
@@ -677,7 +767,8 @@ class _PetCard extends ConsumerWidget {
                         color: AppColors.surface.withValues(alpha: 0.85),
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(_genderIcon, size: 16, color: _genderColor),
+                      child: Icon(_genderIcon,
+                          size: AppIconSize.sm, color: _genderColor),
                     ),
                   ),
                 ],
@@ -686,28 +777,45 @@ class _PetCard extends ConsumerWidget {
             Expanded(
               flex: 4,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                // ⚠️ 여기서 overflow 가 났다. 정보칸은 카드 높이의 4/10 로
+                // **고정**인데 이름·종·체중을 **세 줄**로 쌓고 있었다. 기기가
+                // 좁거나 OS 글자 크기를 키운 사람(textScaler > 1)에게는 세 줄이
+                // 그 높이를 넘긴다 — 비율을 조금 키워봐야 글자 배율은 한계가 없다.
+                //
+                // 그래서 줄 수를 줄인다: **종과 체중을 한 줄에** 놓는다
+                // (종은 왼쪽에서 남는 폭을 먹고, 체중은 오른쪽 끝). 두 줄이면
+                // 여유가 생기고, 종·체중은 성격이 달라 가로로 나란히 두는 게
+                // 위아래로 쌓는 것보다 오히려 잘 읽힌다.
                 child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(pet.name,
                         style: AppTextStyles.bodyBold,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis),
-                    Text(pet.speciesName,
-                        style: AppTextStyles.caption,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis),
-                    const Spacer(),
-                    if (pet.latestWeightG != null)
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: Text(
-                          '${pet.latestWeightG!.toStringAsFixed(0)}g',
-                          style: AppTextStyles.caption
-                              .copyWith(color: AppColors.textDisabled),
+                    const SizedBox(height: 2),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Expanded(
+                          child: Text(pet.speciesName,
+                              style: AppTextStyles.caption,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis),
                         ),
-                      ),
+                        if (pet.latestWeightG != null) ...[
+                          const SizedBox(width: AppSpacing.xs),
+                          Text(
+                            '${pet.latestWeightG!.toStringAsFixed(0)}g',
+                            style: AppTextStyles.caption
+                                .copyWith(color: AppColors.ink3),
+                          ),
+                        ],
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -736,14 +844,16 @@ class _CheckBadge extends StatelessWidget {
       width: 22,
       height: 22,
       decoration: BoxDecoration(
-        color: selected ? AppColors.primary : AppColors.surface.withValues(alpha: 0.9),
+        color: selected
+            ? AppColors.brandAction
+            : AppColors.surface.withValues(alpha: 0.9),
         shape: BoxShape.circle,
         border: Border.all(
-            color: selected ? AppColors.primary : AppColors.textDisabled,
+            color: selected ? AppColors.brandAction : AppColors.ink3,
             width: 1.5),
       ),
       child: selected
-          ? const Icon(Icons.check, size: 16, color: Colors.white)
+          ? const Icon(Icons.check, size: AppIconSize.sm, color: AppColors.bg)
           : null,
     );
   }
@@ -756,9 +866,9 @@ class _PetListView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.separated(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.xl),
       itemCount: pets.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
       itemBuilder: (_, i) => _PetListTile(pet: pets[i]),
     );
   }
@@ -773,18 +883,31 @@ class _PetListTile extends ConsumerWidget {
     final selecting = ref.watch(petSelectionModeProvider);
     final selected = ref.watch(selectedPetIdsProvider).contains(pet.id);
 
-    return ListTile(
+    // ⚠️ `ListTile` 은 `tileColor` 를 자기가 칠하므로 **그림자를 넣을 자리가
+    // 없다**(shape 의 border 까지가 한계였다). 그래서 카드 모양·그림자는 바깥
+    // Container 가 그리고 타일은 투명하게 얹는다 — 2열 카드와 같은 무게로.
+    // 모서리도 `borderRadius` 를 안 줘서 1열 모드만 각이 서 있었다.
+    return Container(
+      // 타일의 잉크 효과가 둥근 모서리를 뚫고 네모로 번지지 않게 자른다.
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: AppRadius.brLg,
+        border: Border.all(
+            color: selected ? AppColors.brandAction : AppColors.border,
+            width: selected ? 2 : 1),
+        boxShadow: AppShadows.elev1,
+      ),
+      child: ListTile(
       onTap: selecting
           ? () => _togglePet(ref, pet.id)
           : () => context.push('/pets/${pet.id}'),
       onLongPress:
           selecting ? null : () => _enterSelectionWith(context, ref, pet),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      shape: RoundedRectangleBorder(
-          side: BorderSide(
-              color: selected ? AppColors.primary : AppColors.border,
-              width: selected ? 2 : 1)),
-      tileColor: AppColors.surface,
+      contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+      shape: const RoundedRectangleBorder(borderRadius: AppRadius.brLg),
+      tileColor: Colors.transparent,
       leading: selecting
           ? _CheckBadge(selected: selected)
           : _PetAvatarSmall(pet: pet),
@@ -794,6 +917,7 @@ class _PetListTile extends ConsumerWidget {
           ? Text('${pet.latestWeightG!.toStringAsFixed(0)}g',
               style: AppTextStyles.caption)
           : null,
+      ),
     );
   }
 }

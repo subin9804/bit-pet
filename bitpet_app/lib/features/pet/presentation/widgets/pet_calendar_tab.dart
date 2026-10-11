@@ -35,8 +35,8 @@ AnniversaryKind? _annivKindOf(String cat) => switch (cat) {
       _ => null,
     };
 
-const _legendStyle = TextStyle(
-    fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.paleInk2);
+final _legendStyle =
+    AppTextStyles.label.copyWith(letterSpacing: 0, color: AppColors.ink2);
 
 const _catLabel = {
   'FEEDING': '급여',
@@ -123,12 +123,9 @@ class _PetCalendarTabState extends ConsumerState<PetCalendarTab> {
       children: [
         // ── 캘린더 카드 ─────────────────────────────────────
         Container(
-          decoration: BoxDecoration(
-            borderRadius: AppRadius.brLg,
-            color: AppColors.card,
-            border: Border.all(color: AppColors.paleLine),
-          ),
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          decoration: AppDecor.cardRaised,
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.lg),
           child: Column(
             children: [
               // ── 월 이동 헤더 ──
@@ -144,7 +141,7 @@ class _PetCalendarTabState extends ConsumerState<PetCalendarTab> {
                   AppNavButton(forward: true, onTap: () => _navMonth(1)),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
 
               // ── 캘린더 ──
               TableCalendar<String>(
@@ -164,32 +161,17 @@ class _PetCalendarTabState extends ConsumerState<PetCalendarTab> {
                 },
                 onPageChanged: (focused) =>
                     setState(() => _focusedDay = focused),
+                // ⚠️ 고른 날짜가 `AppColors.primary` **사각형**으로 칠해져
+                // 있었다 — 이 토큰은 초록이 아니라 먹색(#121A15)이라, 날짜 한
+                // 칸이 검은 네모로 박혀 "지워진 날"처럼 보였다. 홈 캘린더에서
+                // 같은 지적을 받아 이미 고친 자리와 **같은 결함**이다.
+                //
+                // 칸 꾸밈은 전부 아래 `calendarBuilders` 가 그린다 — 홈의
+                // `_DayCell` 과 같은 28px 원이어야 해서, 칸 전체를 채우는
+                // `calendarStyle` 의 decoration 으로는 만들 수 없다.
                 calendarStyle: const CalendarStyle(
                   outsideDaysVisible: false,
                   isTodayHighlighted: true,
-                  // 직각 디자인 — 원형 하이라이트 제거
-                  todayDecoration: BoxDecoration(
-                    color: AppColors.paleBgAlt,
-                    shape: BoxShape.rectangle,
-                  ),
-                  selectedDecoration: BoxDecoration(
-                    color: AppColors.primary,
-                    shape: BoxShape.rectangle,
-                  ),
-                  defaultDecoration: BoxDecoration(shape: BoxShape.rectangle),
-                  weekendDecoration: BoxDecoration(shape: BoxShape.rectangle),
-                  todayTextStyle: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary),
-                  selectedTextStyle: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white),
-                  defaultTextStyle:
-                      TextStyle(fontSize: 13, color: AppColors.primary),
-                  weekendTextStyle:
-                      TextStyle(fontSize: 13, color: AppColors.paleInk2),
                   markersAlignment: Alignment.bottomCenter,
                 ),
                 calendarBuilders: CalendarBuilders(
@@ -197,15 +179,20 @@ class _PetCalendarTabState extends ConsumerState<PetCalendarTab> {
                   dowBuilder: (context, day) => Center(
                     child: Text(
                       weekKo[day.weekday % 7],
-                      style: TextStyle(
-                        fontSize: 12,
+                      style: AppTextStyles.label.copyWith(
                         fontWeight: FontWeight.w700,
+                        letterSpacing: 0,
                         color: day.weekday == DateTime.sunday
                             ? AppColors.error
-                            : AppColors.paleInk3,
+                            : AppColors.ink3,
                       ),
                     ),
                   ),
+                  defaultBuilder: (context, day, _) => _dayCell(day),
+                  todayBuilder: (context, day, _) =>
+                      _dayCell(day, today: true),
+                  selectedBuilder: (context, day, _) =>
+                      _dayCell(day, selected: true),
                   // 마커 — 카테고리별 미니 아이콘
                   markerBuilder: (context, day, cats) {
                     if (cats.isEmpty) return null;
@@ -222,7 +209,7 @@ class _PetCalendarTabState extends ConsumerState<PetCalendarTab> {
                                 ? AnniversaryMark(kind: kind)
                                 : RecordTypeIcon(
                                     c,
-                                    size: 11,
+                                    size: AppIconSize.badge,
                                     color: PalePalette.catInk(c),
                                     fallback: Icons.circle,
                                   ),
@@ -233,7 +220,7 @@ class _PetCalendarTabState extends ConsumerState<PetCalendarTab> {
                   },
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
 
               // ── 범례 ──
               // 기념일 두 종류가 붙어 한 줄에 6칸이 되므로 넘치면 줄바꿈시킨다
@@ -247,8 +234,9 @@ class _PetCalendarTabState extends ConsumerState<PetCalendarTab> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         RecordTypeIcon(c,
-                            size: 12, color: PalePalette.catInk(c)),
-                        const SizedBox(width: 4),
+                            size: AppIconSize.badge,
+                            color: PalePalette.catInk(c)),
+                        const SizedBox(width: AppSpacing.xs),
                         Text(_catLabel[c]!, style: _legendStyle),
                       ],
                     ),
@@ -256,8 +244,8 @@ class _PetCalendarTabState extends ConsumerState<PetCalendarTab> {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        AnniversaryMark(kind: kind, size: 12),
-                        const SizedBox(width: 4),
+                        AnniversaryMark(kind: kind, size: AppIconSize.badge),
+                        const SizedBox(width: AppSpacing.xs),
                         Text(
                           kind == AnniversaryKind.hatching ? '해칭일' : '입양일',
                           style: _legendStyle,
@@ -269,49 +257,105 @@ class _PetCalendarTabState extends ConsumerState<PetCalendarTab> {
             ],
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: AppSpacing.cardGap),
 
-        // ── 선택일 기록 헤더 ─────────────────────────────────
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            RichText(
-              text: TextSpan(
-                style: AppTextStyles.paleSectionTitle,
+        // ── 선택일 섹션 ──────────────────────────────────────
+        // ⚠️ 헤더와 기록 목록이 **카드 없이 바탕에 그대로** 놓여 있었다.
+        // 바탕은 연회색이고 내용은 흰 카드 안에 담는다는 이 앱의 규칙에서
+        // 이 자리만 벗어나 있어, 위 캘린더 카드가 끝나면 화면이 허전하게
+        // 풀렸다. 홈의 선택일 섹션과 같이 흰 카드 한 장으로 묶는다.
+        Container(
+          width: double.infinity,
+          decoration: AppDecor.cardRaised,
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── 선택일 기록 헤더 ──
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  TextSpan(
-                      text: '${_selectedDay.month}.${_selectedDay.day} '),
-                  TextSpan(
-                    text: '(${weekKo[_selectedDay.weekday % 7]})',
-                    style: const TextStyle(
-                        color: AppColors.paleInk2,
-                        fontWeight: FontWeight.w600),
+                  RichText(
+                    text: TextSpan(
+                      style: AppTextStyles.paleSectionTitle,
+                      children: [
+                        TextSpan(
+                            text: '${_selectedDay.month}.${_selectedDay.day} '),
+                        TextSpan(
+                          text: '(${weekKo[_selectedDay.weekday % 7]})',
+                          style: const TextStyle(
+                              color: AppColors.ink2,
+                              fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
                   ),
+                  dayAsync.whenOrNull(
+                          data: (items) => Text(
+                              '${items.where((r) => _calendarCats.contains(r.category)).length}건',
+                              style: AppTextStyles.mono(12, FontWeight.w700,
+                                  color: AppColors.ink2))) ??
+                      const SizedBox.shrink(),
                 ],
               ),
-            ),
-            dayAsync.whenOrNull(
-                    data: (items) => Text(
-                        '${items.where((r) => _calendarCats.contains(r.category)).length}건',
-                        style: AppTextStyles.mono(12, FontWeight.w700,
-                            color: AppColors.paleInk2))) ??
-                const SizedBox.shrink(),
-          ],
-        ),
-        const SizedBox(height: 4),
+              const SizedBox(height: AppSpacing.xs),
 
-        // ── 선택일 기록 목록 ─────────────────────────────────
-        // 기념일은 기록보다 위에 — 그 날의 성격을 먼저 알려준다
-        for (final a in selectedAnnivs)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-            child: AnniversaryRow(anniversary: a),
+              // ── 선택일 기록 목록 ──
+              // 기념일은 기록보다 위에 — 그 날의 성격을 먼저 알려준다
+              for (final a in selectedAnnivs)
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.md),
+                  child: AnniversaryRow(anniversary: a),
+                ),
+              if (selectedAnnivs.isNotEmpty)
+                const Divider(height: 1, color: AppColors.line),
+
+              _buildDayList(dayAsync, selectedAnnivs.isNotEmpty),
+            ],
           ),
-        if (selectedAnnivs.isNotEmpty)
-          const Divider(height: 1, color: AppColors.paleLineSoft),
-
-        _buildDayList(dayAsync, selectedAnnivs.isNotEmpty),
+        ),
       ],
+    );
+  }
+
+  /// 날짜 한 칸. 홈 캘린더의 `_DayCell` 과 **같은 모양**이다 —
+  /// 고른 날은 브랜드색 28px 원 + 흰 글씨, 오늘은 옅은 틴트 원.
+  ///
+  /// 칸 높이(48)를 다 쓰지 않고 위쪽에 원을 붙이는 이유는 아래 공간이
+  /// 기록 마커 자리이기 때문이다 — 원이 칸을 채우면 마커를 깔고 앉는다.
+  Widget _dayCell(DateTime day, {bool selected = false, bool today = false}) {
+    final weekend = day.weekday == DateTime.sunday ||
+        day.weekday == DateTime.saturday;
+    return Align(
+      alignment: Alignment.topCenter,
+      child: Container(
+        width: 28,
+        height: 28,
+        margin: const EdgeInsets.only(top: 2),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.brandAction
+              : today
+                  ? AppColors.brandTint
+                  : Colors.transparent,
+          shape: BoxShape.circle,
+        ),
+        child: Text(
+          '${day.day}',
+          style: AppTextStyles.caption.copyWith(
+            fontWeight: selected || today ? FontWeight.w700 : FontWeight.w500,
+            color: selected
+                ? AppColors.bg
+                : today
+                    ? AppColors.brandTintInk
+                    : weekend
+                        ? AppColors.ink2
+                        : AppColors.ink,
+          ),
+        ),
+      ),
     );
   }
 
@@ -323,14 +367,14 @@ class _PetCalendarTabState extends ConsumerState<PetCalendarTab> {
       AsyncValue<List<TimelineItem>> dayAsync, bool hasAnniversary) {
     return dayAsync.when(
       loading: () => const Padding(
-        padding: EdgeInsets.symmetric(vertical: 20),
+        padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
         child: Center(child: CircularProgressIndicator()),
       ),
-      error: (_, __) => const Padding(
-        padding: EdgeInsets.symmetric(vertical: 20),
+      error: (_, _) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
         child: Center(
           child: Text('기록을 불러올 수 없어요',
-              style: TextStyle(fontSize: 13, color: AppColors.paleInk3)),
+              style: AppTextStyles.caption.copyWith(color: AppColors.ink3)),
         ),
       ),
       data: (items) {
@@ -338,14 +382,13 @@ class _PetCalendarTabState extends ConsumerState<PetCalendarTab> {
             items.where((r) => _calendarCats.contains(r.category)).toList();
         if (filtered.isEmpty) {
           if (hasAnniversary) return const SizedBox.shrink();
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 20),
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
             child: Center(
               child: Text('이 날의 기록이 없어요',
-                  style: TextStyle(
-                      fontSize: 13,
+                  style: AppTextStyles.caption.copyWith(
                       fontWeight: FontWeight.w600,
-                      color: AppColors.paleInk3)),
+                      color: AppColors.ink3)),
             ),
           );
         }
@@ -355,11 +398,10 @@ class _PetCalendarTabState extends ConsumerState<PetCalendarTab> {
             return Container(
               decoration: BoxDecoration(
                 border: i < filtered.length - 1
-                    ? const Border(
-                        bottom: BorderSide(color: AppColors.paleLineSoft))
+                    ? const Border(bottom: BorderSide(color: AppColors.line))
                     : null,
               ),
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
               child: _DayRecordRow(item: e.value),
             );
           }).toList(),
@@ -392,31 +434,31 @@ class _DayRecordRow extends StatelessWidget {
             borderRadius: AppRadius.brMd,
           ),
           child: RecordTypeIcon(cat,
-              size: 15,
+              size: AppIconSize.sm,
               color: PalePalette.catInk(cat),
               fallback: Icons.circle_outlined),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: AppSpacing.md),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(_catLabel[cat] ?? cat,
-                  style: const TextStyle(
-                      fontSize: 12,
+                  style: AppTextStyles.label.copyWith(
                       fontWeight: FontWeight.w700,
-                      color: AppColors.paleInk2)),
+                      letterSpacing: 0,
+                      color: AppColors.ink2)),
               Text(item.displayText,
-                  style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primary),
+                  style: AppTextStyles.caption.copyWith(
+                      fontWeight: FontWeight.w600, color: AppColors.ink),
                   overflow: TextOverflow.ellipsis),
             ],
           ),
         ),
-        const SizedBox(width: 8),
-        Text(time, style: AppTextStyles.mono(11, FontWeight.w600)),
+        const SizedBox(width: AppSpacing.sm),
+        Text(time,
+            style: AppTextStyles.mono(11, FontWeight.w600,
+                color: AppColors.ink3)),
       ],
     );
   }

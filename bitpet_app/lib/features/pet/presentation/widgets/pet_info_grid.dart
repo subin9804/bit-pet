@@ -35,12 +35,10 @@ class _PetInfoGridState extends ConsumerState<PetInfoGrid> {
     final hasParents = father != null || mother != null;
 
     return Container(
-      decoration: BoxDecoration(
-        borderRadius: AppRadius.brLg,
-        color: AppColors.card,
-        border: Border.all(color: AppColors.paleLine),
-      ),
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+      // 바로 위 통계 3칸과 같은 `cardRaised` — 한 줄 위는 떠 있고 이 카드만
+      // 선으로만 그려져 있어서, 두 카드가 다른 재질처럼 보였다.
+      decoration: AppDecor.cardRaised,
+      padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
         children: [
           // 모프 — **한 줄 전체**를 쓴다. 2열 그리드의 반쪽에 두면 폭이 모자라
@@ -51,7 +49,7 @@ class _PetInfoGridState extends ConsumerState<PetInfoGrid> {
                 ? pet.morphs.map((m) => m.nameKo).toList()
                 : (pet.morphName != null ? [pet.morphName!] : const []),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           // 2열 그리드 — 나이는 해칭일에서 계산되는 값이라 같은 줄에 둔다.
           Row(
             children: [
@@ -61,15 +59,15 @@ class _PetInfoGridState extends ConsumerState<PetInfoGrid> {
                 mono: true,
                 chip: approx ? '부정확' : null,
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: AppSpacing.md),
               _Cell(label: '나이', value: age),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           Row(
             children: [
               _Cell(label: '입양일', value: _fmtDate(adopt), mono: true),
-              const SizedBox(width: 12),
+              const SizedBox(width: AppSpacing.md),
               // 짝이 없다. 빈 칸을 두어 '입양일' 이 왼쪽 열에 그대로 서 있게 한다 —
               // 없애면 혼자 전체 폭으로 퍼져 위아래 줄과 열이 어긋난다.
               const Expanded(child: SizedBox()),
@@ -80,12 +78,12 @@ class _PetInfoGridState extends ConsumerState<PetInfoGrid> {
           // 상단 더보기 '부모 등록'이 따로 있어 같은 일을 하는 입구가 셋이었다).
           // 가계도 로딩 중에도 숨긴다: '없음'을 잠깐 띄웠다 사라지는 것보다 늦게 나타나는 게 덜 거슬린다.
           if (hasParents) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('부모', style: AppTextStyles.paleGridLabel),
-                const SizedBox(height: 4),
+                const SizedBox(height: AppSpacing.xs),
                 // 부·모는 **한 줄에 반씩**. 카드 하나가 썸네일 44 + 이름 한 줄뿐이라
                 // 전체 폭을 주면 오른쪽 절반이 통째로 빈다. 한쪽만 등록돼 있어도
                 // 빈 칸으로 짝을 채워 카드 폭을 고정한다 — 부모를 추가했을 때
@@ -155,7 +153,7 @@ class _MorphRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('모프', style: AppTextStyles.paleGridLabel),
-              const SizedBox(height: 6),
+              const SizedBox(height: AppSpacing.sm),
               if (names.isEmpty)
                 Text('-', style: AppTextStyles.paleGridValue)
               else
@@ -165,18 +163,20 @@ class _MorphRow extends StatelessWidget {
                   children: names
                       .map((n) => Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 5),
+                                horizontal: AppSpacing.md,
+                                vertical: AppSpacing.xs),
+                            // ℹ️ 모프는 이 개체의 **성질**이라 선택색
+                            // (brandTint)을 쓰지 않는다 — 고른 것도, 누르는
+                            // 것도 아니다. 회색 틴트에 진한 글씨로 둔다.
                             decoration: const BoxDecoration(
-                              color: AppColors.paleBgAlt,
+                              color: AppColors.bgAlt,
                               borderRadius: AppRadius.brPill,
                             ),
                             child: Text(
                               n,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.primary,
-                              ),
+                              style: AppTextStyles.caption.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.ink),
                             ),
                           ))
                       .toList(),
@@ -204,7 +204,7 @@ class _Cell extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label, style: AppTextStyles.paleGridLabel),
-          const SizedBox(height: 4),
+          const SizedBox(height: AppSpacing.xs),
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -219,19 +219,20 @@ class _Cell extends StatelessWidget {
               if (chip != null) ...[
                 const SizedBox(width: 4),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm, vertical: 2),
                   decoration: BoxDecoration(
-                    borderRadius: AppRadius.brMd,
+                    borderRadius: AppRadius.brPill,
                     color: AppColors.petPeach,
-                    border: Border.all(color: AppColors.petPeachInk.withValues(alpha: 0.3)),
+                    border: Border.all(
+                        color: AppColors.petPeachInk.withValues(alpha: 0.3)),
                   ),
                   child: Text(
                     chip!,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.petPeachInk,
-                    ),
+                    style: AppTextStyles.label.copyWith(
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0,
+                        color: AppColors.petPeachInk),
                   ),
                 ),
               ],

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/api_response.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/confirm_modal.dart';
 import '../../../core/widgets/skeleton_loader.dart';
@@ -81,12 +82,21 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
           return Column(
             children: [
               // ── TopBar (SafeArea 포함) ──────────────────────
-              SafeArea(
+              //
+              // ⚠️ 바가 연회색 바탕 위에 떠 있고 그 **아래**에서 연녹 밴드가
+              // 시작했다. 색이 두 번 바뀌니(회색 → 연녹 → 흰 카드) 머리가
+              // 어디까지인지 알 수 없었다. 바도 밴드와 같은 색을 깔아
+              // 헤더 하나로 이어 붙인다 — 스크롤하면 밴드만 이 바 아래로
+              // 빠져나가고 색은 그대로 남는다.
+              Container(
+                color: AppColors.brandTintSoft,
+                child: SafeArea(
                 bottom: false,
                 child: _TopBar(
                   onBack: () => context.pop(),
                   onEdit: () => context.push('/pets/${widget.petId}/edit'),
                   onMore: (anchorContext) => _showMoreMenu(anchorContext, pet),
+                ),
                 ),
               ),
 
@@ -107,7 +117,11 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
                       Container(
                         width: double.infinity,
                         color: AppColors.brandTintSoft,
-                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 36),
+                        // 히어로는 이제 카드가 아니라 밴드 위에 바로 놓인다
+                        // (아래 통계 카드 하나만 밴드에 걸치게 하려고).
+                        // 카드가 만들어 주던 안쪽 여백을 밴드가 대신 든다.
+                        padding: const EdgeInsets.fromLTRB(
+                            AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, 44),
                         child: PetHeroCard(pet: pet),
                       ),
 
@@ -116,51 +130,89 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
                       Transform.translate(
                         offset: const Offset(0, -28),
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.xl),
                           child: _PetStats(pet: pet),
                         ),
                       ),
 
-                      // 기본 정보 카드 — 위 Transform 이 28px 끌어올린 뒤라
-                      // 여기서 그만큼을 돌려주지 않으면 간격이 비어 보인다.
+                      // 기본 정보 카드. 위 Transform 은 레이아웃 높이를 줄이지
+                      // 않으므로 실제 간격은 28px 더 벌어져 있다 — 그래서 여기에
+                      // 추가 간격을 두지 않는다.
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.xl),
                         child: PetInfoGrid(pet: pet, petId: widget.petId),
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: AppSpacing.xl),
 
-                      // 탭 바 (3등분)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                      // ── 탭 바 (밑줄형) ────────────────────────
+                      //
+                      // 알약 토글이었다가 밑줄로 되돌렸다. 알약은 '세 개 중
+                      // 하나를 고르는 **설정**'의 모양이고(개체 목록의 1열/2열
+                      // 보기 토글이 그렇다), 여기서 고르는 건 설정이 아니라
+                      // **지금 보고 있는 페이지**다. 밑줄은 아래 내용과 한 덩어리로
+                      // 붙어서 "이 줄 아래가 그 내용"이라고 말해 준다.
+                      //
+                      // 칸을 3등분하지 않고 글자 폭에 맞춰 왼쪽부터 세우는 것도
+                      // 같은 이유다 — 밑줄이 글자만큼만 그어져야 제목처럼 읽힌다.
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.xl),
+                        decoration: const BoxDecoration(
+                          border: Border(
+                              bottom: BorderSide(color: AppColors.line)),
+                        ),
                         child: Row(
                           children: List.generate(_tabs.length, (i) {
                             final active = _tabIndex == i;
-                            return Expanded(
-                              child: GestureDetector(
-                                onTap: () => setState(() => _tabIndex = i),
-                                child: Container(
-                                  margin: EdgeInsets.only(
-                                      right: i < _tabs.length - 1 ? 8 : 0),
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
-                                  decoration: BoxDecoration(
-                                    borderRadius: AppRadius.brLg,
-                                    color: active
-                                        ? AppColors.primary
-                                        : AppColors.card,
-                                    border: active
-                                        ? null
-                                        : Border.all(color: AppColors.paleLine),
-                                  ),
-                                  alignment: Alignment.center,
-                                  child: Text(
-                                    _tabs[i],
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w700,
-                                      color: active
-                                          ? AppColors.paleBg
-                                          : AppColors.primary,
-                                    ),
+                            return GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () => setState(() => _tabIndex = i),
+                              child: Padding(
+                                padding: const EdgeInsets.only(
+                                    right: AppSpacing.xl),
+                                // 밑줄은 글자와 **같은 폭**이어야 한다.
+                                // `stretch` 만으로는 가로 제약이 열려 있어
+                                // 화면 끝까지 늘어나므로 IntrinsicWidth 로
+                                // 글자 폭을 먼저 확정한다 (탭 3개라 비용은 없다).
+                                child: IntrinsicWidth(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: AppSpacing.md),
+                                        child: Text(
+                                          _tabs[i],
+                                          textAlign: TextAlign.center,
+                                          style: AppTextStyles.subheading
+                                              .copyWith(
+                                            fontWeight: active
+                                                ? FontWeight.w700
+                                                : FontWeight.w600,
+                                            color: active
+                                                ? AppColors.ink
+                                                : AppColors.ink3,
+                                          ),
+                                        ),
+                                      ),
+                                      AnimatedContainer(
+                                        duration:
+                                            const Duration(milliseconds: 150),
+                                        height: 3,
+                                        decoration: BoxDecoration(
+                                          color: active
+                                              ? AppColors.brandAction
+                                              : Colors.transparent,
+                                          borderRadius: const BorderRadius
+                                              .vertical(
+                                              top: Radius.circular(2)),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
@@ -168,11 +220,12 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
                           }),
                         ),
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: AppSpacing.xl),
 
                       // 탭 콘텐츠
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.xl),
                         child: IndexedStack(
                           index: _tabIndex,
                           children: [
@@ -215,11 +268,14 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
     final action = await showMenu<String>(
       context: context,
       position: position,
-      color: AppColors.card,
-      elevation: 0,
+      color: AppColors.surface,
+      // 메뉴는 화면 위에 **떠 있는 것**이라 그림자를 받는다 — 테두리만 있을
+      // 때는 뒤 카드와 같은 층처럼 보여 어디까지가 메뉴인지 애매했다.
+      elevation: 3,
+      shadowColor: AppShadows.material,
       shape: const RoundedRectangleBorder(
         borderRadius: AppRadius.brMd,
-        side: BorderSide(color: AppColors.paleLine),
+        side: BorderSide(color: AppColors.line),
       ),
       items: pet.isOwner ? _ownerMenuItems(pet) : _keeperMenuItems(pet),
     );
@@ -242,13 +298,11 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
         child: Row(
           children: [
             const Text('🌈', style: TextStyle(fontSize: 14)),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppSpacing.sm),
             Text(
               pet.isDeceased ? '이별 취소' : '이별하기',
-              style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.primary),
+              style: AppTextStyles.caption.copyWith(
+                  fontWeight: FontWeight.w600, color: AppColors.ink),
             ),
           ],
         ),
@@ -260,14 +314,13 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
           value: 'share',
           height: 44,
           child: Row(
-            children: const [
-              Icon(Icons.ios_share, size: 16, color: AppColors.textSecondary),
-              SizedBox(width: 8),
+            children: [
+              const Icon(Icons.ios_share,
+                  size: AppIconSize.sm, color: AppColors.ink2),
+              const SizedBox(width: AppSpacing.sm),
               Text('공유 관리',
-                  style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary)),
+                  style: AppTextStyles.caption.copyWith(
+                      fontWeight: FontWeight.w600, color: AppColors.ink)),
             ],
           ),
         ),
@@ -275,14 +328,13 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
           value: 'delete',
           height: 44,
           child: Row(
-            children: const [
-              Icon(Icons.delete_outline, size: 16, color: AppColors.error),
-              SizedBox(width: 8),
+            children: [
+              const Icon(Icons.delete_outline,
+                  size: AppIconSize.sm, color: AppColors.error),
+              const SizedBox(width: AppSpacing.sm),
               Text('이 개체 삭제하기',
-                  style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.error)),
+                  style: AppTextStyles.caption.copyWith(
+                      fontWeight: FontWeight.w600, color: AppColors.error)),
             ],
           ),
         ),
@@ -291,33 +343,32 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
   /// 공유받은 개체 — 되돌릴 수 있는 동작(이별)은 그대로 쓰고,
   /// 개체가 사라지거나 남에게 넘어가는 동작(삭제·공유 관리)만 빠진다.
   List<PopupMenuEntry<String>> _keeperMenuItems(Pet pet) => [
-        const PopupMenuItem(
+        PopupMenuItem(
           enabled: false,
           height: 34,
           child: Row(
             children: [
-              Icon(Icons.group_outlined, size: 16, color: AppColors.paleInk3),
-              SizedBox(width: 8),
-              Text('공유받은 개체',
-                  style: TextStyle(fontSize: 12, color: AppColors.paleInk3)),
+              const Icon(Icons.group_outlined,
+                  size: AppIconSize.sm, color: AppColors.ink3),
+              const SizedBox(width: AppSpacing.sm),
+              Text('공유받은 개체', style: AppTextStyles.label),
             ],
           ),
         ),
         const PopupMenuDivider(height: 1),
         _farewellMenuItem(pet),
         const PopupMenuDivider(height: 1),
-        const PopupMenuItem(
+        PopupMenuItem(
           value: 'leave',
           height: 44,
           child: Row(
             children: [
-              Icon(Icons.logout, size: 16, color: AppColors.error),
-              SizedBox(width: 8),
+              const Icon(Icons.logout,
+                  size: AppIconSize.sm, color: AppColors.error),
+              const SizedBox(width: AppSpacing.sm),
               Text('함께 키우기 그만두기',
-                  style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.error)),
+                  style: AppTextStyles.caption.copyWith(
+                      fontWeight: FontWeight.w600, color: AppColors.error)),
             ],
           ),
         ),
@@ -409,56 +460,65 @@ class _TopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+      // 좌우 16 이었다 — 바로 아래 히어로 카드가 20 이라 뒤로가기 버튼만
+      // 4px 밖으로 나와 있었다. 이 화면의 거터는 하나다.
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.md),
       child: Row(
         children: [
-          // 뒤로가기 버튼 36×36 원형
-          GestureDetector(
-            onTap: onBack,
-            child: Container(
-              width: 36, height: 36,
-              decoration: BoxDecoration(
-                color: AppColors.card,
-                border: Border.all(color: AppColors.paleLine),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.arrow_back_ios_new,
-                  size: 16, color: AppColors.primary),
-            ),
-          ),
+          _RoundIconButton(
+              icon: Icons.arrow_back_ios_new,
+              tooltip: '뒤로',
+              onTap: onBack),
           const Spacer(),
-          // 편집 버튼
-          GestureDetector(
-            onTap: onEdit,
-            child: Container(
-              width: 36, height: 36,
-              decoration: BoxDecoration(
-                color: AppColors.card,
-                border: Border.all(color: AppColors.paleLine),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.edit_outlined,
-                  size: 16, color: AppColors.primary),
-            ),
-          ),
-          const SizedBox(width: 8),
-          // 더보기 (이별하기 · 삭제)
+          _RoundIconButton(
+              icon: Icons.edit_outlined, tooltip: '수정', onTap: onEdit),
+          const SizedBox(width: AppSpacing.sm),
           Builder(
-            builder: (anchorContext) => GestureDetector(
+            builder: (anchorContext) => _RoundIconButton(
+              icon: Icons.more_vert,
+              tooltip: '더보기',
               onTap: () => onMore(anchorContext),
-              child: Container(
-                width: 36, height: 36,
-                decoration: BoxDecoration(
-                  color: AppColors.card,
-                  border: Border.all(color: AppColors.paleLine),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.more_vert,
-                    size: 16, color: AppColors.primary),
-              ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 헤더의 둥근 아이콘 버튼. 같은 Container 가 세 번 복사돼 있었다.
+///
+/// 연녹 밴드 위에 얹히므로 **흰 채움 + 그림자**다 — 테두리만 있으면 밴드와
+/// 명도 차가 작아 버튼이 아니라 밴드에 그린 선처럼 보인다.
+class _RoundIconButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  const _RoundIconButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            border: Border.all(color: AppColors.line),
+            shape: BoxShape.circle,
+            boxShadow: AppShadows.elev1,
+          ),
+          child: Icon(icon, size: AppIconSize.sm, color: AppColors.ink),
+        ),
       ),
     );
   }
@@ -525,7 +585,7 @@ class _LoadingSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(AppSpacing.xl),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

@@ -6,8 +6,13 @@ import '../theme/app_text_styles.dart';
 /// 공용 선택 칩 — **알약**. 필터·옵션 선택에 쓴다.
 /// 앱 전체 칩은 이 위젯만 사용한다 (스타일 변경 시 여기 한 곳만 수정).
 ///
-/// 기본: 선택 시 먹색 배경 + 흰 글자, 미선택 시 흰 배경 + 연한 테두리.
+/// 기본: 선택 시 **브랜드 틴트 배경 + 진초록 글자 + 초록 테두리**,
+/// 미선택 시 흰 배경 + 연한 테두리.
 /// 화면 톤에 따라 selectedColor/selectedTextColor/selectedBorderColor만 덮어쓴다.
+///
+/// ⚠️ 기본값이 `primary`(= 초록이 아니라 **먹색**) 채움 + 흰 글자였다. 필터 바에서
+/// 고른 칩이 검게 찍혀 "이 칩이 비활성"처럼도 보였고, 앱의 다른 선택 표시
+/// (급여 시트의 칩·토글)와 색 체계가 아예 달랐다. 선택은 한 가지 색으로 말한다.
 ///
 /// ⚠️ 모서리는 brMd(12) 직각에 가까운 사각이었다. 카드·시트·버튼·알림 배지까지
 /// 전부 둥근 화면에서 칩만 각이 서 있어 옛 테마의 잔재로 보였다.
@@ -53,12 +58,14 @@ class AppChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bg =
-        selected ? (selectedColor ?? AppColors.primary) : AppColors.surface;
+        selected ? (selectedColor ?? AppColors.brandTint) : AppColors.surface;
     final fg = selected
-        ? (selectedTextColor ?? AppColors.bg)
+        ? (selectedTextColor ?? AppColors.brandTintInk)
         : AppColors.ink2;
+    // 틴트는 흰 칩과 명도 차가 작아, 테두리까지 초록으로 가야 한 줄에
+    // 늘어선 칩들 사이에서 고른 것이 바로 잡힌다.
     final borderColor = selected
-        ? (selectedBorderColor ?? Colors.transparent)
+        ? (selectedBorderColor ?? AppColors.brandAction)
         : AppColors.line;
 
     final chip = AnimatedContainer(

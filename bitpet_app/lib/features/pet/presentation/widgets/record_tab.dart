@@ -98,9 +98,16 @@ class _RecordTabState extends ConsumerState<RecordTab> {
       onTap: () => context.push('/pets/${widget.petId}/weight'),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+        padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xl, vertical: AppSpacing.lg),
+        // ⚠️ `borderRadius` 가 아예 없어서 화면 가로를 꽉 채운 **각진 색면**이
+        // 었다 — 둥근 모서리가 전부인 이 테마에서 여기만 네모라 "테마가 안
+        // 입혀졌다"로 읽히는 가장 큰 자리다. 카드 덩어리이므로 16,
+        // 그림자는 아래 카드와 같은 elev1.
         decoration: BoxDecoration(
           color: PalePalette.catPale('WEIGHT'),
+          borderRadius: AppRadius.brLg,
+          boxShadow: AppShadows.elev1,
         ),
         child: isLoading
             ? const SizedBox(height: 72,
@@ -110,38 +117,36 @@ class _RecordTabState extends ConsumerState<RecordTab> {
                 children: [
                   Row(
                     children: [
-                      RecordTypeIcon('WEIGHT', size: 15,
+                      RecordTypeIcon('WEIGHT', size: AppIconSize.sm,
                           color: PalePalette.catInk('WEIGHT')),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: AppSpacing.sm),
                       Text('체중', style: AppTextStyles.paleCatLabel),
                       const Spacer(),
                       if (weightItem != null)
                         Text(
                           _relativeDay(weightItem.recordedAt),
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: PalePalette.catInk('WEIGHT'),
-                          ),
+                          style: AppTextStyles.label.copyWith(
+                              letterSpacing: 0,
+                              color: PalePalette.catInk('WEIGHT')),
                         ),
-                      const SizedBox(width: 4),
+                      const SizedBox(width: AppSpacing.xs),
                       AppIcon(AppIcons.chevronRight,
-                          size: 20, color: PalePalette.catInk('WEIGHT')),
+                          size: AppIconSize.md,
+                          color: PalePalette.catInk('WEIGHT')),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpacing.sm),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
                         weightItem?.summary ?? '—',
-                        style: TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 34,
-                          fontWeight: FontWeight.w700,
+                        // 숫자는 `AppTextStyles.mono` 하나로 — 'monospace' 를
+                        // 직접 적으면 다른 화면의 숫자와 글꼴이 갈린다.
+                        style: AppTextStyles.mono(34, FontWeight.w700).copyWith(
                           color: weightItem == null
-                              ? AppColors.paleInk3
-                              : AppColors.primary,
+                              ? AppColors.ink3
+                              : AppColors.ink,
                           letterSpacing: -0.5,
                         ),
                       ),
@@ -170,12 +175,9 @@ class _RecordTabState extends ConsumerState<RecordTab> {
       if (canLayEggs(widget.gender)) 'LAYING',
     ];
     final restCard = Container(
-      decoration: BoxDecoration(
-        borderRadius: AppRadius.brLg,
-        color: AppColors.card,
-        border: Border.all(color: AppColors.paleLine),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      decoration: AppDecor.cardRaised,
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg, vertical: AppSpacing.xs),
       child: Column(
         children: restCats.asMap().entries.map((entry) {
           final i   = entry.key;
@@ -201,11 +203,11 @@ class _RecordTabState extends ConsumerState<RecordTab> {
             child: Opacity(
               opacity: isEmpty ? 0.6 : 1.0,
               child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
                 decoration: BoxDecoration(
                   border: i < restCats.length - 1
                       ? const Border(
-                          bottom: BorderSide(color: AppColors.paleLineSoft))
+                          bottom: BorderSide(color: AppColors.line))
                       : null,
                 ),
                 child: Row(
@@ -213,13 +215,15 @@ class _RecordTabState extends ConsumerState<RecordTab> {
                     // 아이콘칩
                     Container(
                       width: 34, height: 34,
+                      // 여기도 반경이 없어 색 네모였다. 누르는 줄의 아이콘칩이라 12.
                       decoration: BoxDecoration(
                         color: PalePalette.catPale(cat),
+                        borderRadius: AppRadius.brMd,
                       ),
-                      child: RecordTypeIcon(cat, size: 16,
+                      child: RecordTypeIcon(cat, size: AppIconSize.sm,
                           color: PalePalette.catInk(cat)),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: AppSpacing.md),
                     // 라벨 고정폭 — '메이팅' 3글자가 줄바꿈되지 않을 만큼 확보.
                     // 시스템 글자 크기를 키운 기기에서도 넘치지 않도록 배율을 반영한다.
                     SizedBox(
@@ -229,21 +233,18 @@ class _RecordTabState extends ConsumerState<RecordTab> {
                           maxLines: 1,
                           softWrap: false,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.paleInk2,
-                          )),
+                          style: AppTextStyles.caption.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.ink2)),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: AppSpacing.sm),
                     // 값
                     Expanded(
                       child: Text(
                         isEmpty ? '—' : item.summary,
-                        style: TextStyle(
-                          fontSize: 14,
+                        style: AppTextStyles.sub.copyWith(
                           fontWeight: FontWeight.w700,
-                          color: isEmpty ? AppColors.paleInk3 : AppColors.primary,
+                          color: isEmpty ? AppColors.ink3 : AppColors.ink,
                           letterSpacing: -0.2,
                         ),
                         overflow: TextOverflow.ellipsis,
@@ -251,21 +252,18 @@ class _RecordTabState extends ConsumerState<RecordTab> {
                     ),
                     // 얼마나 지난 기록인지
                     if (!isEmpty) ...[
-                      const SizedBox(width: 8),
+                      const SizedBox(width: AppSpacing.sm),
                       Text(
                         _relativeDay(item.recordedAt),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.paleInk3,
-                        ),
+                        style: AppTextStyles.label.copyWith(
+                            letterSpacing: 0, color: AppColors.ink3),
                       ),
                     ],
-                    const SizedBox(width: 4),
+                    const SizedBox(width: AppSpacing.xs),
                     AppIcon(AppIcons.chevronRight,
-                        size: 20,
+                        size: AppIconSize.md,
                         color: isEmpty
-                            ? AppColors.paleInk3
+                            ? AppColors.ink3
                             : PalePalette.catInk(cat)),
                   ],
                 ),
@@ -279,7 +277,7 @@ class _RecordTabState extends ConsumerState<RecordTab> {
     return Column(
       children: [
         heroCard,
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.cardGap),
         restCard,
       ],
     );
