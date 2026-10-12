@@ -39,6 +39,23 @@ Widget get _logo => Image.asset(
       semanticLabel: 'tailog',
     );
 
+/// 로그인 화면.
+///
+/// ## 테마 (2026-10-13 리뉴얼 반영)
+///
+/// 이 화면만 리뉴얼 전 톤에 남아 있었다 — 버튼·체크박스·포커스선이 모두 먹색
+/// (`AppColors.primary` 는 구 별칭이라 실제 값이 `ink` 다)이고 브랜드 초록이 한
+/// 군데도 없었다. 앱의 첫 화면인데 안으로 들어가면 색이 바뀌는 셈이라 제일 먼저
+/// 눈에 걸린다.
+///
+/// 지금은 다른 화면과 같은 골격을 쓴다:
+/// - 바탕 [AppColors.canvas](연회색) 위에 입력·버튼을 담는 **흰 카드** 한 장
+/// - 액션은 [AppColors.brandAction](에메랄드 700) — 흰 글씨가 읽히는 유일한 단
+/// - 입력은 밑줄이 아니라 [AppRadius.brMd] 박스, 포커스에서만 테두리가 브랜드색
+///
+/// ⛔ 구 별칭(`primary`·`textPrimary`·`textSecondary`·`textDisabled`·`border`)을
+/// 다시 끌어오지 말 것. 전부 `ink`/`ink2`/`ink3`/`line` 과 브랜드 토큰을 직접 쓴다.
+/// 소셜 버튼의 `kakao`/`naver`/`google` 은 각 사 규정색이라 예외다.
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -87,160 +104,165 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
+            padding:
+                const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
             child: Form(
               key: _formKey,
               child: Column(
                 children: [
-                  const SizedBox(height: 56),
+                  const SizedBox(height: 48),
 
                   // ── 로고 (심볼 + 워드마크) ───────────────────────────
                   _logo,
 
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AppSpacing.md),
 
                   // ── 슬로건 ──────────────────────────────────────────
-                  Text(
-                    '작은 친구들을 위한 사육 노트',
-                    style: AppTextStyles.caption
-                        .copyWith(color: AppColors.textDisabled),
-                  ),
+                  Text('작은 친구들을 위한 사육 노트', style: AppTextStyles.caption),
 
-                  const SizedBox(height: 36),
+                  const SizedBox(height: 28),
 
-                  // ── EMAIL 입력 ───────────────────────────────────────
-                  _InputField(
-                    label: 'EMAIL',
-                    controller: _emailCtrl,
-                    keyboardType: TextInputType.emailAddress,
-                    enabled: !isLoading,
-                    validator: (v) {
-                      if (v == null || v.isEmpty) return '이메일을 입력하세요';
-                      final ok = RegExp(r'^[\w.+\-]+@[\w\-]+\.[a-zA-Z]{2,}$');
-                      if (!ok.hasMatch(v)) return '올바른 이메일 형식이 아닙니다';
-                      return null;
-                    },
-                  ),
+                  // ── 입력 카드 ───────────────────────────────────────
+                  //
+                  // 입력 두 칸 + 옵션 줄 + 로그인 버튼을 한 장에 담는다. 연회색
+                  // 바탕에 입력만 떠 있으면 '로그인 하는 영역'이 어디까지인지
+                  // 안 읽히고, 소셜 버튼이 붙는 날 특히 뒤섞인다.
+                  Container(
+                    decoration: AppDecor.cardRaised,
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: Column(
+                      children: [
+                        _InputField(
+                          label: '이메일',
+                          hintText: 'name@example.com',
+                          controller: _emailCtrl,
+                          keyboardType: TextInputType.emailAddress,
+                          enabled: !isLoading,
+                          validator: (v) {
+                            if (v == null || v.isEmpty) return '이메일을 입력하세요';
+                            final ok =
+                                RegExp(r'^[\w.+\-]+@[\w\-]+\.[a-zA-Z]{2,}$');
+                            if (!ok.hasMatch(v)) return '올바른 이메일 형식이 아닙니다';
+                            return null;
+                          },
+                        ),
 
-                  const SizedBox(height: 8),
+                        const SizedBox(height: AppSpacing.md),
 
-                  // ── P/W 입력 ────────────────────────────────────────
-                  _InputField(
-                    label: 'P/W',
-                    controller: _pwCtrl,
-                    obscureText: _obscure,
-                    enabled: !isLoading,
-                    suffixIcon: GestureDetector(
-                      onTap: () => setState(() => _obscure = !_obscure),
-                      child: Icon(
-                        _obscure
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
-                        color: AppColors.textDisabled,
-                        size: 20,
-                      ),
-                    ),
-                    validator: (v) {
-                      if (v == null || v.length < 10) {
-                        return '비밀번호는 10자 이상이어야 합니다';
-                      }
-                      return null;
-                    },
-                  ),
+                        _InputField(
+                          label: '비밀번호',
+                          hintText: '10자 이상',
+                          controller: _pwCtrl,
+                          obscureText: _obscure,
+                          enabled: !isLoading,
+                          suffixIcon: GestureDetector(
+                            onTap: () => setState(() => _obscure = !_obscure),
+                            child: Icon(
+                              _obscure
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                              color: AppColors.ink3,
+                              size: 20,
+                            ),
+                          ),
+                          validator: (v) {
+                            if (v == null || v.length < 10) {
+                              return '비밀번호는 10자 이상이어야 합니다';
+                            }
+                            return null;
+                          },
+                        ),
 
-                  const SizedBox(height: 8),
+                        const SizedBox(height: AppSpacing.md),
 
-                  // ── 로그인 상태 유지 + 비밀번호 찾기 ─────────────────
-                  Row(
-                    children: [
-                      GestureDetector(
-                        onTap: () =>
-                            setState(() => _keepLoggedIn = !_keepLoggedIn),
-                        child: Row(
+                        // ── 로그인 상태 유지 + 비밀번호 찾기 ─────────────
+                        Row(
                           children: [
-                            _CheckBox(checked: _keepLoggedIn),
-                            const SizedBox(width: 8),
-                            Text(
-                              '로그인 상태 유지',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textSecondary,
+                            GestureDetector(
+                              onTap: () => setState(
+                                  () => _keepLoggedIn = !_keepLoggedIn),
+                              child: Row(
+                                children: [
+                                  _CheckBox(checked: _keepLoggedIn),
+                                  const SizedBox(width: AppSpacing.sm),
+                                  Text('로그인 상태 유지',
+                                      style: AppTextStyles.caption),
+                                ],
+                              ),
+                            ),
+                            const Spacer(),
+                            TextButton(
+                              onPressed: () =>
+                                  context.push('/password-reset/request'),
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: Size.zero,
+                                tapTargetSize:
+                                    MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: Text(
+                                '비밀번호를 잊으셨나요?',
+                                style: AppTextStyles.caption.copyWith(
+                                  color: AppColors.ink3,
+                                  decoration: TextDecoration.underline,
+                                  decorationColor: AppColors.ink3,
+                                ),
                               ),
                             ),
                           ],
                         ),
-                      ),
-                      const Spacer(),
-                      TextButton(
-                        onPressed: () => context.push('/password-reset/request'),
-                        style: TextButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: Text(
-                          '비밀번호를 잊으셨나요?',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
-                            decoration: TextDecoration.underline,
-                            decorationColor: AppColors.textSecondary,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
 
-                  const SizedBox(height: 20),
+                        const SizedBox(height: AppSpacing.lg),
 
-                  // ── 이메일로 로그인 버튼 ─────────────────────────────
-                  _FullButton(
-                    label: '이메일로 로그인',
-                    backgroundColor: AppColors.primary,
-                    textColor: Colors.white,
-                    isLoading: isLoading,
-                    onPressed: isLoading ? null : _submit,
+                        // ── 이메일로 로그인 버튼 ───────────────────────
+                        _FullButton(
+                          label: '이메일로 로그인',
+                          backgroundColor: AppColors.brandAction,
+                          textColor: Colors.white,
+                          isLoading: isLoading,
+                          onPressed: isLoading ? null : _submit,
+                        ),
+                      ],
+                    ),
                   ),
 
                   // ── 소셜 로그인 (kSocialLoginEnabled) ────────────────
                   // OR 구분선까지 통째로 감싼다 — 아래가 비어 있는 'OR'만 남으면
                   // 뭔가 빠진 화면으로 보인다
                   if (kSocialLoginEnabled) ...[
-                    const SizedBox(height: 20),
+                    const SizedBox(height: AppSpacing.lg),
 
                     Row(
                       children: [
                         const Expanded(
-                          child: Divider(color: AppColors.border, thickness: 1),
+                          child: Divider(color: AppColors.line, thickness: 1),
                         ),
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          child: Text(
-                            'OR',
-                            style: AppTextStyles.label
-                                .copyWith(color: AppColors.textDisabled),
-                          ),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.md),
+                          child: Text('OR', style: AppTextStyles.label),
                         ),
                         const Expanded(
-                          child: Divider(color: AppColors.border, thickness: 1),
+                          child: Divider(color: AppColors.line, thickness: 1),
                         ),
                       ],
                     ),
 
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AppSpacing.lg),
 
                     // ── 카카오 ─────────────────────────────────────────
                     _SocialButton(
                       label: '카카오로 시작하기',
                       backgroundColor: AppColors.kakao,
-                      textColor: AppColors.textPrimary,
+                      textColor: AppColors.ink,
                       // ✏️ 아이콘 교체: assets/icons/kakao.png 준비 후 주석 해제
                       // iconPath: 'assets/icons/kakao.png',
-                      fallbackIcon: const Text('💛', style: TextStyle(fontSize: 18)),
+                      fallbackIcon:
+                          const Text('💛', style: TextStyle(fontSize: 18)),
                       onPressed: () {},
                     ),
 
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppSpacing.sm),
 
                     // ── 네이버 ─────────────────────────────────────────
                     _SocialButton(
@@ -259,13 +281,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       onPressed: () {},
                     ),
 
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppSpacing.sm),
 
                     // ── Google ─────────────────────────────────────────
                     _SocialButton(
                       label: 'Google로 시작하기',
-                      backgroundColor: Colors.white,
-                      textColor: AppColors.textPrimary,
+                      backgroundColor: AppColors.card,
+                      textColor: AppColors.ink,
                       hasBorder: true,
                       // ✏️ 아이콘 교체: assets/icons/google.png 준비 후 주석 해제
                       // iconPath: 'assets/icons/google.png',
@@ -280,49 +302,41 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ],
 
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 28),
 
                   // ── 처음이신가요? 회원가입 ────────────────────────────
+                  // 회원가입만 브랜드색이다 — 이 화면에서 '지금 할 수 있는 다른 일'은
+                  // 사실상 하나뿐이라, 비밀번호 찾기까지 같이 강조하면 둘 다 안 읽힌다.
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
-                        '처음이신가요?',
-                        style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                      ),
+                      Text('처음이신가요?', style: AppTextStyles.caption),
                       TextButton(
                         onPressed: () => context.push('/signup'),
                         style: TextButton.styleFrom(
-                          padding: const EdgeInsets.only(left: 4),
+                          padding: const EdgeInsets.only(left: AppSpacing.xs),
                           minimumSize: Size.zero,
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
                         child: Text(
                           '회원가입',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: AppColors.textPrimary,
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.brandAction,
                             fontWeight: FontWeight.w700,
-                            decoration: TextDecoration.underline,
-                            decorationColor: AppColors.textPrimary,
                           ),
                         ),
                       ),
                     ],
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: AppSpacing.lg),
 
                   // ── 버전 푸터 ────────────────────────────────────────
                   // 양옆의 ▼ 는 픽셀 컨셉 시절의 장식이었다. 로고가 제대로 들어간
                   // 화면에서는 같은 자리에서 두 개의 다른 톤이 부딪힌다.
-                  Text(
-                    'tailog v0.2',
-                    style: AppTextStyles.label
-                        .copyWith(color: AppColors.textDisabled),
-                  ),
+                  Text('tailog v0.2', style: AppTextStyles.label),
 
-                  const SizedBox(height: 40),
+                  const SizedBox(height: AppSpacing.xxl),
                 ],
               ),
             ),
@@ -334,6 +348,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 }
 
 // ─── 체크박스 ────────────────────────────────────────────────────────────
+//
+// 끄고 켠 차이를 **테두리 색까지** 바꿔서 낸다. 예전엔 테두리가 늘 먹색이라
+// 꺼진 상태가 '진한 빈 네모'로 읽혀서, 켠 것보다 더 눈에 띄었다.
 class _CheckBox extends StatelessWidget {
   final bool checked;
   const _CheckBox({required this.checked});
@@ -344,20 +361,28 @@ class _CheckBox extends StatelessWidget {
       width: 18,
       height: 18,
       decoration: BoxDecoration(
-        color: checked ? AppColors.primary : Colors.transparent,
-        border: Border.all(color: AppColors.textPrimary, width: 1.5),
+        color: checked ? AppColors.brandAction : Colors.transparent,
+        border: Border.all(
+          color: checked ? AppColors.brandAction : AppColors.ink3,
+          width: 1.5,
+        ),
         borderRadius: AppRadius.brSm,
       ),
       child: checked
-          ? const Icon(Icons.check, size: 16, color: Colors.white)
+          ? const Icon(Icons.check, size: 14, color: Colors.white)
           : null,
     );
   }
 }
 
 // ─── 공통 입력 필드 ────────────────────────────────────────────────────────────
+//
+// 밑줄에서 **박스**로 바꿨다. 흰 카드 위에서 밑줄 입력은 글자가 허공에 떠 있는
+// 것처럼 보이고, 포커스가 어디 있는지도 선 하나로는 잘 안 읽힌다.
+// 포커스에서만 테두리가 브랜드색 1.5 로 올라간다.
 class _InputField extends StatelessWidget {
   final String label;
+  final String? hintText;
   final TextEditingController controller;
   final TextInputType keyboardType;
   final bool obscureText;
@@ -368,6 +393,7 @@ class _InputField extends StatelessWidget {
   const _InputField({
     required this.label,
     required this.controller,
+    this.hintText,
     this.keyboardType = TextInputType.text,
     this.obscureText = false,
     this.enabled = true,
@@ -375,48 +401,52 @@ class _InputField extends StatelessWidget {
     this.validator,
   });
 
+  static const _side = BorderSide(color: AppColors.line);
+  static const _focusedSide =
+      BorderSide(color: AppColors.brandAction, width: 1.5);
+  static const _errorSide = BorderSide(color: AppColors.error);
+
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: AppTextStyles.label
-              .copyWith(color: AppColors.textDisabled, letterSpacing: 1),
-        ),
-        const SizedBox(height: 4),
+        Text(label, style: AppTextStyles.label),
+        const SizedBox(height: AppSpacing.xs + 2),
         TextFormField(
           controller: controller,
           keyboardType: keyboardType,
           obscureText: obscureText,
           enabled: enabled,
           validator: validator,
-          style: TextStyle(fontSize: 15, color: AppColors.textPrimary),
-          cursorColor: AppColors.textPrimary,
+          style: AppTextStyles.body,
+          cursorColor: AppColors.brandAction,
           decoration: InputDecoration(
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 4, vertical: 16),
+            hintText: hintText,
+            hintStyle: AppTextStyles.body.copyWith(color: AppColors.ink3),
+            filled: false,
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md, vertical: 14),
             suffixIcon: suffixIcon != null
                 ? Padding(
-                    padding: const EdgeInsets.only(right: 12),
+                    padding: const EdgeInsets.only(right: AppSpacing.md),
                     child: suffixIcon,
                   )
                 : null,
             suffixIconConstraints:
                 const BoxConstraints(minWidth: 0, minHeight: 0),
-            enabledBorder: const UnderlineInputBorder(
-              borderSide: BorderSide(color: AppColors.border),
-            ),
-            focusedBorder: const UnderlineInputBorder(
-              borderSide: BorderSide(color: AppColors.textPrimary, width: 1.5),
-            ),
-            errorBorder: const UnderlineInputBorder(
-              borderSide: BorderSide(color: AppColors.error),
-            ),
-            focusedErrorBorder: const UnderlineInputBorder(
-              borderSide: BorderSide(color: AppColors.error, width: 1.5),
-            ),
+            enabledBorder: const OutlineInputBorder(
+                borderRadius: AppRadius.brMd, borderSide: _side),
+            focusedBorder: const OutlineInputBorder(
+                borderRadius: AppRadius.brMd, borderSide: _focusedSide),
+            disabledBorder: const OutlineInputBorder(
+                borderRadius: AppRadius.brMd, borderSide: _side),
+            errorBorder: const OutlineInputBorder(
+                borderRadius: AppRadius.brMd, borderSide: _errorSide),
+            focusedErrorBorder: const OutlineInputBorder(
+                borderRadius: AppRadius.brMd,
+                borderSide: BorderSide(color: AppColors.error, width: 1.5)),
             errorStyle: const TextStyle(fontSize: 12, color: AppColors.error),
           ),
         ),
@@ -426,6 +456,9 @@ class _InputField extends StatelessWidget {
 }
 
 // ─── 메인 버튼 ────────────────────────────────────────────────────────────────
+//
+// 전체폭 메인 버튼 공통 위젯은 `core/widgets/app_buttons.dart` 에 아직 없다
+// (거기엔 네비·스테퍼 버튼만 있다). 그래서 이 화면 안에 두고 색만 토큰으로 맞췄다.
 class _FullButton extends StatelessWidget {
   final String label;
   final Color backgroundColor;
@@ -451,28 +484,26 @@ class _FullButton extends StatelessWidget {
         style: ElevatedButton.styleFrom(
           backgroundColor: backgroundColor,
           foregroundColor: textColor,
+          // 로딩 중(onPressed == null)에는 연한 브랜드 톤으로 내린다. 회색으로
+          // 바꾸면 '못 누르는 버튼'이 아니라 '꺼진 버튼'처럼 보인다.
+          disabledBackgroundColor: AppColors.brandTint,
+          disabledForegroundColor: AppColors.brandTintInk,
+          // 눌림은 색으로만 낸다 — 그림자를 올리면 카드 안에서 버튼만 떠 보인다.
+          overlayColor: AppColors.brandPressed,
           elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: AppRadius.brMd,
-          ),
+          shape: const RoundedRectangleBorder(borderRadius: AppRadius.brMd),
         ),
         child: isLoading
-            ? SizedBox(
+            ? const SizedBox(
                 width: 20,
                 height: 20,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: textColor,
+                  color: AppColors.brandTintInk,
                 ),
               )
-            : Text(
-                label,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: textColor,
-                ),
-              ),
+            : Text(label,
+                style: AppTextStyles.button.copyWith(color: textColor)),
       ),
     );
   }
@@ -521,7 +552,7 @@ class _SocialButton extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: AppRadius.brMd,
             side: hasBorder
-                ? const BorderSide(color: AppColors.border)
+                ? const BorderSide(color: AppColors.line)
                 : BorderSide.none,
           ),
         ),
@@ -531,18 +562,13 @@ class _SocialButton extends StatelessWidget {
             Align(
               alignment: Alignment.centerLeft,
               child: Padding(
-                padding: const EdgeInsets.only(left: 4),
+                padding: const EdgeInsets.only(left: AppSpacing.xs),
                 child: icon,
               ),
             ),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: textColor,
-              ),
-            ),
+            Text(label,
+                style: AppTextStyles.button
+                    .copyWith(fontSize: 14, color: textColor)),
           ],
         ),
       ),
