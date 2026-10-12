@@ -26,6 +26,9 @@ void invalidatePetRecords(WidgetRef ref, int petId,
   ref.invalidate(memoListProvider(petId));
   ref.invalidate(matingListProvider(petId));
   ref.invalidate(layingListProvider(petId));
+  // '알' 탭·클러치 상세 — 어느 클러치가 바뀌었는지 모르므로 family 전체를 비운다
+  ref.invalidate(myLayingsProvider);
+  ref.invalidate(layingDetailProvider);
   if (!keepFeedSessions) ref.invalidate(feedSessionsProvider(petId));
 
   // 홈

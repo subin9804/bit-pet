@@ -77,6 +77,8 @@ public enum ErrorCode {
     LAYING_MATING_MISMATCH(HttpStatus.BAD_REQUEST, "Mating female pet does not match laying pet"),
     HATCH_NOT_FOUND(HttpStatus.NOT_FOUND, "Hatch record not found"),
     HATCH_INVALID_STATUS_TRANSITION(HttpStatus.BAD_REQUEST, "Invalid hatch status transition"),
+    HATCH_ALREADY_REGISTERED(HttpStatus.BAD_REQUEST, "Hatch is already registered as a pet"),
+    LAYING_NOTE_NOT_FOUND(HttpStatus.NOT_FOUND, "Laying note not found"),
 
     // --- Memo ---
     MEMO_NOT_FOUND(HttpStatus.NOT_FOUND, "Memo not found"),

@@ -263,6 +263,11 @@ class HatchRecord {
   final DateTime? hatchedAt;
   final String? memo;
 
+  /// 이 알이 개체로 등록됐으면 그 개체 id. 등록된 알은 상태 순환에서 빠진다
+  /// (서버도 `HATCH_ALREADY_REGISTERED` 로 막는다).
+  final int? hatchedPetId;
+  final String? hatchedPetName;
+
   const HatchRecord({
     required this.id,
     required this.layingId,
@@ -270,55 +275,136 @@ class HatchRecord {
     required this.status,
     this.hatchedAt,
     this.memo,
+    this.hatchedPetId,
+    this.hatchedPetName,
   });
 
-  factory HatchRecord.fromJson(Map<String, dynamic> json) => HatchRecord(
-        // 서버 키는 `hatchId`(`HatchResponse`). 그 응답엔 layingId·eggIndex 가
-        // 아예 없어서(부모 산란 기록 안에 배열로 들어온다) 기본값으로 받는다.
-        id: (json['hatchId'] ?? json['id']) as int,
+  bool get isRegistered => hatchedPetId != null;
+
+  factory HatchRecord.fromJson(Map<String, dynamic> json) {
+    final summary = json['hatchedPetSummary'] as Map<String, dynamic>?;
+    return HatchRecord(
+      // 서버 키는 `hatchId`(`HatchResponse`). 그 응답엔 layingId 가 없어서
+      // (부모 산란 기록 안에 배열로 들어온다) 기본값으로 받는다.
+      id: (json['hatchId'] ?? json['id']) as int,
+      layingId: (json['layingId'] as int?) ?? 0,
+      eggIndex: (json['eggIndex'] as int?) ?? 0,
+      status: HatchStatus.values.firstWhere(
+        (e) => e.name == json['status'],
+        orElse: () => HatchStatus.PENDING,
+      ),
+      hatchedAt: json['hatchedAt'] != null
+          ? DateTime.parse(json['hatchedAt'] as String)
+          : null,
+      memo: json['memo'] as String?,
+      hatchedPetId: json['hatchedPetId'] as int?,
+      hatchedPetName: summary?['name'] as String?,
+    );
+  }
+}
+
+/// 클러치의 날짜별 관찰 메모 (`laying_note_dtl`).
+///
+/// 산란 기록 자체의 `memo` 와 다른 것이다 — 저쪽은 클러치당 한 칸이라
+/// "며칠에 무엇을 봤다"를 쌓을 수 없다.
+class LayingNote {
+  final int id;
+  final int layingId;
+  final DateTime notedAt;
+  final String content;
+
+  const LayingNote({
+    required this.id,
+    required this.layingId,
+    required this.notedAt,
+    required this.content,
+  });
+
+  factory LayingNote.fromJson(Map<String, dynamic> json) => LayingNote(
+        id: (json['noteId'] ?? json['id']) as int,
         layingId: (json['layingId'] as int?) ?? 0,
-        eggIndex: (json['eggIndex'] as int?) ?? 0,
-        status: HatchStatus.values.firstWhere(
-          (e) => e.name == json['status'],
-          orElse: () => HatchStatus.PENDING,
-        ),
-        hatchedAt: json['hatchedAt'] != null
-            ? DateTime.parse(json['hatchedAt'] as String)
-            : null,
-        memo: json['memo'] as String?,
+        notedAt: DateTime.parse(json['notedAt'] as String),
+        content: json['content'] as String? ?? '',
       );
 }
 
 class LayingRecord {
   final int id;
   final int petId;
+
+  /// 어미 이름·종 — '알' 탭 카드가 개체를 따로 조회하지 않도록 서버가 같이 내린다.
+  /// 개체 상세의 산란 목록(`/pets/:id/layings`)에서는 비어 있다.
+  final String? petName;
+  final String? speciesName;
+
   final DateTime laidAt;
   final int totalCount;
   final String? memo;
+
+  /// 인큐베이터 설정값 — 클러치 상세 요약 캡션에만 쓴다.
+  final double? incubationTemp;
+  final double? incubationHumidity;
   final List<HatchRecord> hatches;
+  final List<LayingNote> notes;
   final DateTime createdAt;
 
   const LayingRecord({
     required this.id,
     required this.petId,
+    this.petName,
+    this.speciesName,
     required this.laidAt,
     required this.totalCount,
     this.memo,
+    this.incubationTemp,
+    this.incubationHumidity,
     required this.hatches,
+    this.notes = const [],
     required this.createdAt,
   });
+
+  /// 산란일로부터 며칠째인가 (산란일 당일은 0).
+  int get daysSinceLaid {
+    final laid = DateTime(laidAt.year, laidAt.month, laidAt.day);
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day).difference(laid).inDays;
+  }
+
+  int get hatchedCount =>
+      hatches.where((h) => h.status == HatchStatus.HATCHED).length;
+
+  int get failedCount => hatches
+      .where((h) =>
+          h.status == HatchStatus.FAILED || h.status == HatchStatus.SLUG)
+      .length;
+
+  int get pendingCount =>
+      hatches.where((h) => h.status == HatchStatus.PENDING).length;
+
+  /// 부화했지만 아직 개체로 등록하지 않은 알 — 하단 등록 버튼의 개수.
+  int get registerableCount => hatches
+      .where((h) => h.status == HatchStatus.HATCHED && !h.isRegistered)
+      .length;
 
   factory LayingRecord.fromJson(Map<String, dynamic> json) => LayingRecord(
         // 서버 키는 `layingId` / `eggCountTotal`(`LayingResponse`).
         id: (json['layingId'] ?? json['id']) as int,
         petId: (json['petId'] as int?) ?? 0,
+        petName: json['petName'] as String?,
+        speciesName: json['speciesName'] as String?,
         laidAt: DateTime.parse(json['laidAt'] as String),
         totalCount: ((json['eggCountTotal'] ?? json['totalCount']) as num).toInt(),
         memo: json['memo'] as String?,
+        incubationTemp: (json['incubationTemp'] as num?)?.toDouble(),
+        incubationHumidity: (json['incubationHumidity'] as num?)?.toDouble(),
         hatches: (json['hatches'] as List?)
                 ?.map((e) => HatchRecord.fromJson(e as Map<String, dynamic>))
                 .toList() ??
             [],
+        notes: (json['notes'] as List?)
+                ?.map((e) => LayingNote.fromJson(e as Map<String, dynamic>))
+                .toList() ??
+            const [],
         createdAt: DateTime.parse(json['createdAt'] as String),
       );
 }

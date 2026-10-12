@@ -9,6 +9,7 @@ import java.time.Instant;
 
 public record HatchResponse(
         Long hatchId,
+        Integer eggIndex,
         HatchStatus status,
         Instant hatchedAt,
         Long hatchedPetId,
@@ -20,6 +21,7 @@ public record HatchResponse(
     public static HatchResponse of(LayingHatchDtl hatch, PetMst hatchedPet) {
         return new HatchResponse(
                 hatch.getId(),
+                hatch.getEggIndex(),
                 hatch.getStatus(),
                 hatch.getHatchedAt(),
                 hatch.getHatchedPetId(),

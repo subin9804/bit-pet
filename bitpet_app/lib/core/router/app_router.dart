@@ -36,6 +36,7 @@ import '../../features/notification/data/models/notification_models.dart';
 import '../../features/notification/providers/notification_provider.dart';
 import '../../features/record/presentation/weight_screen.dart';
 import '../../features/record/presentation/feed_detail_screen.dart';
+import '../../features/record/presentation/laying/clutch_detail_screen.dart';
 import '../../features/nfc/presentation/tag_resolver_screen.dart';
 import '../../features/nfc/presentation/my_tags_screen.dart';
 import '../../features/nfc/providers/tag_provider.dart';
@@ -168,6 +169,14 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/pets/:id/feeding',
             builder: (_, state) => FeedDetailScreen(
               petId: int.parse(state.pathParameters['id']!),
+            ),
+          ),
+          // 클러치(유정란) 상세 — '내 개체 → 알' 탭에서 들어온다. 개체 하나에
+          // 매달린 화면이 아니라 클러치가 주인공이라 /pets/:id 아래 두지 않는다.
+          GoRoute(
+            path: '/layings/:layingId',
+            builder: (_, state) => ClutchDetailScreen(
+              layingId: int.parse(state.pathParameters['layingId']!),
             ),
           ),
           // /records → /pets로 리다이렉트 (루틴은 내 개체 관리 탭에서 관리)

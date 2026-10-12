@@ -37,6 +37,17 @@ final layingListProvider =
   return ref.watch(recordRepositoryProvider).getLayings(petId);
 });
 
+/// '내 개체 → 알' 탭 — 내가 돌보는 개체 전체의 클러치.
+final myLayingsProvider = FutureProvider<List<LayingRecord>>((ref) {
+  return ref.watch(recordRepositoryProvider).getMyLayings();
+});
+
+/// 클러치 상세 — 알 칸과 관찰 메모가 한 응답에 같이 들어온다.
+final layingDetailProvider =
+    FutureProvider.family<LayingRecord, int>((ref, layingId) {
+  return ref.watch(recordRepositoryProvider).getLaying(layingId);
+});
+
 final recentRecordsProvider = FutureProvider<List<RecentRecord>>((ref) {
   return ref.watch(recordRepositoryProvider).getRecentRecords();
 });

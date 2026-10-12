@@ -24,5 +24,8 @@ public interface LayingDtlRepository extends JpaRepository<LayingDtl, Long>,
                                               @Param("from") Instant from,
                                               @Param("to") Instant to);
 
+    /** '알' 탭 — 내가 돌보는 개체 전체의 클러치를 산란일 최신순으로 */
+    List<LayingDtl> findAllByPetIdInOrderByLaidAtDesc(Collection<Long> petIds);
+
     // 선택 필터 목록은 LayingDtlSpecs 로 조립한다 — "(:x IS NULL OR ...)" JPQL 을 쓰지 말 것 (Specs 주석 참고)
 }

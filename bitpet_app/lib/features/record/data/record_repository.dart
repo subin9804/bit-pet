@@ -289,6 +289,176 @@ class RecordRepository {
     await _dio.delete('/layings/$layingId');
   }
 
+  /// '내 개체 → 알' 탭 — 내가 돌보는 개체 전체의 클러치. 어미 이름·종·알 칸·메모가
+  /// 한 번에 들어오므로 카드마다 개체를 따로 조회하지 않는다.
+  Future<List<LayingRecord>> getMyLayings() async {
+    final res = await _dio.get('/layings');
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => unwrapList(d)
+          .map((e) => LayingRecord.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+    return apiRes.data ?? [];
+  }
+
+  Future<LayingRecord> getLaying(int layingId) async {
+    final res = await _dio.get('/layings/$layingId');
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => LayingRecord.fromJson(d as Map<String, dynamic>),
+    );
+    if (!apiRes.success || apiRes.data == null) {
+      throw ApiException(
+          statusCode: res.statusCode ?? 0, message: apiRes.message ?? '클러치 조회 실패');
+    }
+    return apiRes.data!;
+  }
+
+  // ── 알 칸 (해칭) ───────────────────────────────────────────
+
+  /// 알 칸을 누를 때마다 대기 → 부화 → 무정 → 대기 로 돌린다. 부화일은 서버가
+  /// 누른 날로 적는다. 이미 개체로 등록된 알은 서버가 400 으로 막는다.
+  Future<HatchRecord> cycleHatch(int layingId, int hatchId) async {
+    final res =
+        await _dio.post('/layings/$layingId/hatches/$hatchId/cycle');
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => HatchRecord.fromJson(d as Map<String, dynamic>),
+    );
+    if (!apiRes.success || apiRes.data == null) {
+      throw ApiException(
+          statusCode: res.statusCode ?? 0, message: apiRes.message ?? '알 상태 변경 실패');
+    }
+    return apiRes.data!;
+  }
+
+  /// 롱프레스로 부화일·상태를 직접 고칠 때. [data] 는 `status`/`hatchedAt`/`memo`.
+  Future<HatchRecord> updateHatch(
+      int layingId, int hatchId, Map<String, dynamic> data) async {
+    final res =
+        await _dio.put('/layings/$layingId/hatches/$hatchId', data: data);
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => HatchRecord.fromJson(d as Map<String, dynamic>),
+    );
+    if (!apiRes.success || apiRes.data == null) {
+      throw ApiException(
+          statusCode: res.statusCode ?? 0, message: apiRes.message ?? '알 수정 실패');
+    }
+    return apiRes.data!;
+  }
+
+  /// 알 칸은 산란 등록 시 알 개수만큼 서버가 만들어 두므로 보통 쓸 일이 없다.
+  /// 나중에 알을 더 발견한 경우를 위해 남겨둔다.
+  Future<HatchRecord> addHatch(int layingId, Map<String, dynamic> data) async {
+    final res = await _dio.post('/layings/$layingId/hatches', data: data);
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => HatchRecord.fromJson(d as Map<String, dynamic>),
+    );
+    if (!apiRes.success || apiRes.data == null) {
+      throw ApiException(
+          statusCode: res.statusCode ?? 0, message: apiRes.message ?? '알 추가 실패');
+    }
+    return apiRes.data!;
+  }
+
+  Future<void> deleteHatch(int layingId, int hatchId) async {
+    await _dio.delete('/layings/$layingId/hatches/$hatchId');
+  }
+
+  /// 부화한 알을 개체로 등록한다. 이름·성별만 필수고 종·해칭일·부모는 서버가
+  /// 클러치에서 채운다. [weightG] 를 보내면 해칭일자 체중 기록도 함께 생긴다.
+  /// 반환값은 새 개체 id.
+  Future<int> registerPetFromHatch(
+    int layingId,
+    int hatchId, {
+    required String name,
+    required String gender,
+    double? weightG,
+    int? morphId,
+    String? memo,
+  }) async {
+    final res = await _dio.post(
+      '/layings/$layingId/hatches/$hatchId/register-pet',
+      data: {
+        'name': name,
+        'gender': gender,
+        if (weightG != null) 'weightG': weightG,
+        if (morphId != null) 'morphId': morphId,
+        if (memo != null && memo.isNotEmpty) 'memo': memo,
+      },
+    );
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => (d as Map<String, dynamic>)['id'] as int,
+    );
+    if (!apiRes.success || apiRes.data == null) {
+      throw ApiException(
+          statusCode: res.statusCode ?? 0, message: apiRes.message ?? '개체 등록 실패');
+    }
+    return apiRes.data!;
+  }
+
+  // ── 클러치 관찰 메모 ──────────────────────────────────────
+
+  Future<List<LayingNote>> getLayingNotes(int layingId) async {
+    final res = await _dio.get('/layings/$layingId/notes');
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => unwrapList(d)
+          .map((e) => LayingNote.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+    return apiRes.data ?? [];
+  }
+
+  Future<LayingNote> addLayingNote(
+      int layingId, DateTime notedAt, String content) async {
+    final res = await _dio.post('/layings/$layingId/notes', data: {
+      'notedAt': _ymd(notedAt),
+      'content': content,
+    });
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => LayingNote.fromJson(d as Map<String, dynamic>),
+    );
+    if (!apiRes.success || apiRes.data == null) {
+      throw ApiException(
+          statusCode: res.statusCode ?? 0, message: apiRes.message ?? '메모 저장 실패');
+    }
+    return apiRes.data!;
+  }
+
+  Future<LayingNote> updateLayingNote(
+      int layingId, int noteId, DateTime notedAt, String content) async {
+    final res = await _dio.put('/layings/$layingId/notes/$noteId', data: {
+      'notedAt': _ymd(notedAt),
+      'content': content,
+    });
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => LayingNote.fromJson(d as Map<String, dynamic>),
+    );
+    if (!apiRes.success || apiRes.data == null) {
+      throw ApiException(
+          statusCode: res.statusCode ?? 0, message: apiRes.message ?? '메모 수정 실패');
+    }
+    return apiRes.data!;
+  }
+
+  Future<void> deleteLayingNote(int layingId, int noteId) async {
+    await _dio.delete('/layings/$layingId/notes/$noteId');
+  }
+
+  /// 서버의 `notedAt` 은 `LocalDate` 다 — 타임존이 붙은 문자열을 보내면 날짜가
+  /// 하루 밀린다.
+  String _ymd(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-'
+      '${d.month.toString().padLeft(2, '0')}-'
+      '${d.day.toString().padLeft(2, '0')}';
+
   // ── 급여 수정/삭제 ──────────────────────────────────────────
 
   Future<FeedingRecord> updateFeeding(int id, Map<String, dynamic> data) async {

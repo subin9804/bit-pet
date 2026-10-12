@@ -17,16 +17,23 @@ import io.bitpet.pet.service.SerialNumberGenerator;
 import io.bitpet.record.laying.domain.HatchStatus;
 import io.bitpet.record.laying.domain.LayingDtl;
 import io.bitpet.record.laying.domain.LayingHatchDtl;
+import io.bitpet.record.laying.domain.LayingNoteDtl;
 import io.bitpet.record.laying.dto.HatchCreateRequest;
 import io.bitpet.record.laying.dto.HatchResponse;
 import io.bitpet.record.laying.dto.HatchUpdateRequest;
 import io.bitpet.record.laying.dto.LayingCreateRequest;
+import io.bitpet.record.laying.dto.LayingNoteRequest;
+import io.bitpet.record.laying.dto.LayingNoteResponse;
 import io.bitpet.record.laying.dto.LayingResponse;
 import io.bitpet.record.laying.dto.LayingUpdateRequest;
 import io.bitpet.record.laying.dto.RegisterPetRequest;
 import io.bitpet.record.laying.repository.LayingDtlRepository;
 import io.bitpet.record.laying.repository.LayingDtlSpecs;
 import io.bitpet.record.laying.repository.LayingHatchDtlRepository;
+import io.bitpet.record.laying.repository.LayingNoteDtlRepository;
+import io.bitpet.record.domain.WeightDtl;
+import io.bitpet.record.domain.WeightSource;
+import io.bitpet.record.repository.WeightDtlRepository;
 import io.bitpet.record.mating.domain.MatingDtl;
 import io.bitpet.record.mating.repository.MatingDtlRepository;
 import io.bitpet.pet.dto.PetResponse;
@@ -38,7 +45,13 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -47,8 +60,21 @@ public class LayingService {
 
     private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
 
+    /**
+     * 알 칸 정렬 — 번호가 있는 알이 번호순으로 먼저, 번호 없는 옛 기록은 뒤에 만든 순서대로.
+     * (egg_index 는 V16 에서 생긴 컬럼이라 백필 이후에도 null 이 남을 수 있다)
+     */
+    private static final Comparator<LayingHatchDtl> EGG_ORDER =
+            Comparator.comparing(LayingHatchDtl::getEggIndex,
+                            Comparator.nullsLast(Comparator.naturalOrder()))
+                    .thenComparing(LayingHatchDtl::getCreatedAt,
+                            Comparator.nullsLast(Comparator.naturalOrder()))
+                    .thenComparing(LayingHatchDtl::getId);
+
     private final LayingDtlRepository layingRepo;
     private final LayingHatchDtlRepository hatchRepo;
+    private final LayingNoteDtlRepository noteRepo;
+    private final WeightDtlRepository weightRepo;
     private final MatingDtlRepository matingRepo;
     private final PetMstRepository petRepo;
     private final io.bitpet.pet.service.PetKeeperService petKeeper;
@@ -83,7 +109,10 @@ public class LayingService {
                 .memo(req.memo())
                 .build());
 
-        return LayingResponse.of(laying, List.of());
+        // 알 칸은 산란과 동시에 생긴다 — 화면이 알을 칸으로 그리려면 행이 미리 있어야 한다
+        syncEggRows(laying, userId);
+
+        return LayingResponse.of(laying, buildHatches(laying.getId()), List.of(), pet);
     }
 
     // -------------------------------------------------------------------------
@@ -97,14 +126,33 @@ public class LayingService {
     public List<LayingResponse> getLayings(Long petId, Long userId,
                                             Long matingId,
                                             LocalDate from, LocalDate to) {
-        loadOwnedPet(userId, petId);
+        PetMst pet = loadOwnedPet(userId, petId);
         Instant fromInst = from != null ? from.atStartOfDay(SEOUL).toInstant() : null;
         Instant toExcl   = to   != null ? to.plusDays(1).atStartOfDay(SEOUL).toInstant() : null;
 
         return layingRepo.findAll(LayingDtlSpecs.filter(petId, matingId, fromInst, toExcl),
                         Sort.by(Sort.Direction.DESC, "laidAt"))
                 .stream()
-                .map(l -> LayingResponse.of(l, buildHatches(l.getId())))
+                .map(l -> LayingResponse.of(l, buildHatches(l.getId()), buildNotes(l.getId()), pet))
+                .toList();
+    }
+
+    /**
+     * '내 개체 → 알' 탭 — 개체를 가로질러 내가 돌보는 클러치 전부.
+     *
+     * <p>개체별 목록과 달리 어미 이름·종까지 붙여 내린다. 탭의 클러치 카드가 어미를 적는데,
+     * 개체를 하나씩 다시 조회하면 N+1 이 된다.
+     */
+    public List<LayingResponse> getMyLayings(Long userId) {
+        List<Long> petIds = petKeeper.keptPetIds(userId);
+        if (petIds.isEmpty()) return List.of();
+
+        Map<Long, PetMst> pets = petRepo.findAllById(petIds).stream()
+                .collect(Collectors.toMap(PetMst::getId, Function.identity()));
+
+        return layingRepo.findAllByPetIdInOrderByLaidAtDesc(petIds).stream()
+                .map(l -> LayingResponse.of(l, buildHatches(l.getId()), buildNotes(l.getId()),
+                        pets.get(l.getPetId())))
                 .toList();
     }
 
@@ -114,7 +162,8 @@ public class LayingService {
 
     public LayingResponse getLaying(Long layingId, Long userId) {
         LayingDtl laying = loadAccessibleLaying(layingId, userId);
-        return LayingResponse.of(laying, buildHatches(layingId));
+        return LayingResponse.of(laying, buildHatches(layingId), buildNotes(layingId),
+                petRepo.findById(laying.getPetId()).orElse(null));
     }
 
     // -------------------------------------------------------------------------
@@ -133,7 +182,10 @@ public class LayingService {
         laying.update(req.matingId(), req.laidAt().toInstant(), req.eggCountTotal(),
                 req.eggCountFertile(), req.incubationTemp(), req.incubationHumidity(), req.memo());
 
-        return LayingResponse.of(laying, buildHatches(layingId));
+        syncEggRows(laying, userId);
+
+        return LayingResponse.of(laying, buildHatches(layingId), buildNotes(layingId),
+                petRepo.findById(laying.getPetId()).orElse(null));
     }
 
     // -------------------------------------------------------------------------
@@ -143,7 +195,7 @@ public class LayingService {
     @Transactional
     public void deleteLaying(Long layingId, Long userId) {
         LayingDtl laying = loadAccessibleLaying(layingId, userId);
-        layingRepo.delete(laying); // hard delete — hatch는 DB ON DELETE CASCADE로 자동 삭제
+        layingRepo.delete(laying); // hard delete — hatch·note는 DB ON DELETE CASCADE로 자동 삭제
     }
 
     // -------------------------------------------------------------------------
@@ -152,7 +204,7 @@ public class LayingService {
 
     @Transactional
     public HatchResponse createHatch(Long layingId, Long userId, HatchCreateRequest req) {
-        LayingDtl laying = loadAccessibleLaying(layingId, userId);
+        loadAccessibleLaying(layingId, userId);
 
         if (req.status() == HatchStatus.HATCHED && req.hatchedAt() == null) {
             throw new BusinessException(ErrorCode.HATCH_INVALID_STATUS_TRANSITION);
@@ -160,6 +212,7 @@ public class LayingService {
 
         LayingHatchDtl hatch = hatchRepo.save(LayingHatchDtl.builder()
                 .layingId(layingId)
+                .eggIndex(req.eggIndex() != null ? req.eggIndex() : nextEggIndex(layingId))
                 .createdByUserId(userId)
                 .status(req.status())
                 .hatchedAt(req.hatchedAt() != null ? req.hatchedAt().toInstant() : null)
@@ -196,6 +249,32 @@ public class LayingService {
     }
 
     // -------------------------------------------------------------------------
+    // 알 칸 탭 — 상태 순환
+    // -------------------------------------------------------------------------
+
+    /**
+     * 알 칸을 누를 때마다 <b>대기 → 부화 → 무정 → 대기</b>. 부화일은 누른 날로 자동 기록한다.
+     *
+     * <p>상태 하나 바꾸려고 폼을 띄우지 않겠다는 뜻이라, 서버도 "다음 상태"를 받지 않고
+     * 스스로 센다. 날짜를 고치거나 FAILED(발달 중 폐사)로 바꾸는 건 수정 API 쪽 일이다.
+     *
+     * <p>이미 개체로 등록된 알은 순환에서 뺀다. 여기서 상태를 되돌리면 pet_mst 에 남은 개체와
+     * 어긋나므로, 개체를 먼저 지우거나 연결을 끊어야 한다.
+     */
+    @Transactional
+    public HatchResponse cycleHatchStatus(Long layingId, Long hatchId, Long userId) {
+        loadAccessibleLaying(layingId, userId);
+        LayingHatchDtl hatch = loadHatch(hatchId, layingId);
+
+        if (hatch.getHatchedPetId() != null) {
+            throw new BusinessException(ErrorCode.HATCH_ALREADY_REGISTERED);
+        }
+
+        hatch.cycleStatus(Instant.now());
+        return HatchResponse.of(hatch, null);
+    }
+
+    // -------------------------------------------------------------------------
     // 해칭 삭제
     // -------------------------------------------------------------------------
 
@@ -207,22 +286,76 @@ public class LayingService {
     }
 
     // -------------------------------------------------------------------------
+    // 날짜별 관찰 메모
+    // -------------------------------------------------------------------------
+
+    public List<LayingNoteResponse> getNotes(Long layingId, Long userId) {
+        loadAccessibleLaying(layingId, userId);
+        return buildNotes(layingId);
+    }
+
+    @Transactional
+    public LayingNoteResponse createNote(Long layingId, Long userId, LayingNoteRequest req) {
+        loadAccessibleLaying(layingId, userId);
+        LayingNoteDtl note = noteRepo.save(LayingNoteDtl.builder()
+                .layingId(layingId)
+                .notedAt(req.notedAt())
+                .content(req.content())
+                .createdByUserId(userId)
+                .build());
+        return LayingNoteResponse.of(note);
+    }
+
+    @Transactional
+    public LayingNoteResponse updateNote(Long layingId, Long noteId, Long userId, LayingNoteRequest req) {
+        loadAccessibleLaying(layingId, userId);
+        LayingNoteDtl note = loadNote(noteId, layingId);
+        note.update(req.notedAt(), req.content());
+        return LayingNoteResponse.of(note);
+    }
+
+    @Transactional
+    public void deleteNote(Long layingId, Long noteId, Long userId) {
+        loadAccessibleLaying(layingId, userId);
+        loadNote(noteId, layingId).softDelete();
+    }
+
+    // -------------------------------------------------------------------------
     // 편의 API: 해칭 → 신규 개체 등록 + lineage 자동 연결
     // -------------------------------------------------------------------------
 
+    /**
+     * 부화한 알을 개체로 올린다.
+     *
+     * <p>등록 시트는 <b>이름과 성별만</b> 받는다. 종·해칭일·부모는 클러치가 이미 아는 값이라
+     * 비워 보내면 여기서 채운다 — 종은 어미와 같고, 해칭일은 그 알의 부화일이다.
+     */
     @Transactional
     public PetResponse registerPet(Long layingId, Long hatchId, Long userId, RegisterPetRequest req) {
         LayingDtl laying = loadAccessibleLaying(layingId, userId);
         LayingHatchDtl hatch = loadHatch(hatchId, layingId);
 
+        if (hatch.getHatchedPetId() != null) {
+            throw new BusinessException(ErrorCode.HATCH_ALREADY_REGISTERED);
+        }
+
+        PetMst mother = petRepo.findById(laying.getPetId()).orElse(null);
+
         SpeciesCd species = req.speciesId() != null
                 ? speciesRepo.findById(req.speciesId())
                         .orElseThrow(() -> new BusinessException(ErrorCode.SPECIES_NOT_FOUND))
-                : null;
+                : (mother != null ? mother.getSpecies() : null);   // 종은 어미와 같다
         MorphCd morph = req.morphId() != null
                 ? morphRepo.findById(req.morphId())
                         .orElseThrow(() -> new BusinessException(ErrorCode.MORPH_NOT_FOUND))
                 : null;
+
+        // 해칭일 = 그 알의 부화일. 알 칸을 누른 날이 그대로 개체의 해칭일이 된다
+        LocalDate hatchingDate = req.birthDate() != null
+                ? req.birthDate()
+                : (hatch.getHatchedAt() != null
+                        ? hatch.getHatchedAt().atZone(SEOUL).toLocalDate()
+                        : LocalDate.now(SEOUL));
 
         // 부화 개체도 결국 내 개체다 — 여기를 빼면 상한을 우회하는 경로가 된다
         petKeeper.assertCanOwnMore(userId);
@@ -234,7 +367,7 @@ public class LayingService {
                 .species(species)
                 .name(req.name())
                 .gender(req.gender())
-                .hatchingDate(req.birthDate())
+                .hatchingDate(hatchingDate)
                 .description(req.memo())
                 .build());
         // 권한 판정 단일 소스 — 새 개체 OWNER 등록 (누락 시 소유자도 접근 거부됨)
@@ -242,6 +375,18 @@ public class LayingService {
 
         if (morph != null) {
             newPet.getMorphs().add(PetMorphRls.of(newPet, morph));
+        }
+
+        // 첫 몸무게는 선택이다. 적어 보냈으면 해칭 시점의 체중 기록 한 건으로 남긴다 —
+        // pet_mst 에 체중 칸을 따로 두지 않고 weight_dtl 로만 관리하는 기존 방식 그대로다
+        if (req.weightG() != null) {
+            weightRepo.save(WeightDtl.builder()
+                    .petId(newPet.getId())
+                    .weightG(req.weightG())
+                    .measuredAt(hatchingDate.atStartOfDay(SEOUL).toInstant())
+                    .source(WeightSource.MANUAL)
+                    .createdByUserId(userId)
+                    .build());
         }
 
         hatch.linkPet(newPet.getId());
@@ -253,6 +398,47 @@ public class LayingService {
     // -------------------------------------------------------------------------
     // private helpers
     // -------------------------------------------------------------------------
+
+    /**
+     * 알 개수에 맞춰 알 칸 행을 맞춘다.
+     *
+     * <p>늘어나면 빈 번호를 PENDING 으로 채우고, 줄어들면 <b>남는 PENDING 행만</b> 지운다.
+     * 부화·무정으로 이미 결과가 적힌 알은 개수를 잘못 입력했다는 이유로 지우지 않는다
+     * (지우면 등록된 개체와의 연결이 끊긴다). 그래서 실제 행 수가 총 개수보다 많을 수 있다.
+     */
+    private void syncEggRows(LayingDtl laying, Long userId) {
+        List<LayingHatchDtl> rows = hatchRepo.findAllByLayingIdOrderByCreatedAtAsc(laying.getId());
+        int total = laying.getEggCountTotal();
+
+        Set<Integer> taken = rows.stream()
+                .map(LayingHatchDtl::getEggIndex)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        for (int i = 1; i <= total; i++) {
+            if (!taken.contains(i)) {
+                hatchRepo.save(LayingHatchDtl.builder()
+                        .layingId(laying.getId())
+                        .eggIndex(i)
+                        .status(HatchStatus.PENDING)
+                        .createdByUserId(userId)
+                        .build());
+            }
+        }
+
+        rows.stream()
+                .filter(h -> h.getStatus() == HatchStatus.PENDING)
+                .filter(h -> h.getEggIndex() != null && h.getEggIndex() > total)
+                .forEach(LayingHatchDtl::softDelete);
+    }
+
+    private int nextEggIndex(Long layingId) {
+        return hatchRepo.findAllByLayingIdOrderByCreatedAtAsc(layingId).stream()
+                .map(LayingHatchDtl::getEggIndex)
+                .filter(Objects::nonNull)
+                .max(Integer::compareTo)
+                .orElse(0) + 1;
+    }
 
     private void createLineage(Long layingId, Long childPetId) {
         LayingDtl laying = layingRepo.findById(layingId)
@@ -293,11 +479,18 @@ public class LayingService {
 
     private List<HatchResponse> buildHatches(Long layingId) {
         return hatchRepo.findAllByLayingIdOrderByCreatedAtAsc(layingId).stream()
+                .sorted(EGG_ORDER)
                 .map(h -> {
                     PetMst p = h.getHatchedPetId() != null
                             ? petRepo.findById(h.getHatchedPetId()).orElse(null) : null;
                     return HatchResponse.of(h, p);
                 })
+                .toList();
+    }
+
+    private List<LayingNoteResponse> buildNotes(Long layingId) {
+        return noteRepo.findAllByLayingIdOrderByNotedAtDescIdDesc(layingId).stream()
+                .map(LayingNoteResponse::of)
                 .toList();
     }
 
@@ -336,5 +529,10 @@ public class LayingService {
     private LayingHatchDtl loadHatch(Long hatchId, Long layingId) {
         return hatchRepo.findByIdAndLayingId(hatchId, layingId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.HATCH_NOT_FOUND));
+    }
+
+    private LayingNoteDtl loadNote(Long noteId, Long layingId) {
+        return noteRepo.findByIdAndLayingId(noteId, layingId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.LAYING_NOTE_NOT_FOUND));
     }
 }

@@ -16,6 +16,15 @@ import '../share/presentation/bulk_share_sheet.dart';
 import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/widgets/app_network_image.dart';
+import '../../../core/widgets/underline_tabs.dart';
+import '../../record/presentation/laying/egg_tab.dart';
+
+/// '내 개체' 화면의 탭 — 0 개체 / 1 알(클러치).
+///
+/// 알은 개체에 매달린 기록이지만 "지금 품고 있는 알"은 개체를 하나씩 열어보는
+/// 성질이 아니라 한 줄로 훑는 성질이라, 개체 상세 안에만 두면 매일 확인할 수가 없다.
+/// autoDispose 가 아닌 건 개체 상세에 들어갔다 돌아왔을 때 탭이 풀리지 않게 하기 위해서다.
+final petScreenTabProvider = StateProvider<int>((_) => 0);
 
 /// 개체 다중 선택 모드 on/off (함께 키우기·분양 보내기용)
 final petSelectionModeProvider = StateProvider.autoDispose<bool>((_) => false);
@@ -88,19 +97,49 @@ class PetListScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final selecting = ref.watch(petSelectionModeProvider);
     final selectedCount = ref.watch(selectedPetIdsProvider).length;
+    // 선택 모드(공유·분양)는 개체에만 있는 동작이라 그 동안은 탭을 감춘다.
+    final tab = selecting ? 0 : ref.watch(petScreenTabProvider);
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
       appBar: selecting
           ? _selectionAppBar(context, ref, selectedCount)
-          : _normalAppBar(context, ref),
-      body: const _PetTab(),
+          : _normalAppBar(context, ref, tab),
+      body: selecting
+          ? const _PetTab()
+          : Column(
+              children: [
+                AppUnderlineTabs(
+                  labels: const ['개체', '알'],
+                  index: tab,
+                  onChanged: (i) =>
+                      ref.read(petScreenTabProvider.notifier).state = i,
+                ),
+                // IndexedStack — 탭을 왕복할 때마다 목록을 다시 불러오지 않는다.
+                Expanded(
+                  child: IndexedStack(
+                    index: tab,
+                    children: const [_PetTab(), EggTab()],
+                  ),
+                ),
+              ],
+            ),
       bottomNavigationBar:
           selecting ? const _ShareActionBar() : null,
     );
   }
 
-  PreferredSizeWidget _normalAppBar(BuildContext context, WidgetRef ref) {
+  /// [tab] 이 '알' 이면 개체 전용 동작(공유·분양, 일괄 등록, 추가)을 내린다 —
+  /// 알 탭의 추가는 '＋ 산란 등록' 하나뿐이고 그건 탭 안에 있다.
+  PreferredSizeWidget _normalAppBar(
+      BuildContext context, WidgetRef ref, int tab) {
+    if (tab != 0) {
+      return AppBar(
+        backgroundColor: AppColors.canvas,
+        title: const Text('내 개체'),
+        titleSpacing: AppSpacing.xl,
+      );
+    }
     return AppBar(
       // ⚠️ 흰 AppBar + 연회색 본문이면 머리만 다른 색으로 떠 있어 경계선이
       // 생긴다 — 한 화면이 두 장으로 쪼개져 보였다. 헤더도 바탕색으로.

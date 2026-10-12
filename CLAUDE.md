@@ -220,8 +220,10 @@ PostgreSQL이 재정규화하는데 의미는 같다.)
   V13(`photo_dtl.thumb_s3_key` — 앱이 업로드 시점에 만들어 같이 올리는 썸네일 키. NULL 허용 =
   기존 사진 백필 안 함, 앱이 `thumbnailUrl ?? url` 로 폴백).
   V14(먹이 없이 완료한 급여 루틴의 `feeding_dtl` 백필 — `food_type=''`),
-  V15(메모 없이 완료한 CUSTOM 루틴의 `memo_dtl` 백필 — `content=''`).
-  **다음은 V16.**
+  V15(메모 없이 완료한 CUSTOM 루틴의 `memo_dtl` 백필 — `content=''`),
+  V16(`laying_hatch_dtl.egg_index` 추가·클러치별 1부터 백필 + `laying_note_dtl` 신설 —
+  클러치 **단위** 날짜별 관찰 메모. 알 단위 메모가 아니다).
+  **다음은 V17.**
 - 코드성 시드(`memo_tag_cd`, `post_category_cd`, `serial_pool_stat_mst`)는 베이스라인 하단에 들어 있다.
   종·모프 마스터는 그대로 `R__01`/`R__02` 담당.
 - ⚠️ **`R__02` 는 파일에 없는 공식 모프를 매 실행마다 지운다** (개체가 물고 있으면 FK RESTRICT 라
@@ -354,6 +356,30 @@ PostgreSQL이 재정규화하는데 의미는 같다.)
 - 암컷 pet만 산란 가능 (FEMALE 검증)
 - `laying_hatch_dtl.status`: PENDING / HATCHED / FAILED / SLUG
 - `POST /api/v1/layings/{layingId}/hatches/{hatchId}/register-pet` → 새 개체 + 계보 자동 생성
+
+#### 클러치(유정란) 관리 — 알 칸 탭 순환 (V16, 2026-10-13)
+
+'내 개체' 화면의 **`개체 | 알` 탭**(`petScreenTabProvider` + `EggTab`)에서 클러치를 보고,
+`/layings/:layingId`(`ClutchDetailScreen`)에서 알 상태와 관찰 메모를 다룬다.
+
+- **알 칸은 누를 때마다 상태가 돌아간다** — `PENDING → HATCHED → FAILED(무정) → PENDING`
+  (`POST /layings/{id}/hatches/{hatchId}/cycle`, `LayingHatchDtl.cycleStatus`).
+  부화 폼을 띄우지 않는 이유는 "몇 번 알이 부화했다"가 한 번의 탭으로 끝나는 동작이기 때문이다
+- ⛔ **등록된 알은 순환에서 빠진다.** 서버가 `HATCH_ALREADY_REGISTERED` 로 막고, 앱은 탭하면
+  그 개체 상세로 보낸다. 개체가 이미 생긴 뒤 상태를 되돌리면 계보만 남고 근거가 사라진다
+- 드문 조작(부화일 수정·실패/무정 지정·대기 복귀)은 **롱프레스 옵션 시트** → `PATCH .../hatches/{hatchId}`.
+  ⚠️ `hatchedAt` 은 `OffsetDateTime` 이라 앱은 **UTC ISO-8601 전체**를 보낸다(날짜만 보내면 파싱이 깨진다)
+- **메모는 알이 아니라 클러치 단위**다 (`laying_note_dtl`: laying_id + note_date + content).
+  알마다 메모를 달면 10알짜리 클러치에서 입력칸이 10개가 된다 — 실제로 적는 건 "캔들링 결과" 같은
+  **그날의 관찰**이고 알 번호는 본문에 적으면 된다
+- `laying_hatch_dtl.egg_index` = 클러치 내 알 번호(1부터). 화면 표시와 등록 시 이름 프리필(`루나 #3`)에 쓴다
+- **개체 등록 시트는 이름 + 성별, 그리고 선택으로 첫 몸무게뿐**(`HatchRegisterSheet`).
+  종·해칭일·부모는 클러치가 아는 값이라 서버가 채운다
+  - ⛔ 시트에 '부화 상태/부화일' 블록을 다시 넣지 말 것 — **부화 다음이 개체 등록**이고 부화일과
+    해칭일은 같은 값이다
+  - `weightG` 는 `pet_mst` 컬럼이 아니라 **`weight_dtl` 1행**으로 들어간다
+    (`measuredAt` = 해칭일, `source=MANUAL`). 체중의 단일 소스는 언제나 `weight_dtl` 이다
+  - 모프·사진은 칸을 넣지 않고 **등록 후 `/pets/{id}/edit`** 로 보낸다('이름+성별만' 전제 유지)
 
 ### 급여 거식 (V50)
 - `feeding_dtl.refused_yn = 'Y'` → **먹이 정보 없이 메모만** 남는 기록. `food_type`은 NULL
@@ -811,7 +837,7 @@ test → GHCR 이미지 빌드(**태그 = 커밋 SHA**) → SSH → `deploy/scri
 - 외부 시스템 영향(push·삭제·외부 API 호출)은 확인 후 진행
 - Flutter UI는 디자인 확정 전까지 **뼈대(Skeleton)만** 구현, 상세 UI는 별도 지시 대기
 - 새 Flyway 마이그레이션은 기존 파일 절대 수정 금지, 항상 다음 버전으로 신규 작성
-  (2026-08-19 스쿼시 이후 V2~V15 추가됨, **다음은 V16**. `V1__baseline_schema.sql` 수정 = 모든 DB 기동 불가)
+  (2026-08-19 스쿼시 이후 V2~V16 추가됨, **다음은 V17**. `V1__baseline_schema.sql` 수정 = 모든 DB 기동 불가)
 
 ---
 

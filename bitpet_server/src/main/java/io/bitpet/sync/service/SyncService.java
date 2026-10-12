@@ -42,7 +42,7 @@ public class SyncService {
 
     private static final Set<String> ALL_RESOURCES = Set.of(
             "pet", "weight", "feeding", "cleaning", "memo",
-            "mating", "laying", "laying_hatch",
+            "mating", "laying", "laying_hatch", "laying_note",
             "post", "comment", "like"
     );
     private static final int DEFAULT_LIMIT = 200;
@@ -137,6 +137,10 @@ public class SyncService {
                 table = "laying_hatch_dtl";
                 ownerCondition = "EXISTS (SELECT 1 FROM laying_dtl l JOIN pet_mst p ON p.id = l.pet_id WHERE l.id = t.laying_id AND p.user_id = ?)";
             }
+            case "laying_note" -> {
+                table = "laying_note_dtl";
+                ownerCondition = "EXISTS (SELECT 1 FROM laying_dtl l JOIN pet_mst p ON p.id = l.pet_id WHERE l.id = t.laying_id AND p.user_id = ?)";
+            }
             case "post" -> {
                 table = "post_mst";
                 ownerCondition = "t.user_id = ?";
@@ -188,7 +192,7 @@ public class SyncService {
             case "cleaning"     -> handleCleaning(userId, clientId, op);
             case "memo"         -> handleMemo(userId, clientId, op);
             // mating/laying/laying_hatch push는 REST API를 통해서만 지원 (복잡한 도메인 검증 포함)
-            case "mating", "laying", "laying_hatch" ->
+            case "mating", "laying", "laying_hatch", "laying_note" ->
                     PushResult.rejected(op.clientChangeId(),
                             "push_not_supported_via_sync: use REST API for " + op.resource());
             default -> PushResult.rejected(op.clientChangeId(), "unsupported_resource: " + op.resource());

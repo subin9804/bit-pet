@@ -7,6 +7,8 @@ import io.bitpet.record.laying.dto.HatchCreateRequest;
 import io.bitpet.record.laying.dto.HatchResponse;
 import io.bitpet.record.laying.dto.HatchUpdateRequest;
 import io.bitpet.record.laying.dto.LayingCreateRequest;
+import io.bitpet.record.laying.dto.LayingNoteRequest;
+import io.bitpet.record.laying.dto.LayingNoteResponse;
 import io.bitpet.record.laying.dto.LayingResponse;
 import io.bitpet.record.laying.dto.LayingUpdateRequest;
 import io.bitpet.record.laying.dto.RegisterPetRequest;
@@ -59,6 +61,14 @@ public class LayingController {
                 petId, principal.userId(), matingId, from, to));
     }
 
+    @Operation(summary = "내 클러치 전체 — '내 개체 → 알' 탭",
+            description = "내가 돌보는 개체 전부의 클러치를 산란일 최신순으로. 어미 이름·종·알 칸·관찰 메모 포함")
+    @GetMapping("/api/v1/layings")
+    public ApiResponse<List<LayingResponse>> listMyLayings(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return ApiResponse.ok(layingService.getMyLayings(principal.userId()));
+    }
+
     @Operation(summary = "산란 단건 조회")
     @GetMapping("/api/v1/layings/{layingId}")
     public ApiResponse<LayingResponse> getLaying(
@@ -105,6 +115,17 @@ public class LayingController {
         return ApiResponse.ok(layingService.updateHatch(layingId, hatchId, principal.userId(), request));
     }
 
+    @Operation(summary = "알 칸 탭 — 상태 순환",
+            description = "대기 → 부화 → 무정 → 대기. 부화일은 누른 날로 자동 기록. "
+                    + "이미 개체로 등록된 알은 400(HATCH_ALREADY_REGISTERED)")
+    @PostMapping("/api/v1/layings/{layingId}/hatches/{hatchId}/cycle")
+    public ApiResponse<HatchResponse> cycleHatchStatus(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @PathVariable Long layingId,
+            @PathVariable Long hatchId) {
+        return ApiResponse.ok(layingService.cycleHatchStatus(layingId, hatchId, principal.userId()));
+    }
+
     @Operation(summary = "해칭 삭제")
     @DeleteMapping("/api/v1/layings/{layingId}/hatches/{hatchId}")
     public ApiResponse<Void> deleteHatch(
@@ -115,7 +136,51 @@ public class LayingController {
         return ApiResponse.ok();
     }
 
-    @Operation(summary = "⭐ 해칭 → 신규 개체 등록 + 가계도 자동 연결")
+    // -------------------------------------------------------------------------
+    // 날짜별 관찰 메모 — 클러치 상세의 '관찰 메모' 카드
+    // -------------------------------------------------------------------------
+
+    @Operation(summary = "관찰 메모 목록", description = "관찰 날짜 최신순")
+    @GetMapping("/api/v1/layings/{layingId}/notes")
+    public ApiResponse<List<LayingNoteResponse>> listNotes(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @PathVariable Long layingId) {
+        return ApiResponse.ok(layingService.getNotes(layingId, principal.userId()));
+    }
+
+    @Operation(summary = "관찰 메모 추가")
+    @PostMapping("/api/v1/layings/{layingId}/notes")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ApiResponse<LayingNoteResponse> createNote(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @PathVariable Long layingId,
+            @Valid @RequestBody LayingNoteRequest request) {
+        return ApiResponse.ok(layingService.createNote(layingId, principal.userId(), request));
+    }
+
+    @Operation(summary = "관찰 메모 수정")
+    @PutMapping("/api/v1/layings/{layingId}/notes/{noteId}")
+    public ApiResponse<LayingNoteResponse> updateNote(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @PathVariable Long layingId,
+            @PathVariable Long noteId,
+            @Valid @RequestBody LayingNoteRequest request) {
+        return ApiResponse.ok(layingService.updateNote(layingId, noteId, principal.userId(), request));
+    }
+
+    @Operation(summary = "관찰 메모 삭제")
+    @DeleteMapping("/api/v1/layings/{layingId}/notes/{noteId}")
+    public ApiResponse<Void> deleteNote(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @PathVariable Long layingId,
+            @PathVariable Long noteId) {
+        layingService.deleteNote(layingId, noteId, principal.userId());
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "⭐ 해칭 → 신규 개체 등록 + 가계도 자동 연결",
+            description = "이름·성별만 필수. speciesId 를 비우면 어미와 같은 종, "
+                    + "birthDate 를 비우면 그 알의 부화일이 해칭일로 들어간다")
     @PostMapping("/api/v1/layings/{layingId}/hatches/{hatchId}/register-pet")
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<PetResponse> registerPet(

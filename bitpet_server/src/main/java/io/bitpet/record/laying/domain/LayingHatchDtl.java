@@ -38,6 +38,10 @@ public class LayingHatchDtl extends BaseSyncEntity {
     @Column(name = "laying_id", nullable = false)
     private Long layingId;
 
+    /** 클러치 안에서의 알 번호 (1부터). 화면은 이 번호로 알 칸을 그리고 "3번 알"로 부른다 */
+    @Column(name = "egg_index")
+    private Integer eggIndex;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private HatchStatus status;
@@ -58,9 +62,10 @@ public class LayingHatchDtl extends BaseSyncEntity {
     private Instant deletedAt;
 
     @Builder
-    private LayingHatchDtl(Long layingId, HatchStatus status, Instant hatchedAt, String memo,
-                           Long createdByUserId) {
+    private LayingHatchDtl(Long layingId, Integer eggIndex, HatchStatus status, Instant hatchedAt,
+                           String memo, Long createdByUserId) {
         this.layingId = layingId;
+        this.eggIndex = eggIndex;
         this.status = status != null ? status : HatchStatus.PENDING;
         this.hatchedAt = hatchedAt;
         this.memo = memo;
@@ -72,6 +77,21 @@ public class LayingHatchDtl extends BaseSyncEntity {
         this.hatchedAt = hatchedAt;
         this.hatchedPetId = hatchedPetId;
         this.memo = memo;
+    }
+
+    /**
+     * 알 칸을 누를 때마다 대기 → 부화 → 무정 → 대기 로 돌린다. 부화일은 누른 날로 자동 기록한다.
+     * (개체까지 등록된 알은 상태와 실제 개체가 어긋나므로 service 쪽에서 순환을 막는다)
+     */
+    public HatchStatus cycleStatus(Instant now) {
+        HatchStatus next = switch (this.status) {
+            case PENDING -> HatchStatus.HATCHED;
+            case HATCHED -> HatchStatus.SLUG;
+            default      -> HatchStatus.PENDING;   // SLUG·FAILED 모두 한 번 더 누르면 대기로
+        };
+        this.status = next;
+        this.hatchedAt = next == HatchStatus.HATCHED ? now : null;
+        return next;
     }
 
     public void linkPet(Long petId) {
