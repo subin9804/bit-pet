@@ -1,6 +1,6 @@
 // 클러치 상세 — 알 칸 + 날짜별 관찰 메모.
 //
-// 알 칸은 **누를 때마다 상태가 돌아간다**(대기 → 부화 → 무정 → 대기). 폼을 열어
+// 알 칸은 **누를 때마다 상태가 돌아간다**(대기 → 부화 → 실패 → 대기). 폼을 열어
 // 상태를 고르게 하면 알 6개를 찍는 데 시트를 6번 열게 된다. 날짜를 직접 고치거나
 // 실패(FAILED)로 바꾸는 건 드문 일이라 롱프레스로 숨겨 둔다.
 //
@@ -64,6 +64,9 @@ class _Body extends ConsumerWidget {
     final registerable = laying.registerableCount;
 
     return Column(
+      // ⚠️ 기본값(center)이면 요약 줄이 글자 폭으로 줄어든 뒤 가운데로 끌려간다.
+      // 거터만 맞춰 놓고 왜 중앙 정렬이냐고 한참 찾게 되는 자리다.
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _SummaryLine(laying: laying),
         Expanded(
@@ -93,11 +96,17 @@ class _Body extends ConsumerWidget {
             child: SizedBox(
               height: 52,
               child: ElevatedButton.icon(
+                // ⚠️ 예전엔 firstWhere 로 **맨 앞 알 한 개**만 시트로 보냈다.
+                // 라벨은 'N개'인데 한 마리 등록하면 버튼이 사라져, 남은 알은
+                // 어디로 갔냐는 말이 나왔다. 이제 대상 알을 전부 넘기고
+                // 시트가 1/N → N/N 으로 이어 받는다.
                 onPressed: () => _openRegisterSheet(
                   context,
                   laying,
-                  laying.hatches.firstWhere((h) =>
-                      h.status == HatchStatus.HATCHED && !h.isRegistered),
+                  laying.hatches
+                      .where((h) =>
+                          h.status == HatchStatus.HATCHED && !h.isRegistered)
+                      .toList(),
                 ),
                 icon: const Icon(Icons.add, size: 18),
                 label: Text('부화한 알 $registerable개 개체 등록'),
@@ -110,10 +119,11 @@ class _Body extends ConsumerWidget {
 }
 
 void _openRegisterSheet(
-    BuildContext context, LayingRecord laying, HatchRecord hatch) {
+    BuildContext context, LayingRecord laying, List<HatchRecord> queue) {
+  if (queue.isEmpty) return;
   showAppSheet<void>(
     context: context,
-    builder: (_) => HatchRegisterSheet(laying: laying, hatch: hatch),
+    builder: (_) => HatchRegisterSheet(laying: laying, queue: queue),
   );
 }
 
@@ -190,7 +200,7 @@ class _EggCard extends ConsumerWidget {
                     fg: AppColors.ink2),
               if (laying.failedCount > 0)
                 _CountChip(
-                    label: '무정 ${laying.failedCount}',
+                    label: '실패 ${laying.failedCount}',
                     bg: AppColors.petCoral,
                     fg: AppColors.petCoralInk),
             ],
@@ -202,7 +212,9 @@ class _EggCard extends ConsumerWidget {
             physics: const NeverScrollableScrollPhysics(),
             mainAxisSpacing: AppSpacing.sm,
             crossAxisSpacing: AppSpacing.sm,
-            childAspectRatio: 1.08,
+            // 한 칸에 아이콘 + 번호 + 상태 두 줄이 들어간다. 1.08(가로로 넓은
+            // 칸)이면 3열 기준 높이가 83px 쯤이라 내용이 7px 넘쳐 터졌다.
+            childAspectRatio: 0.92,
             children: [
               for (final egg in eggs)
                 _EggTile(
@@ -214,8 +226,8 @@ class _EggCard extends ConsumerWidget {
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
-            '누를 때마다 대기 → 부화 → 무정 으로 바뀌어요\n'
-            '길게 누르면 날짜를 고치거나 실패로 바꿀 수 있어요',
+            '누를 때마다 대기 → 부화 → 실패 로 바뀌어요\n'
+            '길게 누르면 개체로 등록하거나 날짜를 고칠 수 있어요',
             style: AppTextStyles.label,
           ),
         ],
@@ -244,11 +256,16 @@ class _EggCard extends ConsumerWidget {
     }
   }
 
-  void _openEggSheet(BuildContext context, HatchRecord egg) {
-    showAppSheet<void>(
+  Future<void> _openEggSheet(BuildContext context, HatchRecord egg) async {
+    // ⚠️ 시트 안에서 다음 시트를 열지 않는다 — pop 하면 그 시트의 context 는
+    // 죽어서 showAppSheet 가 매달릴 자리가 없어진다. 시트는 '등록하겠다'는
+    // 결과만 돌려주고 여는 건 살아 있는 이 화면이 한다.
+    final action = await showAppSheet<String>(
       context: context,
       builder: (_) => _EggOptionSheet(laying: laying, egg: egg),
     );
+    if (action != 'register' || !context.mounted) return;
+    _openRegisterSheet(context, laying, [egg]);
   }
 }
 
@@ -301,25 +318,29 @@ class _EggTile extends StatelessWidget {
             ),
           ),
           padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.sm, vertical: AppSpacing.md),
+              horizontal: AppSpacing.xs, vertical: AppSpacing.sm),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (hatched)
-                const Icon(Icons.check, size: 22, color: AppColors.brandAction)
+                const Icon(Icons.check,
+                    size: AppIconSize.md, color: AppColors.brandAction)
               else if (failed)
-                const Icon(Icons.close, size: 22, color: AppColors.petCoralInk)
+                const Icon(Icons.close,
+                    size: AppIconSize.md, color: AppColors.petCoralInk)
               else
                 const AppIcon(AppIcons.laying,
-                    size: 22, color: AppColors.ink3),
-              const SizedBox(height: AppSpacing.xs + 2),
+                    size: AppIconSize.md, color: AppColors.ink3),
+              const SizedBox(height: AppSpacing.xs),
               Text(title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.caption.copyWith(
                       fontWeight: FontWeight.w700, color: titleColor)),
               const SizedBox(height: 2),
-              _subLine(),
+              // 개체 이름이 붙은 알(`3번 · 레오`)이나 '개체 등록됨' 알약은
+              // 90px 칸에서 가로가 모자란다. 줄이기만 하고 늘리지는 않는다.
+              FittedBox(fit: BoxFit.scaleDown, child: _subLine()),
             ],
           ),
         ),
@@ -343,9 +364,11 @@ class _EggTile extends StatelessWidget {
         return Text(
             egg.hatchedAt == null ? '부화' : '${_md(egg.hatchedAt!)} 부화',
             style: AppTextStyles.label.copyWith(color: AppColors.ink2));
+      // 서버 enum 에는 FAILED(유정이었지만 못 깬 알)와 SLUG(무정란)가 따로
+      // 있지만 **화면에서는 둘 다 '실패'** 다 — 산란을 적을 때 전체 알 수와
+      // 유정란 수를 따로 받으므로 무정란 개수는 이미 아는 값이고, 알 한 칸마다
+      // 또 무정이냐 아니냐를 고르게 하면 같은 사실을 두 번 적는 셈이 된다.
       case HatchStatus.SLUG:
-        return Text('무정란',
-            style: AppTextStyles.label.copyWith(color: AppColors.petCoralInk));
       case HatchStatus.FAILED:
         return Text('실패',
             style: AppTextStyles.label.copyWith(color: AppColors.petCoralInk));
@@ -375,7 +398,11 @@ class _CountChip extends StatelessWidget {
   }
 }
 
-/// 롱프레스로만 열리는 드문 조작 — 부화일 수정, 실패·무정 표시, 대기로 되돌리기.
+/// 롱프레스로만 열리는 조작 — 개체 등록, 부화일 수정, 실패 표시, 대기로 되돌리기.
+///
+/// '개체 등록'이 여기 있는 이유: 하단 버튼은 **남은 알을 앞에서부터** 처리하므로
+/// 특정 알을 골라 먼저 등록할 방법이 없었다. 알을 길게 누르는 건 이미 그 알
+/// 하나를 지목하는 동작이라 가장 자연스러운 자리다.
 class _EggOptionSheet extends ConsumerStatefulWidget {
   final LayingRecord laying;
   final HatchRecord egg;
@@ -392,6 +419,9 @@ class _EggOptionSheetState extends ConsumerState<_EggOptionSheet> {
   Widget build(BuildContext context) {
     final egg = widget.egg;
 
+    final failed =
+        egg.status == HatchStatus.FAILED || egg.status == HatchStatus.SLUG;
+
     return AppSheet(
       title: '${egg.eggIndex}번 알',
       subtitle: '자주 쓰는 상태 변경은 알 칸을 누르면 돼요',
@@ -400,25 +430,30 @@ class _EggOptionSheetState extends ConsumerState<_EggOptionSheet> {
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
         child: Column(
           children: [
-            if (egg.status == HatchStatus.HATCHED)
+            if (egg.status == HatchStatus.HATCHED) ...[
+              // 이 시트가 뜨는 알은 아직 등록 안 된 알이다 — 등록된 알은
+              // 애초에 롱프레스가 막혀 있다(_EggTile).
+              _row(
+                icon: Icons.pets,
+                label: '개체로 등록',
+                sub: '이름과 성별만 적으면 돼요',
+                onTap: _openRegister,
+              ),
               _row(
                 icon: Icons.event,
                 label: '부화일 바꾸기',
                 sub: egg.hatchedAt == null ? null : _md(egg.hatchedAt!),
                 onTap: _pickHatchedAt,
               ),
-            if (egg.status != HatchStatus.FAILED)
+            ],
+            // 화면에는 '실패' 하나뿐이다 — 서버의 FAILED/SLUG 구분은
+            // 알 단위로 되묻지 않는다(_subLine 주석 참고).
+            if (!failed)
               _row(
                 icon: Icons.close,
                 label: '실패로 표시',
-                sub: '유정란이었지만 부화하지 못한 알',
+                sub: '부화하지 못한 알',
                 onTap: () => _setStatus(HatchStatus.FAILED),
-              ),
-            if (egg.status != HatchStatus.SLUG)
-              _row(
-                icon: Icons.remove_circle_outline,
-                label: '무정란으로 표시',
-                onTap: () => _setStatus(HatchStatus.SLUG),
               ),
             if (egg.status != HatchStatus.PENDING)
               _row(
@@ -448,6 +483,8 @@ class _EggOptionSheetState extends ConsumerState<_EggOptionSheet> {
     );
   }
 
+  void _openRegister() => Navigator.of(context).pop('register');
+
   Future<void> _pickHatchedAt() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
@@ -465,7 +502,7 @@ class _EggOptionSheetState extends ConsumerState<_EggOptionSheet> {
         status == HatchStatus.HATCHED ? DateTime.now() : null,
       );
 
-  /// 대기·실패·무정으로 돌리면 부화일은 의미가 없어 null 로 비운다.
+  /// 대기·실패로 돌리면 부화일은 의미가 없어 null 로 비운다.
   Future<void> _save(HatchStatus status, DateTime? hatchedAt) async {
     setState(() => _busy = true);
     try {
@@ -628,7 +665,7 @@ class _NoteSheetState extends ConsumerState<_NoteSheet> {
               maxLength: 300,
               style: AppTextStyles.body,
               decoration: const InputDecoration(
-                hintText: '예: 캔들링 — 3번 알 혈관이 안 보임, 무정 의심',
+                hintText: '예: 캔들링 — 3번 알 혈관이 안 보임, 실패 의심',
                 counterText: '',
               ),
             ),

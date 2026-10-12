@@ -84,6 +84,48 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
   String   _typeId = '';          // 선택된 기록 종류
   final Set<int> _selectedPetIds = {};
 
+  /// 기록 날짜 — 기본은 **오늘**. 지난 날짜를 고를 수 있다(어제 급여를 깜빡하고
+  /// 다음 날 적는 일이 흔하다). 시트 전체가 한 날짜를 공유한다 — 한 번의 기록
+  /// 작업은 한 시점의 일이고, 개체마다 날짜가 갈리는 입력은 쓸 일이 없다.
+  /// ⛔ 미래는 못 고른다 — 전부 '이미 일어난 일'의 기록이다.
+  DateTime _recordDate = DateTime.now();
+
+  bool get _isTodaySelected {
+    final now = DateTime.now();
+    return _recordDate.year == now.year &&
+        _recordDate.month == now.month &&
+        _recordDate.day == now.day;
+  }
+
+  /// 저장에 실어 보내는 시각. 오늘이면 **지금**, 지난 날짜면 **정오**다.
+  /// 지난 기록의 시·분에는 의미가 없는데, 지금 시각을 그대로 붙이면 자정 전후에
+  /// 적을 때 UTC 로 바뀌면서 날짜가 하루 밀려 캘린더에 다른 날로 찍힌다.
+  DateTime get _recordAt => _isTodaySelected
+      ? DateTime.now()
+      : DateTime(_recordDate.year, _recordDate.month, _recordDate.day, 12);
+
+  /// 기록 종류별 날짜 레이블 — '날짜' 하나로 두면 무슨 날짜인지가 애매하다.
+  String get _dateLabel => switch (_typeId) {
+        'feed'  => '급여일',
+        'scale' => '측정일',
+        'clean' => '청소일',
+        'mate'  => '합사일',
+        'lay'   => '산란일',
+        _       => '기록일',
+      };
+
+  Future<void> _pickRecordDate() async {
+    final today  = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _recordDate,
+      firstDate: DateTime(today.year - 5),
+      lastDate: today,
+      helpText: '$_dateLabel 선택',
+    );
+    if (picked != null && mounted) setState(() => _recordDate = picked);
+  }
+
   /// 개체가 밖에서 정해져 들어온 시트인가 (개체 선택 단계를 건너뛴다)
   bool get _petLocked => widget.initialPetId != null;
 
@@ -215,7 +257,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
     setState(() => _saving = true);
     try {
       final repo     = ref.read(recordRepositoryProvider);
-      final now      = DateTime.now();
+      final now      = _recordAt;
       final bulkMemo = _bulkMemoCtrl.text.trim();
       for (final pet in pets) {
         for (final item in _bulkItems) {
@@ -239,7 +281,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
     setState(() => _saving = true);
     try {
       final repo = ref.read(recordRepositoryProvider);
-      final now  = DateTime.now();
+      final now  = _recordAt;
       int count = 0;
       for (final pet in pets) {
         final entry = _perPetForms[pet.id];
@@ -606,6 +648,12 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                _DateRow(
+                  label: _dateLabel,
+                  date: _recordDate,
+                  onTap: _pickRecordDate,
+                ),
+                const SizedBox(height: 20),
                 FeedItemsEditor(
                   items: _bulkItems,
                   onChanged: (list) => setState(() => _bulkItems = list),
@@ -843,6 +891,12 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                 ),
                 const SizedBox(height: 16),
 
+                _DateRow(
+                  label: _dateLabel,
+                  date: _recordDate,
+                  onTap: _pickRecordDate,
+                ),
+                const SizedBox(height: 20),
                 // FeedItemsEditor (개체별 — 목록에 추가)
                 FeedItemsEditor(
                   items: entry.items,
@@ -1053,7 +1107,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
     setState(() => _saving = true);
     try {
       final repo = ref.read(recordRepositoryProvider);
-      final now  = DateTime.now();
+      final now  = _recordAt;
       final memo = _simpleMemoCtrl.text.trim();
 
       for (final pet in pets) {
@@ -1194,6 +1248,13 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // 날짜 — 기본은 오늘. 어제 걸 깜빡하고 적는 경우가 많다.
+                _DateRow(
+                  label: _dateLabel,
+                  date: _recordDate,
+                  onTap: _pickRecordDate,
+                ),
+                const SizedBox(height: 20),
                 _buildSimpleFields(pets),
               ],
             ),
@@ -2564,6 +2625,73 @@ class _PartnerResultCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ── 기록 날짜 선택 줄 ──────────────────────────────────────────
+// 오늘이 기본값이라 **대개 건드리지 않는다** — 그래서 폼 맨 위에서 자리를 많이
+// 먹지 않도록 레이블과 값을 한 줄에 둔다.
+class _DateRow extends StatelessWidget {
+  final String label;
+  final DateTime date;
+  final VoidCallback onTap;
+
+  const _DateRow({
+    required this.label,
+    required this.date,
+    required this.onTap,
+  });
+
+  /// 고른 날이 오늘에서 얼마나 떨어졌는지 — 날짜만 보고 '어제인가?'를
+  /// 세게 만들지 않는다.
+  static String _relative(DateTime date) {
+    final now  = DateTime.now();
+    final diff = DateTime(now.year, now.month, now.day)
+        .difference(DateTime(date.year, date.month, date.day))
+        .inDays;
+    return switch (diff) {
+      0 => '오늘',
+      1 => '어제',
+      2 => '그제',
+      _ => '$diff일 전',
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        _FieldLabel(label, required: true),
+        const Spacer(),
+        GestureDetector(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              border: Border.all(color: AppColors.paleLine),
+              borderRadius: AppRadius.brMd,
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.event,
+                    size: 16, color: AppColors.paleInk2),
+                const SizedBox(width: 8),
+                Text(
+                  '${date.year}. ${date.month}. ${date.day}',
+                  style: const TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.w700,
+                      color: AppColors.primary),
+                ),
+                const SizedBox(width: 6),
+                Text('(${_relative(date)})',
+                    style: TextStyle(fontSize: 12, color: AppColors.paleInk2)),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

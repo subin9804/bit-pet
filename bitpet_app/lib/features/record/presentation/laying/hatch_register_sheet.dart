@@ -6,6 +6,15 @@
 // ⛔ 시트 상단에 '부화 상태/부화일' 블록을 다시 넣지 말 것 — 부화 다음이 개체 등록이고
 // 부화일과 해칭일은 같은 값이다. 한 번 그렇게 만들었다가 폼이 두 배로 길어졌다.
 // 모프·사진은 등록을 끝낸 뒤 편집 화면에서 받는다.
+//
+// 이 시트는 알 **하나**가 아니라 [queue] 를 받는다. 부화한 알이 세 개면 세 번
+// 등록해야 하는데, 예전처럼 한 마리를 저장하고 시트를 닫아 버리면 목록으로
+// 튕겨 나갔다가 버튼을 다시 찾아 눌러야 했다. 지금은 저장 후 **시트를 닫지 않고**
+// 폼만 다음 알로 갈아끼운다(1/3 → 2/3 → 3/3).
+//
+// ⛔ 다음 알로 넘기는 걸 가로 스와이프(PageView)로 만들지 말 것 — 바텀시트의
+// 드래그-닫기 제스처와 경합해서 비스듬한 스와이프가 시트를 닫아 버리고,
+// 알마다 저장이 독립된 서버 호출이라 '뒤로 밀면 이미 저장된 알' 문제가 생긴다.
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -25,12 +34,15 @@ import '../../providers/record_invalidation.dart';
 
 class HatchRegisterSheet extends ConsumerStatefulWidget {
   final LayingRecord laying;
-  final HatchRecord hatch;
+
+  /// 등록할 알들. 앞에서부터 하나씩 처리한다. 롱프레스로 특정 알만 열 때는
+  /// 길이 1 로 들어온다 — 그때는 진행 카운터를 숨긴다.
+  final List<HatchRecord> queue;
 
   const HatchRegisterSheet({
     super.key,
     required this.laying,
-    required this.hatch,
+    required this.queue,
   });
 
   @override
@@ -39,13 +51,34 @@ class HatchRegisterSheet extends ConsumerStatefulWidget {
 }
 
 class _HatchRegisterSheetState extends ConsumerState<HatchRegisterSheet> {
-  late final TextEditingController _name = TextEditingController(
-      text: widget.laying.petName == null
-          ? ''
-          : '${widget.laying.petName} #${widget.hatch.eggIndex}');
+  final _name = TextEditingController();
   final _weight = TextEditingController();
   String _gender = 'UNKNOWN';
   bool _busy = false;
+
+  /// 지금 적고 있는 알의 [HatchRegisterSheet.queue] 안 위치.
+  int _at = 0;
+
+  HatchRecord get _hatch => widget.queue[_at];
+  int get _total => widget.queue.length;
+  bool get _isLast => _at == _total - 1;
+
+  @override
+  void initState() {
+    super.initState();
+    _resetForm();
+  }
+
+  /// 다음 알로 넘어갈 때마다 폼을 비운다. 이름만 어미 이름 + 알 번호로
+  /// 미리 채우고 성별·몸무게는 비운다 — 앞 알의 값이 남아 있으면 그대로
+  /// 저장돼 버리는 쪽이 더 위험하다.
+  void _resetForm() {
+    _name.text = widget.laying.petName == null
+        ? ''
+        : '${widget.laying.petName} #${_hatch.eggIndex}';
+    _weight.clear();
+    _gender = 'UNKNOWN';
+  }
 
   @override
   void dispose() {
@@ -56,17 +89,20 @@ class _HatchRegisterSheetState extends ConsumerState<HatchRegisterSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final hatchedAt = widget.hatch.hatchedAt;
+    final hatchedAt = _hatch.hatchedAt;
 
     return AppSheet(
       title: '개체로 등록',
       subtitle: [
+        if (_total > 1) '${_at + 1}/$_total',
         if (widget.laying.petName != null) '${widget.laying.petName}의 클러치',
-        '${widget.hatch.eggIndex}번 알',
+        '${_hatch.eggIndex}번 알',
         if (hatchedAt != null) '${hatchedAt.month}. ${hatchedAt.day} 부화',
       ].join(' · '),
       busy: _busy,
-      primaryLabel: '등록하기',
+      // 남은 알이 있으면 버튼이 **다음 할 일**을 말한다. '등록하기'만 쓰면
+      // 눌러 보고 나서야 시트가 안 닫힌 걸 알게 된다.
+      primaryLabel: _isLast ? '등록 완료' : '저장하고 다음 알 (${_at + 1}/$_total)',
       onPrimary: () => _register(openEdit: false),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -224,7 +260,7 @@ class _HatchRegisterSheetState extends ConsumerState<HatchRegisterSheet> {
     try {
       final petId = await ref.read(recordRepositoryProvider).registerPetFromHatch(
             widget.laying.id,
-            widget.hatch.id,
+            _hatch.id,
             name: name,
             gender: _gender,
             weightG: weight,
@@ -233,9 +269,24 @@ class _HatchRegisterSheetState extends ConsumerState<HatchRegisterSheet> {
       ref.invalidate(petListProvider);
 
       if (!mounted) return;
-      Navigator.of(context).pop();
       showToast(context, '$name 개체로 등록했어요', type: ToastType.success);
-      if (openEdit) context.push('/pets/$petId/edit');
+
+      // 모프·사진까지 적겠다고 했으면 편집 화면이 먼저다 — 남은 알은
+      // 하단 버튼이 다시 떠 있으니 돌아와서 이어 하면 된다.
+      if (openEdit) {
+        Navigator.of(context).pop();
+        context.push('/pets/$petId/edit');
+        return;
+      }
+      if (_isLast) {
+        Navigator.of(context).pop();
+        return;
+      }
+      setState(() {
+        _at++;
+        _busy = false;
+        _resetForm();
+      });
     } catch (e) {
       if (mounted) {
         setState(() => _busy = false);

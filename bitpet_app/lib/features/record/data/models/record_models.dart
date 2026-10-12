@@ -339,6 +339,11 @@ class LayingRecord {
 
   final DateTime laidAt;
   final int totalCount;
+
+  /// 유정란 수. 서버는 처음부터 `eggCountFertile` 로 내려 주고 있었는데
+  /// 클라이언트가 파싱만 안 해서, 수정 폼이 이 값을 보여 줄 수 없었다.
+  /// 미확인이면 null — 0 과 다르다(0 은 '전부 무정'이라고 **확인한** 값).
+  final int? fertileCount;
   final String? memo;
 
   /// 인큐베이터 설정값 — 클러치 상세 요약 캡션에만 쓴다.
@@ -355,6 +360,7 @@ class LayingRecord {
     this.speciesName,
     required this.laidAt,
     required this.totalCount,
+    this.fertileCount,
     this.memo,
     this.incubationTemp,
     this.incubationHumidity,
@@ -394,6 +400,7 @@ class LayingRecord {
         speciesName: json['speciesName'] as String?,
         laidAt: DateTime.parse(json['laidAt'] as String),
         totalCount: ((json['eggCountTotal'] ?? json['totalCount']) as num).toInt(),
+        fertileCount: (json['eggCountFertile'] as num?)?.toInt(),
         memo: json['memo'] as String?,
         incubationTemp: (json['incubationTemp'] as num?)?.toDouble(),
         incubationHumidity: (json['incubationHumidity'] as num?)?.toDouble(),

@@ -234,12 +234,26 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
         }
       } else if (widget.recordType == 'laying') {
         final cnt = e.form['totalCount'] as int;
+        final fertile = e.form['fertileCount'] as int?;
         final memo = (e.form['memo'] as String).trim();
+        if (cnt <= 0) {
+          showToast(context, '알 총 개수를 적어주세요', type: ToastType.error);
+          return;
+        }
+        // 서버도 막지만(`LAYING_FERTILE_EXCEEDS_TOTAL`) 400 을 받고 나서
+        // 알려 주는 건 늦다 — 숫자 두 개를 나란히 적는 폼이라 뒤바꿔 적는 일이 잦다.
+        if (fertile != null && fertile > cnt) {
+          showToast(context, '유정란 수가 총 개수보다 많아요', type: ToastType.error);
+          return;
+        }
         final data = {
           'laidAt': dateTime,
           // 서버 필드명은 `eggCountTotal`(@NotNull @Min(1)).
           // `totalCount` 로 보내면 알맹이가 없는 요청이 되어 400 이 떨어진다.
           'eggCountTotal': cnt,
+          // 수정일 때는 **null 도 보낸다** — 잘못 적은 유정란 수를 지워
+          // '미확인'으로 되돌릴 방법이 있어야 한다.
+          if (fertile != null || e.isEdit) 'eggCountFertile': fertile,
           if (memo.isNotEmpty) 'memo': memo,
         };
         if (e.isEdit && e.editId != null) {
@@ -307,14 +321,11 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
                 ),
               ),
               // 보고 있는 페이지는 밑줄 — 알약 세그먼트는 '설정'의 모양이다
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.screenH),
-                child: AppUnderlineTabs(
-                  labels: const ['캘린더', '리스트'],
-                  index: _tabIndex,
-                  onChanged: (i) => setState(() => _tabIndex = i),
-                ),
+              AppUnderlineTabs(
+                labels: const ['캘린더', '리스트'],
+                index: _tabIndex,
+                onChanged: (i) => setState(() => _tabIndex = i),
+                horizontalPadding: AppSpacing.screenH,
               ),
               Expanded(
                 child: _entriesAsync.when(
@@ -403,15 +414,20 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
   }
 
   RecordEntry _fromLaying(LayingRecord r) => RecordEntry(
-    id: r.id, dateStr: _dateStr(r.laidAt),
-    timeStr: _timeStr(r.laidAt), summary: '${r.totalCount}개', raw: r);
+    id: r.id, dateStr: _dateStr(r.laidAt), timeStr: _timeStr(r.laidAt),
+    // 유정란 수를 적어 둔 기록이면 함께 보여 준다 — 목록에서 '몇 개 낳았나'
+    // 다음으로 궁금한 게 '그중 몇 개가 유정이냐'다.
+    summary: r.fertileCount == null
+        ? '${r.totalCount}개'
+        : '${r.totalCount}개 · 유정 ${r.fertileCount}',
+    raw: r);
 
   Map<String, dynamic> _defaultForm() => switch (widget.recordType) {
     'cleaning' => {'cleaningType': CleaningType.FULL, 'memo': ''},
     'memo'     => {'content': '', 'tags': <String>[], 'memo': ''},
     'mating'   => {'isSuccessful': null, 'partnerPetId': null,
                    'partnerLabel': null, 'memo': ''},
-    'laying'   => {'totalCount': 1, 'memo': ''},
+    'laying'   => {'totalCount': 1, 'fertileCount': null, 'memo': ''},
     _ => {},
   };
 
@@ -442,7 +458,11 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
         };
       case 'laying':
         final r = entry.raw as LayingRecord;
-        return {'totalCount': r.totalCount, 'memo': r.memo ?? ''};
+        return {
+          'totalCount': r.totalCount,
+          'fertileCount': r.fertileCount,
+          'memo': r.memo ?? '',
+        };
       default:
         return {};
     }
@@ -934,7 +954,13 @@ class _EditorSheet extends StatefulWidget {
 class _EditorSheetState extends State<_EditorSheet> {
   late final TextEditingController _memoCtrl;
   late final TextEditingController _contentCtrl;
-  late int _count;
+
+  // 산란 — FAB 산란 폼과 같은 칸 두 개.
+  // ⛔ 예전엔 −/+ 스테퍼 + '1·3·5·10·20개' 빠른 칩이었는데, 유정란 칸이
+  // 아예 없어서 FAB 로 적은 기록을 여기서 고치면 유정란 수가 사라졌다.
+  // 같은 데이터를 적는 폼이 두 모양이면 어느 쪽이 맞는지 알 수 없다.
+  late final TextEditingController _totalCtrl;
+  late final TextEditingController _fertileCtrl;
 
   @override
   void initState() {
@@ -943,13 +969,19 @@ class _EditorSheetState extends State<_EditorSheet> {
         text: widget.editor.form['memo'] as String? ?? '');
     _contentCtrl = TextEditingController(
         text: widget.editor.form['content'] as String? ?? '');
-    _count = widget.editor.form['totalCount'] as int? ?? 1;
+    final total = widget.editor.form['totalCount'] as int? ?? 1;
+    _totalCtrl = TextEditingController(text: total > 0 ? '$total' : '');
+    final fertile = widget.editor.form['fertileCount'] as int?;
+    _fertileCtrl =
+        TextEditingController(text: fertile == null ? '' : '$fertile');
   }
 
   @override
   void dispose() {
     _memoCtrl.dispose();
     _contentCtrl.dispose();
+    _totalCtrl.dispose();
+    _fertileCtrl.dispose();
     super.dispose();
   }
 
@@ -960,6 +992,22 @@ class _EditorSheetState extends State<_EditorSheet> {
       dateStr: '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}',
     ));
   }
+
+  Widget _eggLabel(String text, {required bool required}) => Row(
+        children: [
+          Text(text,
+              style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary)),
+          if (required)
+            const Text(' *',
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.error)),
+        ],
+      );
 
   void _updateForm(String key, dynamic value) {
     widget.onChanged(widget.editor.copyWith(
@@ -979,7 +1027,7 @@ class _EditorSheetState extends State<_EditorSheet> {
       return hasContent || hasTag;
     }
     if (widget.recordType == 'laying') {
-      return (_count) > 0;
+      return (widget.editor.form['totalCount'] as int? ?? 0) > 0;
     }
     return true;
   }
@@ -1291,59 +1339,45 @@ class _EditorSheetState extends State<_EditorSheet> {
                       ],
 
                       // ── 산란 ──────────────────────────────
+                      // FAB 산란 폼(`fab_record_sheet.dart` 의 'lay')과 같은
+                      // 칸·같은 순서다. 한쪽만 고치지 말 것.
                       if (widget.recordType == 'laying') ...[
-                        const Text('산란 수',
-                            style: TextStyle(fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.primary)),
+                        _eggLabel('알 총 개수', required: true),
                         const SizedBox(height: 8),
-                        Container(
-                          decoration: BoxDecoration(
-                            border: Border.all(color: AppColors.paleLine),
-                            borderRadius: AppRadius.brMd,
+                        TextField(
+                          controller: _totalCtrl,
+                          keyboardType: TextInputType.number,
+                          style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary),
+                          decoration: const InputDecoration(
+                            hintText: '0',
+                            suffixText: '개',
+                            suffixStyle: TextStyle(
+                                fontSize: 14, color: AppColors.paleInk2),
                           ),
-                          child: Row(children: [
-                            AppStepperButton('−',
-                                onTap: () => setState(() {
-                                  _count = (_count - 1).clamp(1, 999);
-                                  _updateForm('totalCount', _count);
-                                })),
-                            Expanded(
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text('$_count', style: AppTextStyles.mono(20, FontWeight.w700)),
-                                  const SizedBox(width: 8),
-                                  Text('개', style: TextStyle(fontSize: 13, color: AppColors.paleInk2)),
-                                ],
-                              ),
-                            ),
-                            AppStepperButton('+',
-                                onTap: () => setState(() {
-                                  _count = (_count + 1).clamp(1, 999);
-                                  _updateForm('totalCount', _count);
-                                })),
-                          ]),
+                          onChanged: (v) => setState(() => _updateForm(
+                              'totalCount', int.tryParse(v.trim()) ?? 0)),
                         ),
-                        const SizedBox(height: 4),
-                        Wrap(spacing: 6, children: [1, 3, 5, 10, 20].map((n) {
-                          final active = _count == n;
-                          return GestureDetector(
-                            onTap: () => setState(() {
-                              _count = n;
-                              _updateForm('totalCount', n);
-                            }),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: active ? widget.accentColor : AppColors.paleBg,
-                                border: Border.all(color: active ? Colors.transparent : AppColors.paleLine),
-                                borderRadius: AppRadius.brPill,
-                              ),
-                              child: Text('$n개', style: AppTextStyles.mono(11, FontWeight.w700)),
-                            ),
-                          );
-                        }).toList()),
+                        const SizedBox(height: 16),
+                        _eggLabel('유정란 수', required: false),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _fertileCtrl,
+                          keyboardType: TextInputType.number,
+                          style: const TextStyle(
+                              fontSize: 14, color: AppColors.primary),
+                          decoration: const InputDecoration(
+                            hintText: '미확인 시 비워두세요',
+                            suffixText: '개',
+                            suffixStyle: TextStyle(
+                                fontSize: 14, color: AppColors.paleInk2),
+                          ),
+                          // 비우면 null — '전부 무정(0)'과 구별해야 한다.
+                          onChanged: (v) => _updateForm('fertileCount',
+                              v.trim().isEmpty ? null : int.tryParse(v.trim())),
+                        ),
                       ],
 
                       // ── 공통 메모 (memo 타입 제외) ─────────

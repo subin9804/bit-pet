@@ -6,22 +6,31 @@
 
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_dimens.dart';
+import '../theme/app_text_styles.dart';
 
 class AppUnderlineTabs extends StatelessWidget {
   final List<String> labels;
   final int index;
   final ValueChanged<int> onChanged;
 
+  /// 화면 거터. **바깥에서 Padding 으로 감싸지 말 것** — 그러면 아래 구분선도
+  /// 같이 들여써져 선이 화면을 가로지르지 못하고 공중에 뜬 토막이 된다.
+  /// 거터를 빼먹고 감싸지도 않으면 탭이 화면 왼쪽 끝에 달라붙는다(실제로 그랬다).
+  final double horizontalPadding;
+
   const AppUnderlineTabs({
     super.key,
     required this.labels,
     required this.index,
     required this.onChanged,
+    this.horizontalPadding = AppSpacing.xl,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
+      padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: AppColors.line)),
       ),
@@ -29,7 +38,8 @@ class AppUnderlineTabs extends StatelessWidget {
         children: [
           for (var i = 0; i < labels.length; i++)
             Padding(
-              padding: EdgeInsets.only(right: i == labels.length - 1 ? 0 : 20),
+              padding: EdgeInsets.only(
+                  right: i == labels.length - 1 ? 0 : AppSpacing.xl),
               child: GestureDetector(
                 onTap: () => onChanged(i),
                 behavior: HitTestBehavior.opaque,
@@ -37,11 +47,11 @@ class AppUnderlineTabs extends StatelessWidget {
                   child: Column(
                     children: [
                       Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                            vertical: AppSpacing.md),
                         child: Text(
                           labels[i],
-                          style: TextStyle(
-                            fontSize: 16,
+                          style: AppTextStyles.subheading.copyWith(
                             fontWeight: i == index
                                 ? FontWeight.w700
                                 : FontWeight.w600,

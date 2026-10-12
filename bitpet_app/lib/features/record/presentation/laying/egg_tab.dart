@@ -181,8 +181,6 @@ class _ClutchCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final latestNote = laying.notes.isEmpty ? null : laying.notes.first;
-
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -260,28 +258,16 @@ class _ClutchCard extends StatelessWidget {
                         fg: AppColors.ink2),
                   if (laying.failedCount > 0)
                     _CountChip(
-                        label: '무정 ${laying.failedCount}',
+                        label: '실패 ${laying.failedCount}',
                         bg: AppColors.petCoral,
                         fg: AppColors.petCoralInk),
                 ],
               ),
-              const SizedBox(height: AppSpacing.sm + 2),
-              Container(
-                padding: const EdgeInsets.only(top: AppSpacing.sm + 2),
-                decoration: const BoxDecoration(
-                  border: Border(top: BorderSide(color: AppColors.bgAlt)),
-                ),
-                child: latestNote == null
-                    ? Text('메모가 없어요',
-                        style: AppTextStyles.caption
-                            .copyWith(color: AppColors.ink3))
-                    : Text(
-                        '${_md(latestNote.notedAt)} · ${latestNote.content}',
-                        style: AppTextStyles.caption,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-              ),
+              // ⛔ 여기에 최근 메모를 한 줄 깔아 뒀다가 걷어냈다. 목록은
+              // **클러치를 훑는 자리**다 — 알이 몇 개고 얼마나 됐는지가 전부이고,
+              // 관찰 메모는 그 클러치를 들여다보기로 한 사람이 읽는 것이라
+              // 상세에만 있으면 된다. 카드마다 한 줄씩 붙으니 '메모가 없어요'가
+              // 줄줄이 늘어서 정작 중요한 숫자가 묻혔다.
             ],
           ),
         ),
@@ -356,7 +342,7 @@ class _EggSkeleton extends StatelessWidget {
       child: Column(
         children: [
           for (var i = 0; i < 3; i++) ...[
-            const SkeletonBox(width: double.infinity, height: 148, borderRadius: AppRadius.lg),
+            const SkeletonBox(width: double.infinity, height: 124, borderRadius: AppRadius.lg),
             const SizedBox(height: AppSpacing.cardGap),
           ],
         ],

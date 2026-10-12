@@ -166,14 +166,11 @@ class _FeedDetailScreenState extends ConsumerState<FeedDetailScreen> {
                 ),
               ),
               // 보고 있는 페이지는 밑줄 — 알약 세그먼트는 '설정'의 모양이다
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.screenH),
-                child: AppUnderlineTabs(
-                  labels: const ['캘린더', '리스트'],
-                  index: _tabIndex,
-                  onChanged: (i) => setState(() => _tabIndex = i),
-                ),
+              AppUnderlineTabs(
+                labels: const ['캘린더', '리스트'],
+                index: _tabIndex,
+                onChanged: (i) => setState(() => _tabIndex = i),
+                horizontalPadding: AppSpacing.screenH,
               ),
               // 본문
               Expanded(
