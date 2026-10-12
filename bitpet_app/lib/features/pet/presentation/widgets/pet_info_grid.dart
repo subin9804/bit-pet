@@ -25,7 +25,6 @@ class _PetInfoGridState extends ConsumerState<PetInfoGrid> {
     final precision = pet.hatchingDatePrecision;
     final approx = pet.hatchingDateApproximate;
     final adopt = pet.adoptionDate;
-    final age   = _ageString(hatch, precision, approx);
 
     // 부모 카드는 소유자 정보(@닉네임 / 정보 없음)까지 같이 그려야 해서 가계도를 따로 읽는다.
     // Pet 안의 fatherName/motherName 은 이름뿐이라 남의 개체인지 알 수 없다.
@@ -41,16 +40,12 @@ class _PetInfoGridState extends ConsumerState<PetInfoGrid> {
       padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
         children: [
-          // 모프 — **한 줄 전체**를 쓴다. 2열 그리드의 반쪽에 두면 폭이 모자라
-          // 모프 이름 하나가 단어 중간에서 잘려 다음 줄로 넘어간다
-          // ('슈퍼 마카로니' → '슈퍼 마카로' / '니'). 칩이면 이름 단위로만 접힌다.
-          _MorphRow(
-            names: pet.morphs.isNotEmpty
-                ? pet.morphs.map((m) => m.nameKo).toList()
-                : (pet.morphName != null ? [pet.morphName!] : const []),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          // 2열 그리드 — 나이는 해칭일에서 계산되는 값이라 같은 줄에 둔다.
+          // 날짜 두 개를 **첫 줄**에 나란히. 이 카드에서 가장 자주 찾는 값이고,
+          // 둘은 같은 종류(날짜)라 한 줄에 묶이는 게 자연스럽다.
+          //
+          // ⚠️ 여기 '나이' 칸이 있었다 — 바로 위 통계 카드에 이미 있는 값이라 뺐다.
+          // 해칭일에서 계산되는 값이니 같은 줄에 두는 게 맞다고 봤던 건데, 같은
+          // 화면에 두 번 나오는 쪽의 비용이 더 컸다. ⛔ 되살리지 말 것.
           Row(
             children: [
               _Cell(
@@ -60,17 +55,7 @@ class _PetInfoGridState extends ConsumerState<PetInfoGrid> {
                 chip: approx ? '부정확' : null,
               ),
               const SizedBox(width: AppSpacing.md),
-              _Cell(label: '나이', value: age),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Row(
-            children: [
               _Cell(label: '입양일', value: _fmtDate(adopt), mono: true),
-              const SizedBox(width: AppSpacing.md),
-              // 짝이 없다. 빈 칸을 두어 '입양일' 이 왼쪽 열에 그대로 서 있게 한다 —
-              // 없애면 혼자 전체 폭으로 퍼져 위아래 줄과 열이 어긋난다.
-              const Expanded(child: SizedBox()),
             ],
           ),
           // 부모 — 등록된 부모가 있을 때만 영역을 그린다. 등록·수정은 전부
@@ -109,6 +94,21 @@ class _PetInfoGridState extends ConsumerState<PetInfoGrid> {
               ],
             ),
           ],
+
+          // 모프는 **이 카드의 맨 아래**다. 한때 맨 위였는데, 윗자리는 해칭일·입양일
+          // 처럼 자주 확인하는 값에 양보하는 게 맞다 — 모프는 한 번 알면 다시 볼
+          // 일이 드물고, 개체가 여러 개를 물고 있으면 높이가 들쭉날쭉해 그 아래
+          // 줄들이 개체마다 다른 자리에서 시작한다.
+          //
+          // **한 줄 전체**를 쓰는 건 그대로 유지한다. 2열 그리드의 반쪽에 두면 폭이
+          // 모자라 모프 이름 하나가 단어 중간에서 잘려 다음 줄로 넘어간다
+          // ('슈퍼 마카로니' → '슈퍼 마카로' / '니'). 칩이면 이름 단위로만 접힌다.
+          const SizedBox(height: AppSpacing.md),
+          _MorphRow(
+            names: pet.morphs.isNotEmpty
+                ? pet.morphs.map((m) => m.nameKo).toList()
+                : (pet.morphName != null ? [pet.morphName!] : const []),
+          ),
         ],
       ),
     );
@@ -119,20 +119,6 @@ class _PetInfoGridState extends ConsumerState<PetInfoGrid> {
     return precision == 'MONTH'
         ? '${d.year}.${d.month.toString().padLeft(2, '0')}'
         : '${d.year}.${d.month.toString().padLeft(2, '0')}.${d.day.toString().padLeft(2, '0')}';
-  }
-
-  String _ageString(DateTime? hatch, [String precision = 'DAY', bool approx = false]) {
-    if (hatch == null) return '-';
-    final effective = precision == 'MONTH'
-        ? DateTime(hatch.year, hatch.month, 15)
-        : hatch;
-    final now = DateTime.now();
-    int months = (now.year - effective.year) * 12 + now.month - effective.month;
-    if (months < 0) return '-';
-    final y = months ~/ 12;
-    final m = months % 12;
-    final base = y == 0 ? '$m개월' : m == 0 ? '$y년' : '$y년 $m개월';
-    return approx ? '약 $base' : base;
   }
 }
 

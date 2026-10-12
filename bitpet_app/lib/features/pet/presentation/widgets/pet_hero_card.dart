@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimens.dart';
 import '../../../../core/theme/app_text_styles.dart';
-import '../../../../core/utils/weight_format.dart';
 import '../../data/models/pet_models.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/widgets/app_network_image.dart';
@@ -46,11 +45,6 @@ class _PetHeroCardState extends State<PetHeroCard> {
       'FEMALE' => '♀',
       _        => '?',
     };
-    final genderLabel = switch (pet.gender) {
-      'MALE'   => '수컷',
-      'FEMALE' => '암컷',
-      _        => '미확인',
-    };
     final genderColor = switch (pet.gender) {
       'MALE'   => AppColors.petSkyInk,
       'FEMALE' => AppColors.petPeachInk,
@@ -58,12 +52,9 @@ class _PetHeroCardState extends State<PetHeroCard> {
     };
     final isPublic = pet.privateYn == 'N';
 
-    // 종 뒤에 모프를 이어 붙인 한 줄 — '레오파드 게코 · 하이포 탠저린'.
-    final morphText = pet.morphs.isNotEmpty
-        ? pet.morphs.map((m) => m.nameKo).join(' · ')
-        : (pet.morphName ?? '');
-    final subtitle =
-        morphText.isEmpty ? pet.speciesName : '${pet.speciesName} · $morphText';
+    // 종 한 줄. 모프를 뒤에 이어 붙여 두었다가 **상세 정보 카드 맨 아래로 내렸다** —
+    // 같은 값이 두 곳에 있었고, 모프가 많은 개체는 이 줄이 통째로 잘렸다.
+    final subtitle = pet.speciesName;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -141,42 +132,15 @@ class _PetHeroCardState extends State<PetHeroCard> {
               const SizedBox(height: AppSpacing.md),
 
               // 작은 흰 칩 — 밴드 위라 흰 면만으로 충분히 떠 보인다.
+              //
+              // 밴드에 남기는 값은 **개체 코드와 공개 여부 둘뿐**이다. 성별은 이름
+              // 옆 기호가 이미 말하고, 체중은 바로 아래 통계 카드에 숫자로 있다 —
+              // 칩으로 또 쓰면 한 화면에서 같은 값을 두 번 읽게 된다.
               Wrap(
                 spacing: AppSpacing.sm,
                 runSpacing: AppSpacing.xs,
                 children: [
-                  _HeroChip(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(genderLabel,
-                            style: AppTextStyles.label.copyWith(
-                                letterSpacing: 0, color: AppColors.ink)),
-                        if (pet.latestWeightG != null) ...[
-                          Text(' · ', style: AppTextStyles.label),
-                          Text('${formatWeight(pet.latestWeightG!)}g',
-                              style: AppTextStyles.mono(11, FontWeight.w700)),
-                        ],
-                      ],
-                    ),
-                  ),
-                  // 공개만 색을 쓴다 — 비공개가 기본값이라, 둘 다 칠하면
-                  // '다름'이 아니라 '배지가 두 종류'로 읽힌다.
-                  _HeroChip(
-                    tinted: isPublic,
-                    child: Text(
-                      isPublic ? '공개' : '비공개',
-                      style: AppTextStyles.label.copyWith(
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0,
-                        color:
-                            isPublic ? AppColors.brandTintInk : AppColors.ink2,
-                      ),
-                    ),
-                  ),
-                  // 일련번호는 이름 위에 **따로 한 줄**이었다. 오른쪽이 네 줄이
-                  // 되어 빽빽했고, 가장 안 읽는 값이 제일 먼저 나와 있었다.
-                  // 칩으로 내려 같은 줄에 둔다 (탭하면 그대로 복사).
+                  // 개체 코드. 탭하면 그대로 복사된다.
                   if (pet.serialNo.isNotEmpty)
                     _HeroChip(
                       onTap: _copySerial,
@@ -204,6 +168,20 @@ class _PetHeroCardState extends State<PetHeroCard> {
                         ],
                       ),
                     ),
+                  // 공개만 색을 쓴다 — 비공개가 기본값이라, 둘 다 칠하면
+                  // '다름'이 아니라 '배지가 두 종류'로 읽힌다.
+                  _HeroChip(
+                    tinted: isPublic,
+                    child: Text(
+                      isPublic ? '공개' : '비공개',
+                      style: AppTextStyles.label.copyWith(
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0,
+                        color:
+                            isPublic ? AppColors.brandTintInk : AppColors.ink2,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ],
