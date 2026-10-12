@@ -1,11 +1,17 @@
-// 화면을 꽉 채우는 월간 그리드 캘린더.
+// 월간 캘린더 — 흰 카드 한 장 안에 타일 격자를 담는다.
 //
-// 기존 캘린더는 30px 원형 셀 + "선택한 날의 기록 목록"이 아래에 붙는 구조였다.
-// 이 위젯은 **셀 안에서 바로 내용을 읽는** 구조라 아래 목록이 필요 없다.
-// 대신 날짜를 누르면 호출부가 바텀시트로 그 날의 상세를 띄운다.
+// 리뉴얼 전에는 화면을 꽉 채우는 **선 격자**였다. 7×5 칸을 선으로 나눠 놓으니
+// 떠 있는 면이 하나도 없어 전부 같은 깊이로 보이고, 선택한 칸은 카테고리색으로
+// 통째 칠해져 그 날 기록이 되레 안 읽혔다.
 //
-// 셀 내용은 화면마다 다르므로 [cellBuilder] 로 위임한다. 남는 세로 공간을
-// 6주 행이 균등하게 나눠 갖기 때문에, 내용이 길면 잘린다 (ClipRect + ellipsis).
+// 지금 구조는 세 덩어리다 (기록 상세 확정 시안):
+//   ① 월 이동 줄 + 요약 **글줄** — 면도 카드도 주지 않는다. 숫자만 먹색 700.
+//      (개체 상세의 '밴드 + 걸친 통계 카드'를 여기서 또 쓰면 히어로카드와 겹쳐 보인다)
+//   ② 흰 카드([AppDecor.cardRaised]) 안의 타일 격자 — 기록 있는 날만 면이 생겨
+//      한 달의 밀도가 덩어리로 보인다. 선 격자는 쓰지 않는다.
+//   ③ 고른 날 기록은 호출부가 이 아래에 [SelectedDayCard] 로 둔다 — 시트로 받지 않는다.
+//
+// 세로를 꽉 채우지 않으므로(타일 높이 고정) 호출부에서 스크롤에 넣어야 한다.
 
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
@@ -15,12 +21,24 @@ import 'app_buttons.dart';
 
 const _weekKo = ['일', '월', '화', '수', '목', '금', '토'];
 
+/// 타일 한 칸 높이. 12px 라벨 두 줄 + 날짜가 들어가는 최소치다.
+const double _tileH = 62;
+const double _gap = 4;
+
 /// DateTime → 'YYYY-MM-DD'
 String isoDate(DateTime d) =>
     '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
 /// 오늘 날짜 'YYYY-MM-DD'
 String todayIso() => isoDate(DateTime.now());
+
+/// 월 요약 글줄의 한 항목 — '급여 **12회**'.
+/// 라벨은 보조색, 값은 먹색 700 tabular 로 찍힌다.
+class MonthSummaryItem {
+  final String label;
+  final String value;
+  const MonthSummaryItem(this.label, this.value);
+}
 
 class MonthGridCalendar extends StatelessWidget {
   /// 표시 중인 달 (일(day)은 무시)
@@ -29,11 +47,8 @@ class MonthGridCalendar extends StatelessWidget {
   /// 강조할 날짜 'YYYY-MM-DD'. null이면 강조 없음.
   final String? selectedDate;
 
-  /// 월 이동 헤더 아래에 붙는 요약 ('12회 급여' 등)
-  final String monthSummary;
-
-  /// 선택 셀 배경에 쓰는 강조색
-  final Color accent;
+  /// 월 이동 줄 아래 한 줄로 찍히는 요약. 빈 리스트면 줄 자체가 빠진다.
+  final List<MonthSummaryItem> summary;
 
   final ValueChanged<DateTime> onMonthChanged;
   final ValueChanged<String> onDayTap;
@@ -41,15 +56,18 @@ class MonthGridCalendar extends StatelessWidget {
   /// 셀 본문. 기록이 없으면 null 을 돌려준다.
   final Widget? Function(String date) cellBuilder;
 
+  /// '오늘' 바로가기. null이면 버튼이 빠진다.
+  final VoidCallback? onToday;
+
   const MonthGridCalendar({
     super.key,
     required this.month,
     required this.selectedDate,
-    required this.monthSummary,
-    required this.accent,
+    required this.summary,
     required this.onMonthChanged,
     required this.onDayTap,
     required this.cellBuilder,
+    this.onToday,
   });
 
   @override
@@ -70,88 +88,133 @@ class MonthGridCalendar extends StatelessWidget {
     final rowCount = cells.length ~/ 7;
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // ── 월 이동 ──────────────────────────────────────────
+        // ── ① 월 이동 ────────────────────────────────────────
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, 0),
           child: Row(
             children: [
               AppNavButton(
                 onTap: () =>
                     onMonthChanged(DateTime(month.year, month.month - 1)),
               ),
-              const Spacer(),
-              Column(children: [
-                Text('${month.year}.${month.month.toString().padLeft(2, '0')}',
-                    style: AppTextStyles.mono(15, FontWeight.w700)),
-                Text(monthSummary, style: AppTextStyles.monoXxs),
-              ]),
-              const Spacer(),
+              Text('${month.year}. ${month.month.toString().padLeft(2, '0')}',
+                  style: AppTextStyles.mono(18, FontWeight.w700)),
               AppNavButton(
                 forward: true,
                 onTap: () =>
                     onMonthChanged(DateTime(month.year, month.month + 1)),
               ),
+              const Spacer(),
+              if (onToday != null)
+                GestureDetector(
+                  onTap: onToday,
+                  behavior: HitTestBehavior.opaque,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 10, horizontal: 2),
+                    child: Text('오늘',
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.brandAction)),
+                  ),
+                ),
             ],
           ),
         ),
 
-        // ── 요일 헤더 ────────────────────────────────────────
-        Container(
-          decoration: const BoxDecoration(
-            color: AppColors.paleBgAlt,
-            border: Border(
-              top: BorderSide(color: AppColors.paleLine),
-              bottom: BorderSide(color: AppColors.paleLine),
+        // ── 요약 글줄 — 카드도 면도 없이 캡션으로 받는다 ──────
+        if (summary.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+                AppSpacing.xxl, AppSpacing.xs, AppSpacing.xxl, 0),
+            child: Wrap(
+              spacing: 4,
+              runSpacing: 2,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                for (var i = 0; i < summary.length; i++) ...[
+                  if (i > 0)
+                    const Text('·',
+                        style: TextStyle(
+                            fontSize: 13, color: AppColors.toggleOff)),
+                  Text(summary[i].label,
+                      style: const TextStyle(
+                          fontSize: 13, color: AppColors.ink2)),
+                  Text(summary[i].value,
+                      style: AppTextStyles.mono(13, FontWeight.w700)),
+                ],
+              ],
             ),
           ),
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(
-            children: List.generate(7, (i) {
-              return Expanded(
-                child: Text(
-                  _weekKo[i],
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: i == 0
-                        ? AppColors.petCoralInk
-                        : i == 6
-                            ? AppColors.petSkyInk
-                            : AppColors.paleInk3,
+
+        // ── ② 캘린더 카드 ───────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg, 11, AppSpacing.lg, 0),
+          child: Container(
+            decoration: AppDecor.cardRaised,
+            padding: const EdgeInsets.fromLTRB(10, 12, 10, 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // 요일 — 선도 바탕도 없다. 글씨만으로 머리말이 된다
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 2),
+                  child: Row(
+                    children: List.generate(7, (i) {
+                      return Expanded(
+                        child: Text(
+                          _weekKo[i],
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: i == 0
+                                ? AppColors.petCoralInk
+                                : i == 6
+                                    ? AppColors.petSkyInk
+                                    : AppColors.ink3,
+                          ),
+                        ),
+                      );
+                    }),
                   ),
                 ),
-              );
-            }),
-          ),
-        ),
 
-        // ── 날짜 그리드 (남은 세로 공간을 균등 분할) ──────────
-        Expanded(
-          child: Column(
-            children: List.generate(rowCount, (r) {
-              return Expanded(
-                child: Row(
-                  children: List.generate(7, (c) {
-                    final day = cells[r * 7 + c];
-                    if (day == null) return const Expanded(child: _EmptyCell());
-                    final ds = '$ym-${day.toString().padLeft(2, '0')}';
-                    return Expanded(
-                      child: _DayCell(
-                        day: day,
-                        weekday: c,
-                        selected: ds == selectedDate,
-                        isToday: ds == today,
-                        accent: accent,
-                        content: cellBuilder(ds),
-                        onTap: () => onDayTap(ds),
-                      ),
-                    );
-                  }),
-                ),
-              );
-            }),
+                // 날짜 타일
+                for (var r = 0; r < rowCount; r++)
+                  Padding(
+                    padding: EdgeInsets.only(top: r == 0 ? 0 : _gap),
+                    child: Row(
+                      children: [
+                        for (var c = 0; c < 7; c++) ...[
+                          if (c > 0) const SizedBox(width: _gap),
+                          Expanded(
+                            child: Builder(builder: (_) {
+                              final day = cells[r * 7 + c];
+                              if (day == null) {
+                                return const SizedBox(height: _tileH);
+                              }
+                              final ds =
+                                  '$ym-${day.toString().padLeft(2, '0')}';
+                              return _DayTile(
+                                day: day,
+                                weekday: c,
+                                selected: ds == selectedDate,
+                                isToday: ds == today,
+                                content: cellBuilder(ds),
+                                onTap: () => onDayTap(ds),
+                              );
+                            }),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ],
@@ -159,36 +222,19 @@ class MonthGridCalendar extends StatelessWidget {
   }
 }
 
-class _EmptyCell extends StatelessWidget {
-  const _EmptyCell();
-
-  @override
-  Widget build(BuildContext context) => Container(
-        decoration: const BoxDecoration(
-          color: AppColors.paleBgAlt,
-          border: Border(
-            right: BorderSide(color: AppColors.paleLineSoft),
-            bottom: BorderSide(color: AppColors.paleLineSoft),
-          ),
-        ),
-      );
-}
-
-class _DayCell extends StatelessWidget {
+class _DayTile extends StatelessWidget {
   final int day;
   final int weekday; // 0=일 … 6=토
   final bool selected;
   final bool isToday;
-  final Color accent;
   final Widget? content;
   final VoidCallback onTap;
 
-  const _DayCell({
+  const _DayTile({
     required this.day,
     required this.weekday,
     required this.selected,
     required this.isToday,
-    required this.accent,
     required this.content,
     required this.onTap,
   });
@@ -200,64 +246,68 @@ class _DayCell extends StatelessWidget {
         : weekday == 6
             ? AppColors.petSkyInk
             : AppColors.primary;
+    final hasContent = content != null;
 
     return GestureDetector(
       // 빈 날짜도 눌러서 기록을 추가할 수 있어야 한다
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: Container(
+        height: _tileH,
         decoration: BoxDecoration(
-          color: selected ? accent : AppColors.card,
-          border: const Border(
-            right: BorderSide(color: AppColors.paleLineSoft),
-            bottom: BorderSide(color: AppColors.paleLineSoft),
-          ),
+          // 기록이 있는 날만 면이 생긴다 — 한 달의 밀도가 덩어리로 보이는 이유
+          color: selected
+              ? AppColors.brandTintSoft
+              : hasContent
+                  ? AppColors.bgAlt
+                  : Colors.transparent,
+          borderRadius: AppRadius.brSm,
         ),
-        // 선택 표시는 **사방 테두리**로, 그리고 레이아웃에 끼지 않는 자리에 그린다.
-        //
-        // 예전엔 위·왼쪽만 1.5px 테두리를 둬서 ① 한쪽만 두꺼워 기울어 보이고
-        // ② 진짜 border 라 그 셀만 내용이 1.5px 밀려, 날짜를 옮길 때마다 숫자가 움찔했다.
-        // foregroundDecoration 은 자식 위에 덧그릴 뿐 크기를 건드리지 않는다.
+        // 선택 표시는 **덧그린 테두리**다. 진짜 border 면 그 칸만 내용이 1.5px
+        // 밀려서 날짜를 옮길 때마다 숫자가 움찔한다.
         foregroundDecoration: selected
             ? const BoxDecoration(
+                borderRadius: AppRadius.brSm,
                 border: Border.fromBorderSide(
-                    BorderSide(color: AppColors.primary, width: 1.5)))
+                    BorderSide(color: AppColors.brandAction, width: 1.5)),
+              )
             : null,
-        padding: const EdgeInsets.fromLTRB(4, 4, 4, 4),
+        padding: const EdgeInsets.fromLTRB(4, 3, 4, 0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // 날짜 숫자 — 오늘은 채운 배지로 구분한다 (선택 강조와 겹쳐도 읽힌다)
+            // 날짜 숫자 — 오늘은 연녹 알약으로 구분한다 (선택 강조와 겹쳐도 읽힌다)
             //
-            // ⚠️ 폭을 18로 고정하면 두 자리 날짜가 배지 안에서 줄바꿈되어
-            // 둘째 자리가 잘려 나간다(23일 → '2'만 보임). 글자 수에 따라
-            // 늘어나는 알약 모양으로 두고, 줄바꿈 자체를 막는다.
+            // ⚠️ 폭을 고정하면 두 자리 날짜가 알약 안에서 줄바꿈되어 둘째 자리가
+            // 잘려 나간다(23일 → '2'만 보임). 글자 수만큼 늘어나게 두고,
+            // 줄바꿈 자체를 막는다.
             SizedBox(
-              height: 18,
+              height: 16,
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: isToday
                     ? Container(
-                        height: 18,
-                        // 숫자를 감싸는 만큼만. minWidth 18 + center 로 두면
-                        // **오늘 칸만 숫자가 가운데로 쏠려** 다른 날과 x 가 어긋났다
-                        // (들어오면 오늘이 선택돼 있으니 "선택된 날만 가운데정렬"로 읽힌다).
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        alignment: Alignment.centerLeft,
+                        height: 16,
+                        padding: const EdgeInsets.symmetric(horizontal: 5),
+                        alignment: Alignment.center,
                         decoration: const BoxDecoration(
-                          color: AppColors.primary,
+                          color: AppColors.brandTint,
                           borderRadius: AppRadius.brPill,
                         ),
                         child: Text('$day',
                             maxLines: 1,
                             softWrap: false,
-                            style: AppTextStyles.mono(11, FontWeight.w700,
-                                color: AppColors.paleBg)),
+                            style: AppTextStyles.mono(12, FontWeight.w700,
+                                color: AppColors.brandTintInk)),
                       )
                     : Padding(
-                        padding: const EdgeInsets.only(left: 4),
+                        padding: const EdgeInsets.only(left: 2),
                         child: Text('$day',
-                            style: AppTextStyles.mono(12, FontWeight.w600,
+                            style: AppTextStyles.mono(
+                                12,
+                                selected
+                                    ? FontWeight.w700
+                                    : FontWeight.w600,
                                 color: numColor)),
                       ),
               ),
@@ -281,17 +331,21 @@ class _DayCell extends StatelessWidget {
   }
 }
 
-/// 셀 안에 한 줄로 들어가는 항목 (색 점 + 라벨)
+/// 타일 안에 한 줄로 들어가는 항목 (색 점 + 라벨)
 class CalendarCellLine extends StatelessWidget {
   final Color dotColor;
   final String label;
   final bool muted;
+
+  /// 거식처럼 '있었지만 안 먹은' 항목 — 점을 속 빈 동그라미로 그린다
+  final bool hollow;
 
   const CalendarCellLine({
     super.key,
     required this.dotColor,
     required this.label,
     this.muted = false,
+    this.hollow = false,
   });
 
   @override
@@ -302,10 +356,14 @@ class CalendarCellLine extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
-            width: 4,
-            height: 4,
-            margin: const EdgeInsets.only(right: 4),
-            decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
+            width: 5,
+            height: 5,
+            margin: const EdgeInsets.only(right: 3),
+            decoration: BoxDecoration(
+              color: hollow ? Colors.transparent : dotColor,
+              shape: BoxShape.circle,
+              border: hollow ? Border.all(color: dotColor, width: 1.2) : null,
+            ),
           ),
           Expanded(
             child: Text(
@@ -316,7 +374,7 @@ class CalendarCellLine extends StatelessWidget {
                 fontSize: 12,
                 height: 1.2,
                 fontWeight: FontWeight.w600,
-                color: muted ? AppColors.paleInk3 : AppColors.paleInk2,
+                color: muted ? AppColors.ink3 : AppColors.ink2,
               ),
             ),
           ),
@@ -335,7 +393,7 @@ class CalendarCellMore extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(left: 8),
         child: Text('+$count',
-            style: AppTextStyles.mono(8, FontWeight.w700,
-                color: AppColors.paleInk3)),
+            style:
+                AppTextStyles.mono(12, FontWeight.w700, color: AppColors.ink3)),
       );
 }

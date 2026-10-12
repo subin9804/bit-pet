@@ -7,9 +7,10 @@ import '../../../core/theme/app_input_styles.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_buttons.dart';
 import '../../../core/widgets/app_chip.dart';
-import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/confirm_modal.dart';
 import '../../../core/widgets/month_grid_calendar.dart';
+import '../../../core/widgets/selected_day_card.dart';
+import '../../../core/widgets/underline_tabs.dart';
 import '../../../core/widgets/skeleton_loader.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../data/models/record_models.dart';
@@ -34,10 +35,10 @@ class _TypeMeta {
 }
 
 const _typeMeta = {
-  'cleaning': _TypeMeta('청소 기록',  'CLEANING', AppColors.petSky),
-  'memo':     _TypeMeta('메모',       'MEMO',     AppColors.petLilac),
-  'mating':   _TypeMeta('교배 기록',  'MATING',   AppColors.petCoral),
-  'laying':   _TypeMeta('산란 기록',  'LAYING',   AppColors.petSage),
+  'cleaning': _TypeMeta('청소 기록',  'CLEANING', AppColors.petSkyInk),
+  'memo':     _TypeMeta('메모',       'MEMO',     AppColors.petLilacInk),
+  'mating':   _TypeMeta('교배 기록',  'MATING',   AppColors.petCoralInk),
+  'laying':   _TypeMeta('산란 기록',  'LAYING',   AppColors.petSageInk),
 };
 
 // ── 통합 기록 엔트리 ────────────────────────────────────────────
@@ -305,9 +306,12 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
                   onAdd: () => _openAdd(null),
                 ),
               ),
+              // 보고 있는 페이지는 밑줄 — 알약 세그먼트는 '설정'의 모양이다
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
-                child: _Segment(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.screenH),
+                child: AppUnderlineTabs(
+                  labels: const ['캘린더', '리스트'],
                   index: _tabIndex,
                   onChanged: (i) => setState(() => _tabIndex = i),
                 ),
@@ -517,177 +521,127 @@ class _TopBar extends StatelessWidget {
   }
 }
 
-// ── 세그먼트 ────────────────────────────────────────────────────
-class _Segment extends StatelessWidget {
-  final int index;
-  final ValueChanged<int> onChanged;
-  const _Segment({required this.index, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-          color: AppColors.paleBgAlt,
-          borderRadius: AppRadius.brMd),
-      padding: const EdgeInsets.all(4),
-      child: Row(children: [
-        _SegTab(label: '캘린더', icon: Icons.calendar_today_outlined,
-            active: index == 0, onTap: () => onChanged(0)),
-        const SizedBox(width: 4),
-        _SegTab(label: '리스트', icon: Icons.list_outlined,
-            active: index == 1, onTap: () => onChanged(1)),
-      ]),
-    );
-  }
-}
-
-class _SegTab extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final bool active;
-  final VoidCallback onTap;
-  const _SegTab({required this.label, required this.icon,
-      required this.active, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-            color: active ? AppColors.card : Colors.transparent,
-            border: active ? Border.all(color: AppColors.paleLine) : null,
-            borderRadius: AppRadius.brMd,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 16,
-                  color: active ? AppColors.primary : AppColors.paleInk3),
-              const SizedBox(width: 8),
-              Text(label, style: TextStyle(fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: active ? AppColors.primary : AppColors.paleInk2)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 // ── 기록 카드 ────────────────────────────────────────────────────
+//
+// `bare` = 테두리·배경 없는 **맨 몸** 행. 카드 안에 들어갈 때 쓴다
+// (카드 안의 카드는 깊이를 두 번 세는 셈이라 금지).
 class _RecordCard extends StatelessWidget {
   final RecordEntry entry;
   final Color accentColor;
   final VoidCallback onEdit;
-  final bool showDate;
+
+  final bool bare;
+
+  /// 카드 머리말이 이미 날짜를 말하는 자리 — 시각만 남긴다
+  final bool timeOnly;
 
   const _RecordCard({required this.entry, required this.accentColor,
-      required this.onEdit, this.showDate = true});
+      required this.onEdit,
+      this.bare = false, this.timeOnly = false});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        border: Border.all(color: AppColors.paleLine),
-        borderRadius: AppRadius.brMd,
-      ),
-      padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 날짜 컬럼 — 일/시각을 **한 줄**로 둔다.
-          //
-          // 세로로 쌓으면 글자 배율을 키운 기기에서 카드가 그만큼 길어지고,
-          // 폭을 52로 주면 시각('14:30')이 간당간당해 줄바꿈까지 된다.
-          // FittedBox(scaleDown) 이면 좁아질 때 줄바꿈 대신 함께 줄어든다.
-          // ('9월'은 목록에 이미 `2026.09` 월 구분선이 있어 중복이라 빼 뒀다.)
-          if (showDate)
-            SizedBox(
-              width: 76,
-              child: Align(
+    final body = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 날짜(또는 시각) 컬럼 — 일/시각을 **한 줄**로 둔다.
+        //
+        // 세로로 쌓으면 글자 배율을 키운 기기에서 카드가 그만큼 길어지고,
+        // 폭을 52로 주면 시각('14:30')이 간당간당해 줄바꿈까지 된다.
+        // FittedBox(scaleDown) 이면 좁아질 때 줄바꿈 대신 함께 줄어든다.
+        SizedBox(
+            width: timeOnly ? 46 : 76,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
-                    children: [
-                      Text(entry.dateStr.substring(8), // dd
-                          maxLines: 1, softWrap: false,
-                          style: AppTextStyles.monoBody),
-                      const SizedBox(width: 6),
-                      Text(entry.timeStr,
-                          maxLines: 1, softWrap: false,
-                          style: AppTextStyles.monoXxs),
-                    ],
+                child: timeOnly
+                    ? Text(entry.timeStr,
+                        maxLines: 1, softWrap: false,
+                        style: AppTextStyles.monoSm)
+                    : Row(
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          Text(entry.dateStr.substring(8), // dd
+                              maxLines: 1, softWrap: false,
+                              style: AppTextStyles.monoBody),
+                          const SizedBox(width: 6),
+                          Text(entry.timeStr,
+                              maxLines: 1, softWrap: false,
+                              style: AppTextStyles.monoXxs),
+                        ],
+                      ),
+              ),
+            ),
+          ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Container(
+                  width: 7, height: 7,
+                  margin: const EdgeInsets.only(top: 1),
+                  decoration: BoxDecoration(
+                      color: accentColor, shape: BoxShape.circle),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    entry.summary,
+                    style: const TextStyle(fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.ink),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-              ),
-            ),
-          if (showDate) const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(children: [
-                  Container(
-                    width: 8, height: 8,
-                    decoration: BoxDecoration(
-                        color: accentColor, shape: BoxShape.circle),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      entry.summary,
-                      style: const TextStyle(fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.primary),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ]),
-                // Memo line (if applicable)
-                Builder(builder: (_) {
-                  String? memo;
-                  final raw = entry.raw;
-                  if (raw is CleaningRecord && raw.memo != null) memo = raw.memo;
-                  else if (raw is MatingRecord && raw.memo != null) memo = raw.memo;
-                  else if (raw is LayingRecord && raw.memo != null) memo = raw.memo;
-                  if (memo == null || memo.isEmpty) return const SizedBox.shrink();
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(memo,
-                        style: TextStyle(fontSize: 12,
-                            color: AppColors.paleInk2),
-                        overflow: TextOverflow.ellipsis),
-                  );
-                }),
-              ],
-            ),
+              ]),
+              // Memo line (if applicable)
+              Builder(builder: (_) {
+                String? memo;
+                final raw = entry.raw;
+                if (raw is CleaningRecord && raw.memo != null) memo = raw.memo;
+                else if (raw is MatingRecord && raw.memo != null) memo = raw.memo;
+                else if (raw is LayingRecord && raw.memo != null) memo = raw.memo;
+                if (memo == null || memo.isEmpty) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(top: 3),
+                  child: Text(memo,
+                      style: AppTextStyles.caption,
+                      overflow: TextOverflow.ellipsis),
+                );
+              }),
+            ],
           ),
-          // 기록은 전부 수정할 수 있다 — "수정 못 하는 기록" 같은 건 없다.
-          GestureDetector(
-            onTap: onEdit,
-            child: Container(
-              width: 30, height: 30,
-              decoration: BoxDecoration(
-                color: AppColors.paleBg,
-                border: Border.all(color: AppColors.paleLine),
-                borderRadius: AppRadius.brMd,
-              ),
-              child: Icon(Icons.edit_outlined,
-                  size: 16, color: AppColors.paleInk2),
+        ),
+        // 기록은 전부 수정할 수 있다 — "수정 못 하는 기록" 같은 건 없다.
+        GestureDetector(
+          onTap: onEdit,
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            width: 30, height: 30,
+            decoration: BoxDecoration(
+              color: bare ? Colors.transparent : AppColors.bgAlt,
+              border: bare ? null : Border.all(color: AppColors.line),
+              borderRadius: AppRadius.brMd,
             ),
+            child: const Icon(Icons.edit_outlined,
+                size: 16, color: AppColors.ink3),
           ),
-        ],
-      ),
+        ),
+      ],
+    );
+
+    if (bare) return body;
+
+    return Container(
+      decoration: AppDecor.card,
+      padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+      child: body,
     );
   }
 }
@@ -740,7 +694,7 @@ class _CalendarViewState extends ConsumerState<_CalendarView> {
     if (recs == null || recs.isEmpty) {
       if (!catDays.contains(date)) return null;
       return Padding(
-        padding: const EdgeInsets.only(left: 4, top: 1),
+        padding: const EdgeInsets.only(left: 2, top: 1),
         child: Container(
           width: 5, height: 5,
           decoration: BoxDecoration(
@@ -763,31 +717,14 @@ class _CalendarViewState extends ConsumerState<_CalendarView> {
     );
   }
 
-  void _openDaySheet(String date, List<RecordEntry> recs) {
-    showAppSheet<void>(
-      context: context,
-      builder: (sheetCtx) => _DaySheet(
-        date: date,
-        entries: recs,
-        accentColor: widget.accentColor,
-        // 편집 오버레이는 이 화면(Stack) 소유라, 시트를 먼저 닫고 띄운다
-        onEdit: (e) {
-          Navigator.pop(sheetCtx);
-          widget.onEdit(e);
-        },
-        onAdd: () {
-          Navigator.pop(sheetCtx);
-          widget.onAdd(date);
-        },
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final calAsync = ref.watch(petCalendarProvider(PetYearMonth(widget.petId, _ymStr)));
     final byDate = _byDate;
-    final monthCount = widget.entries.where((e) => e.dateStr.startsWith(_ymStr)).length;
+    final monthEntries =
+        widget.entries.where((e) => e.dateStr.startsWith(_ymStr)).toList();
+    final selected = widget.entries.where((e) => e.dateStr == _selDate).toList()
+      ..sort((a, b) => a.timeStr.compareTo(b.timeStr));
 
     // calendar days with this category
     final catDays = <String>{};
@@ -797,69 +734,55 @@ class _CalendarViewState extends ConsumerState<_CalendarView> {
       }
     });
 
-    return MonthGridCalendar(
-      month: _month,
-      selectedDate: _selDate,
-      monthSummary: '$monthCount건',
-      accent: widget.accentColor,
-      onMonthChanged: (m) => setState(() => _month = m),
-      onDayTap: (ds) {
-        setState(() => _selDate = ds);
-        _openDaySheet(ds, byDate[ds] ?? const []);
-      },
-      cellBuilder: (ds) => _cellContent(byDate, catDays, ds),
-    );
-  }
-}
+    // 요약은 **면 없는 캡션 한 줄**이다 — 개체 상세의 히어로 카드와 같은 모양을
+    // 하위 화면에서 또 쓰면 어느 화면인지가 흐려진다.
+    final days = monthEntries.map((e) => e.dateStr).toSet();
+    final summary = <MonthSummaryItem>[
+      MonthSummaryItem('기록', '${monthEntries.length}건'),
+      MonthSummaryItem('기록한 날', '${days.length}일'),
+    ];
 
-// ── 날짜별 상세 바텀시트 ─────────────────────────────────────
-class _DaySheet extends StatelessWidget {
-  final String date;
-  final List<RecordEntry> entries;
-  final Color accentColor;
-  final ValueChanged<RecordEntry> onEdit;
-  final VoidCallback onAdd;
-
-  const _DaySheet({
-    required this.date,
-    required this.entries,
-    required this.accentColor,
-    required this.onEdit,
-    required this.onAdd,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final d = DateTime.parse(date);
-    return AppSheet(
-      title: '${d.month}.${d.day} (${_weekKo[d.weekday % 7]})',
-      subtitle: '기록 ${entries.length}건',
-      primaryLabel: '이 날 기록 추가',
-      onPrimary: onAdd,
+    // 고른 날 기록은 시트가 아니라 캘린더 **바로 아래**에 펼친다. 칸을 눌러
+    // 시트를 열고 닫는 두 번의 조작이 그 날 내용을 보는 유일한 길이면 안 된다.
+    return SingleChildScrollView(
+      padding: const EdgeInsets.only(bottom: 110),
       child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (entries.isEmpty)
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 20),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: AppColors.paleLine, width: 1.5),
-                        borderRadius: AppRadius.brLg,
-                      ),
-                      child: const Text('이 날의 기록이 없어요',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.paleInk3)),
-                    )
-                  else
-                    ...entries.map((e) => Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: _RecordCard(entry: e, accentColor: accentColor,
-                              onEdit: () => onEdit(e), showDate: false),
-                        )),
-                ],
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          MonthGridCalendar(
+            month: _month,
+            selectedDate: _selDate,
+            summary: summary,
+            onMonthChanged: (m) => setState(() => _month = m),
+            onDayTap: (ds) => setState(() => _selDate = ds),
+            cellBuilder: (ds) => _cellContent(byDate, catDays, ds),
+            onToday: () => setState(() {
+              final now = DateTime.now();
+              _month = DateTime(now.year, now.month);
+              _selDate = todayIso();
+            }),
+          ),
+          const SizedBox(height: AppSpacing.cardGap),
+          Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+            child: SelectedDayCard(
+              date: _selDate,
+              countLabel: '${selected.length}건',
+              onAdd: () => widget.onAdd(_selDate),
+              rows: [
+                for (final e in selected)
+                  _RecordCard(
+                    entry: e,
+                    accentColor: widget.accentColor,
+                    onEdit: () => widget.onEdit(e),
+                    bare: true,
+                    timeOnly: true,
+                  ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -907,52 +830,79 @@ class _RecordListViewState extends State<_RecordListView> {
   @override
   Widget build(BuildContext context) {
     final visible = widget.entries.take(_count).toList();
-    final items = <({bool isMonth, String? monthKey, RecordEntry? entry})>[];
-    String? lastMonth;
+
+    // 월 단위로 묶는다. 행마다 카드를 주면 목록이 카드 더미가 되고 **덩어리가
+    // 안 보인다** — 한 장 안에서 얇은 선으로만 나눈다 (선은 칸막이지 테두리가 아니다).
+    final groups = <String, List<RecordEntry>>{};
     for (final e in visible) {
-      final mk = e.dateStr.substring(0, 7);
-      if (mk != lastMonth) {
-        items.add((isMonth: true, monthKey: mk, entry: null));
-        lastMonth = mk;
-      }
-      items.add((isMonth: false, monthKey: null, entry: e));
+      groups.putIfAbsent(e.dateStr.substring(0, 7), () => []).add(e);
     }
+    final monthKeys = groups.keys.toList();
 
     return ListView.builder(
       controller: _scrollCtrl,
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 110),
-      itemCount: items.length + 1,
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.screenH, AppSpacing.md, AppSpacing.screenH, 110),
+      itemCount: monthKeys.length + 1,
       itemBuilder: (context, i) {
         if (i == 0) {
           return Padding(
-            padding: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.only(bottom: AppSpacing.md),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('전체 기록', style: AppTextStyles.paleSectionTitle),
+                Text('전체 기록', style: AppTextStyles.subheading),
                 Text('${widget.entries.length}건', style: AppTextStyles.monoSm),
               ],
             ),
           );
         }
-        final item = items[i - 1];
-        if (item.isMonth) {
-          return Padding(
-            padding: const EdgeInsets.fromLTRB(4, 8, 4, 4),
-            child: Row(children: [
-              Text(item.monthKey!.replaceAll('-', '.'),
-                  style: AppTextStyles.monoSm),
-              const SizedBox(width: 8),
-              Expanded(child: Container(height: 1, color: AppColors.paleLineSoft)),
-            ]),
-          );
-        }
+        final mk = monthKeys[i - 1];
+        final rows = groups[mk]!;
+        final ym = mk.split('-');
         return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: _RecordCard(
-            entry: item.entry!,
-            accentColor: widget.accentColor,
-            onEdit: () => widget.onEdit(item.entry!),
+          padding: const EdgeInsets.only(bottom: AppSpacing.cardGap),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm, left: 2),
+                child: Row(
+                  children: [
+                    Text('${ym[0]}. ${ym[1]}',
+                        style: AppTextStyles.mono(14, FontWeight.w700)),
+                    const SizedBox(width: AppSpacing.sm),
+                    Text('${rows.length}건', style: AppTextStyles.monoXs),
+                  ],
+                ),
+              ),
+              Container(
+                decoration: AppDecor.cardRaised,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var k = 0; k < rows.length; k++)
+                      Container(
+                        decoration: k == 0
+                            ? null
+                            : const BoxDecoration(
+                                border: Border(
+                                    top: BorderSide(color: AppColors.bgAlt)),
+                              ),
+                        padding: const EdgeInsets.symmetric(vertical: 9),
+                        child: _RecordCard(
+                          entry: rows[k],
+                          accentColor: widget.accentColor,
+                          onEdit: () => widget.onEdit(rows[k]),
+                          bare: true,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
           ),
         );
       },

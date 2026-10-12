@@ -5,9 +5,10 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_input_styles.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_buttons.dart';
-import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/confirm_modal.dart';
 import '../../../core/widgets/month_grid_calendar.dart';
+import '../../../core/widgets/selected_day_card.dart';
+import '../../../core/widgets/underline_tabs.dart';
 import '../../../core/widgets/skeleton_loader.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../data/models/feed_models.dart';
@@ -164,10 +165,12 @@ class _FeedDetailScreenState extends ConsumerState<FeedDetailScreen> {
                   onAdd:   () => _openAdd(null),
                 ),
               ),
-              // 세그먼트 탭
+              // 보고 있는 페이지는 밑줄 — 알약 세그먼트는 '설정'의 모양이다
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
-                child: _FeedSegment(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.screenH),
+                child: AppUnderlineTabs(
+                  labels: const ['캘린더', '리스트'],
                   index: _tabIndex,
                   onChanged: (i) => setState(() => _tabIndex = i),
                 ),
@@ -279,201 +282,159 @@ class _TopBar extends StatelessWidget {
     );
   }
 }
-
-// ── 세그먼트 (캘린더/리스트) ──────────────────────────────────
-class _FeedSegment extends StatelessWidget {
-  final int index;
-  final ValueChanged<int> onChanged;
-
-  const _FeedSegment({required this.index, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.paleBgAlt,
-        borderRadius: AppRadius.brMd,
-      ),
-      padding: const EdgeInsets.all(4),
-      child: Row(
-        children: [
-          _Tab(label: '캘린더', icon: Icons.calendar_today_outlined,
-              active: index == 0, onTap: () => onChanged(0)),
-          const SizedBox(width: 4),
-          _Tab(label: '리스트', icon: Icons.list_outlined,
-              active: index == 1, onTap: () => onChanged(1)),
-        ],
-      ),
-    );
-  }
-}
-
-class _Tab extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final bool active;
-  final VoidCallback onTap;
-
-  const _Tab({required this.label, required this.icon,
-      required this.active, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-            color: active ? AppColors.card : Colors.transparent,
-            border: active ? Border.all(color: AppColors.paleLine) : null,
-            borderRadius: AppRadius.brMd,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 16,
-                  color: active ? AppColors.primary : AppColors.paleInk3),
-              const SizedBox(width: 8),
-              Text(label,
-                  style: TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w700,
-                      color: active ? AppColors.primary : AppColors.paleInk2)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 // ── 세션 카드 (캘린더·리스트 공용) ──────────────────────────
+//
+// `bare` = 테두리·배경 없는 **맨 몸** 행. 카드 안에 들어갈 때 쓴다
+// (카드 안의 카드는 깊이를 두 번 세는 셈이라 금지).
 class SessionCard extends StatelessWidget {
   final FeedSession session;
   final VoidCallback onEdit;
   final bool showDate;
+  final bool bare;
+
+  /// 카드 머리말이 이미 날짜를 말하는 자리 — 시각만 남긴다
+  final bool timeOnly;
 
   const SessionCard({
     super.key,
     required this.session,
     required this.onEdit,
     this.showDate = true,
+    this.bare = false,
+    this.timeOnly = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        border: Border.all(color: AppColors.paleLine),
-        borderRadius: AppRadius.brMd,
-      ),
-      padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 날짜 컬럼 — 일/시각을 **한 줄**로 둔다.
-          // 세로로 쌓으면 글자 배율을 키운 기기에서 카드가 그만큼 길어지고,
-          // 목록 전체에 빈 공간이 생긴다. 좁아지면 줄바꿈 대신 함께 줄어든다.
-          if (showDate)
-            SizedBox(
-              width: 76,
-              child: Align(
+    final body = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 날짜 컬럼 — 일/시각을 **한 줄**로 둔다.
+        // 세로로 쌓으면 글자 배율을 키운 기기에서 카드가 그만큼 길어지고,
+        // 목록 전체에 빈 공간이 생긴다. 좁아지면 줄바꿈 대신 함께 줄어든다.
+        // bare 일 때는 날짜를 카드 머리말이 이미 말해주므로 시각만 남긴다.
+        if (showDate)
+          SizedBox(
+            width: timeOnly ? 46 : 76,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
-                    children: [
-                      Text(session.date.substring(8), // dd
-                          maxLines: 1, softWrap: false,
-                          style: AppTextStyles.monoBody),
-                      const SizedBox(width: 6),
-                      Text(session.time,
-                          maxLines: 1, softWrap: false,
-                          style: AppTextStyles.monoXxs),
-                    ],
-                  ),
+                child: timeOnly
+                    ? Text(session.time,
+                        maxLines: 1, softWrap: false,
+                        style: AppTextStyles.monoSm)
+                    : Row(
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          Text(session.date.substring(8), // dd
+                              maxLines: 1, softWrap: false,
+                              style: AppTextStyles.monoBody),
+                          const SizedBox(width: 6),
+                          Text(session.time,
+                              maxLines: 1, softWrap: false,
+                              style: AppTextStyles.monoXxs),
+                        ],
+                      ),
+              ),
+            ),
+          ),
+        if (showDate) const SizedBox(width: 10),
+        // 아이템 목록
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ...session.items.map((item) => Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 7, height: 7,
+                      margin: const EdgeInsets.only(top: 5),
+                      decoration: BoxDecoration(
+                        color: item.isRefused
+                            ? Colors.transparent
+                            : _dotColor(item.food),
+                        shape: BoxShape.circle,
+                        border: item.isRefused
+                            ? Border.all(color: AppColors.ink3, width: 1.2)
+                            : null,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(item.detail,
+                          style: TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.w600,
+                              color: item.isRefused
+                                  ? AppColors.ink2
+                                  : AppColors.ink)),
+                    ),
+                  ],
                 ),
-              ),
-            ),
-          if (showDate) const SizedBox(width: 12),
-          // 아이템 목록
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ...session.items.map((item) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 8, height: 8,
-                        margin: const EdgeInsets.only(top: 4),
-                        decoration: BoxDecoration(
-                          color: _dotColor(item.food),
-                          shape: BoxShape.circle,
-                        ),
+              )),
+              // 먹이를 아직 안 적은 기록 — 무엇을 줬는지는 몰라도
+              // '챙겼다'는 사실은 남는다. 카드가 비어 보이지 않게 한 줄 띄운다.
+              if (session.isFoodless)
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 7, height: 7,
+                      margin: const EdgeInsets.only(top: 5),
+                      decoration: const BoxDecoration(
+                        color: AppColors.ink3,
+                        shape: BoxShape.circle,
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(item.detail,
-                            style: const TextStyle(
-                                fontSize: 14, fontWeight: FontWeight.w600,
-                                color: AppColors.primary)),
-                      ),
-                    ],
-                  ),
-                )),
-                // 먹이를 아직 안 적은 기록 — 무엇을 줬는지는 몰라도
-                // '챙겼다'는 사실은 남는다. 카드가 비어 보이지 않게 한 줄 띄운다.
-                if (session.isFoodless)
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 8, height: 8,
-                        margin: const EdgeInsets.only(top: 4),
-                        decoration: const BoxDecoration(
-                          color: AppColors.paleInk3,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(session.foodlessLabel,
-                            style: const TextStyle(
-                                fontSize: 14, fontWeight: FontWeight.w600,
-                                color: AppColors.paleInk2)),
-                      ),
-                    ],
-                  ),
-                if (session.memo.isNotEmpty)
-                  Text(session.memo,
-                      style: TextStyle(
-                          fontSize: 12, color: AppColors.paleInk2)),
-              ],
-            ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(session.foodlessLabel,
+                          style: const TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.w600,
+                              color: AppColors.ink2)),
+                    ),
+                  ],
+                ),
+              if (session.memo.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(session.memo,
+                      style: AppTextStyles.caption),
+                ),
+            ],
           ),
-          // 루틴으로 생긴 기록도 그냥 기록이다 — 전부 수정할 수 있다.
-          GestureDetector(
-            onTap: onEdit,
-            child: Container(
-              width: 30, height: 30,
-              decoration: BoxDecoration(
-                color: AppColors.paleBg,
-                border: Border.all(color: AppColors.paleLine),
-                borderRadius: AppRadius.brMd,
-              ),
-              child: const Icon(Icons.edit_outlined,
-                  size: 16, color: AppColors.paleInk2),
+        ),
+        // 루틴으로 생긴 기록도 그냥 기록이다 — 전부 수정할 수 있다.
+        GestureDetector(
+          onTap: onEdit,
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            width: 30, height: 30,
+            decoration: BoxDecoration(
+              color: bare ? Colors.transparent : AppColors.bgAlt,
+              border: bare
+                  ? null
+                  : Border.all(color: AppColors.line),
+              borderRadius: AppRadius.brMd,
             ),
+            child: const Icon(Icons.edit_outlined,
+                size: 16, color: AppColors.ink3),
           ),
-        ],
-      ),
+        ),
+      ],
+    );
+
+    if (bare) return body;
+
+    return Container(
+      decoration: AppDecor.card,
+      padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+      child: body,
     );
   }
 }
@@ -511,6 +472,30 @@ class _CalendarViewState extends State<_CalendarView> {
   String get _ymStr =>
       '${_month.year}-${_month.month.toString().padLeft(2,'0')}';
 
+  /// 요약은 **면 없는 캡션 한 줄**이다 — 개체 상세의 히어로 카드와 같은 모양을
+  /// 하위 화면에서 또 쓰면 어느 화면인지가 흐려진다.
+  List<MonthSummaryItem> get _summary {
+    final sessions = _monthSessions;
+    final days = sessions.map((s) => s.date).toSet().toList()..sort();
+    final refused = sessions
+        .where((s) => s.items.any((i) => i.isRefused))
+        .length;
+
+    String gap = '—';
+    if (days.length >= 2) {
+      final first = DateTime.parse(days.first);
+      final last = DateTime.parse(days.last);
+      final avg = last.difference(first).inDays / (days.length - 1);
+      gap = '${avg.toStringAsFixed(avg >= 10 ? 0 : 1)}일';
+    }
+
+    return [
+      MonthSummaryItem('급여', '${sessions.length}회'),
+      MonthSummaryItem('평균 간격', gap),
+      MonthSummaryItem('거식', '$refused회'),
+    ];
+  }
+
   /// 셀 안에 들어갈 급여 요약. 기록이 없으면 null.
   Widget? _cellContent(Map<String, List<FeedSession>> byDate, String date) {
     final recs = byDate[date];
@@ -524,15 +509,16 @@ class _CalendarViewState extends State<_CalendarView> {
     final lines = <Widget>[
       for (final it in items)
         CalendarCellLine(
-          dotColor: it.isRefused ? AppColors.paleInk3 : _dotColor(it.food),
+          dotColor: it.isRefused ? AppColors.ink3 : _dotColor(it.food),
           label: it.isRefused
               ? '거식'
               : (it.amt > 1 ? '${it.food} ${it.amt}' : it.food),
           muted: it.isRefused,
+          hollow: it.isRefused,
         ),
       for (final s in foodless)
         CalendarCellLine(
-          dotColor: AppColors.petButterInk,
+          dotColor: AppColors.ink3,
           label: s.foodlessLabel,
           muted: true,
         ),
@@ -547,93 +533,56 @@ class _CalendarViewState extends State<_CalendarView> {
     );
   }
 
-  void _openDaySheet(String date, List<FeedSession> recs) {
-    showAppSheet<void>(
-      context: context,
-      builder: (sheetCtx) => _DaySheet(
-        date: date,
-        sessions: recs,
-        // 편집 오버레이는 이 화면(Stack) 소유라, 시트를 먼저 닫고 띄운다
-        onEdit: (s) {
-          Navigator.pop(sheetCtx);
-          widget.onEdit(s);
-        },
-        onAdd: () {
-          Navigator.pop(sheetCtx);
-          widget.onAdd(date);
-        },
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final byDate = _byDate;
+    final selected = widget.sessions.where((s) => s.date == _selDate).toList()
+      ..sort((a, b) => a.time.compareTo(b.time));
+
     // 먹이 범례는 두지 않는다 — 셀에 먹이 이름이 그대로 찍히고, 고정 5종만 나열돼
     // 직접입력·기타 먹이는 어차피 범례에 없었다.
-    return MonthGridCalendar(
-      month: _month,
-      selectedDate: _selDate,
-      monthSummary: '${_monthSessions.length}회 급여',
-      accent: AppColors.petButter,
-      onMonthChanged: (m) => setState(() => _month = m),
-      onDayTap: (ds) {
-        setState(() => _selDate = ds);
-        _openDaySheet(ds, byDate[ds] ?? const []);
-      },
-      cellBuilder: (ds) => _cellContent(byDate, ds),
-    );
-  }
-}
-
-// ── 날짜별 상세 바텀시트 ─────────────────────────────────────
-class _DaySheet extends StatelessWidget {
-  final String date;
-  final List<FeedSession> sessions;
-  final ValueChanged<FeedSession> onEdit;
-  final VoidCallback onAdd;
-
-  const _DaySheet({
-    required this.date,
-    required this.sessions,
-    required this.onEdit,
-    required this.onAdd,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final d = DateTime.parse(date);
-    return AppSheet(
-      title: '${d.month}.${d.day} (${_weekKo[d.weekday % 7]})',
-      subtitle: '급여 ${sessions.length}회',
-      primaryLabel: '이 날 기록 추가',
-      onPrimary: onAdd,
+    //
+    // 고른 날 기록은 시트가 아니라 캘린더 **바로 아래**에 펼친다. 칸을 눌러
+    // 시트를 열고 닫는 두 번의 조작이 그 날 내용을 보는 유일한 길이면 안 된다.
+    return SingleChildScrollView(
+      padding: const EdgeInsets.only(bottom: 110),
       child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (sessions.isEmpty)
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 20),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: AppColors.paleLine, width: 1.5),
-                        borderRadius: AppRadius.brLg,
-                      ),
-                      child: const Text('이 날의 급여 기록이 없어요',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.paleInk3)),
-                    )
-                  else
-                    ...sessions.map((s) => Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: SessionCard(
-                              session: s,
-                              onEdit: () => onEdit(s),
-                              showDate: false),
-                        )),
-                ],
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          MonthGridCalendar(
+            month: _month,
+            selectedDate: _selDate,
+            summary: _summary,
+            onMonthChanged: (m) => setState(() => _month = m),
+            onDayTap: (ds) => setState(() => _selDate = ds),
+            cellBuilder: (ds) => _cellContent(byDate, ds),
+            onToday: () => setState(() {
+              final now = DateTime.now();
+              _month = DateTime(now.year, now.month);
+              _selDate = todayIso();
+            }),
+          ),
+          const SizedBox(height: AppSpacing.cardGap),
+          Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+            child: SelectedDayCard(
+              date: _selDate,
+              countLabel: '${selected.length}회',
+              onAdd: () => widget.onAdd(_selDate),
+              emptyLabel: '이 날의 급여 기록이 없어요',
+              rows: [
+                for (final s in selected)
+                  SessionCard(
+                    session: s,
+                    onEdit: () => widget.onEdit(s),
+                    bare: true,
+                    timeOnly: true,
+                  ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -679,77 +628,83 @@ class _ListViewState extends State<_ListView> {
   Widget build(BuildContext context) {
     final visible = widget.sessions.take(_count).toList();
 
-    // 월 구분선 삽입
-    final items = <_ListItem>[];
-    String? lastMonth;
+    // 월 단위로 묶는다. 행마다 카드를 주면 목록이 카드 더미가 되고 **덩어리가
+    // 안 보인다** — 한 장 안에서 얇은 선으로만 나눈다 (선은 칸막이지 테두리가 아니다).
+    final groups = <String, List<FeedSession>>{};
     for (final s in visible) {
-      final mk = s.date.substring(0, 7);
-      if (mk != lastMonth) {
-        items.add(_ListItem.month(mk));
-        lastMonth = mk;
-      }
-      items.add(_ListItem.session(s));
+      groups.putIfAbsent(s.date.substring(0, 7), () => []).add(s);
     }
+    final monthKeys = groups.keys.toList();
 
     return ListView.builder(
       controller: _scrollCtrl,
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 110),
-      itemCount: items.length + 1, // +1 footer
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.screenH, AppSpacing.md, AppSpacing.screenH, 110),
+      itemCount: monthKeys.length + 1, // 머리말 1
       itemBuilder: (context, i) {
         if (i == 0) {
           return Padding(
-            padding: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.only(bottom: AppSpacing.md),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('전체 급여 기록',
-                    style: AppTextStyles.paleSectionTitle),
+                Text('전체 급여 기록', style: AppTextStyles.subheading),
                 Text('${widget.sessions.length}회',
                     style: AppTextStyles.monoSm),
               ],
             ),
           );
         }
-        final item = items[i - 1];
-        if (item.isMonth) {
-          return Padding(
-            padding: const EdgeInsets.fromLTRB(4, 8, 4, 4),
-            child: Row(
-              children: [
-                Text(
-                  item.monthKey!.replaceAll('-', '.'),
-                  style: AppTextStyles.monoSm,
-                ),
-                const SizedBox(width: 8),
-                Expanded(child: Container(height: 1,
-                    color: AppColors.paleLineSoft)),
-              ],
-            ),
-          );
-        }
+        final mk = monthKeys[i - 1];
+        final rows = groups[mk]!;
+        final ym = mk.split('-');
         return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: SessionCard(
-            session: item.session!,
-            onEdit: () => widget.onEdit(item.session!),
+          padding: const EdgeInsets.only(bottom: AppSpacing.cardGap),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm, left: 2),
+                child: Row(
+                  children: [
+                    Text('${ym[0]}. ${ym[1]}',
+                        style: AppTextStyles.mono(14, FontWeight.w700)),
+                    const SizedBox(width: AppSpacing.sm),
+                    Text('${rows.length}회', style: AppTextStyles.monoXs),
+                  ],
+                ),
+              ),
+              Container(
+                decoration: AppDecor.cardRaised,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var k = 0; k < rows.length; k++)
+                      Container(
+                        decoration: k == 0
+                            ? null
+                            : const BoxDecoration(
+                                border: Border(
+                                    top: BorderSide(color: AppColors.bgAlt)),
+                              ),
+                        padding: const EdgeInsets.symmetric(vertical: 9),
+                        child: SessionCard(
+                          session: rows[k],
+                          onEdit: () => widget.onEdit(rows[k]),
+                          bare: true,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
           ),
         );
       },
     );
   }
-}
-
-class _ListItem {
-  final bool isMonth;
-  final String? monthKey;
-  final FeedSession? session;
-
-  const _ListItem._({this.isMonth = false, this.monthKey, this.session});
-
-  factory _ListItem.month(String key) =>
-      _ListItem._(isMonth: true, monthKey: key);
-  factory _ListItem.session(FeedSession s) =>
-      _ListItem._(session: s);
 }
 
 // ── 편집 바텀시트 ────────────────────────────────────────────
