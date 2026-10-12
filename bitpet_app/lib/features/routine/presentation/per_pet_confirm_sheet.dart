@@ -287,7 +287,7 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
     // ⚠️ 이 시트는 `AppSheet` 의 7슬롯을 쓰지 않는다 — 개체를 한 장씩 넘기는
     // 캐러셀이라 '이전/다음'이 필요한데, 7슬롯에는 주 버튼 하나 자리뿐이다
     // (FabRecordSheet 와 같은 예외). 대신 **껍데기는 완전히 같게** 맞춘다:
-    // surface 바탕 · brSheet 모서리 · 40×4 핸들 · 스크림 · 최대 높이 0.9.
+    // **canvas 바탕** · brSheet 모서리 · 40×4 핸들 · 스크림 · 최대 높이 0.9.
     //
     // ⛔ 헤더 eyebrow 의 `개별 완료 · 09:00` 중 시각은 지웠다 — 루틴에 수행
     //    시각은 없다. 그 자리는 '몇 마리 끝났나'가 쓴다.
@@ -608,7 +608,6 @@ class _PetPage extends StatelessWidget {
             // 급여 내용 아코디언 (feed 타입만)
             if (isFeed)
               ConfirmAccordion(
-                onCanvas: true,
                 label: '급여 내용',
                 optional: true,
                 summary: null,
@@ -632,7 +631,6 @@ class _PetPage extends StatelessWidget {
 
             // 메모 아코디언
             ConfirmAccordion(
-              onCanvas: true,
               label: '메모',
               optional: true,
               summary: null,
@@ -683,7 +681,9 @@ class _Footer extends StatelessWidget {
     //    닫는다. 여기 있던 '취소'는 '이전'과 뜻이 겹쳐 셋 중 뭘 누를지 멈칫했다.
     return Container(
       decoration: const BoxDecoration(
-        color: AppColors.surface,
+        // 바탕색은 시트와 같게 둔다 — 위쪽 선 하나로 이미 구분되고, 흰 띠를
+        // 깔면 `AppSheet` 의 주 버튼 자리(바탕 그대로)와 모양이 갈린다.
+        color: AppColors.canvas,
         border: Border(top: BorderSide(color: AppColors.line)),
       ),
       padding: EdgeInsets.fromLTRB(

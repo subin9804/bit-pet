@@ -135,7 +135,10 @@ class _MorphPickerSheetState extends ConsumerState<MorphPickerSheet> {
       primaryLabel:
           _selected.isEmpty ? '선택 안 함' : '${_selected.length}개 선택 · 완료',
       onPrimary: () => _close(List<Morph>.from(_selected)),
-      child: Column(
+      // 검색 칸·선택 칩·목록이 한 덩어리로 묶여야 하는 본문이라 카드 하나로 감싼다
+      // (셋을 따로 카드에 넣으면 시트가 세 조각으로 갈라져 보인다).
+      child: SheetCard(
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildSearchField(),
@@ -151,6 +154,7 @@ class _MorphPickerSheetState extends ConsumerState<MorphPickerSheet> {
             ),
           ),
         ],
+        ),
       ),
     );
   }

@@ -1606,7 +1606,9 @@ class _YearMonthPickerSheetState extends State<_YearMonthPickerSheet> {
       title: '태어난 시기를 선택하세요',
       primaryLabel: '$_year년 $_month월 선택',
       onPrimary: () => Navigator.pop(context, (_year, _month)),
-      child: Column(
+      // 연·월 선택 — 입력 칸과 월 칩이 올라앉을 흰 면이 필요하다.
+      child: SheetCard(
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           // 연도 선택
@@ -1703,6 +1705,7 @@ class _YearMonthPickerSheetState extends State<_YearMonthPickerSheet> {
             ),
           ),
         ],
+        ),
       ),
     );
   }

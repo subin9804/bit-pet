@@ -80,7 +80,10 @@ class _GalleryPhotoViewerState extends State<GalleryPhotoViewer> {
       context: context,
       builder: (sheetCtx) => AppSheet(
         title: '사진',
-        child: Column(
+        // 사진 자체는 검은 전면이지만 이 시트는 보통 메뉴다 — 다른 메뉴 시트와
+        // 같이 흰 카드에 담는다.
+        child: SheetCard.list(
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -99,6 +102,7 @@ class _GalleryPhotoViewerState extends State<GalleryPhotoViewer> {
               onTap: () => Navigator.pop(sheetCtx, 'delete'),
             ),
           ],
+          ),
         ),
       ),
     );

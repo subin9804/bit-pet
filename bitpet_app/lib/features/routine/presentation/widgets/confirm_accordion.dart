@@ -7,9 +7,13 @@ import '../../../../core/theme/app_icons.dart';
 /// 접이식 선택 섹션 — 시트를 짧게 유지하고 탭 시 펼친다.
 /// 루틴 '모두 완료' / '개체별 완료' 시트가 공유한다.
 ///
-/// 바탕과 **반대쪽** 색을 깔아 "접히는 덩어리"로 읽히게 한다 — 흰 시트
-/// 위에서는 연회색([AppColors.canvas]), 연회색 시트 위에서는 흰색.
-/// [onCanvas] 가 그 판단을 호출자에게 맡긴다 (시트마다 바탕이 다르다).
+/// 연회색 시트 바탕 위의 **흰 카드**다. 화면의 카드와 같은 면 관계다.
+///
+/// ⚠️ 한때 `onCanvas` 플래그로 바탕색을 호출자가 정했다 — "흰 시트 위에서는
+/// 회색, 회색 시트 위에서는 흰색"이라는 규칙이었는데, 시트마다 바탕이 달랐던
+/// 그 시절의 잔재다. [AppSheet] 바탕이 전부 `canvas` 로 통일된 뒤로는 판단할
+/// 게 없어져 플래그를 지웠다. ⛔ 되살리지 말 것 — 되살리는 순간 시트 바탕이
+/// 다시 갈라진다.
 class ConfirmAccordion extends StatelessWidget {
   final String label;
   final bool optional;
@@ -19,12 +23,8 @@ class ConfirmAccordion extends StatelessWidget {
   final VoidCallback onToggle;
   final Widget child;
 
-  /// 이 블록이 **연회색 바탕 위**에 놓이는가. true 면 흰 카드로 뒤집는다.
-  final bool onCanvas;
-
   const ConfirmAccordion({
     super.key,
-    this.onCanvas = false,
     required this.label,
     this.optional = false,
     this.summary,
@@ -40,7 +40,7 @@ class ConfirmAccordion extends StatelessWidget {
       margin: const EdgeInsets.only(top: AppSpacing.md),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: onCanvas ? AppColors.surface : AppColors.canvas,
+        color: AppColors.card,
         borderRadius: AppRadius.brMd,
         border: const Border.fromBorderSide(
             BorderSide(color: AppColors.line)),

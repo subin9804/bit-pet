@@ -606,7 +606,9 @@ class _InputSheetState extends ConsumerState<_InputSheet> {
       busy: _isLoading,
       primaryLabel: '저장',
       onPrimary: _save,
-      child: Column(
+      // 입력 폼 — 칸들이 흰 면 위에 있어야 테두리가 바탕과 구별된다.
+      child: SheetCard(
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -670,6 +672,7 @@ class _InputSheetState extends ConsumerState<_InputSheet> {
               decoration: const InputDecoration(labelText: '메모 (선택)'),
             ),
         ],
+        ),
       ),
     );
   }

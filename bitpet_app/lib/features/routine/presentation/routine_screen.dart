@@ -649,7 +649,10 @@ class _CalendarSheetState extends ConsumerState<_CalendarSheet> {
     return AppSheet(
       title: '수행 캘린더',
       subtitle: widget.routine.title,
-      child: logsAsync.when(
+      // 달력 칸은 대부분 투명(아무 일 없는 날)이라 바탕이 그대로 보인다 —
+      // 흰 카드 위에 올려야 칠해진 칸과 빈 칸의 대비가 생긴다.
+      child: SheetCard(
+        child: logsAsync.when(
                 loading: () => const Center(
                     child: Padding(padding: EdgeInsets.all(40),
                         child: CircularProgressIndicator())),
@@ -809,6 +812,7 @@ class _CalendarSheetState extends ConsumerState<_CalendarSheet> {
                     ],
                   );
                 },
+        ),
       ),
     );
   }

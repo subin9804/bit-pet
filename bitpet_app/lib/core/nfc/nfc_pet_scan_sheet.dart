@@ -138,7 +138,10 @@ class _NfcPetScanSheetState extends ConsumerState<NfcPetScanSheet> {
     return AppSheet(
       title: widget.title,
       subtitle: widget.subtitle ?? '개체에 달린 이름표에 휴대폰 뒷면을 가까이 대주세요.',
-      child: Column(
+      // 안내 아이콘·문구를 흰 카드 안에 둔다 — 연회색 바탕에 아이콘만 떠 있으면
+      // 탭할 곳을 찾는 화면처럼 보인다. 여기선 '대기 중'이라는 면이 필요하다.
+      child: SheetCard(
+        child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -175,6 +178,7 @@ class _NfcPetScanSheetState extends ConsumerState<NfcPetScanSheet> {
               ],
               const SizedBox(height: 16),
             ],
+        ),
       ),
     );
   }

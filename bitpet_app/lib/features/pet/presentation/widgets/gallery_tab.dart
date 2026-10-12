@@ -78,7 +78,9 @@ class _GalleryTabState extends ConsumerState<GalleryTab> {
       context: context,
       builder: (_) => AppSheet(
         title: '사진',
-        child: Column(
+        // 다른 메뉴 시트와 같이 흰 카드에 담는다.
+        child: SheetCard.list(
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -99,6 +101,7 @@ class _GalleryTabState extends ConsumerState<GalleryTab> {
               onTap: () => Navigator.pop(context, 'delete'),
             ),
           ],
+          ),
         ),
       ),
     );

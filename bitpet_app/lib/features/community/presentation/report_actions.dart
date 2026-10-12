@@ -30,7 +30,13 @@ Future<T?> showBitpetSheet<T>(
 }) {
   return showAppSheet<T>(
     context: context,
-    builder: (_) => AppSheet(title: title, subtitle: subtitle, child: child),
+    // 본문은 전부 ListTile 목록이라 **흰 카드** 한 겹을 여기서 씌운다.
+    // 호출부마다 감싸게 두면 메뉴 시트 중 하나만 카드 없이 나오는 날이 온다.
+    builder: (_) => AppSheet(
+      title: title,
+      subtitle: subtitle,
+      child: SheetCard.list(child: child),
+    ),
   );
 }
 

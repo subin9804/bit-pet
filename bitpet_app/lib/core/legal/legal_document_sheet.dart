@@ -21,11 +21,15 @@ Future<void> showLegalDocument(BuildContext context, LegalDocument doc) {
       onPrimary: () => Navigator.of(context).pop(),
       // 닫기 X 를 지웠다. 핸들·바깥 탭·아래 '확인' 까지 닫는 길이 셋이나 되는데
       // 넷째를 두면 제목 줄이 그만큼 좁아진다 (긴 약관 제목이 두 줄로 접혔다).
-      child: SelectableText(
-        doc.body.trim(),
-        style: AppTextStyles.caption.copyWith(
-          height: 1.65,
-          color: AppColors.textPrimary,
+      // 긴 본문은 흰 카드 안에 넣는다 — 연회색 시트 바탕에 글씨만 얹으면
+      // 읽는 면이 없어 '아직 안 그려진 화면'처럼 보인다.
+      child: SheetCard(
+        child: SelectableText(
+          doc.body.trim(),
+          style: AppTextStyles.caption.copyWith(
+            height: 1.65,
+            color: AppColors.textPrimary,
+          ),
         ),
       ),
     ),

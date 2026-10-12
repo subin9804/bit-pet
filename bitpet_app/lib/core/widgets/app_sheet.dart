@@ -25,6 +25,21 @@ import '../theme/app_text_styles.dart';
 ///
 /// ⛔ 주 버튼 옆에 '취소'를 두지 말 것 — 시트는 끌어내리거나 바깥을 눌러 닫는다.
 /// 버튼이 둘이면 둘 다 안 읽힌다.
+///
+/// ## 바탕은 [AppColors.canvas] — **시트도 하나의 화면이다**
+///
+/// 바탕이 연회색이고 내용이 흰 카드다. 화면 쪽과 **같은 규칙**이어야 한다.
+///
+/// 한때 흰색([AppColors.surface])이었다. 그러면 안에 놓는 박스를 회색으로
+/// 깔게 되는데(`ConfirmAccordion` 이 그랬다), 바로 뒤에서 열리는 화면은 회색
+/// 바탕 + 흰 카드라 **시트를 올릴 때마다 면 관계가 뒤집힌다.** 사용자가 보는
+/// 증상은 "배경색이 계속 안 맞는다"였다.
+///
+/// ⚠️ 토큰 이름에 속지 말 것 — `surface`·`card`·`bg` 는 **전부 같은 흰색 별칭**이다.
+/// '시트니까 surface' 는 맞게 쓴 것처럼 보이지만 아무 판단도 하지 않은 것과 같다.
+///
+/// ⛔ 다시 흰색으로 뒤집지 말 것. 흰 바탕이 필요해 보이면 그건 **본문을 흰 카드로
+/// 감싸야 하는 신호**다 (시트 자체가 아니라).
 class AppSheet extends StatelessWidget {
   final String title;
 
@@ -78,7 +93,7 @@ class AppSheet extends StatelessWidget {
         maxHeight: media.size.height * maxHeightFactor,
       ),
       decoration: const BoxDecoration(
-        color: AppColors.surface,
+        color: AppColors.canvas,
         borderRadius: AppRadius.brSheet,
       ),
       // 슬롯 7 — 키보드가 올라온 만큼 시트 전체를 띄운다. 본문이 스크롤이라
@@ -181,6 +196,41 @@ class _Handle extends StatelessWidget {
           borderRadius: AppRadius.brPill,
         ),
       ),
+    );
+  }
+}
+
+/// 시트 본문을 감싸는 **흰 카드**. [AppSheet] 바탕이 연회색이라, 읽거나 누르는
+/// 내용은 이 카드 안에 들어가야 화면 쪽 카드와 같은 면 관계가 된다.
+///
+/// 카드가 필요 없는 본문도 있다 — 이미 스스로 카드를 그리는 것
+/// (`ConfirmAccordion`, 개체 카드 목록)과, 면이 아예 없어야 하는 것
+/// (사진 뷰어처럼 어두운 배경을 꽉 채우는 본문)이 그렇다.
+/// ⛔ 카드를 겹쳐 두 겹으로 만들지 말 것.
+class SheetCard extends StatelessWidget {
+  final Widget child;
+
+  /// 목록처럼 행이 제 패딩을 들고 있는 본문은 카드의 안쪽 여백을 줄인다
+  /// (`ListTile` 은 세로 여백이 이미 있어서 겹치면 행이 멀찍이 떨어진다).
+  final EdgeInsets padding;
+
+  const SheetCard({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.all(AppSpacing.lg),
+  });
+
+  /// 행이 제 여백을 들고 있는 목록용 — 좌우만 주고 위아래는 거의 두지 않는다.
+  const SheetCard.list({super.key, required this.child})
+      : padding = const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg, vertical: AppSpacing.xs);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: AppDecor.card,
+      padding: padding,
+      child: child,
     );
   }
 }

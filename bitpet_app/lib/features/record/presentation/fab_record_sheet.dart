@@ -319,7 +319,9 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
     final sheet = Container(
       constraints: BoxConstraints(maxHeight: screenH * 0.9),
       decoration: const BoxDecoration(
-        color: AppColors.surface,
+        // `AppSheet` 과 같은 **canvas 바탕**. 안의 박스들이 이미 `AppColors.card`
+        // (흰색)라, 바탕이 흰색이던 동안은 카드 경계가 테두리로만 겨우 보였다.
+        color: AppColors.canvas,
         borderRadius: AppRadius.brSheet,
       ),
       child: Column(

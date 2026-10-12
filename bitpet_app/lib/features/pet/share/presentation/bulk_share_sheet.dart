@@ -84,7 +84,9 @@ class _BulkShareSheetState extends ConsumerState<_BulkShareSheet> {
       primaryLabel:
           _isTransfer ? '$_count마리 분양 보내기' : '$_count마리 함께 키우기',
       onPrimary: _send,
-      child: Column(
+      // 코드 입력 칸이 있는 본문 — 흰 카드 위에 올려야 입력란 테두리가 바탕과 분리된다.
+      child: SheetCard(
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -127,6 +129,7 @@ class _BulkShareSheetState extends ConsumerState<_BulkShareSheet> {
               ),
             ],
         ],
+        ),
       ),
     );
   }

@@ -384,7 +384,10 @@ class _SharedPetChoiceSheetState extends State<_SharedPetChoiceSheet> {
       // '모두 삭제'를 고른 상태면 되돌릴 수 없는 길이라 버튼을 경고색으로.
       isDangerous: !_handOver,
       onPrimary: () => Navigator.pop(context, _handOver),
-      child: Column(
+      // 개체 목록과 두 갈래 선택을 **한 카드** 안에 둔다 — 둘은 "이 개체들을
+      // 어떻게 할까"라는 한 질문이라 면을 나누면 관계가 끊긴다.
+      child: SheetCard(
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -427,6 +430,7 @@ class _SharedPetChoiceSheetState extends State<_SharedPetChoiceSheet> {
             ),
           ],
         ),
+      ),
     );
   }
 }
@@ -451,7 +455,8 @@ class _ChoiceRow extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        // 좌우 여백은 감싼 카드가 들고 있다 — 여기서 또 주면 행이 카드 안쪽으로 밀린다.
+        padding: const EdgeInsets.symmetric(vertical: 12),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

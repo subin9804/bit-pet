@@ -1040,7 +1040,9 @@ class _CategoryDetailSheet extends StatelessWidget {
     return AppSheet(
       title: label,
       // 목록만 있는 시트다 — 고르면 바로 닫히므로 주 버튼이 없다.
-      child: Column(
+      // 개체별 기록 줄이 제 면을 안 들고 있어 카드 한 겹을 씌운다.
+      child: SheetCard(
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1128,6 +1130,7 @@ class _CategoryDetailSheet extends StatelessWidget {
             ),
           ),
         ],
+        ),
       ),
     );
   }
@@ -1331,7 +1334,10 @@ class _YearMonthPickerState extends State<_YearMonthPicker> {
   Widget build(BuildContext context) {
     return AppSheet(
       title: '연·월 선택',
-      child: Column(
+      // 연도 줄과 월 그리드를 흰 카드 위에. 월 칩이 연회색(bg2)이라 바탕이
+      // 같은 연회색이면 안 고른 칩들이 통째로 사라져 보인다.
+      child: SheetCard(
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           // 연도 선택
@@ -1395,6 +1401,7 @@ class _YearMonthPickerState extends State<_YearMonthPicker> {
             }),
           ),
         ],
+        ),
       ),
     );
   }
