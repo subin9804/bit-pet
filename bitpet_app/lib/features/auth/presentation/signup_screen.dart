@@ -268,7 +268,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.paleInk2,
+                          color: AppColors.ink2,
                         ),
                       ),
                     ),
@@ -284,7 +284,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.paleInk2,
+                          color: AppColors.ink2,
                           letterSpacing: 0.3,
                         ),
                       ),
@@ -332,9 +332,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 16, vertical: 12),
                           decoration: BoxDecoration(
-                            color: AppColors.surface,
+                            color: AppColors.card,
                             borderRadius: AppRadius.brLg,
-                            border: Border.all(color: AppColors.paleLine),
+                            border: Border.all(color: AppColors.line),
                           ),
                           child: _nickChecking
                               ? const SizedBox(
@@ -349,8 +349,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                                     fontWeight: FontWeight.w600,
                                     fontSize: 12,
                                     color: _nickCheckable
-                                        ? AppColors.primary
-                                        : AppColors.paleInk3,
+                                        ? AppColors.brandAction
+                                        : AppColors.ink3,
                                   ),
                                 ),
                         ),
@@ -380,7 +380,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.paleInk3,
+                        color: AppColors.ink3,
                       ),
                     ),
                   ],
@@ -439,9 +439,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 12),
                             decoration: BoxDecoration(
-                              color: AppColors.surface,
+                              color: AppColors.card,
                               borderRadius: AppRadius.brLg,
-                              border: Border.all(color: AppColors.paleLine),
+                              border: Border.all(color: AppColors.line),
                             ),
                             child: _emailChecking
                                 ? const SizedBox(
@@ -456,8 +456,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                                       fontWeight: FontWeight.w600,
                                       fontSize: 12,
                                       color: _emailValid
-                                          ? AppColors.primary
-                                          : AppColors.paleInk3,
+                                          ? AppColors.brandAction
+                                          : AppColors.ink3,
                                     ),
                                   ),
                           ),
@@ -501,7 +501,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                             _obscurePw
                                 ? Icons.visibility_off_outlined
                                 : Icons.visibility_outlined,
-                            color: AppColors.paleInk3,
+                            color: AppColors.ink3,
                             size: 20,
                           ),
                         ),
@@ -517,7 +517,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                               child: LinearProgressIndicator(
                                 value: st / 3,
                                 minHeight: 4,
-                                backgroundColor: AppColors.paleLine,
+                                backgroundColor: AppColors.line,
                                 color: stColor,
                               ),
                             ),
@@ -555,7 +555,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                             _obscurePw2
                                 ? Icons.visibility_off_outlined
                                 : Icons.visibility_outlined,
-                            color: AppColors.paleInk3,
+                            color: AppColors.ink3,
                             size: 20,
                           ),
                         ),
@@ -590,9 +590,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       valid: () => _reqAgreed,
       render: (ctx) => Container(
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: AppColors.card,
           borderRadius: AppRadius.brMd,
-          border: Border.all(color: AppColors.paleLine),
+          border: Border.all(color: AppColors.line),
         ),
         child: Column(
           children: [
@@ -725,7 +725,7 @@ class _PalettePicker extends StatelessWidget {
               color: bg,
               shape: BoxShape.circle,
               border: Border.all(
-                color: sel ? ink : AppColors.paleLine,
+                color: sel ? ink : AppColors.line,
                 width: sel ? 2 : 1,
               ),
             ),
@@ -772,11 +772,11 @@ class _TermsItem extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          border: hasBorder
-              ? const Border(bottom: BorderSide(color: AppColors.paleLineSoft))
-              : isLast
-                  ? null
-                  : const Border(bottom: BorderSide(color: AppColors.paleLineSoft)),
+          // 전엔 두 갈래가 `paleLine`/`paleLineSoft` 로 나뉘어 있었는데 두 별칭이
+          // 같은 값(`line`)이라 결과가 똑같았다. 조건만 남겼다 — 마지막 줄만 선이 없다.
+          border: (hasBorder || !isLast)
+              ? const Border(bottom: BorderSide(color: AppColors.line))
+              : null,
         ),
         child: Row(
           children: [
@@ -793,7 +793,7 @@ class _TermsItem extends StatelessWidget {
                         fontSize: 12,
                         color: badge == '필수'
                             ? AppColors.error
-                            : AppColors.paleInk3,
+                            : AppColors.ink3,
                       ),
                     ),
                     const SizedBox(width: 4),
@@ -804,7 +804,7 @@ class _TermsItem extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
-                        color: AppColors.primary,
+                        color: AppColors.ink,
                       ),
                     ),
                   ),
@@ -827,14 +827,14 @@ class _TermsItem extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.paleInk2,
+                          color: AppColors.ink2,
                           decoration: TextDecoration.underline,
-                          decorationColor: AppColors.paleInk3,
+                          decorationColor: AppColors.ink3,
                         ),
                       ),
                       SizedBox(width: 4),
                       AppIcon(AppIcons.chevronRight,
-                          size: 16, color: AppColors.paleInk3),
+                          size: 16, color: AppColors.ink3),
                     ],
                   ),
                 ),
@@ -860,15 +860,15 @@ class _PaleCheckbox extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: checked ? AppColors.primary : AppColors.surface,
+        color: checked ? AppColors.brandAction : AppColors.card,
         borderRadius: BorderRadius.circular(radius),
         border: Border.all(
-          color: checked ? AppColors.primary : AppColors.paleLine,
+          color: checked ? AppColors.brandAction : AppColors.line,
           width: 1.5,
         ),
       ),
       child: checked
-          ? Icon(Icons.check, size: size * 0.65, color: AppColors.paleBg)
+          ? Icon(Icons.check, size: size * 0.65, color: Colors.white)
           : null,
     );
   }

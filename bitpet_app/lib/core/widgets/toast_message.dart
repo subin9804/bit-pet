@@ -45,7 +45,7 @@ class ToastMessage {
               ),
             ],
           ),
-          backgroundColor: AppColors.textPrimary, // 0xFF14140F 다크 브라운
+          backgroundColor: AppColors.ink, // 먹색 판 위에 타입색 아이콘
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: AppRadius.brMd,

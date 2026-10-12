@@ -60,13 +60,15 @@ class _ConfirmModalState extends State<ConfirmModal> {
   bool get _requiresText => widget.requireTextConfirmation != null;
   bool get _canConfirm => !_requiresText || _matched;
 
-  // 위험 동작은 연한 코랄 밴드 + 붉은 확인 버튼, 일반은 회색 밴드 + 검정 버튼
+  // 위험 동작은 연한 코랄 밴드 + 붉은 확인 버튼, 일반은 연한 브랜드 밴드 + 브랜드 버튼.
+  // 예전엔 일반 쪽이 회색 밴드 + 먹색 버튼(`AppColors.primary` 는 구 별칭이라 실제로
+  // `ink` 다)이었다 — 앱 안에서 눌리는 것은 전부 브랜드 초록이라 여기만 톤이 달랐다.
   Color get _bandColor =>
-      widget.isDangerous ? AppColors.petCoral : AppColors.paleBgAlt;
+      widget.isDangerous ? AppColors.petCoral : AppColors.brandTintSoft;
   Color get _bandInk =>
-      widget.isDangerous ? AppColors.petCoralInk : AppColors.paleInk2;
+      widget.isDangerous ? AppColors.petCoralInk : AppColors.brandTintInk;
   Color get _confirmColor =>
-      widget.isDangerous ? AppColors.error : AppColors.primary;
+      widget.isDangerous ? AppColors.error : AppColors.brandAction;
   // 위험 동작 중에서도 '삭제'만 휴지통 — 탈퇴·그만두기 같은 동작에 휴지통이 뜨면 어색하다
   bool get _isDelete =>
       widget.isDangerous && widget.confirmLabel.contains('삭제');
@@ -138,7 +140,7 @@ class _ConfirmModalState extends State<ConfirmModal> {
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
-                            color: AppColors.textPrimary,
+                            color: AppColors.ink,
                             letterSpacing: -0.5,
                           ),
                           overflow: TextOverflow.ellipsis,
@@ -163,7 +165,7 @@ class _ConfirmModalState extends State<ConfirmModal> {
                         fontSize: 14,
                         height: 1.55,
                         fontWeight: FontWeight.w500,
-                        color: AppColors.textPrimary,
+                        color: AppColors.ink,
                       ),
                     ),
                     if (_requiresText) ...[
@@ -171,14 +173,14 @@ class _ConfirmModalState extends State<ConfirmModal> {
                       Text.rich(
                         TextSpan(
                           style: const TextStyle(
-                              fontSize: 12, color: AppColors.paleInk2),
+                              fontSize: 12, color: AppColors.ink2),
                           children: [
                             const TextSpan(text: '확인하려면 '),
                             TextSpan(
                               text: widget.requireTextConfirmation,
                               style: const TextStyle(
                                   fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary),
+                                  color: AppColors.ink),
                             ),
                             const TextSpan(text: '을(를) 입력하세요'),
                           ],
@@ -190,25 +192,25 @@ class _ConfirmModalState extends State<ConfirmModal> {
                         autofocus: true,
                         onChanged: _onChanged,
                         style: const TextStyle(
-                            fontSize: 14, color: AppColors.textPrimary),
+                            fontSize: 14, color: AppColors.ink),
                         decoration: const InputDecoration(
                           isDense: true,
                           filled: true,
-                          fillColor: AppColors.paleBgAlt,
+                          fillColor: AppColors.bgAlt,
                           contentPadding: EdgeInsets.symmetric(
                               horizontal: 12, vertical: 12),
                           border: OutlineInputBorder(
                               borderRadius: AppRadius.brMd,
                               borderSide:
-                                  BorderSide(color: AppColors.paleLine)),
+                                  BorderSide(color: AppColors.line)),
                           enabledBorder: OutlineInputBorder(
                               borderRadius: AppRadius.brMd,
                               borderSide:
-                                  BorderSide(color: AppColors.paleLine)),
+                                  BorderSide(color: AppColors.line)),
                           focusedBorder: OutlineInputBorder(
                               borderRadius: AppRadius.brMd,
                               borderSide: BorderSide(
-                                  color: AppColors.primary, width: 1.5)),
+                                  color: AppColors.brandAction, width: 1.5)),
                         ),
                       ),
                     ],
@@ -220,7 +222,7 @@ class _ConfirmModalState extends State<ConfirmModal> {
             // ── 푸터 ──
             Container(
               decoration: const BoxDecoration(
-                border: Border(top: BorderSide(color: AppColors.divider)),
+                border: Border(top: BorderSide(color: AppColors.line)),
               ),
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
               child: Row(
@@ -232,15 +234,15 @@ class _ConfirmModalState extends State<ConfirmModal> {
                           horizontal: 20, vertical: 16),
                       decoration: BoxDecoration(
                         borderRadius: AppRadius.brMd,
-                        color: AppColors.bg2,
-                        border: Border.all(color: AppColors.border),
+                        color: AppColors.bgAlt,
+                        border: Border.all(color: AppColors.line),
                       ),
                       child: Text(
                         widget.cancelLabel,
                         style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
-                            color: AppColors.textSecondary),
+                            color: AppColors.ink2),
                       ),
                     ),
                   ),

@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_dimens.dart';
+import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/toast_message.dart';
 import 'password_reset_provider.dart';
 import 'password_reset_widgets.dart';
@@ -106,69 +108,72 @@ class _PasswordResetVerifyScreenState
       appBar: passwordResetAppBar(context),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 32),
+              const SizedBox(height: AppSpacing.xxl),
               ResetGuideText('${state.email}로 발송된\n6자리 코드를 입력해 주세요.'),
-              const SizedBox(height: 32),
+              const SizedBox(height: AppSpacing.xl),
 
-              // ── 코드 입력 + 타이머 ──────────────────────────
-              ResetInputField(
-                controller: _codeCtrl,
-                hintText: '6자리 코드',
-                keyboardType: TextInputType.number,
-                autofocus: true,
-                maxLength: 6,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                enabled: !isLoading && !_expired,
-                onChanged: (_) => setState(() {}),
-                suffixIcon: Text(
-                  _timerLabel,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: _expired ? AppColors.error : AppColors.textSecondary,
-                  ),
-                ),
-              ),
-              if (_expired) ...[
-                const SizedBox(height: 8),
-                const Text(
-                  '코드가 만료되었습니다. 다시 요청해 주세요.',
-                  style: TextStyle(fontSize: 12, color: AppColors.error),
-                ),
-              ],
-              const SizedBox(height: 12),
-
-              // ── 재발송 ──────────────────────────────────────
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: isLoading ? null : _resend,
-                  style: TextButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  child: const Text(
-                    '재발송',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                      decoration: TextDecoration.underline,
-                      decorationColor: AppColors.textSecondary,
+              ResetCard(
+                children: [
+                  // ── 코드 입력 + 타이머 ──────────────────────────
+                  ResetInputField(
+                    controller: _codeCtrl,
+                    label: '인증 코드',
+                    hintText: '6자리 코드',
+                    keyboardType: TextInputType.number,
+                    autofocus: true,
+                    maxLength: 6,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    enabled: !isLoading && !_expired,
+                    onChanged: (_) => setState(() {}),
+                    // 남은 시간은 만료 전까지 보조 정보다. 처음부터 붉게 띄우면
+                    // 아직 4분 남았는데도 뭔가 잘못된 것처럼 읽힌다.
+                    suffixIcon: Text(
+                      _timerLabel,
+                      style: AppTextStyles.mono(13, FontWeight.w700,
+                          color: _expired ? AppColors.error : AppColors.ink2),
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 24),
+                  if (_expired) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    const Text(
+                      '코드가 만료되었습니다. 다시 요청해 주세요.',
+                      style: TextStyle(fontSize: 12, color: AppColors.error),
+                    ),
+                  ],
+                  const SizedBox(height: AppSpacing.md),
 
-              ResetFullButton(
-                label: '인증하기',
-                isLoading: isLoading,
-                onPressed: (_codeComplete && !_expired) ? _submit : null,
+                  // ── 재발송 ──────────────────────────────────────
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: isLoading ? null : _resend,
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: Text(
+                        '재발송',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.ink3,
+                          decoration: TextDecoration.underline,
+                          decorationColor: AppColors.ink3,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+
+                  ResetFullButton(
+                    label: '인증하기',
+                    isLoading: isLoading,
+                    onPressed: (_codeComplete && !_expired) ? _submit : null,
+                  ),
+                ],
               ),
             ],
           ),

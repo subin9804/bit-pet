@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_dimens.dart';
 import '../../../../core/widgets/toast_message.dart';
 import 'password_reset_provider.dart';
 import 'password_reset_widgets.dart';
@@ -59,26 +60,31 @@ class _PasswordResetRequestScreenState
       appBar: passwordResetAppBar(context),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 32),
+              const SizedBox(height: AppSpacing.xxl),
               const ResetGuideText('가입 시 사용한 이메일을 입력해 주세요.\n인증 코드를 보내드립니다.'),
-              const SizedBox(height: 32),
-              ResetInputField(
-                controller: _emailCtrl,
-                hintText: 'example@tailog.me',
-                keyboardType: TextInputType.emailAddress,
-                autofocus: true,
-                enabled: !isLoading,
-                onChanged: (_) => setState(() {}),
-              ),
-              const SizedBox(height: 32),
-              ResetFullButton(
-                label: '코드 발송',
-                isLoading: isLoading,
-                onPressed: _emailValid ? _submit : null,
+              const SizedBox(height: AppSpacing.xl),
+              ResetCard(
+                children: [
+                  ResetInputField(
+                    controller: _emailCtrl,
+                    label: '이메일',
+                    hintText: 'example@tailog.me',
+                    keyboardType: TextInputType.emailAddress,
+                    autofocus: true,
+                    enabled: !isLoading,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  ResetFullButton(
+                    label: '코드 발송',
+                    isLoading: isLoading,
+                    onPressed: _emailValid ? _submit : null,
+                  ),
+                ],
               ),
             ],
           ),

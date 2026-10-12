@@ -8,15 +8,23 @@ import '../../../core/widgets/toast_message.dart';
 import '../providers/auth_provider.dart';
 import '../../../core/theme/app_dimens.dart';
 
-/// 소셜 로그인 노출 여부.
+/// 소셜 로그인 **버튼** 노출 여부.
 ///
-/// 첫 배포는 **이메일 로그인만** 내보낸다. 서버(`auth/oauth/`)와 아래 버튼들은
-/// 다 살아 있지만 OAuth 클라이언트 키를 아직 발급받지 않아, 지금 내보내면
-/// **눌러도 아무 일이 일어나지 않는 버튼**이 된다. 그건 기능이 없는 것보다 나쁘다.
+/// 요즘 가입은 대부분 소셜이라 이 화면의 기본 동선도 소셜 먼저다. 그래서 버튼은
+/// 먼저 내보낸다 — 다만 OAuth 클라이언트 키(카카오·네이버·Google 콘솔)가 아직
+/// 없고 앱 쪽 플로우(SDK 또는 웹 인증 + 딥링크)도 배선되지 않았다.
 ///
-/// 키가 나오고 `onPressed` 가 배선되면 이 값만 `true` 로 바꾼다.
-/// (리다이렉트 URI 등록에 `tailog.me` 도메인이 필요해서 서버 배포 이후 순서다)
-const bool kSocialLoginEnabled = false;
+/// 그동안 **먹통 버튼**으로 두지는 않는다. 누르면 준비 중이라고 알려주고 이메일
+/// 로그인으로 유도한다([_LoginScreenState._socialNotReady]). 기능이 없는 것보다
+/// 나쁜 건 눌러도 아무 일이 없는 버튼이다.
+///
+/// 배선 순서: ① 각 콘솔에서 키 발급 + 리다이렉트 URI(`tailog.me`) 등록
+/// → ② 앱에서 인증 코드 받기 → ③ 서버 `auth/oauth/`(이미 구현됨)로 교환
+/// → ④ [kSocialLoginWired] 를 `true` 로. 이 플래그는 그때도 `true` 그대로다.
+const bool kSocialLoginEnabled = true;
+
+/// OAuth 배선이 끝났는지. 키가 들어오면 `true` 로 바꾸고 `_onSocial` 의 TODO 를 채운다.
+const bool kSocialLoginWired = false;
 
 // ─── 상단 로고 ──────────────────────────────────────────────────────────────
 //
@@ -39,7 +47,17 @@ Widget get _logo => Image.asset(
       semanticLabel: 'tailog',
     );
 
-/// 로그인 화면.
+/// 로그인.
+///
+/// ## 동선 (2026-10-13)
+///
+/// **소셜이 먼저, 이메일은 접혀 있다.** 소셜 세 개를 위에 두고, '이메일로 로그인'은
+/// 버튼만 놔뒀다가 누르면 폼이 펼쳐진다. 이메일 가입자 비중이 작을 걸 전제로
+/// 한 배치다 — 입력칸 두 개를 늘 펼쳐 두면 첫 화면이 '이메일 로그인 화면'처럼
+/// 읽히고, 정작 많이 쓸 소셜 버튼이 아래로 밀린다.
+///
+/// 소셜 버튼이 꺼져 있으면([kSocialLoginEnabled] `false`) 폼은 **처음부터 펼친
+/// 상태**로 시작한다. 그러지 않으면 화면에 버튼 하나만 남는다.
 ///
 /// ## 테마 (2026-10-13 리뉴얼 반영)
 ///
@@ -70,6 +88,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _obscure = true;
   bool _keepLoggedIn = false;
 
+  /// 이메일 폼을 펼쳤는지. 소셜 버튼이 없으면 접어 둘 이유가 없다.
+  bool _emailOpen = !kSocialLoginEnabled;
+
   @override
   void dispose() {
     _emailCtrl.dispose();
@@ -95,6 +116,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
+  /// 소셜 버튼 탭.
+  ///
+  /// TODO(oauth): [kSocialLoginWired] 가 `true` 가 되면 여기서 provider 별 인증을
+  /// 띄운다 — 인증 코드 → 서버 `auth/oauth/` 교환 → `authStateProvider` 갱신.
+  /// 그때 아래 호출을 그 플로우로 바꾸고 [_socialNotReady] 를 지운다.
+  void _onSocial(String provider) => _socialNotReady(provider);
+
+  /// 배선이 끝나기 전까지는 왜 안 되는지 말해 주고 이메일 폼을 열어 준다.
+  void _socialNotReady(String provider) {
+    ToastMessage.show(
+      context,
+      '$provider 로그인은 준비 중이에요. 지금은 이메일로 로그인해 주세요.',
+      type: ToastType.info,
+    );
+    if (!_emailOpen) setState(() => _emailOpen = true);
+  }
+
   @override
   Widget build(BuildContext context) {
     final isLoading = ref.watch(authStateProvider).isLoading;
@@ -106,241 +144,291 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           child: Padding(
             padding:
                 const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  const SizedBox(height: 48),
+            child: Column(
+              children: [
+                const SizedBox(height: 48),
 
-                  // ── 로고 (심볼 + 워드마크) ───────────────────────────
-                  _logo,
+                // ── 로고 (심볼 + 워드마크) ───────────────────────────
+                _logo,
 
-                  const SizedBox(height: AppSpacing.md),
+                const SizedBox(height: AppSpacing.md),
 
-                  // ── 슬로건 ──────────────────────────────────────────
-                  Text('작은 친구들을 위한 사육 노트', style: AppTextStyles.caption),
+                // ── 슬로건 ──────────────────────────────────────────
+                Text('작은 친구들을 위한 사육 노트', style: AppTextStyles.caption),
 
-                  const SizedBox(height: 28),
+                const SizedBox(height: 28),
 
-                  // ── 입력 카드 ───────────────────────────────────────
-                  //
-                  // 입력 두 칸 + 옵션 줄 + 로그인 버튼을 한 장에 담는다. 연회색
-                  // 바탕에 입력만 떠 있으면 '로그인 하는 영역'이 어디까지인지
-                  // 안 읽히고, 소셜 버튼이 붙는 날 특히 뒤섞인다.
-                  Container(
-                    decoration: AppDecor.cardRaised,
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    child: Column(
-                      children: [
-                        _InputField(
-                          label: '이메일',
-                          hintText: 'name@example.com',
-                          controller: _emailCtrl,
-                          keyboardType: TextInputType.emailAddress,
-                          enabled: !isLoading,
-                          validator: (v) {
-                            if (v == null || v.isEmpty) return '이메일을 입력하세요';
-                            final ok =
-                                RegExp(r'^[\w.+\-]+@[\w\-]+\.[a-zA-Z]{2,}$');
-                            if (!ok.hasMatch(v)) return '올바른 이메일 형식이 아닙니다';
-                            return null;
-                          },
-                        ),
-
-                        const SizedBox(height: AppSpacing.md),
-
-                        _InputField(
-                          label: '비밀번호',
-                          hintText: '10자 이상',
-                          controller: _pwCtrl,
-                          obscureText: _obscure,
-                          enabled: !isLoading,
-                          suffixIcon: GestureDetector(
-                            onTap: () => setState(() => _obscure = !_obscure),
-                            child: Icon(
-                              _obscure
-                                  ? Icons.visibility_off_outlined
-                                  : Icons.visibility_outlined,
-                              color: AppColors.ink3,
-                              size: 20,
-                            ),
-                          ),
-                          validator: (v) {
-                            if (v == null || v.length < 10) {
-                              return '비밀번호는 10자 이상이어야 합니다';
-                            }
-                            return null;
-                          },
-                        ),
-
-                        const SizedBox(height: AppSpacing.md),
-
-                        // ── 로그인 상태 유지 + 비밀번호 찾기 ─────────────
-                        Row(
-                          children: [
-                            GestureDetector(
-                              onTap: () => setState(
-                                  () => _keepLoggedIn = !_keepLoggedIn),
-                              child: Row(
-                                children: [
-                                  _CheckBox(checked: _keepLoggedIn),
-                                  const SizedBox(width: AppSpacing.sm),
-                                  Text('로그인 상태 유지',
-                                      style: AppTextStyles.caption),
-                                ],
-                              ),
-                            ),
-                            const Spacer(),
-                            TextButton(
-                              onPressed: () =>
-                                  context.push('/password-reset/request'),
-                              style: TextButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                minimumSize: Size.zero,
-                                tapTargetSize:
-                                    MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              child: Text(
-                                '비밀번호를 잊으셨나요?',
-                                style: AppTextStyles.caption.copyWith(
-                                  color: AppColors.ink3,
-                                  decoration: TextDecoration.underline,
-                                  decorationColor: AppColors.ink3,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: AppSpacing.lg),
-
-                        // ── 이메일로 로그인 버튼 ───────────────────────
-                        _FullButton(
-                          label: '이메일로 로그인',
-                          backgroundColor: AppColors.brandAction,
-                          textColor: Colors.white,
-                          isLoading: isLoading,
-                          onPressed: isLoading ? null : _submit,
-                        ),
-                      ],
-                    ),
+                // ── 소셜 로그인 ─────────────────────────────────────
+                if (kSocialLoginEnabled) ...[
+                  _SocialButton(
+                    label: '카카오로 시작하기',
+                    backgroundColor: AppColors.kakao,
+                    textColor: AppColors.ink,
+                    // ✏️ 아이콘 교체: assets/icons/kakao.png 준비 후 주석 해제
+                    // iconPath: 'assets/icons/kakao.png',
+                    fallbackIcon:
+                        const Text('💛', style: TextStyle(fontSize: 18)),
+                    onPressed: () => _onSocial('카카오'),
                   ),
 
-                  // ── 소셜 로그인 (kSocialLoginEnabled) ────────────────
-                  // OR 구분선까지 통째로 감싼다 — 아래가 비어 있는 'OR'만 남으면
-                  // 뭔가 빠진 화면으로 보인다
-                  if (kSocialLoginEnabled) ...[
-                    const SizedBox(height: AppSpacing.lg),
+                  const SizedBox(height: AppSpacing.sm),
 
-                    Row(
-                      children: [
-                        const Expanded(
-                          child: Divider(color: AppColors.line, thickness: 1),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.md),
-                          child: Text('OR', style: AppTextStyles.label),
-                        ),
-                        const Expanded(
-                          child: Divider(color: AppColors.line, thickness: 1),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: AppSpacing.lg),
-
-                    // ── 카카오 ─────────────────────────────────────────
-                    _SocialButton(
-                      label: '카카오로 시작하기',
-                      backgroundColor: AppColors.kakao,
-                      textColor: AppColors.ink,
-                      // ✏️ 아이콘 교체: assets/icons/kakao.png 준비 후 주석 해제
-                      // iconPath: 'assets/icons/kakao.png',
-                      fallbackIcon:
-                          const Text('💛', style: TextStyle(fontSize: 18)),
-                      onPressed: () {},
-                    ),
-
-                    const SizedBox(height: AppSpacing.sm),
-
-                    // ── 네이버 ─────────────────────────────────────────
-                    _SocialButton(
-                      label: '네이버로 시작하기',
-                      backgroundColor: AppColors.naver,
-                      textColor: Colors.white,
-                      // ✏️ 아이콘 교체: assets/icons/naver.png 준비 후 주석 해제
-                      // iconPath: 'assets/icons/naver.png',
-                      fallbackIcon: Text(
-                        'N',
-                        style: AppTextStyles.subheading.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                        ),
+                  _SocialButton(
+                    label: '네이버로 시작하기',
+                    backgroundColor: AppColors.naver,
+                    textColor: Colors.white,
+                    // ✏️ 아이콘 교체: assets/icons/naver.png 준비 후 주석 해제
+                    // iconPath: 'assets/icons/naver.png',
+                    fallbackIcon: Text(
+                      'N',
+                      style: AppTextStyles.subheading.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
                       ),
-                      onPressed: () {},
                     ),
+                    onPressed: () => _onSocial('네이버'),
+                  ),
 
-                    const SizedBox(height: AppSpacing.sm),
+                  const SizedBox(height: AppSpacing.sm),
 
-                    // ── Google ─────────────────────────────────────────
-                    _SocialButton(
-                      label: 'Google로 시작하기',
-                      backgroundColor: AppColors.card,
-                      textColor: AppColors.ink,
-                      hasBorder: true,
-                      // ✏️ 아이콘 교체: assets/icons/google.png 준비 후 주석 해제
-                      // iconPath: 'assets/icons/google.png',
-                      fallbackIcon: Text(
-                        'G',
-                        style: AppTextStyles.subheading.copyWith(
-                          color: AppColors.google,
-                          fontWeight: FontWeight.w800,
-                        ),
+                  _SocialButton(
+                    label: 'Google로 시작하기',
+                    backgroundColor: AppColors.card,
+                    textColor: AppColors.ink,
+                    hasBorder: true,
+                    // ✏️ 아이콘 교체: assets/icons/google.png 준비 후 주석 해제
+                    // iconPath: 'assets/icons/google.png',
+                    fallbackIcon: Text(
+                      'G',
+                      style: AppTextStyles.subheading.copyWith(
+                        color: AppColors.google,
+                        fontWeight: FontWeight.w800,
                       ),
-                      onPressed: () {},
                     ),
-                  ],
+                    onPressed: () => _onSocial('Google'),
+                  ),
 
-                  const SizedBox(height: 28),
+                  const SizedBox(height: AppSpacing.lg),
 
-                  // ── 처음이신가요? 회원가입 ────────────────────────────
-                  // 회원가입만 브랜드색이다 — 이 화면에서 '지금 할 수 있는 다른 일'은
-                  // 사실상 하나뿐이라, 비밀번호 찾기까지 같이 강조하면 둘 다 안 읽힌다.
+                  // ── 구분선 ───────────────────────────────────────
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text('처음이신가요?', style: AppTextStyles.caption),
-                      TextButton(
-                        onPressed: () => context.push('/signup'),
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.only(left: AppSpacing.xs),
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: Text(
-                          '회원가입',
-                          style: AppTextStyles.caption.copyWith(
-                            color: AppColors.brandAction,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
+                      const Expanded(
+                        child: Divider(color: AppColors.line, thickness: 1),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.md),
+                        child: Text('또는', style: AppTextStyles.label),
+                      ),
+                      const Expanded(
+                        child: Divider(color: AppColors.line, thickness: 1),
                       ),
                     ],
                   ),
 
                   const SizedBox(height: AppSpacing.lg),
-
-                  // ── 버전 푸터 ────────────────────────────────────────
-                  // 양옆의 ▼ 는 픽셀 컨셉 시절의 장식이었다. 로고가 제대로 들어간
-                  // 화면에서는 같은 자리에서 두 개의 다른 톤이 부딪힌다.
-                  Text('tailog v0.2', style: AppTextStyles.label),
-
-                  const SizedBox(height: AppSpacing.xxl),
                 ],
-              ),
+
+                // ── 이메일 로그인 (접힘 → 펼침) ──────────────────────
+                //
+                // 접힌 동안엔 버튼만, 누르면 같은 자리에서 폼 카드가 열린다.
+                // 화면을 새로 띄우지 않는 이유: 로그인 실패 토스트와 '회원가입'
+                // 링크가 전부 이 화면에 있어서, 폼만 따로 떼면 왕복이 생긴다.
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOut,
+                  alignment: Alignment.topCenter,
+                  child: _emailOpen
+                      ? _emailForm(isLoading)
+                      : _EmailTriggerButton(
+                          onPressed: () => setState(() => _emailOpen = true),
+                        ),
+                ),
+
+                const SizedBox(height: 28),
+
+                // ── 처음이신가요? 회원가입 ────────────────────────────
+                // 회원가입만 브랜드색이다 — 이 화면에서 '지금 할 수 있는 다른 일'은
+                // 사실상 하나뿐이라, 비밀번호 찾기까지 같이 강조하면 둘 다 안 읽힌다.
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text('처음이신가요?', style: AppTextStyles.caption),
+                    TextButton(
+                      onPressed: () => context.push('/signup'),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.only(left: AppSpacing.xs),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: Text(
+                        '회원가입',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.brandAction,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: AppSpacing.lg),
+
+                // ── 버전 푸터 ────────────────────────────────────────
+                // 양옆의 ▼ 는 픽셀 컨셉 시절의 장식이었다. 로고가 제대로 들어간
+                // 화면에서는 같은 자리에서 두 개의 다른 톤이 부딪힌다.
+                Text('tailog v0.2', style: AppTextStyles.label),
+
+                const SizedBox(height: AppSpacing.xxl),
+              ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  /// 이메일 폼 카드.
+  ///
+  /// 입력 2칸 + 옵션 줄 + 로그인 버튼을 흰 카드 한 장에 담는다. 연회색 바탕에
+  /// 입력만 떠 있으면 '로그인 하는 영역'이 어디까지인지 안 읽히고, 위의 소셜
+  /// 버튼들과 한 덩어리로 보인다.
+  Widget _emailForm(bool isLoading) {
+    return Form(
+      key: _formKey,
+      child: Container(
+        decoration: AppDecor.cardRaised,
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          children: [
+            _InputField(
+              label: '이메일',
+              hintText: 'name@example.com',
+              controller: _emailCtrl,
+              keyboardType: TextInputType.emailAddress,
+              enabled: !isLoading,
+              // 버튼을 눌러 펼친 직후라 커서가 바로 와 있는 게 맞다.
+              // 소셜이 꺼져 처음부터 펼쳐진 경우엔 키보드가 튀어나오면 거슬린다.
+              autofocus: kSocialLoginEnabled,
+              validator: (v) {
+                if (v == null || v.isEmpty) return '이메일을 입력하세요';
+                final ok = RegExp(r'^[\w.+\-]+@[\w\-]+\.[a-zA-Z]{2,}$');
+                if (!ok.hasMatch(v)) return '올바른 이메일 형식이 아닙니다';
+                return null;
+              },
+            ),
+
+            const SizedBox(height: AppSpacing.md),
+
+            _InputField(
+              label: '비밀번호',
+              hintText: '10자 이상',
+              controller: _pwCtrl,
+              obscureText: _obscure,
+              enabled: !isLoading,
+              suffixIcon: GestureDetector(
+                onTap: () => setState(() => _obscure = !_obscure),
+                child: Icon(
+                  _obscure
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                  color: AppColors.ink3,
+                  size: 20,
+                ),
+              ),
+              validator: (v) {
+                if (v == null || v.length < 10) {
+                  return '비밀번호는 10자 이상이어야 합니다';
+                }
+                return null;
+              },
+            ),
+
+            const SizedBox(height: AppSpacing.md),
+
+            // ── 로그인 상태 유지 + 비밀번호 찾기 ─────────────
+            Row(
+              children: [
+                GestureDetector(
+                  onTap: () => setState(() => _keepLoggedIn = !_keepLoggedIn),
+                  child: Row(
+                    children: [
+                      _CheckBox(checked: _keepLoggedIn),
+                      const SizedBox(width: AppSpacing.sm),
+                      Text('로그인 상태 유지', style: AppTextStyles.caption),
+                    ],
+                  ),
+                ),
+                const Spacer(),
+                TextButton(
+                  onPressed: () => context.push('/password-reset/request'),
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: Text(
+                    '비밀번호를 잊으셨나요?',
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.ink3,
+                      decoration: TextDecoration.underline,
+                      decorationColor: AppColors.ink3,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: AppSpacing.lg),
+
+            _FullButton(
+              label: '로그인',
+              backgroundColor: AppColors.brandAction,
+              textColor: Colors.white,
+              isLoading: isLoading,
+              onPressed: isLoading ? null : _submit,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── 이메일 로그인 트리거 ──────────────────────────────────────────────────
+//
+// 소셜 버튼들과 같은 크기·모양이지만 흰 바탕 + 테두리다. 여기에 브랜드색을
+// 채우면 소셜 세 개보다 세게 보여서 '이쪽이 기본 동선'이라는 신호가 뒤집힌다.
+class _EmailTriggerButton extends StatelessWidget {
+  final VoidCallback onPressed;
+  const _EmailTriggerButton({required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.card,
+          foregroundColor: AppColors.ink,
+          elevation: 0,
+          shape: const RoundedRectangleBorder(
+            borderRadius: AppRadius.brMd,
+            side: BorderSide(color: AppColors.line),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.mail_outline, size: 18, color: AppColors.ink2),
+            const SizedBox(width: AppSpacing.sm),
+            Text('이메일로 로그인',
+                style: AppTextStyles.button
+                    .copyWith(fontSize: 14, color: AppColors.ink)),
+          ],
         ),
       ),
     );
@@ -387,6 +475,7 @@ class _InputField extends StatelessWidget {
   final TextInputType keyboardType;
   final bool obscureText;
   final bool enabled;
+  final bool autofocus;
   final Widget? suffixIcon;
   final String? Function(String?)? validator;
 
@@ -397,6 +486,7 @@ class _InputField extends StatelessWidget {
     this.keyboardType = TextInputType.text,
     this.obscureText = false,
     this.enabled = true,
+    this.autofocus = false,
     this.suffixIcon,
     this.validator,
   });
@@ -418,6 +508,7 @@ class _InputField extends StatelessWidget {
           keyboardType: keyboardType,
           obscureText: obscureText,
           enabled: enabled,
+          autofocus: autofocus,
           validator: validator,
           style: AppTextStyles.body,
           cursorColor: AppColors.brandAction,
