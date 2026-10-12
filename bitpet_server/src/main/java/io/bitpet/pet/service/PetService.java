@@ -101,6 +101,9 @@ public class PetService {
                 .hatchingDateApproximate(req.hatchingDateApproximate())
                 .adoptionDate(req.adoptionDate())
                 .build();
+        // 신고 플래그는 빌더에 끼우지 않고 여기서 올린다 — 선택 입력이라 둘 다 null 인 등록이 보통이고,
+        // 빌더 인자가 늘어나면 호출부(해칭 → 개체 등록 포함)가 전부 영향을 받는다.
+        pet.updateReports(req.keepingReportYn(), req.citesReportYn());
         petRepository.save(pet);
         petKeeper.registerOwner(pet.getId(), userId);
 
@@ -190,6 +193,7 @@ public class PetService {
                 req.description(), req.breedingDate(), req.hatchingDate(),
                 req.hatchingDatePrecision(), req.hatchingDateApproximate(), req.adoptionDate());
         pet.updatePrivacy(req.privateYn());
+        pet.updateReports(req.keepingReportYn(), req.citesReportYn());
 
         List<Long> morphIds = req.morphIds();
         if (morphIds == null && req.morphId() != null) {

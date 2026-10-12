@@ -33,6 +33,10 @@ public record PetResponse(
         LocalDate adoptionDate,
         Long profilePhotoId,
         String privateYn,
+        /** 지정관리 야생동물 보관신고 완료 여부 'Y'/'N' (관할 지자체) */
+        String keepingReportYn,
+        /** CITES 양도·양수 신고 완료 여부 'Y'/'N' (관할 유역환경청) */
+        String citesReportYn,
         LocalDate deceasedAt,
         Double latestWeightG,
         Long fatherRelationId,
@@ -108,6 +112,8 @@ public record PetResponse(
                 pet.getAdoptionDate(),
                 pet.getProfilePhotoId(),
                 pet.getPrivateYn(),
+                pet.getKeepingReportYn(),
+                pet.getCitesReportYn(),
                 pet.getDeceasedAt(),
                 latestWeightG,
                 fatherRelId, fatherId, fatherName,

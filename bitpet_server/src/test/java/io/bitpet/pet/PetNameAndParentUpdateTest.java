@@ -165,7 +165,7 @@ class PetNameAndParentUpdateTest extends IntegrationTestBase {
     private Long createPet(Long userId, String name) {
         PetResponse res = petService.create(userId, new PetCreateRequest(
                 name, null, null, PetGender.MALE, null, null, null, null, null, null, null,
-                120.0, null, null));
+                120.0, null, null, null, null));
         return res.id();
     }
 
@@ -176,6 +176,7 @@ class PetNameAndParentUpdateTest extends IntegrationTestBase {
                 null, null, null,          // gender, colorCode, description
                 null, null, null, null,    // breedingDate, hatchingDate, precision, approximate
                 null, null,                // adoptionDate, privateYn
+                null, null,                // keepingReportYn, citesReportYn
                 editParents, father, mother);
     }
 

@@ -73,6 +73,14 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
   bool _parentsLoaded = false;
   bool _isPublic = false; // 검색 허용 여부 (기본 비공개)
 
+  // ── 야생생물법 신고 ────────────────────────────────────────────────────────
+  // '했다/안 했다'만 받는다. 신고 접수 창구가 WIMS 웹 신청뿐이라 앱이 번호·날짜·
+  // 서류를 들고 있어도 쓸 데가 없다 — 사육자가 "이 개체 신고했나?"를 다시
+  // 떠올리지 않게 하는 것이 전부다.
+  // ⛔ 여기에 확인증 번호·관할청 입력칸을 붙이지 말 것.
+  bool _keepingReported = false; // 지정관리 야생동물 보관신고 (관할 지자체)
+  bool _citesReported = false;   // CITES 양도·양수 신고 (관할 유역환경청)
+
   // ── 이름 중복 실시간 확인 ──────────────────────────────────────────────────
   // 저장할 때만 막으면 "저장이 안 되는데 이유를 모르는" 화면이 된다.
   // 입력이 멎으면 물어보고, 겹치면 다음 단계로 넘어가지 못하게 한다.
@@ -199,6 +207,9 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
         _memoCtrl.text = pet.description ?? '';
         // 검색 허용
         _isPublic = pet.privateYn == 'N';
+        // 신고 여부
+        _keepingReported = pet.keepingReportYn == 'Y';
+        _citesReported = pet.citesReportYn == 'Y';
         // 대표 사진
         _existingProfileUrl = pet.profileImageUrl;
         _existingProfilePhotoId = pet.profilePhotoId;
@@ -524,6 +535,8 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
         'gender': genderCode,
         if (_selectedMorphIds.isNotEmpty) 'morphIds': _selectedMorphIds,
         'privateYn': _isPublic ? 'N' : 'Y',
+        'keepingReportYn': _keepingReported ? 'Y' : 'N',
+        'citesReportYn': _citesReported ? 'Y' : 'N',
         if (hatchingDate != null) 'hatchingDate': hatchingDate,
         if (hatchingDatePrecision != null) 'hatchingDatePrecision': hatchingDatePrecision,
         'hatchingDateApproximate': _hatchApproximate,
@@ -564,6 +577,8 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
           motherPetId: _motherPet?.petId,
           description: _memoCtrl.text.trim().isEmpty ? null : _memoCtrl.text.trim(),
           privateYn: _isPublic ? 'N' : 'Y',
+          keepingReportYn: _keepingReported ? 'Y' : 'N',
+          citesReportYn: _citesReported ? 'Y' : 'N',
         ),
       );
       await _uploadProfile(pet.id);
@@ -980,6 +995,47 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
               ],
             ),
           ),
+          const SizedBox(height: 16),
+          // 야생생물법 신고 — 메모 스텝에 둔 이유는 '선택' 묶음이기 때문이다.
+          // 전용 스텝으로 떼면 모든 개체 등록이 한 단계 길어지는데, 신고 대상이
+          // 아닌 종이 훨씬 많다.
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            decoration: BoxDecoration(
+              borderRadius: AppRadius.brLg,
+              color: AppColors.surface,
+              border: Border.all(color: AppColors.paleLine),
+            ),
+            child: Column(
+              children: [
+                _ReportToggleRow(
+                  title: '보관신고 완료',
+                  desc: '지정관리 야생동물 — 관할 지자체에 신고',
+                  value: _keepingReported,
+                  onToggle: () =>
+                      setState(() => _keepingReported = !_keepingReported),
+                ),
+                const Divider(height: 1, color: AppColors.paleLine),
+                _ReportToggleRow(
+                  title: 'CITES 양도·양수 신고 완료',
+                  desc: '국제적 멸종위기종 — 관할 유역환경청에 신고',
+                  value: _citesReported,
+                  onToggle: () =>
+                      setState(() => _citesReported = !_citesReported),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Text(
+              '신고는 WIMS(야생동물종합관리시스템)에서 직접 해야 해요. '
+              '여기 켜 두면 개체마다 신고했는지 기억해 둘 수 있어요.',
+              style: const TextStyle(
+                  fontSize: 11, color: AppColors.paleInk3, height: 1.5),
+            ),
+          ),
         ],
       ),
     ),
@@ -1038,6 +1094,14 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
           StepSummaryGroup(label: '메모', step: 4, rows: [
             StepSummaryRow(k: '메모', v: _memoCtrl.text, muted: _memoCtrl.text.isEmpty),
             StepSummaryRow(k: '메이팅 검색', v: _isPublic ? '공개' : '비공개'),
+            StepSummaryRow(
+              k: '신고',
+              v: [
+                if (_keepingReported) '보관신고',
+                if (_citesReported) 'CITES',
+              ].join(' · '),
+              muted: !_keepingReported && !_citesReported,
+            ),
           ]),
         ],
       ),
@@ -1706,6 +1770,52 @@ class _YearMonthPickerSheetState extends State<_YearMonthPickerSheet> {
           ),
         ],
         ),
+      ),
+    );
+  }
+}
+
+/// 신고 여부 한 줄 — 제목 + 설명 + 토글.
+///
+/// 메모 스텝의 '메이팅 검색 허용' 줄과 같은 꼴이지만, 두 줄이 한 박스 안에
+/// 들어가 구분선을 공유하므로 박스 장식은 부모가 들고 이 위젯은 내용만 그린다.
+class _ReportToggleRow extends StatelessWidget {
+  final String title;
+  final String desc;
+  final bool value;
+  final VoidCallback onToggle;
+
+  const _ReportToggleRow({
+    required this.title,
+    required this.desc,
+    required this.value,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary)),
+                const SizedBox(height: 4),
+                Text(desc,
+                    style: const TextStyle(
+                        fontSize: 12, color: AppColors.paleInk2)),
+              ],
+            ),
+          ),
+          AppToggle(value: value, onToggle: onToggle),
+        ],
       ),
     );
   }

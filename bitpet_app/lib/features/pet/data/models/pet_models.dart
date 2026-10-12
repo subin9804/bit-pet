@@ -100,6 +100,10 @@ class Pet {
   final double? latestWeightG;
   // 'Y' = 비공개(기본), 'N' = 공개(전체 검색 허용)
   final String privateYn;
+  // 야생생물법 신고 여부 — 'Y' = 신고 완료. 두 제도는 관할(지자체 / 유역환경청)과
+  // 요건이 달라 따로 든다. 파충류 CITES II 종은 둘 다 대상일 수 있다.
+  final String keepingReportYn; // 지정관리 야생동물 보관신고
+  final String citesReportYn;   // CITES 양도·양수 신고
   // 폐사일 (이별하기) — null이면 생존
   final DateTime? deceasedAt;
   // 부모 개체 (단건 조회 시 포함)
@@ -134,6 +138,8 @@ class Pet {
     this.adoptionDate,
     this.latestWeightG,
     this.privateYn = 'Y',
+    this.keepingReportYn = 'N',
+    this.citesReportYn = 'N',
     this.deceasedAt,
     this.fatherRelationId,
     this.fatherId,
@@ -149,6 +155,10 @@ class Pet {
   bool get isSharedWithMe => !isOwner;
 
   bool get isPrivate => privateYn == 'Y';
+
+  /// 신고 하나라도 해 둔 게 있는지 — 상세 화면에서 접힌 줄을 열기 전 아무것도
+  /// 내보이지 않되, 비어 있는 섹션인지 판단하는 데는 쓴다.
+  bool get hasAnyReport => keepingReportYn == 'Y' || citesReportYn == 'Y';
 
   bool get isDeceased => deceasedAt != null;
 
@@ -187,6 +197,8 @@ class Pet {
             : null,
         latestWeightG: (json['latestWeightG'] as num?)?.toDouble(),
         privateYn: json['privateYn'] as String? ?? 'Y',
+        keepingReportYn: json['keepingReportYn'] as String? ?? 'N',
+        citesReportYn: json['citesReportYn'] as String? ?? 'N',
         deceasedAt: json['deceasedAt'] != null
             ? DateTime.tryParse(json['deceasedAt'] as String)
             : null,
@@ -421,6 +433,9 @@ class CreatePetRequest {
   final int? fatherPetId;       // 부개체 연결
   final int? motherPetId;       // 모개체 연결
   final String privateYn;       // 'Y'=비공개(기본), 'N'=공개
+  // 야생생물법 신고 여부 (선택) — 기본은 'N'(안 함)
+  final String keepingReportYn; // 지정관리 야생동물 보관신고
+  final String citesReportYn;   // CITES 양도·양수 신고
 
   const CreatePetRequest({
     required this.speciesId,
@@ -438,6 +453,8 @@ class CreatePetRequest {
     this.fatherPetId,
     this.motherPetId,
     this.privateYn = 'Y',
+    this.keepingReportYn = 'N',
+    this.citesReportYn = 'N',
   });
 
   Map<String, dynamic> toJson() => {
@@ -456,5 +473,7 @@ class CreatePetRequest {
         if (fatherPetId != null) 'fatherPetId': fatherPetId,
         if (motherPetId != null) 'motherPetId': motherPetId,
         'privateYn': privateYn,
+        'keepingReportYn': keepingReportYn,
+        'citesReportYn': citesReportYn,
       };
 }

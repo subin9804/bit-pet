@@ -22,6 +22,10 @@ public record PetUpdateRequest(
         LocalDate adoptionDate,
         @Pattern(regexp = "^[YN]$", message = "privateYn은 Y 또는 N이어야 합니다") String privateYn,
 
+        /** 야생생물법 신고 여부 'Y'/'N'. null = 안 보냄(기존 값 유지) */
+        @Pattern(regexp = "^[YN]$", message = "keepingReportYn은 Y 또는 N이어야 합니다") String keepingReportYn,
+        @Pattern(regexp = "^[YN]$", message = "citesReportYn은 Y 또는 N이어야 합니다") String citesReportYn,
+
         /**
          * 부모 수정 여부 — <b>이 플래그가 true 일 때만</b> 아래 두 값으로 부모 관계를 갈아끼운다
          * (null 은 "해제"로 해석한다).

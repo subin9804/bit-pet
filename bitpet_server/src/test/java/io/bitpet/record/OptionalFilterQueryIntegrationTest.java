@@ -127,7 +127,7 @@ class OptionalFilterQueryIntegrationTest extends IntegrationTestBase {
     private Long createPet(Long userId, String name, PetGender gender) {
         PetResponse res = petService.create(userId, new PetCreateRequest(
                 name, null, null, gender, null, null, null, null, null, null, null,
-                120.0, null, null));
+                120.0, null, null, null, null));
         return res.id();
     }
 

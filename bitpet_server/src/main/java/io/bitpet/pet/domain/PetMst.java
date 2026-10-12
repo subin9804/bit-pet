@@ -104,6 +104,22 @@ public class PetMst extends BaseSyncEntity {
     @Column(name = "private_yn", nullable = false, length = 1)
     private String privateYn = "Y";
 
+    /**
+     * 야생생물법 신고 여부 — <b>했다/안 했다만</b> 둔다 (V17).
+     *
+     * <p>지정관리 야생동물 보관신고는 관할 <b>지자체</b>, CITES 양도·양수 신고는 관할
+     * <b>유역환경청</b>이라 제도가 둘로 갈린다. 파충류 CITES II 종은 둘 다 대상일 수
+     * 있어 플래그 하나로 합치지 않았다.
+     *
+     * <p>⛔ 확인증 번호·신고일·구비서류를 여기 붙이지 말 것 — 신고 접수 창구가 WIMS
+     * 웹 신청뿐이고 공공 API 가 없어서, 저장해도 대조하거나 제출할 곳이 없다.
+     */
+    @Column(name = "keeping_report_yn", nullable = false, length = 1)
+    private String keepingReportYn = "N";
+
+    @Column(name = "cites_report_yn", nullable = false, length = 1)
+    private String citesReportYn = "N";
+
     // NULL = 생존, 값 있으면 폐사일 (이별하기)
     @Column(name = "deceased_at")
     private LocalDate deceasedAt;
@@ -151,6 +167,15 @@ public class PetMst extends BaseSyncEntity {
 
     public void updatePrivacy(String privateYn) {
         if (privateYn != null) this.privateYn = privateYn;
+    }
+
+    /**
+     * 신고 플래그 갱신. null 은 "안 보냄"이라 건드리지 않는다 — 플래그를 모르는 경로
+     * (구버전 앱, 오프라인 sync push)가 저장할 때마다 'N' 으로 돌아가면 안 된다.
+     */
+    public void updateReports(String keepingReportYn, String citesReportYn) {
+        if (keepingReportYn != null) this.keepingReportYn = keepingReportYn;
+        if (citesReportYn != null) this.citesReportYn = citesReportYn;
     }
 
     public void setProfilePhoto(Long photoId) {

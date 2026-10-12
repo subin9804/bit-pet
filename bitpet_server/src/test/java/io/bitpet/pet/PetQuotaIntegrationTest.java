@@ -146,6 +146,6 @@ class PetQuotaIntegrationTest extends IntegrationTestBase {
     private Long createPet(Long userId, String name) {
         return petService.create(userId, new PetCreateRequest(
                 name, null, null, PetGender.MALE, null, null, null, null, null, null, null,
-                120.0, null, null)).id();
+                120.0, null, null, null, null)).id();
     }
 }

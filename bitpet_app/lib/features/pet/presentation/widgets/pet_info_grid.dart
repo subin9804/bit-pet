@@ -109,6 +109,17 @@ class _PetInfoGridState extends ConsumerState<PetInfoGrid> {
                 ? pet.morphs.map((m) => m.nameKo).toList()
                 : (pet.morphName != null ? [pet.morphName!] : const []),
           ),
+
+          // 야생생물법 신고 — **접어 둔다.** 신고 여부는 사육자가 1년에 한 번
+          // 들춰 보는 값이라, 카드 겉면이나 히어로에 배지로 달면 매번 눈에
+          // 걸리는 TMI 가 된다. 한 번 더 눌러야 나오는 자리가 이 정보의 무게에
+          // 맞다. ⛔ 목록 카드·히어로에 배지를 달지 말 것.
+          const SizedBox(height: AppSpacing.md),
+          const Divider(height: 1, color: AppColors.bgAlt),
+          _ReportSection(
+            keepingReported: pet.keepingReportYn == 'Y',
+            citesReported: pet.citesReportYn == 'Y',
+          ),
         ],
       ),
     );
@@ -226,6 +237,113 @@ class _Cell extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// 야생생물법 신고 여부 — 접힌 줄.
+///
+/// 닫혀 있을 때는 **상태를 내보이지 않는다**. '미신고'라고 적어 두면 신고 대상이
+/// 아닌 종(대부분)에서도 빨간 글씨처럼 읽혀 매번 거슬린다. 종별 대상 판정이
+/// 들어오기 전까지는 '안 함'과 '해당 없음'을 구별할 근거도 없다.
+class _ReportSection extends StatefulWidget {
+  final bool keepingReported;
+  final bool citesReported;
+
+  const _ReportSection({
+    required this.keepingReported,
+    required this.citesReported,
+  });
+
+  @override
+  State<_ReportSection> createState() => _ReportSectionState();
+}
+
+class _ReportSectionState extends State<_ReportSection> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InkWell(
+          onTap: () => setState(() => _open = !_open),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+            child: Row(
+              children: [
+                Text('법정 신고', style: AppTextStyles.paleGridLabel),
+                const Spacer(),
+                Icon(_open ? Icons.expand_less : Icons.expand_more,
+                    size: 18, color: AppColors.paleInk3),
+              ],
+            ),
+          ),
+        ),
+        if (_open) ...[
+          _ReportLine(
+            label: '보관신고',
+            sub: '지정관리 야생동물 · 관할 지자체',
+            done: widget.keepingReported,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          _ReportLine(
+            label: 'CITES 양도·양수',
+            sub: '국제적 멸종위기종 · 관할 유역환경청',
+            done: widget.citesReported,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            '신고 여부는 직접 체크한 값이에요. 개체 수정에서 바꿀 수 있어요.',
+            style: AppTextStyles.label,
+          ),
+          const SizedBox(height: AppSpacing.xs),
+        ],
+      ],
+    );
+  }
+}
+
+class _ReportLine extends StatelessWidget {
+  final String label;
+  final String sub;
+  final bool done;
+
+  const _ReportLine({required this.label, required this.sub, required this.done});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: AppTextStyles.paleGridValue),
+              const SizedBox(height: 2),
+              Text(sub, style: AppTextStyles.label),
+            ],
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Container(
+          padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+          decoration: BoxDecoration(
+            borderRadius: AppRadius.brPill,
+            color: done ? AppColors.brandTintSoft : AppColors.bgAlt,
+            border: done ? Border.all(color: AppColors.brandTint) : null,
+          ),
+          child: Text(
+            done ? '신고 완료' : '기록 없음',
+            style: AppTextStyles.label.copyWith(
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0,
+                color: done ? AppColors.brandAction : AppColors.paleInk3),
+          ),
+        ),
+      ],
     );
   }
 }
