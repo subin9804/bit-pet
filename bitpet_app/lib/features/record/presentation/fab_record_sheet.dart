@@ -463,23 +463,25 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
               context.push('/pets/new');
             },
             child: Container(
-              decoration: BoxDecoration(
-                color: AppColors.paleBgAlt,
-                border: Border.all(color: AppColors.paleLine),
+              // 회색 블록(bgAlt)이라 꺼진 자리처럼 보였다. 누르면 개체 등록으로
+              // 가는 카드이므로 다른 카드와 같은 흰 면 + 높이로 둔다.
+              decoration: const BoxDecoration(
+                color: AppColors.card,
+                border: Border.fromBorderSide(BorderSide(color: AppColors.line)),
                 borderRadius: AppRadius.brMd,
+                boxShadow: AppShadows.elev1,
               ),
               padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
               child: Row(
                 children: [
                   Container(
                     width: 40, height: 40,
-                    decoration: BoxDecoration(
-                      color: AppColors.card,
-                      border: Border.all(color: AppColors.paleLine),
+                    decoration: const BoxDecoration(
+                      color: AppColors.brandTint,
                       borderRadius: AppRadius.brMd,
                     ),
                     child: const Icon(Icons.add,
-                        size: 20, color: AppColors.primary),
+                        size: 20, color: AppColors.brandAction),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -731,17 +733,20 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
               // 완료 카운트 pill
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                // 다 채웠다는 진행 상태를 복숭아색(분류색)으로 말하고 있었다.
                 decoration: BoxDecoration(
-                  color: allFilled ? AppColors.feedBand : AppColors.card,
+                  color: allFilled ? AppColors.brandTint : AppColors.card,
                   border: allFilled
                       ? null
-                      : Border.all(color: AppColors.paleLine),
+                      : Border.all(color: AppColors.line),
                   borderRadius: AppRadius.brPill,
                 ),
                 child: Text(
                   '$_filledCount / ${pets.length}',
                   style: AppTextStyles.mono(11, FontWeight.w700,
-                      color: AppColors.paleInk2),
+                      color: allFilled
+                          ? AppColors.brandTintInk
+                          : AppColors.paleInk2),
                 ),
               ),
             ],
@@ -763,7 +768,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
             itemBuilder: (_, i) {
               final p       = pets[i];
               final active  = i == _activePerPetIdx;
-              const pPale   = AppColors.brandTint;
+              const pPale   = AppColors.brandTintSoft;
               const pInk    = AppColors.brandAction;
               final isFilled = _perPetForms[p.id]?.filled ?? false;
               return GestureDetector(
@@ -774,7 +779,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                   decoration: BoxDecoration(
                     color: active ? pPale : AppColors.card,
                     border: Border.all(
-                        color: active ? pInk : AppColors.paleLine,
+                        color: active ? pInk : AppColors.line,
                         width: active ? 1.5 : 1),
                     borderRadius: AppRadius.brPill,
                   ),
@@ -797,7 +802,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                           ? Container(
                               width: 14, height: 14,
                               decoration: const BoxDecoration(
-                                  color: AppColors.primary,
+                                  color: AppColors.brandAction,
                                   shape: BoxShape.circle),
                               child: const Icon(Icons.check,
                                   size: 12, color: Colors.white))
@@ -981,10 +986,12 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                             child: Container(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 16, vertical: 12),
-                              decoration: BoxDecoration(
+                              decoration: const BoxDecoration(
                                 color: AppColors.card,
-                                border: Border.all(color: AppColors.paleLine),
+                                border: Border.fromBorderSide(
+                                    BorderSide(color: AppColors.line)),
                                 borderRadius: AppRadius.brLg,
+                                boxShadow: AppShadows.elev1,
                               ),
                               child: Row(
                                 children: [
@@ -1010,11 +1017,12 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 16, vertical: 12),
                               alignment: Alignment.center,
-                              decoration: BoxDecoration(
+                              decoration: const BoxDecoration(
                                 color: AppColors.card,
-                                border: Border.all(
-                                    color: AppColors.paleLine, width: 1.5),
+                                border: Border.fromBorderSide(BorderSide(
+                                    color: AppColors.line, width: 1.5)),
                                 borderRadius: AppRadius.brLg,
+                                boxShadow: AppShadows.elev1,
                               ),
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -1345,22 +1353,26 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 120),
                         padding: const EdgeInsets.symmetric(vertical: 12),
+                        // 선택은 **브랜드색**이 말한다. 분류색(petSky)으로 칠하던
+                        // 자리인데, 그러면 "청소 기록" 이라는 종류 표시와 "이걸 골랐다" 는
+                        // 상태가 같은 색이 되어 무엇이 선택된 건지 안 읽힌다.
                         decoration: BoxDecoration(
-                          color: sel ? AppColors.petSky : AppColors.card,
+                          color: sel ? AppColors.brandTintSoft : AppColors.card,
                           border: Border.all(
-                              color: sel ? AppColors.petSkyInk : AppColors.paleLine,
+                              color: sel ? AppColors.brandAction : AppColors.paleLine,
                               width: sel ? 1.5 : 1),
                           borderRadius: AppRadius.brLg,
+                          boxShadow: sel ? AppShadows.elev0 : AppShadows.elev1,
                         ),
                         child: Column(
                           children: [
                             AppIcon(t.$3, size: 20,
-                                color: sel ? AppColors.petSkyInk : AppColors.paleInk2),
+                                color: sel ? AppColors.brandAction : AppColors.paleInk2),
                             const SizedBox(height: 4),
                             Text(t.$2,
                                 style: TextStyle(
                                     fontSize: 12, fontWeight: FontWeight.w700,
-                                    color: sel ? AppColors.petSkyInk : AppColors.paleInk2)),
+                                    color: sel ? AppColors.brandAction : AppColors.paleInk2)),
                           ],
                         ),
                       ),
@@ -1403,14 +1415,18 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 8),
+                      // 선택은 브랜드색. 분류색(petLilac)으로 칠하던 자리인데,
+                      // 태그마다 제 색을 갖는 게 아니라 전부 같은 보라였으니 "메모 태그"
+                      // 라는 분류 표시도 아니었고 선택 표시로도 약했다.
                       decoration: BoxDecoration(
-                        color: sel ? AppColors.petLilac : AppColors.card,
+                        color: sel ? AppColors.brandTintSoft : AppColors.card,
                         border: Border.all(
                             color: sel
-                                ? AppColors.petLilacInk
+                                ? AppColors.brandAction
                                 : AppColors.paleLine,
                             width: sel ? 1.5 : 1),
                         borderRadius: AppRadius.brMd,
+                        boxShadow: sel ? AppShadows.elev0 : AppShadows.elev1,
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -1421,7 +1437,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                             AppIcons.memoTag(t.code),
                             size: 16,
                             color: sel
-                                ? AppColors.petLilacInk
+                                ? AppColors.brandAction
                                 : AppColors.paleInk2,
                           ),
                           const SizedBox(width: 8),
@@ -1430,7 +1446,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                                   fontSize: 13,
                                   fontWeight: FontWeight.w700,
                                   color: sel
-                                      ? AppColors.petLilacInk
+                                      ? AppColors.brandAction
                                       : AppColors.paleInk2)),
                         ],
                       ),
@@ -1627,7 +1643,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                                     Container(
                                       width: 20, height: 20,
                                       decoration: const BoxDecoration(
-                                          color: AppColors.primary,
+                                          color: AppColors.brandAction,
                                           shape: BoxShape.circle),
                                       child: const Icon(Icons.check,
                                           size: 16, color: Colors.white),
@@ -1735,10 +1751,12 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         children: [
           Container(
             width: 64, height: 64,
+            // 저장 완료 표시. 복숭아색(급여 분류색)이 들어가 있어 어떤 기록을
+            // 저장해도 급여처럼 보였다 — 성공은 브랜드색이 말한다.
             decoration: const BoxDecoration(
-                color: AppColors.feedBand, shape: BoxShape.circle),
+                color: AppColors.brandTint, shape: BoxShape.circle),
             child: const Icon(Icons.check,
-                color: AppColors.primary, size: 32),
+                color: AppColors.brandAction, size: 32),
           ),
           const SizedBox(height: 16),
           const Text('기록 완료!',
@@ -1761,14 +1779,17 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 16),
               alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
+              // 이 화면의 유일한 버튼이다. 먹색(primary) 풀버튼이었는데,
+              // 누르는 자리는 브랜드색이 맡는다는 규칙에서 혼자 벗어나 있었다.
+              decoration: const BoxDecoration(
+                color: AppColors.brandAction,
                 borderRadius: AppRadius.brLg,
+                boxShadow: AppShadows.elev1,
               ),
-              child: Text('닫기',
+              child: const Text('닫기',
                   style: TextStyle(
                       fontSize: 14, fontWeight: FontWeight.w700,
-                      color: AppColors.paleBg)),
+                      color: Colors.white)),
             ),
           ),
         ],
@@ -1881,18 +1902,18 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
                     const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: _selected.isNotEmpty
-                      ? AppColors.feedBand
+                      ? AppColors.brandTint
                       : AppColors.card,
                   border: _selected.isNotEmpty
                       ? null
-                      : Border.all(color: AppColors.paleLine),
+                      : Border.all(color: AppColors.line),
                   borderRadius: AppRadius.brMd,
                 ),
                 child: Text(
                   '${_selected.length} / ${allPets.length}',
                   style: AppTextStyles.mono(11, FontWeight.w700,
                       color: _selected.isNotEmpty
-                          ? AppColors.primary
+                          ? AppColors.brandTintInk
                           : AppColors.paleInk3),
                 ),
               ),
@@ -2051,7 +2072,7 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
                   childAspectRatio: 0.78,
                   children: filtered.map((p) {
                     final isOn  = _selected.contains(p.id);
-                    const pale  = AppColors.brandTint;
+                    const pale  = AppColors.brandTintSoft;
                     const pInk  = AppColors.brandAction;
                     return GestureDetector(
                       onTap: () => setState(() {
@@ -2063,9 +2084,10 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
                         decoration: BoxDecoration(
                           color: isOn ? pale : AppColors.card,
                           border: Border.all(
-                              color: isOn ? pInk : AppColors.paleLine,
+                              color: isOn ? pInk : AppColors.line,
                               width: isOn ? 1.5 : 1),
                           borderRadius: AppRadius.brMd,
+                          boxShadow: isOn ? AppShadows.elev0 : AppShadows.elev1,
                         ),
                         padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
                         child: Column(
@@ -2146,10 +2168,13 @@ class _CompactTypeCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        decoration: BoxDecoration(
+        // 격자로 떠 있는 누를 수 있는 카드다. 그림자가 없어 바탕에 눌러붙어
+        // 보였다 — 밟을 수 있는 면이라는 걸 높이로 알린다.
+        decoration: const BoxDecoration(
           color: AppColors.card,
-          border: Border.all(color: AppColors.paleLine),
+          border: Border.fromBorderSide(BorderSide(color: AppColors.line)),
           borderRadius: AppRadius.brMd,
+          boxShadow: AppShadows.elev1,
         ),
         padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
         child: Column(
@@ -2207,12 +2232,16 @@ class _ChoiceCard extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
         width: double.infinity,
+        // 테두리만 브랜드색으로 바뀌던 자리다. 두 카드가 나란히 있을 때
+        // 1.5px 선 하나로는 어느 쪽을 골랐는지 한눈에 안 들어온다 —
+        // 배경까지 바꾸고, 고른 카드는 평평하게(눌린 것) 둔다.
         decoration: BoxDecoration(
-          color: AppColors.card,
+          color: selected ? AppColors.brandTintSoft : AppColors.card,
           border: Border.all(
-              color: selected ? AppColors.brandAction : AppColors.paleLine,
+              color: selected ? AppColors.brandAction : AppColors.line,
               width: selected ? 1.5 : 1),
           borderRadius: AppRadius.brMd,
+          boxShadow: selected ? AppShadows.elev0 : AppShadows.elev1,
         ),
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
         child: Row(
@@ -2221,10 +2250,10 @@ class _ChoiceCard extends StatelessWidget {
             Container(
               width: 44, height: 44,
               decoration: BoxDecoration(
-                color: AppColors.feedBand,
+                color: AppColors.brandTint,
                 borderRadius: AppRadius.brLg,
               ),
-              child: Icon(icon, size: 20, color: AppColors.primary),
+              child: Icon(icon, size: 20, color: AppColors.brandAction),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -2242,7 +2271,7 @@ class _ChoiceCard extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: AppColors.feedBand,
+                            color: AppColors.brandTint,
                             borderRadius: AppRadius.brPill,
                           ),
                           child: Text('RECOMMENDED',

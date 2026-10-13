@@ -24,8 +24,12 @@ import '../../record/presentation/laying/egg_tab.dart';
 ///
 /// 알은 개체에 매달린 기록이지만 "지금 품고 있는 알"은 개체를 하나씩 열어보는
 /// 성질이 아니라 한 줄로 훑는 성질이라, 개체 상세 안에만 두면 매일 확인할 수가 없다.
-/// autoDispose 가 아닌 건 개체 상세에 들어갔다 돌아왔을 때 탭이 풀리지 않게 하기 위해서다.
-final petScreenTabProvider = StateProvider<int>((_) => 0);
+///
+/// **기본은 언제나 '개체'다.** autoDispose 라서 이 화면을 떠나면(하단 탭 이동) 값이
+/// 폐기되고 다시 들어올 때 0 으로 시작한다 — '내 개체'를 열었는데 알 목록이 떠 있으면
+/// 자기가 뭘 보고 있는지부터 헷갈린다. 개체 상세로 push 하는 동안은 이 화면이 트리에
+/// 남아 있어 구독이 유지되므로, 돌아오면 보던 탭 그대로다(작업 중간이 끊기지 않는다).
+final petScreenTabProvider = StateProvider.autoDispose<int>((_) => 0);
 
 /// 개체 다중 선택 모드 on/off (함께 키우기·분양 보내기용)
 final petSelectionModeProvider = StateProvider.autoDispose<bool>((_) => false);

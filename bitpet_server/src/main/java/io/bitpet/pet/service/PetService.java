@@ -60,6 +60,7 @@ public class PetService {
     private final SerialNumberGenerator serialNumberGenerator;
     private final PetKeeperService petKeeper;
     private final io.bitpet.routine.service.RoutineMaintenanceService routineMaintenance;
+    private final io.bitpet.record.laying.service.LayingMaintenanceService layingMaintenance;
     private final WeightDtlRepository weightRepository;
     private final PhotoDtlRepository photoRepository;
     private final S3Service s3Service;
@@ -230,6 +231,9 @@ public class PetService {
         pet.softDelete();
         // 이 개체에 연결된 모든 루틴에서 연결 제거 + 활성 재계산 (빈 루틴 비활성화)
         routineMaintenance.onPetDeleted(petId);
+        // 클러치의 알이 이 개체를 가리키고 있으면 연결을 끊는다. 소프트 삭제라
+        // FK ON DELETE SET NULL 이 돌지 않아, 안 끊으면 없는 개체를 가리킨 채 남는다
+        layingMaintenance.onPetDeleted(petId);
     }
 
     /**
@@ -256,6 +260,7 @@ public class PetService {
         for (int i = 0; i < ids.size(); i++) {
             pets.get(i).softDelete();
             routineMaintenance.onPetDeleted(ids.get(i));
+            layingMaintenance.onPetDeleted(ids.get(i));
         }
         return PetBulkDeleteResponse.of(ids);
     }

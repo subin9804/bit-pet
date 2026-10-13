@@ -266,6 +266,8 @@ public class LayingService {
         loadAccessibleLaying(layingId, userId);
         LayingHatchDtl hatch = loadHatch(hatchId, layingId);
 
+        // 개체가 소프트 삭제되면 LayingMaintenanceService 가 이 링크를 끊어 주므로,
+        // 여기 걸리는 건 실제로 살아 있는 개체가 달린 알뿐이다
         if (hatch.getHatchedPetId() != null) {
             throw new BusinessException(ErrorCode.HATCH_ALREADY_REGISTERED);
         }

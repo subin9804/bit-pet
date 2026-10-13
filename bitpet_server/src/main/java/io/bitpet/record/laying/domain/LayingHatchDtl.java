@@ -94,6 +94,17 @@ public class LayingHatchDtl extends BaseSyncEntity {
         return next;
     }
 
+    /**
+     * 등록해 둔 개체가 사라졌다 — 연결만 끊고 상태는 HATCHED 로 남긴다.
+     *
+     * <p>부화는 실제로 일어난 일이라 개체를 지운 것과 별개다. 상태까지 PENDING 으로
+     * 되돌리면 "부화한 적 없는 알"이 되어 기록이 거짓이 된다. 연결이 끊긴 뒤에는
+     * 알 칸을 다시 눌러 순환시킬 수 있으므로, 되돌리고 싶으면 사용자가 누르면 된다.
+     */
+    public void unlinkPet() {
+        this.hatchedPetId = null;
+    }
+
     public void linkPet(Long petId) {
         this.hatchedPetId = petId;
         this.status = HatchStatus.HATCHED;
