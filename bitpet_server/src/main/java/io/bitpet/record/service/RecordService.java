@@ -106,13 +106,18 @@ public class RecordService {
                 .collect(Collectors.toSet()));
 
         return rows.stream()
-                .map(f -> FeedingResponse.from(f, titles.get(f.getRoutineId())))
+                .map(f -> FeedingResponse.from(f, f.getRoutineId() == null
+                        ? null                            // 직접 적은 기록 — 붙일 제목이 없다
+                        : titles.get(f.getRoutineId())))
                 .toList();
     }
 
     /** 루틴 id → 제목 (soft delete된 루틴도 기록 표시를 위해 조회) */
     private Map<Long, String> findRoutineTitles(Set<Long> routineIds) {
-        if (routineIds.isEmpty()) return Map.of();
+        // ⛔ Map.of() 를 쓰지 말 것 — 불변 빈 맵은 get(null) 에서 NPE 를 던진다.
+        //    루틴發 기록이 하나도 없는 개체(= 직접 적은 기록만 있는 개체)에서
+        //    급여 목록 전체가 500 으로 죽던 원인이다.
+        if (routineIds.isEmpty()) return java.util.Collections.emptyMap();
         String in = routineIds.stream().map(id -> "?").collect(Collectors.joining(","));
         List<Object> args = new ArrayList<>(routineIds);
         return jdbc.query("SELECT id, title FROM routine_mst WHERE id IN (" + in + ")",
