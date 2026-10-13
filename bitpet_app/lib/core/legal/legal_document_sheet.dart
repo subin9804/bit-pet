@@ -28,7 +28,7 @@ Future<void> showLegalDocument(BuildContext context, LegalDocument doc) {
           doc.body.trim(),
           style: AppTextStyles.caption.copyWith(
             height: 1.65,
-            color: AppColors.textPrimary,
+            color: AppColors.ink,
           ),
         ),
       ),

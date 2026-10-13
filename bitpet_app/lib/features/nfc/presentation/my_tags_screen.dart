@@ -48,7 +48,7 @@ class MyTagsScreen extends ConsumerWidget {
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     itemCount: tags.length,
                     separatorBuilder: (_, __) =>
-                        const Divider(height: 1, color: AppColors.paleLine),
+                        const Divider(height: 1, color: AppColors.line),
                     itemBuilder: (_, i) => _TagRow(tag: tags[i]),
                   ),
                 );
@@ -71,7 +71,7 @@ class _StoreCta extends StatelessWidget {
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.bg,
-        border: Border(top: BorderSide(color: AppColors.paleLine)),
+        border: Border(top: BorderSide(color: AppColors.line)),
       ),
       padding: EdgeInsets.fromLTRB(
         20,
@@ -93,7 +93,7 @@ class _StoreCta extends StatelessWidget {
                 openExternalLink(context, ExternalLinks.smartStore),
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-              color: AppColors.primary,
+              color: AppColors.brandAction,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -138,11 +138,11 @@ class _TagRow extends ConsumerWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 4),
-                        color: AppColors.bg2,
+                        color: AppColors.bgAlt,
                         child: Text(
                           tag.tagCd,
                           style: AppTextStyles.mono(11, FontWeight.w700,
-                              color: AppColors.textSecondary),
+                              color: AppColors.ink2),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -170,7 +170,7 @@ class _TagRow extends ConsumerWidget {
             IconButton(
               tooltip: '연결 해제',
               icon: const Icon(Icons.link_off,
-                  size: 20, color: AppColors.textSecondary),
+                  size: 20, color: AppColors.ink2),
               onPressed: () => _confirmUnlink(context, ref),
             ),
           ],

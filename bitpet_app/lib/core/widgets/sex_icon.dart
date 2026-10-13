@@ -4,7 +4,7 @@ import 'package:flutter/widgets.dart';
 import '../theme/app_colors.dart';
 
 // ════════════════════════════════════════════════════════════════
-// 성별 아이콘 — 굵은 선, 45도 기울어진 ♂ / ♀ (수컷 하늘색 / 암컷 분홍)
+// 성별 아이콘 — 굵은 선, 45도 기울어진 ♂ / ♀ (수컷 하늘색 / 암컷 분홍) + 미구분 ?
 //
 // 머티리얼 `Icons.male`/`Icons.female` 을 걷어낸 자리다. 그 둘은 선이 얇고
 // **기울기가 서로 달랐다** — ♂ 는 45도 화살표인데 ♀ 는 수직 십자라, 나란히 놓으면
@@ -12,7 +12,7 @@ import '../theme/app_colors.dart';
 // 서로 **점대칭**이 되게 그린다 (수컷 ↗ / 암컷 ↙).
 //
 // ℹ️ **선 색만** 성별로 갈라 칠한다 — 수컷 하늘색(`sexMaleInk`) / 암컷
-//   분홍(`sexFemaleInk`) / 미상 `ink3`. 색은 거들기만 하고 구분은 여전히
+//   분홍(`sexFemaleInk`) / 미구분 `ink3`. 색은 거들기만 하고 구분은 여전히
 //   **모양**이 한다(↗ / ↙), 그래서 색맹인 사용자에게도 두 아이콘이 다르다.
 //   ⛔ 배경(면)은 칠하지 말 것. 카드마다 원색 블록이 박히면 저채도 화면과
 //     부딪힌다 — 가늘고 짧은 선이면 같은 색도 면이 될 때보다 훨씬 조용하다.
@@ -50,7 +50,7 @@ class SexIcon extends StatelessWidget {
       child: CustomPaint(
         painter: _SexPainter(
           sex: sex,
-          // 미상은 '아직 안 정했다'는 보조 정보라 색 없이 한 단 내린다.
+          // 미구분은 '아직 안 정했다'는 보조 정보라 색 없이 한 단 내린다.
           color: color ??
               switch (sex) {
                 PetSex.male => AppColors.sexMaleInk,
@@ -90,8 +90,27 @@ class _SexPainter extends CustomPainter {
 
     switch (sex) {
       case PetSex.unknown:
-        // 꼬리가 없는 것이 곧 '미상'이다. 물음표를 넣으면 '오류'로 읽힌다.
-        canvas.drawCircle(at(12, 12), _r * k, p);
+        // '?' 한 글자. 예전엔 꼬리 없는 맨 원이었는데, 작은 크기에서 ♂/♀ 의
+        // 머리통만 떼어낸 모양이라 '아직 안 갈린 개체'가 아니라 **아이콘이
+        // 깨진 것**처럼 보였다. 물음표는 그 자리에서 바로 '모른다'로 읽힌다.
+        final tp = TextPainter(
+          text: TextSpan(
+            text: '?',
+            style: TextStyle(
+              color: color,
+              // 글자는 자기 상하 여백을 품고 오므로 뷰박스보다 크게 잡아야
+              // ♂/♀ 와 **같은 광학 크기**로 보인다.
+              fontSize: _vb * k,
+              fontWeight: FontWeight.w800,
+              height: 1,
+            ),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        tp.paint(
+          canvas,
+          Offset((size.width - tp.width) / 2, (size.height - tp.height) / 2),
+        );
 
       case PetSex.male:
         // 원은 좌하, 화살표는 우상(↗).

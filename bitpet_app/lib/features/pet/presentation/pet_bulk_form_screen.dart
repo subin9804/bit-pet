@@ -793,7 +793,7 @@ class _GenderPicker extends StatelessWidget {
   const _GenderPicker({required this.value, required this.onChanged});
 
   static const _options = [
-    ('UNKNOWN', '미상', AppColors.paleInk3),
+    ('UNKNOWN', '미구분', AppColors.paleInk3),
     ('MALE', '수컷', AppColors.petSkyInk),
     ('FEMALE', '암컷', AppColors.petCoralInk),
   ];

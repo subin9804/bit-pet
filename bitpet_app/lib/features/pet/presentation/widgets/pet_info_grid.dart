@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/constants/feature_flags.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../data/models/pet_models.dart';
@@ -110,16 +111,20 @@ class _PetInfoGridState extends ConsumerState<PetInfoGrid> {
                 : (pet.morphName != null ? [pet.morphName!] : const []),
           ),
 
-          // 야생생물법 신고 — **접어 둔다.** 신고 여부는 사육자가 1년에 한 번
-          // 들춰 보는 값이라, 카드 겉면이나 히어로에 배지로 달면 매번 눈에
-          // 걸리는 TMI 가 된다. 한 번 더 눌러야 나오는 자리가 이 정보의 무게에
-          // 맞다. ⛔ 목록 카드·히어로에 배지를 달지 말 것.
-          const SizedBox(height: AppSpacing.md),
-          const Divider(height: 1, color: AppColors.bgAlt),
-          _ReportSection(
-            keepingReported: pet.keepingReportYn == 'Y',
-            citesReported: pet.citesReportYn == 'Y',
-          ),
+          // 야생생물법 신고 — **지금은 화면에서 가려 둔다**
+          // (`kShowLegalReportFields`). 앱이 신고를 거들 수 있는 게 없어서
+          // 체크박스만 남아 있으면 실제보다 엄격한 의무로 읽힌다.
+          //
+          // 되살릴 때를 위해 접힌 줄 자체는 그대로 남겨 둔다. ⛔ 목록 카드나
+          // 히어로에 배지로 올리지 말 것 — 1년에 한 번 들춰 보는 값이다.
+          if (kShowLegalReportFields) ...[
+            const SizedBox(height: AppSpacing.md),
+            const Divider(height: 1, color: AppColors.bgAlt),
+            _ReportSection(
+              keepingReported: pet.keepingReportYn == 'Y',
+              citesReported: pet.citesReportYn == 'Y',
+            ),
+          ],
         ],
       ),
     );

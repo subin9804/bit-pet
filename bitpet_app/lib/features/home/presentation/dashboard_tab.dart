@@ -832,7 +832,12 @@ class _DayRecordSection extends StatelessWidget {
             for (final a in anniversaries)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                child: AnniversaryRow(anniversary: a),
+                // 캘린더에 뜬 기념일은 결국 '그 개체의 날'이라, 누르면 개체로
+                // 간다. 여기서 끊기면 이름을 보고 다시 목록에서 찾아야 한다.
+                child: AnniversaryRow(
+                  anniversary: a,
+                  onTap: () => context.push('/pets/${a.petId}'),
+                ),
               ),
             const SizedBox(height: AppSpacing.sm),
           ],

@@ -51,12 +51,12 @@ class ChildrenScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.canvas,
       appBar: AppBar(
-        backgroundColor: AppColors.paleBg,
+        backgroundColor: AppColors.card,
         elevation: 0,
         leading: IconButton(
           tooltip: '뒤로',
           icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              size: 16, color: AppColors.primary),
+              size: 16, color: AppColors.ink),
           onPressed: () => context.pop(),
         ),
         title: Text('자녀 계정',
@@ -68,7 +68,7 @@ class ChildrenScreen extends ConsumerWidget {
             const Center(child: CircularProgressIndicator(strokeWidth: 2)),
         error: (e, _) => Center(
           child: Text('목록을 불러오지 못했어요',
-              style: AppTextStyles.body.copyWith(color: AppColors.paleInk3)),
+              style: AppTextStyles.body.copyWith(color: AppColors.ink3)),
         ),
         data: (children) => ListView(
           padding: const EdgeInsets.symmetric(vertical: 8),
@@ -79,7 +79,7 @@ class ChildrenScreen extends ConsumerWidget {
                 '만 14세 미만 자녀는 보호자가 계정을 만들어 주셔야 해요.\n'
                 '자녀 계정은 어린이 게시판에서만 글과 댓글을 남길 수 있어요.',
                 style: AppTextStyles.body
-                    .copyWith(color: AppColors.paleInk3, height: 1.6),
+                    .copyWith(color: AppColors.ink3, height: 1.6),
               ),
             ),
             if (children.isEmpty)
@@ -87,7 +87,7 @@ class ChildrenScreen extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Text('아직 만든 자녀 계정이 없어요.',
                     style: AppTextStyles.body
-                        .copyWith(color: AppColors.paleInk3)),
+                        .copyWith(color: AppColors.ink3)),
               ),
             for (final c in children)
               ListTile(
@@ -104,9 +104,9 @@ class ChildrenScreen extends ConsumerWidget {
                           placeholder: const Icon(
                               Icons.child_care_rounded,
                               size: 20,
-                              color: AppColors.paleInk2))
+                              color: AppColors.ink2))
                       : const Icon(Icons.child_care_rounded,
-                          size: 20, color: AppColors.paleInk2),
+                          size: 20, color: AppColors.ink2),
                 ),
                 title: Text(c.nickname,
                     style: AppTextStyles.bodyBold.copyWith(fontSize: 13)),
@@ -119,7 +119,7 @@ class ChildrenScreen extends ConsumerWidget {
                   onPressed: () => _delete(context, ref, c),
                   child: Text('삭제',
                       style: AppTextStyles.bodyBold
-                          .copyWith(fontSize: 12, color: AppColors.paleInk3)),
+                          .copyWith(fontSize: 12, color: AppColors.ink3)),
                 ),
               ),
             const SizedBox(height: 8),

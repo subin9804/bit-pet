@@ -22,19 +22,19 @@ class UserProfileScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.canvas,
       appBar: AppBar(
-        backgroundColor: AppColors.paleBg,
+        backgroundColor: AppColors.card,
         elevation: 0,
         title: const Text('프로필',
             style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
-                color: AppColors.primary)),
+                color: AppColors.ink)),
       ),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, __) => const Center(
           child: Text('프로필을 불러오지 못했어요',
-              style: TextStyle(fontSize: 13, color: AppColors.paleInk3)),
+              style: TextStyle(fontSize: 13, color: AppColors.ink3)),
         ),
         data: (profile) => _Body(profile: profile),
       ),
@@ -58,8 +58,8 @@ class _Body extends StatelessWidget {
               height: 56,
               decoration: BoxDecoration(
                 borderRadius: AppRadius.brMd,
-                color: AppColors.bg2,
-                border: Border.all(color: AppColors.paleLine),
+                color: AppColors.bgAlt,
+                border: Border.all(color: AppColors.line),
               ),
               clipBehavior: Clip.hardEdge,
               child: profile.profileImageUrl != null
@@ -79,14 +79,14 @@ class _Body extends StatelessWidget {
                       style: const TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary)),
+                          color: AppColors.ink)),
                   const SizedBox(height: 4),
                   Text(
                     profile.isMe
                         ? '내 프로필'
                         : '공개 개체 ${profile.publicPets.length}마리',
                     style: const TextStyle(
-                        fontSize: 12, color: AppColors.textSecondary),
+                        fontSize: 12, color: AppColors.ink2),
                   ),
                 ],
               ),
@@ -98,14 +98,14 @@ class _Body extends StatelessWidget {
             style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: AppColors.paleInk2,
+                color: AppColors.ink2,
                 letterSpacing: 0.4)),
         const SizedBox(height: 8),
         if (profile.publicPets.isEmpty)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 24),
             child: Text('공개한 개체가 없어요',
-                style: TextStyle(fontSize: 13, color: AppColors.paleInk3)),
+                style: TextStyle(fontSize: 13, color: AppColors.ink3)),
           )
         else
           ...profile.publicPets.map((p) => _PublicPetTile(card: p)),
@@ -121,7 +121,7 @@ class _PublicPetTile extends StatelessWidget {
   Color get _identityColor {
     // 개체 지정색은 걷어냈다 — 저장된 hex 를 그대로 칠하던 자리다.
     // 자세한 이유는 core/theme/pale_palette.dart 주석 참고.
-    return AppColors.bg2;
+    return AppColors.bgAlt;
   }
 
   @override
@@ -138,7 +138,7 @@ class _PublicPetTile extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: AppRadius.brLg,
           color: AppColors.card,
-          border: Border.all(color: AppColors.paleLine),
+          border: Border.all(color: AppColors.line),
         ),
         child: Row(
           children: [
@@ -148,7 +148,7 @@ class _PublicPetTile extends StatelessWidget {
               decoration: BoxDecoration(
                 borderRadius: AppRadius.brMd,
                 color: _identityColor,
-                border: Border.all(color: AppColors.paleLine),
+                border: Border.all(color: AppColors.line),
               ),
               clipBehavior: Clip.hardEdge,
               child: card.profileImageUrl != null
@@ -156,8 +156,8 @@ class _PublicPetTile extends StatelessWidget {
                       fit: BoxFit.cover,
                       memWidth: 120,
                       placeholder: Center(
-                          child: AppIcon(AppIcons.species(card.speciesSubcategory), size: 20, color: AppColors.paleInk2)))
-                  : Center(child: AppIcon(AppIcons.species(card.speciesSubcategory), size: 20, color: AppColors.paleInk2)),
+                          child: AppIcon(AppIcons.species(card.speciesSubcategory), size: 20, color: AppColors.ink2)))
+                  : Center(child: AppIcon(AppIcons.species(card.speciesSubcategory), size: 20, color: AppColors.ink2)),
             ),
             const SizedBox(width: 8),
             Expanded(
@@ -168,7 +168,7 @@ class _PublicPetTile extends StatelessWidget {
                       style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary),
+                          color: AppColors.ink),
                       overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 4),
                   Text(
@@ -176,7 +176,7 @@ class _PublicPetTile extends StatelessWidget {
                         ? card.speciesName
                         : '${card.speciesName} · ${card.morphLabel}',
                     style: const TextStyle(
-                        fontSize: 12, color: AppColors.textSecondary),
+                        fontSize: 12, color: AppColors.ink2),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],

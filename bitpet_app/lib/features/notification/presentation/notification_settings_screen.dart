@@ -181,7 +181,7 @@ class _ToggleRow extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           child: Row(
             children: [
-              Icon(icon, size: 20, color: AppColors.textSecondary),
+              Icon(icon, size: 20, color: AppColors.ink2),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
@@ -223,7 +223,7 @@ class _FixedOnRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         child: Row(
           children: [
-            Icon(icon, size: 20, color: AppColors.textSecondary),
+            Icon(icon, size: 20, color: AppColors.ink2),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
@@ -237,7 +237,7 @@ class _FixedOnRow extends StatelessWidget {
             ),
             Text('항상 켜짐',
                 style: AppTextStyles.caption
-                    .copyWith(color: AppColors.textDisabled)),
+                    .copyWith(color: AppColors.ink3)),
           ],
         ),
       );
@@ -292,7 +292,7 @@ class _MarketingNotice extends StatelessWidget {
         child: Text(
           '마케팅·이벤트 수신 동의는 변경 시각이 기록으로 남아요. '
           '동의하지 않아도 서비스 이용에는 제한이 없어요.',
-          style: AppTextStyles.caption.copyWith(color: AppColors.textDisabled),
+          style: AppTextStyles.caption.copyWith(color: AppColors.ink3),
         ),
       );
 }
@@ -305,7 +305,7 @@ class _PushOnlyNotice extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
         child: Text(
           '끈 알림도 알림함에는 그대로 쌓여요. 휴대폰이 울리지 않을 뿐이에요.',
-          style: AppTextStyles.caption.copyWith(color: AppColors.textDisabled),
+          style: AppTextStyles.caption.copyWith(color: AppColors.ink3),
         ),
       );
 }

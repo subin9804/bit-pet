@@ -38,9 +38,9 @@ class _MyActivityScreenState extends ConsumerState<MyActivityScreen>
         title: const Text('내 게시글'),
         bottom: TabBar(
           controller: _tab,
-          labelColor: AppColors.primary,
-          unselectedLabelColor: AppColors.paleInk3,
-          indicatorColor: AppColors.primary,
+          labelColor: AppColors.brandAction,
+          unselectedLabelColor: AppColors.ink3,
+          indicatorColor: AppColors.brandAction,
           indicatorSize: TabBarIndicatorSize.tab,
           labelStyle: AppTextStyles.bodyBold,
           unselectedLabelStyle: AppTextStyles.body,
@@ -139,7 +139,7 @@ class _MyPostRow extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: AppColors.paleLineSoft)),
+          border: Border(bottom: BorderSide(color: AppColors.line)),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -154,11 +154,11 @@ class _MyPostRow extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 4),
-                          color: AppColors.bg2,
+                          color: AppColors.bgAlt,
                           child: Text(
                             categoryLabel!,
                             style: AppTextStyles.monoXs.copyWith(
-                              color: AppColors.paleInk2,
+                              color: AppColors.ink2,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -168,7 +168,7 @@ class _MyPostRow extends StatelessWidget {
                       Text(
                         relativeTime(post.createdAt),
                         style: AppTextStyles.monoXs
-                            .copyWith(color: AppColors.paleInk3),
+                            .copyWith(color: AppColors.ink3),
                       ),
                     ],
                   ),
@@ -177,7 +177,7 @@ class _MyPostRow extends StatelessWidget {
                     post.title,
                     style: AppTextStyles.bodyBold.copyWith(
                       fontSize: 14,
-                      color: AppColors.primary,
+                      color: AppColors.ink,
                       height: 1.4,
                     ),
                     maxLines: 2,
@@ -194,7 +194,7 @@ class _MyPostRow extends StatelessWidget {
                       const SizedBox(width: 12),
                       Text('조회 ${post.viewCount}',
                           style: AppTextStyles.monoXs
-                              .copyWith(color: AppColors.paleInk3)),
+                              .copyWith(color: AppColors.ink3)),
                     ],
                   ),
                 ],
@@ -205,7 +205,7 @@ class _MyPostRow extends StatelessWidget {
               Container(
                 width: 60,
                 height: 60,
-                color: AppColors.bg2,
+                color: AppColors.bgAlt,
                 clipBehavior: Clip.hardEdge,
                 child: AppNetworkImage(
                   post.thumbnailUrl,
@@ -213,7 +213,7 @@ class _MyPostRow extends StatelessWidget {
                   memWidth: 240,
                   placeholder: const Center(
                     child: Icon(Icons.image_outlined,
-                        size: 24, color: AppColors.paleInk3),
+                        size: 24, color: AppColors.ink3),
                   ),
                 ),
               ),
@@ -296,7 +296,7 @@ class _MyCommentRow extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: AppColors.paleLineSoft)),
+          border: Border(bottom: BorderSide(color: AppColors.line)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -309,7 +309,7 @@ class _MyCommentRow extends StatelessWidget {
                   const Padding(
                     padding: EdgeInsets.only(top: 4),
                     child: Icon(Icons.subdirectory_arrow_right,
-                        size: 16, color: AppColors.paleInk3),
+                        size: 16, color: AppColors.ink3),
                   ),
                   const SizedBox(width: 8),
                 ],
@@ -319,7 +319,7 @@ class _MyCommentRow extends StatelessWidget {
                     style: AppTextStyles.body.copyWith(
                       fontSize: 14,
                       height: 1.45,
-                      color: dimmed ? AppColors.paleInk3 : AppColors.primary,
+                      color: dimmed ? AppColors.ink3 : AppColors.ink,
                     ),
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
@@ -334,7 +334,7 @@ class _MyCommentRow extends StatelessWidget {
                 Icon(
                   dimmed ? Icons.block : Icons.article_outlined,
                   size: 16,
-                  color: AppColors.paleInk3,
+                  color: AppColors.ink3,
                 ),
                 const SizedBox(width: 4),
                 Expanded(
@@ -352,7 +352,7 @@ class _MyCommentRow extends StatelessWidget {
                 Text(
                   relativeTime(comment.createdAt),
                   style:
-                      AppTextStyles.monoXs.copyWith(color: AppColors.paleInk3),
+                      AppTextStyles.monoXs.copyWith(color: AppColors.ink3),
                 ),
               ],
             ),
@@ -377,10 +377,10 @@ class _Meta extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        AppIcon(icon, size: 16, color: AppColors.paleInk3),
+        AppIcon(icon, size: 16, color: AppColors.ink3),
         const SizedBox(width: 4),
         Text('$value',
-            style: AppTextStyles.monoXs.copyWith(color: AppColors.paleInk2)),
+            style: AppTextStyles.monoXs.copyWith(color: AppColors.ink2)),
       ],
     );
   }

@@ -11,6 +11,7 @@ import '../../../core/api/api_response.dart';
 import '../../../core/legal/legal_document_sheet.dart';
 import '../../../core/legal/legal_documents.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_buttons.dart';
 import '../../../core/widgets/step_shell.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../data/guardian_repository.dart';
@@ -111,19 +112,19 @@ class _ChildCreateScreenState extends ConsumerState<ChildCreateScreen> {
     return Scaffold(
       backgroundColor: AppColors.canvas,
       appBar: AppBar(
-        backgroundColor: AppColors.paleBg,
+        backgroundColor: AppColors.card,
         elevation: 0,
         leading: IconButton(
           tooltip: '뒤로',
           icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              size: 16, color: AppColors.primary),
+              size: 16, color: AppColors.ink),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text('자녀 계정 만들기',
             style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
-                color: AppColors.primary)),
+                color: AppColors.ink)),
         centerTitle: true,
       ),
       body: SafeArea(
@@ -134,7 +135,7 @@ class _ChildCreateScreenState extends ConsumerState<ChildCreateScreen> {
               '자녀가 쓸 계정 정보를 보호자가 입력합니다.\n'
               '자녀는 이 이메일과 비밀번호로 직접 로그인해요.',
               style: TextStyle(
-                  fontSize: 13, height: 1.6, color: AppColors.paleInk3),
+                  fontSize: 13, height: 1.6, color: AppColors.ink3),
             ),
             const SizedBox(height: 20),
 
@@ -164,7 +165,7 @@ class _ChildCreateScreenState extends ConsumerState<ChildCreateScreen> {
                       _obscurePw
                           ? Icons.visibility_off_outlined
                           : Icons.visibility_outlined,
-                      color: AppColors.paleInk3,
+                      color: AppColors.ink3,
                       size: 20,
                     ),
                   ),
@@ -191,8 +192,8 @@ class _ChildCreateScreenState extends ConsumerState<ChildCreateScreen> {
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                   decoration: BoxDecoration(
                     borderRadius: AppRadius.brLg,
-                    color: AppColors.surface,
-                    border: Border.all(color: AppColors.paleLine),
+                    color: AppColors.card,
+                    border: Border.all(color: AppColors.line),
                   ),
                   child: Row(
                     children: [
@@ -204,13 +205,13 @@ class _ChildCreateScreenState extends ConsumerState<ChildCreateScreen> {
                           style: TextStyle(
                             fontSize: 14,
                             color: birth == null
-                                ? AppColors.paleInk3
-                                : AppColors.textPrimary,
+                                ? AppColors.ink3
+                                : AppColors.ink,
                           ),
                         ),
                       ),
                       const Icon(Icons.calendar_today_outlined,
-                          size: 16, color: AppColors.paleInk3),
+                          size: 16, color: AppColors.ink3),
                     ],
                   ),
                 ),
@@ -221,8 +222,8 @@ class _ChildCreateScreenState extends ConsumerState<ChildCreateScreen> {
             Container(
               decoration: BoxDecoration(
                 borderRadius: AppRadius.brLg,
-                color: AppColors.surface,
-                border: Border.all(color: AppColors.paleLine),
+                color: AppColors.card,
+                border: Border.all(color: AppColors.line),
               ),
               child: Column(
                 children: [
@@ -251,34 +252,16 @@ class _ChildCreateScreenState extends ConsumerState<ChildCreateScreen> {
               '자녀 계정은 어린이 게시판에서만 글·댓글을 남길 수 있어요.\n'
               '다른 게시판의 글은 읽을 수 있습니다.',
               style: TextStyle(
-                  fontSize: 12, height: 1.6, color: AppColors.paleInk3),
+                  fontSize: 12, height: 1.6, color: AppColors.ink3),
             ),
             const SizedBox(height: 24),
 
-            SizedBox(
-              width: double.infinity,
-              child: TextButton(
-                onPressed: _canSubmit ? _submit : null,
-                style: TextButton.styleFrom(
-                  backgroundColor:
-                      _canSubmit ? AppColors.primary : AppColors.paleLine,
-                  foregroundColor: AppColors.paleBg,
-                  disabledBackgroundColor: AppColors.paleLine,
-                  disabledForegroundColor: AppColors.paleInk3,
-                  shape: const RoundedRectangleBorder(
-                      borderRadius: AppRadius.brMd),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-                child: _submitting
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('자녀 계정 만들기',
-                        style: TextStyle(
-                            fontSize: 14, fontWeight: FontWeight.w700)),
-              ),
+            // 색·비활성색·로딩은 `AppActionButton` 만 안다 — 여기서 손으로
+            // 그리면 테마가 바뀔 때 이 화면만 남는다.
+            AppActionButton(
+              '자녀 계정 만들기',
+              loading: _submitting,
+              onPressed: _canSubmit ? _submit : null,
             ),
           ],
         ),
@@ -316,7 +299,7 @@ class _ConsentRow extends StatelessWidget {
             ? null
             : const BoxDecoration(
                 border:
-                    Border(bottom: BorderSide(color: AppColors.paleLineSoft)),
+                    Border(bottom: BorderSide(color: AppColors.line)),
               ),
         child: Row(
           children: [
@@ -325,12 +308,12 @@ class _ConsentRow extends StatelessWidget {
               height: 18,
               decoration: BoxDecoration(
                 borderRadius: AppRadius.brLg,
-                color: checked ? AppColors.primary : AppColors.surface,
+                color: checked ? AppColors.brandAction : AppColors.card,
                 border: Border.all(
-                    color: checked ? AppColors.primary : AppColors.paleLine),
+                    color: checked ? AppColors.brandAction : AppColors.line),
               ),
               child: checked
-                  ? const Icon(Icons.check, size: 16, color: AppColors.paleBg)
+                  ? const Icon(Icons.check, size: 16, color: AppColors.card)
                   : null,
             ),
             const SizedBox(width: 8),
@@ -339,13 +322,13 @@ class _ConsentRow extends StatelessWidget {
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                   color: badge == '필수'
-                      ? AppColors.primary
-                      : AppColors.paleInk3,
+                      ? AppColors.brandAction
+                      : AppColors.ink3,
                 )),
             Expanded(
               child: Text(label,
                   style: const TextStyle(
-                      fontSize: 13, color: AppColors.textPrimary)),
+                      fontSize: 13, color: AppColors.ink)),
             ),
             if (onView != null)
               GestureDetector(
@@ -355,9 +338,9 @@ class _ConsentRow extends StatelessWidget {
                   child: Text('보기',
                       style: TextStyle(
                         fontSize: 12,
-                        color: AppColors.paleInk2,
+                        color: AppColors.ink2,
                         decoration: TextDecoration.underline,
-                        decorationColor: AppColors.paleInk3,
+                        decorationColor: AppColors.ink3,
                       )),
                 ),
               ),

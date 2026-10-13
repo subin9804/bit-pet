@@ -48,12 +48,12 @@ class BlockedUsersScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.canvas,
       appBar: AppBar(
-        backgroundColor: AppColors.paleBg,
+        backgroundColor: AppColors.card,
         elevation: 0,
         leading: IconButton(
           tooltip: '뒤로',
           icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              size: 16, color: AppColors.primary),
+              size: 16, color: AppColors.ink),
           onPressed: () => context.pop(),
         ),
         title: Text('차단 목록',
@@ -65,7 +65,7 @@ class BlockedUsersScreen extends ConsumerWidget {
             const Center(child: CircularProgressIndicator(strokeWidth: 2)),
         error: (e, _) => Center(
           child: Text('목록을 불러오지 못했어요',
-              style: AppTextStyles.body.copyWith(color: AppColors.paleInk3)),
+              style: AppTextStyles.body.copyWith(color: AppColors.ink3)),
         ),
         data: (users) {
           if (users.isEmpty) {
@@ -76,7 +76,7 @@ class BlockedUsersScreen extends ConsumerWidget {
                   '차단한 사용자가 없어요.\n게시글이나 댓글의 ⋯ 메뉴에서 차단할 수 있어요.',
                   textAlign: TextAlign.center,
                   style: AppTextStyles.body
-                      .copyWith(color: AppColors.paleInk3, height: 1.6),
+                      .copyWith(color: AppColors.ink3, height: 1.6),
                 ),
               ),
             );
@@ -85,7 +85,7 @@ class BlockedUsersScreen extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(vertical: 8),
             itemCount: users.length,
             separatorBuilder: (_, __) =>
-                const Divider(height: 1, color: AppColors.paleLine),
+                const Divider(height: 1, color: AppColors.line),
             itemBuilder: (_, i) {
               final u = users[i];
               return ListTile(
@@ -102,9 +102,9 @@ class BlockedUsersScreen extends ConsumerWidget {
                           placeholder: const Icon(
                               Icons.pets_rounded,
                               size: 16,
-                              color: AppColors.paleInk2))
+                              color: AppColors.ink2))
                       : const Icon(Icons.pets_rounded,
-                          size: 16, color: AppColors.paleInk2),
+                          size: 16, color: AppColors.ink2),
                 ),
                 title: Text(u.nickname,
                     style: AppTextStyles.bodyBold.copyWith(fontSize: 13)),
@@ -118,7 +118,7 @@ class BlockedUsersScreen extends ConsumerWidget {
                   onPressed: () => _unblock(context, ref, u),
                   child: Text('해제',
                       style: AppTextStyles.bodyBold.copyWith(
-                          fontSize: 12, color: AppColors.primary)),
+                          fontSize: 12, color: AppColors.brandAction)),
                 ),
               );
             },

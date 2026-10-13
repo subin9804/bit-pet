@@ -96,80 +96,83 @@ class MyScreen extends ConsumerWidget {
             // 기준은 **"개체에 관한 것 / 내 계정에 관한 것"** 이다. 기능의 중요도나
             // 사용 빈도로 나누지 말 것 — 그건 사람마다 달라서 다음에 또 뒤집힌다.
             const _GroupTitle('사육'),
-            // 공유 관리 허브 — 공유코드·받은 초대·개체 공유 시작
-            const _ShareManageItem(),
-            // NFC 이름표 — 연결 확인·기본 동작 변경·해제
-            _MenuItem(
-              icon: Icons.sell_outlined,
-              label: '이름표 관리',
-              onTap: () => context.push('/my/tags'),
-            ),
-            // 가계도 닉네임 공개 — 남의 가계도에 부모로 걸렸을 때 내가 드러날지
-            _PedigreeNicknameToggle(
-              value: user?.showNicknameInPedigree ?? true,
-            ),
+            _MenuCard(children: [
+              // 공유 관리 허브 — 공유코드·받은 초대·개체 공유 시작
+              const _ShareManageItem(),
+              // NFC 이름표 — 연결 확인·기본 동작 변경·해제
+              _MenuItem(
+                icon: Icons.sell_outlined,
+                label: '이름표 관리',
+                onTap: () => context.push('/my/tags'),
+              ),
+              // 가계도 닉네임 공개 — 남의 가계도에 부모로 걸렸을 때 내가 드러날지
+              _PedigreeNicknameToggle(
+                value: user?.showNicknameInPedigree ?? true,
+              ),
+            ]),
 
             const _GroupTitle('계정'),
-            _MenuItem(
-              icon: Icons.notifications_outlined,
-              label: '알림 설정',
-              onTap: () => context.push('/my/notifications'),
-            ),
-            _MenuItem(
-              icon: Icons.article_outlined,
-              label: '내 게시글',
-              onTap: () => context.push('/my/activity'),
-            ),
-            // 차단 목록 — 내가 차단한 사람만. 신고로 생긴 차단도 여기서 푼다
-            _MenuItem(
-              icon: Icons.block,
-              label: '차단 목록',
-              onTap: () => context.push('/my/blocks'),
-            ),
-            // 자녀 계정 — 만 14세 미만은 직접 가입할 수 없고 보호자가 여기서 만든다.
-            // 자녀 계정에는 보이지 않는다 (서버도 GUARDIAN_NOT_ELIGIBLE 로 막지만,
-            // 누를 수 있는 메뉴를 띄워놓고 에러를 주는 건 안내가 아니다)
-            if (user?.isChild != true)
+            _MenuCard(children: [
               _MenuItem(
-                icon: Icons.child_care_outlined,
-                label: '자녀 계정',
-                onTap: () => context.push('/my/children'),
+                icon: Icons.notifications_outlined,
+                label: '알림 설정',
+                onTap: () => context.push('/my/notifications'),
               ),
-            _MenuItem(
-              icon: Icons.info_outline,
-              label: '앱 정보',
-              onTap: () => context.push('/my/about'),
-            ),
+              _MenuItem(
+                icon: Icons.article_outlined,
+                label: '내 게시글',
+                onTap: () => context.push('/my/activity'),
+              ),
+              // 차단 목록 — 내가 차단한 사람만. 신고로 생긴 차단도 여기서 푼다
+              _MenuItem(
+                icon: Icons.block,
+                label: '차단 목록',
+                onTap: () => context.push('/my/blocks'),
+              ),
+              // 자녀 계정 — 만 14세 미만은 직접 가입할 수 없고 보호자가 여기서 만든다.
+              // 자녀 계정에는 보이지 않는다 (서버도 GUARDIAN_NOT_ELIGIBLE 로 막지만,
+              // 누를 수 있는 메뉴를 띄워놓고 에러를 주는 건 안내가 아니다)
+              if (user?.isChild != true)
+                _MenuItem(
+                  icon: Icons.child_care_outlined,
+                  label: '자녀 계정',
+                  onTap: () => context.push('/my/children'),
+                ),
+              _MenuItem(
+                icon: Icons.info_outline,
+                label: '앱 정보',
+                onTap: () => context.push('/my/about'),
+              ),
+            ]),
 
-            // 이 둘은 **제목을 붙이지 않는다.** '계정' 그룹에 넣으면 설정 항목들과
-            // 같은 무게가 되는데, 하나는 세션을 끊고 하나는 계정을 지운다.
-            // 선 하나로 떼어놓는 편이 "여기부터는 되돌아오지 않는 영역"으로 읽힌다.
-            const Padding(
-              padding: EdgeInsets.fromLTRB(
-                  AppSpacing.xl, AppSpacing.xxl, AppSpacing.xl, AppSpacing.sm),
-              child: Divider(height: 1, color: AppColors.divider),
-            ),
-            _MenuItem(
-              icon: Icons.logout,
-              label: '로그아웃',
-              onTap: () async {
-                final ok = await ConfirmModal.show(
-                  context,
-                  title: '로그아웃',
-                  message: '로그아웃 하시겠어요?',
-                  confirmLabel: '로그아웃',
-                );
-                if (ok && context.mounted) {
-                  await ref.read(authStateProvider.notifier).logout();
-                }
-              },
-            ),
-            _MenuItem(
-              icon: Icons.person_remove_outlined,
-              label: '회원 탈퇴',
-              labelColor: AppColors.error,
-              onTap: () => _startWithdraw(context, ref),
-            ),
+            // 이 둘은 **제목이 없는 따로 선 카드**다. '계정' 카드에 넣으면 설정
+            // 항목들과 같은 무게가 되는데, 하나는 세션을 끊고 하나는 계정을 지운다.
+            // 면을 떼어놓는 편이 "여기부터는 되돌아오지 않는 영역"으로 읽힌다
+            // (예전엔 Divider 한 줄로 떼어놨는데, 메뉴가 카드에 들어간 뒤로는
+            //  선이 카드 사이에 떠 있는 군더더기가 된다).
+            _MenuCard(children: [
+              _MenuItem(
+                icon: Icons.logout,
+                label: '로그아웃',
+                onTap: () async {
+                  final ok = await ConfirmModal.show(
+                    context,
+                    title: '로그아웃',
+                    message: '로그아웃 하시겠어요?',
+                    confirmLabel: '로그아웃',
+                  );
+                  if (ok && context.mounted) {
+                    await ref.read(authStateProvider.notifier).logout();
+                  }
+                },
+              ),
+              _MenuItem(
+                icon: Icons.person_remove_outlined,
+                label: '회원 탈퇴',
+                labelColor: AppColors.error,
+                onTap: () => _startWithdraw(context, ref),
+              ),
+            ]),
           ],
         ),
       ),
@@ -177,8 +180,49 @@ class MyScreen extends ConsumerWidget {
   }
 }
 
-/// 메뉴 그룹 제목. [SectionHeader] 를 쓰지만 좌우 여백은 메뉴 줄(20)과 맞춘다 —
-/// 제목이 항목보다 안쪽에 있으면 어디까지가 그 그룹인지 흐려진다.
+/// 메뉴 그룹을 **흰 카드 하나**로 묶는다.
+///
+/// 예전엔 줄들이 `canvas`(연회색) 위에 면도 그림자도 없이 그려져 있었다.
+/// 리뉴얼 테마에서 `canvas` 는 **바탕 전용**이고 내용은 흰 카드에 얹는 규칙이라,
+/// 마이페이지만 테마가 안 걸린 화면처럼 보였다 — 색은 맞았고 **면이 없었던 것**이다.
+///
+/// - ⛔ 카드 안쪽을 `canvas` 로 칠하지 말 것 (카드·시트에 금지된 색).
+/// - 줄 사이는 `line` 1px, 아이콘 폭만큼 들여 긋는다 — 끝까지 그으면 카드가
+///   잘린 것처럼 읽히고, 아예 없으면 긴 그룹에서 줄 수를 못 센다.
+/// - `clipBehavior` 가 필요하다: 안 주면 `InkWell` 물결이 카드 모서리를 넘는다.
+class _MenuCard extends StatelessWidget {
+  final List<Widget> children;
+
+  const _MenuCard({required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(
+          AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.xl),
+      decoration: AppDecor.cardRaised,
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          for (var i = 0; i < children.length; i++) ...[
+            if (i > 0)
+              const Divider(
+                height: 1,
+                thickness: 1,
+                indent: 52, // 아이콘(20) + 간격(16) + 좌패딩(16)
+                color: AppColors.line,
+              ),
+            children[i],
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// 메뉴 그룹 제목. [SectionHeader] 를 쓰지만 좌우 여백은 카드 안 메뉴 줄의
+/// 글자 시작점(16+16)에 맞춘다 — 제목이 항목보다 안쪽에 있으면 어디까지가
+/// 그 그룹인지 흐려진다.
 class _GroupTitle extends StatelessWidget {
   final String title;
 
@@ -207,11 +251,12 @@ class _ShareManageItem extends ConsumerWidget {
     return InkWell(
       onTap: () => context.push('/share'),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg, vertical: AppSpacing.lg),
         child: Row(
           children: [
             const Icon(Icons.handshake_outlined,
-                size: 20, color: AppColors.textSecondary),
+                size: 20, color: AppColors.ink2),
             const SizedBox(width: 16),
             Expanded(child: Text('공유 관리', style: AppTextStyles.body)),
             if (count > 0)
@@ -227,7 +272,7 @@ class _ShareManageItem extends ConsumerWidget {
                     style: AppTextStyles.label.copyWith(color: Colors.white)),
               ),
             const AppIcon(AppIcons.chevronRight,
-                size: 20, color: AppColors.textDisabled),
+                size: 20, color: AppColors.ink3),
           ],
         ),
       ),
@@ -285,7 +330,7 @@ class _ProfileAvatarState extends ConsumerState<_ProfileAvatar> {
               padding: const EdgeInsets.all(4),
               // 둥근 아바타 위에 각진 배지가 얹혀 있었다. 같은 형태를 따라간다.
               decoration: const BoxDecoration(
-                color: AppColors.primary,
+                color: AppColors.brandAction,
                 shape: BoxShape.circle,
               ),
               child: _uploading
@@ -408,7 +453,7 @@ class _SharedPetChoiceSheetState extends State<_SharedPetChoiceSheet> {
                             : '삭제',
                         style: AppTextStyles.caption.copyWith(
                             color: _handOver
-                                ? AppColors.textSecondary
+                                ? AppColors.ink2
                                 : AppColors.error),
                       ),
                     ],
@@ -464,8 +509,8 @@ class _ChoiceRow extends StatelessWidget {
               selected ? Icons.radio_button_checked : Icons.radio_button_off,
               size: 20,
               color: selected
-                  ? (danger ? AppColors.error : AppColors.primary)
-                  : AppColors.textDisabled,
+                  ? (danger ? AppColors.error : AppColors.brandAction)
+                  : AppColors.ink3,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -521,11 +566,12 @@ class _PedigreeNicknameToggleState
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
       child: Row(
         children: [
           const Icon(Icons.account_tree_outlined,
-              size: 20, color: AppColors.textSecondary),
+              size: 20, color: AppColors.ink2),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
@@ -566,19 +612,20 @@ class _MenuItem extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg, vertical: AppSpacing.lg),
         child: Row(
           children: [
             Icon(icon,
                 size: 20,
-                color: labelColor ?? AppColors.textSecondary),
+                color: labelColor ?? AppColors.ink2),
             const SizedBox(width: 16),
             Expanded(
               child: Text(label,
                   style: AppTextStyles.body.copyWith(color: labelColor)),
             ),
             const AppIcon(AppIcons.chevronRight,
-                size: 20, color: AppColors.textDisabled),
+                size: 20, color: AppColors.ink3),
           ],
         ),
       ),

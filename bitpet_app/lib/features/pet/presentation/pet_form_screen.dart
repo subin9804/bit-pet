@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/constants/feature_flags.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/api_response.dart';
 import '../../../core/theme/app_colors.dart';
@@ -190,7 +191,7 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
           ..clear()
           ..addAll(matchedMorphs);
         // 성별
-        _gender = pet.gender == 'MALE' ? '수컷' : pet.gender == 'FEMALE' ? '암컷' : '미상';
+        _gender = pet.gender == 'MALE' ? '수컷' : pet.gender == 'FEMALE' ? '암컷' : '미구분';
         // 해칭일
         if (pet.hatchingDate != null) {
           _hatchPrecision = pet.hatchingDatePrecision;
@@ -819,7 +820,7 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
           SField(
             label: '성별',
             child: PaleSegment(
-              options: const ['수컷', '암컷', '미상'],
+              options: const ['수컷', '암컷', '미구분'],
               value: _gender,
               onChange: (v) => setState(() => _gender = v),
             ),
@@ -996,47 +997,53 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 16),
-          // 야생생물법 신고 — 메모 스텝에 둔 이유는 '선택' 묶음이기 때문이다.
-          // 전용 스텝으로 떼면 모든 개체 등록이 한 단계 길어지는데, 신고 대상이
+          // 야생생물법 신고 — **지금은 폼에서 가려 둔다**
+          // (`kShowLegalReportFields`). 앱이 신고 접수를 거들 수 없는데 토글만
+          // 남아 있으면 등록할 때마다 숙제처럼 걸린다 (2026-10-14 사용자 결정).
+          //
+          // 되살릴 때의 자리는 **메모 스텝**이다 — '선택' 묶음이라서. 전용
+          // 스텝으로 떼면 모든 개체 등록이 한 단계 길어지는데, 신고 대상이
           // 아닌 종이 훨씬 많다.
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            decoration: BoxDecoration(
-              borderRadius: AppRadius.brLg,
-              color: AppColors.surface,
-              border: Border.all(color: AppColors.paleLine),
+          if (kShowLegalReportFields) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              decoration: BoxDecoration(
+                borderRadius: AppRadius.brLg,
+                color: AppColors.surface,
+                border: Border.all(color: AppColors.paleLine),
+              ),
+              child: Column(
+                children: [
+                  _ReportToggleRow(
+                    title: '보관신고 완료',
+                    desc: '지정관리 야생동물 — 관할 지자체에 신고',
+                    value: _keepingReported,
+                    onToggle: () =>
+                        setState(() => _keepingReported = !_keepingReported),
+                  ),
+                  const Divider(height: 1, color: AppColors.paleLine),
+                  _ReportToggleRow(
+                    title: 'CITES 양도·양수 신고 완료',
+                    desc: '국제적 멸종위기종 — 관할 유역환경청에 신고',
+                    value: _citesReported,
+                    onToggle: () =>
+                        setState(() => _citesReported = !_citesReported),
+                  ),
+                ],
+              ),
             ),
-            child: Column(
-              children: [
-                _ReportToggleRow(
-                  title: '보관신고 완료',
-                  desc: '지정관리 야생동물 — 관할 지자체에 신고',
-                  value: _keepingReported,
-                  onToggle: () =>
-                      setState(() => _keepingReported = !_keepingReported),
-                ),
-                const Divider(height: 1, color: AppColors.paleLine),
-                _ReportToggleRow(
-                  title: 'CITES 양도·양수 신고 완료',
-                  desc: '국제적 멸종위기종 — 관할 유역환경청에 신고',
-                  value: _citesReported,
-                  onToggle: () =>
-                      setState(() => _citesReported = !_citesReported),
-                ),
-              ],
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                '신고는 WIMS(야생동물종합관리시스템)에서 직접 해야 해요. '
+                '여기 켜 두면 개체마다 신고했는지 기억해 둘 수 있어요.',
+                style: const TextStyle(
+                    fontSize: 11, color: AppColors.paleInk3, height: 1.5),
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Text(
-              '신고는 WIMS(야생동물종합관리시스템)에서 직접 해야 해요. '
-              '여기 켜 두면 개체마다 신고했는지 기억해 둘 수 있어요.',
-              style: const TextStyle(
-                  fontSize: 11, color: AppColors.paleInk3, height: 1.5),
-            ),
-          ),
+          ],
         ],
       ),
     ),
@@ -1095,14 +1102,15 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
           StepSummaryGroup(label: '메모', step: 4, rows: [
             StepSummaryRow(k: '메모', v: _memoCtrl.text, muted: _memoCtrl.text.isEmpty),
             StepSummaryRow(k: '메이팅 검색', v: _isPublic ? '공개' : '비공개'),
-            StepSummaryRow(
-              k: '신고',
-              v: [
-                if (_keepingReported) '보관신고',
-                if (_citesReported) 'CITES',
-              ].join(' · '),
-              muted: !_keepingReported && !_citesReported,
-            ),
+            if (kShowLegalReportFields)
+              StepSummaryRow(
+                k: '신고',
+                v: [
+                  if (_keepingReported) '보관신고',
+                  if (_citesReported) 'CITES',
+                ].join(' · '),
+                muted: !_keepingReported && !_citesReported,
+              ),
           ]),
         ],
       ),

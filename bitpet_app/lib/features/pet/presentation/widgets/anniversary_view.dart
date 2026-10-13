@@ -27,14 +27,19 @@ class AnniversaryMark extends StatelessWidget {
 }
 
 /// 날짜를 골랐을 때 기록 목록 위에 붙는 한 줄
+///
+/// [onTap] 을 주면 **그 개체로 넘어가는 줄**이 된다 (홈 대시보드). 개체 상세의
+/// 캘린더 탭에서는 이미 그 개체 안이라 주지 않는다 — 자기 자신으로 가는 줄은
+/// 눌러도 아무 일이 없는 것처럼 보인다.
 class AnniversaryRow extends StatelessWidget {
   final Anniversary anniversary;
+  final VoidCallback? onTap;
 
-  const AnniversaryRow({super.key, required this.anniversary});
+  const AnniversaryRow({super.key, required this.anniversary, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    final row = Row(
       children: [
         Container(
           width: 28,
@@ -62,11 +67,25 @@ class AnniversaryRow extends StatelessWidget {
                   style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.primary)),
+                      color: AppColors.ink)),
             ],
           ),
         ),
+        if (onTap != null)
+          const Icon(Icons.chevron_right, size: 18, color: AppColors.ink3),
       ],
+    );
+
+    if (onTap == null) return row;
+    return InkWell(
+      onTap: onTap,
+      // 줄 자체에 여백이 없어서(호출처가 Padding 으로 감싼다) 물결이 글자에
+      // 딱 붙는다 — 좌우로만 조금 넓혀 탭 영역을 보이게 한다.
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        child: row,
+      ),
     );
   }
 }

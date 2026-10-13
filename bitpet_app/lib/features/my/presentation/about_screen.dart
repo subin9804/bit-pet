@@ -97,7 +97,7 @@ class _AboutScreenState extends State<AboutScreen> {
             child: Text(
               '© 2026 tailog',
               style: AppTextStyles.caption
-                  .copyWith(color: AppColors.textDisabled),
+                  .copyWith(color: AppColors.ink3),
             ),
           ),
           const SizedBox(height: 40),
@@ -122,8 +122,8 @@ class _AppIdentity extends StatelessWidget {
           width: 64,
           height: 64,
           alignment: Alignment.center,
-          color: AppColors.bg2,
-          child: const AppIcon(AppIcons.petLine, size: 30, color: AppColors.primary),
+          color: AppColors.bgAlt,
+          child: const AppIcon(AppIcons.petLine, size: 30, color: AppColors.brandAction),
         ),
         const SizedBox(height: 16),
         Text('tailog', style: AppTextStyles.h3),
@@ -178,12 +178,12 @@ class _Row extends StatelessWidget {
                 Text(
                   trailing!,
                   style: AppTextStyles.caption
-                      .copyWith(color: AppColors.textDisabled),
+                      .copyWith(color: AppColors.ink3),
                 ),
                 const SizedBox(width: 8),
               ],
               const AppIcon(AppIcons.chevronRight,
-                  size: 20, color: AppColors.textDisabled),
+                  size: 20, color: AppColors.ink3),
             ],
           ),
         ),
