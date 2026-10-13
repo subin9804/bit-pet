@@ -54,7 +54,7 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
   Color get _accent => switch (widget.routine.routineType) {
         RoutineType.FEEDING  => AppColors.petPeach,
         RoutineType.CLEANING => AppColors.petSky,
-        RoutineType.WEIGHT   => AppColors.petSage,
+        RoutineType.WEIGHT   => AppColors.petClay,
         RoutineType.CUSTOM   => AppColors.petLilac,
       };
 

@@ -26,14 +26,14 @@ import '../../../core/widgets/app_network_image.dart';
 Color _rtypeBg(RoutineType t) => switch (t) {
       RoutineType.FEEDING  => AppColors.petPeach,
       RoutineType.CLEANING => AppColors.petSky,
-      RoutineType.WEIGHT   => AppColors.petSage,
+      RoutineType.WEIGHT   => AppColors.petClay,
       RoutineType.CUSTOM   => AppColors.petLilac,
     };
 
 Color _rtypeInk(RoutineType t) => switch (t) {
       RoutineType.FEEDING  => AppColors.petPeachInk,
       RoutineType.CLEANING => AppColors.petSkyInk,
-      RoutineType.WEIGHT   => AppColors.petSageInk,
+      RoutineType.WEIGHT   => AppColors.petClayInk,
       RoutineType.CUSTOM   => AppColors.petLilacInk,
     };
 

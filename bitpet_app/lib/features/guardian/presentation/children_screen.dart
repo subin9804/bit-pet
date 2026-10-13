@@ -96,7 +96,7 @@ class ChildrenScreen extends ConsumerWidget {
                   height: 36,
                   clipBehavior: Clip.hardEdge,
                   decoration: const BoxDecoration(
-                      color: AppColors.petSage, shape: BoxShape.circle),
+                      color: AppColors.petClay, shape: BoxShape.circle),
                   child: c.profileImageUrl != null
                       ? AppNetworkImage(c.profileImageUrl,
                           fit: BoxFit.cover,

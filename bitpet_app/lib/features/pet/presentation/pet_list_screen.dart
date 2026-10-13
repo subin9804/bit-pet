@@ -17,6 +17,7 @@ import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/widgets/app_network_image.dart';
 import '../../../core/widgets/underline_tabs.dart';
+import '../../../core/widgets/sex_icon.dart';
 import '../../record/presentation/laying/egg_tab.dart';
 
 /// '내 개체' 화면의 탭 — 0 개체 / 1 알(클러치).
@@ -733,18 +734,6 @@ class _PetCard extends ConsumerWidget {
     return AppColors.bgAlt;
   }
 
-  IconData get _genderIcon => switch (pet.gender) {
-        'MALE' => Icons.male,
-        'FEMALE' => Icons.female,
-        _ => Icons.question_mark,
-      };
-
-  Color get _genderColor => switch (pet.gender) {
-        'MALE' => AppColors.male,
-        'FEMALE' => AppColors.female,
-        _ => AppColors.ink3,
-      };
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selecting = ref.watch(petSelectionModeProvider);
@@ -806,8 +795,9 @@ class _PetCard extends ConsumerWidget {
                         color: AppColors.surface.withValues(alpha: 0.85),
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(_genderIcon,
-                          size: AppIconSize.sm, color: _genderColor),
+                      child: Center(
+                        child: SexIcon.fromCode(pet.gender, size: 13),
+                      ),
                     ),
                   ),
                 ],

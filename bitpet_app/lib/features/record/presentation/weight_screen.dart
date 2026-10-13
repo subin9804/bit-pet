@@ -270,7 +270,7 @@ class _WeightBody extends StatelessWidget {
                         horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: delta >= 0
-                          ? AppColors.petSage
+                          ? AppColors.petClay
                           : AppColors.petCoral,
                       borderRadius: AppRadius.brPill,
                     ),
@@ -278,7 +278,7 @@ class _WeightBody extends StatelessWidget {
                       '${delta >= 0 ? '▲' : '▼'} ${formatWeight(delta.abs())}g',
                       style: AppTextStyles.mono(12, FontWeight.w700,
                           color: delta >= 0
-                              ? AppColors.petSageInk
+                              ? AppColors.petClayInk
                               : AppColors.petCoralInk),
                     ),
                   ),
@@ -544,7 +544,7 @@ class _WeightBody extends StatelessWidget {
                                 textAlign: TextAlign.right,
                                 style: AppTextStyles.mono(11, FontWeight.w600,
                                     color: dlt > 0
-                                        ? AppColors.petSageInk
+                                        ? AppColors.petClayInk
                                         : dlt < 0
                                             ? AppColors.petCoralInk
                                             : AppColors.paleInk3),

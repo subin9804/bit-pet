@@ -20,6 +20,7 @@ import 'widgets/feed_items_editor.dart';
 import 'widgets/selected_pet_row.dart';
 import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_dimens.dart';
+import '../../../core/widgets/sex_icon.dart';
 
 // ── 플로우 단계 ────────────────────────────────────────────────
 enum _FabStep {
@@ -56,7 +57,7 @@ class _RecordType {
 
 const _recordTypes = [
   _RecordType('feed',  '급여',   'FEEDING', '종류·시간·양',     AppIcons.feeding,  AppColors.feedBand),
-  _RecordType('scale', '몸무게', 'WEIGHT',  '측정 기록',        AppIcons.weight,   AppColors.petSage),
+  _RecordType('scale', '몸무게', 'WEIGHT',  '측정 기록',        AppIcons.weight,   AppColors.petClay),
   _RecordType('clean', '청소',   'CLEAN',   '바닥재·환기',       AppIcons.cleaning, AppColors.petSky),
   _RecordType('note',  '메모',   'NOTE',    '병원·관찰·증상',    AppIcons.memo,     AppColors.petLilac),
   _RecordType('mate',  '메이팅', 'MATING',  '합방·관찰',        AppIcons.mating,   AppColors.petCoral),
@@ -939,8 +940,8 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
                         color: entry.items.isNotEmpty
-                            ? AppColors.primary
-                            : AppColors.paleLine,
+                            ? AppColors.brandAction
+                            : AppColors.brandTint,
                         borderRadius: AppRadius.brLg,
                       ),
                       child: Row(
@@ -948,8 +949,8 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                         children: [
                           Icon(Icons.check,
                               color: entry.items.isNotEmpty
-                                  ? AppColors.paleBg
-                                  : AppColors.paleInk3,
+                                  ? AppColors.bg
+                                  : AppColors.brandTintInk,
                               size: 16),
                           const SizedBox(width: 8),
                           Text(
@@ -959,8 +960,8 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                             style: TextStyle(
                                 fontSize: 14, fontWeight: FontWeight.w700,
                                 color: entry.items.isNotEmpty
-                                    ? AppColors.paleBg
-                                    : AppColors.paleInk3),
+                                    ? AppColors.bg
+                                    : AppColors.brandTintInk),
                           ),
                         ],
                       ),
@@ -1274,17 +1275,19 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
   }
 
   Widget _buildSimpleFields(List<Pet> pets) {
+    // 비밀번호 재설정·로그인 화면과 같은 박스 입력이다. 전엔 언더라인 + 먹색
+    // 포커스였다 — `AppColors.primary` 가 구 별칭이라 실제 값이 `ink` 여서,
+    // 이 시트 전체에 브랜드 초록이 한 군데도 없었다.
+    const side        = BorderSide(color: AppColors.line);
+    const focusedSide = BorderSide(color: AppColors.brandAction, width: 1.5);
     final inputDec = InputDecoration(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      border: UnderlineInputBorder(
-          borderRadius: AppRadius.brMd,
-          borderSide: const BorderSide(color: AppColors.paleLine)),
-      enabledBorder: UnderlineInputBorder(
-          borderRadius: AppRadius.brMd,
-          borderSide: const BorderSide(color: AppColors.paleLine)),
-      focusedBorder: UnderlineInputBorder(
-          borderRadius: AppRadius.brMd,
-          borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      border: const OutlineInputBorder(
+          borderRadius: AppRadius.brMd, borderSide: side),
+      enabledBorder: const OutlineInputBorder(
+          borderRadius: AppRadius.brMd, borderSide: side),
+      focusedBorder: const OutlineInputBorder(
+          borderRadius: AppRadius.brMd, borderSide: focusedSide),
     );
 
     switch (_typeId) {
@@ -1540,7 +1543,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                     : const Icon(Icons.search, size: 16),
                 label: const Text('검색'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
+                  backgroundColor: AppColors.brandAction,
                   foregroundColor: Colors.white,
                   minimumSize: const Size(double.infinity, 42),
                   shape: RoundedRectangleBorder(
@@ -1612,7 +1615,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                                                 fontWeight: FontWeight.w700,
                                                 color: AppColors.primary)),
                                         Text(
-                                          '${p.speciesName} · ${p.gender == 'MALE' ? '♂ 수컷' : p.gender == 'FEMALE' ? '♀ 암컷' : '미확인'}',
+                                          '${p.speciesName} · ${p.gender == 'MALE' ? '수컷' : p.gender == 'FEMALE' ? '암컷' : '미확인'}',
                                           style: const TextStyle(
                                               fontSize: 12,
                                               color: AppColors.paleInk2),
@@ -1958,7 +1961,7 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: active ? AppColors.primary : AppColors.card,
+                    color: active ? AppColors.brandAction : AppColors.card,
                     border: active
                         ? null
                         : Border.all(color: AppColors.paleLine),
@@ -2088,14 +2091,24 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
                                     fontWeight: FontWeight.w600),
                                 overflow: TextOverflow.ellipsis),
                             const SizedBox(height: 4),
-                            Text(
-                              '${p.gender == 'MALE' ? '♂' : p.gender == 'FEMALE' ? '♀' : '?'}'
-                              '${p.latestWeightG != null ? ' · ${p.latestWeightG!.toStringAsFixed(0)}g' : ''}',
-                              style: AppTextStyles.mono(9, FontWeight.w700,
+                            // 성별은 아이콘, 체중은 숫자 — 한 Text 에 섞어 찍던 자리다.
+                            // 유니코드 ♂/♀ 를 9pt mono 로 쓰면 글리프가 폰트마다 갈려
+                            // 숫자와 베이스라인이 안 맞았다.
+                            Row(mainAxisSize: MainAxisSize.min, children: [
+                              SexIcon.fromCode(p.gender,
+                                  size: 11,
                                   color: isOn
                                       ? AppColors.paleInk2
                                       : AppColors.paleInk3),
-                            ),
+                              if (p.latestWeightG != null)
+                                Text(
+                                  "  ${p.latestWeightG!.toStringAsFixed(0)}g",
+                                  style: AppTextStyles.mono(9, FontWeight.w700,
+                                      color: isOn
+                                          ? AppColors.paleInk2
+                                          : AppColors.paleInk3),
+                                ),
+                            ]),
                           ],
                         ),
                       ),
@@ -2197,7 +2210,7 @@ class _ChoiceCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.card,
           border: Border.all(
-              color: selected ? AppColors.primary : AppColors.paleLine,
+              color: selected ? AppColors.brandAction : AppColors.paleLine,
               width: selected ? 1.5 : 1),
           borderRadius: AppRadius.brMd,
         ),
@@ -2408,7 +2421,9 @@ class _Footer extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: nextEnabled ? AppColors.primary : AppColors.paleLine,
+                  // 주 액션은 브랜드 초록이다. 먹색(`primary`) 이던 자리 — 시트 전체에서
+                  // 유일하게 누르는 버튼인데 검정이라 리뉴얼 테마가 어디에도 안 보였다.
+                  color: nextEnabled ? AppColors.brandAction : AppColors.brandTint,
                   borderRadius: AppRadius.brLg,
                 ),
                 child: loading
@@ -2423,16 +2438,16 @@ class _Footer extends StatelessWidget {
                             Icon(nextIcon,
                                 size: 16,
                                 color: nextEnabled
-                                    ? AppColors.paleBg
-                                    : AppColors.paleInk3),
+                                    ? AppColors.bg
+                                    : AppColors.brandTintInk),
                             const SizedBox(width: 8),
                           ],
                           Text(nextLabel,
                               style: TextStyle(
                                   fontSize: 14, fontWeight: FontWeight.w700,
                                   color: nextEnabled
-                                      ? AppColors.paleBg
-                                      : AppColors.paleInk3)),
+                                      ? AppColors.bg
+                                      : AppColors.brandTintInk)),
                           if (nextBadge != null) ...[
                             const SizedBox(width: 8),
                             Container(
@@ -2447,8 +2462,8 @@ class _Footer extends StatelessWidget {
                               child: Text(nextBadge!,
                                   style: AppTextStyles.mono(11, FontWeight.w700,
                                       color: nextEnabled
-                                          ? AppColors.paleBg
-                                          : AppColors.paleInk3)),
+                                          ? AppColors.bg
+                                          : AppColors.brandTintInk)),
                             ),
                           ],
                         ],
@@ -2525,9 +2540,9 @@ class _TypeToggle extends StatelessWidget {
         duration: const Duration(milliseconds: 120),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: active ? AppColors.primary : AppColors.card,
+          color: active ? AppColors.brandAction : AppColors.card,
           border: Border.all(
-              color: active ? AppColors.primary : AppColors.paleLine,
+              color: active ? AppColors.brandAction : AppColors.paleLine,
               width: active ? 1.5 : 1),
           borderRadius: AppRadius.brMd,
         ),

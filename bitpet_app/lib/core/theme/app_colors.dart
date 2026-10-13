@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 ///
 /// ## 한 가지 색은 한 곳에서만 정의한다
 ///
-/// 예전엔 같은 값이 두 이름(`bg`/`paleBg`, `divider`/`paleLine`, `petColorMint`/`petSage`)
+/// 예전엔 같은 값이 두 이름(`bg`/`paleBg`, `divider`/`paleLine`, `petColorMint`/`petSage`(지금은 둘 다 삭제))
 /// 으로 각각 하드코딩돼 있었다. 한쪽만 고치면 화면마다 색이 갈라지므로, 지금은 **아래
 /// '원본 토큰' 구역에만 리터럴이 있고 나머지는 전부 그 별칭**이다.
 /// ⛔ 별칭 자리에 새 `Color(0x...)` 를 적지 말 것.
@@ -91,21 +91,42 @@ abstract final class AppColors {
   static const female  = Color(0xFFD95F8B);
   static const unknown = ink3;
 
-  // ── 개체 식별색 6종 (pale 배경 / ink 텍스트) ────────────────
-  // sage(연녹)는 브랜드 초록과 부딪혀 '선택됨'으로 잘못 읽혀서 clay(따뜻한 베이지)로 바꿨다.
-  static const petClay   = Color(0xFFEDE7E0);
-  static const petPeach  = Color(0xFFEEECE6);
-  static const petSky    = Color(0xFFE6EEF5);
-  static const petLilac  = Color(0xFFEDE9F5);
-  static const petButter = Color(0xFFF0EFEA);
-  static const petCoral  = Color(0xFFF0EAE7);
+  // ── 분류색 6종 (pale 배경 / ink 텍스트) ─────────────────────
+  //
+  // ⚠️ **개체별로 고르는 색이 아니다.** 예전엔 개체마다 색을 지정하는 기능이 있어서
+  // '개체 식별색'이었지만 그 기능은 걷어냈다. 지금 이 6쌍이 실제로 쓰이는 축은 네 가지다:
+  //
+  //  | 축 | 매핑 |
+  //  |---|---|
+  //  | 기록·루틴 종류 | 급여=peach, 청소=sky, 메모/커스텀=lilac, 합사=coral, 산란=butter, 체중=sky |
+  //  | 유저 프로필 아바타 | `ProfilePalette` (서버 `user_mst.profile_color` 키와 1:1) |
+  //  | 성별 | 수컷=skyInk, 암컷=coralInk |
+  //  | 중립 칩·보조 밴드 | clay |
+  //
+  // **색조를 벌려 둔 것이 이 팔레트의 전부다.** 2026-10-13 이전에는 clay·peach·butter·coral
+  // 네 개가 색조 20~50° 에 채도 17~27% 로 뭉쳐 있어서 사실상 같은 베이지였다 — 구별되는
+  // 건 sky·lilac 둘뿐이었다. 식별용이 아니었으니 아무도 눈치채지 못했지만, 기록 종류를
+  // 색으로 구분하는 자리에서는 그게 곧 '구분이 안 된다'는 뜻이다.
+  // 지금은 24° / 43° / 205° / 257° / 346° 로 떼어 놓았고 clay 만 저채도 중립으로 남겼다.
+  //
+  // ⛔ 여기에 초록 계열을 넣지 말 것 — `brandAction` 과 부딪혀 '선택됨'으로 읽힌다
+  //   (연녹 sage 를 clay 로 바꾼 이유가 그것이다).
+  // ℹ️ ink 는 pale 배경·흰 카드·canvas 세 바탕 모두에서 **4.5:1 이상**이다. 값을 고치면
+  //   세 바탕 전부 다시 재어 볼 것 — ink 는 텍스트와 아이콘에 그대로 쓰인다.
+  static const petClay   = Color(0xFFEDE7E0);   // 32°  27%  중립 베이지
+  static const petPeach  = Color(0xFFFAE8DC);   // 24°  75%  급여
+  static const petSky    = Color(0xFFDDEAF3);   // 205° 48%  청소·체중·수컷
+  static const petLilac  = Color(0xFFE7E2F4);   // 257° 45%  메모·커스텀
+  static const petButter = Color(0xFFF6ECD3);   // 43°  66%  산란
+  static const petCoral  = Color(0xFFFAE1E7);   // 346° 71%  합사·암컷
 
-  static const petClayInk   = Color(0xFF5E4636);
-  static const petPeachInk  = Color(0xFF6A5040);
-  static const petSkyInk    = Color(0xFF3A5570);
-  static const petLilacInk  = Color(0xFF5C4A72);
-  static const petButterInk = Color(0xFF5C4E28);
-  static const petCoralInk  = Color(0xFF703C3A);
+  // 대비 (pale / 흰 / canvas 순)
+  static const petClayInk   = Color(0xFF5A4332);  // 7.49  9.20  8.47
+  static const petPeachInk  = Color(0xFF8A4718);  // 5.89  7.01  6.46
+  static const petSkyInk    = Color(0xFF1D5876);  // 6.32  7.75  7.14
+  static const petLilacInk  = Color(0xFF4A3785);  // 7.62  9.65  8.89
+  static const petButterInk = Color(0xFF765710);  // 5.69  6.69  6.16
+  static const petCoralInk  = Color(0xFF8C2C4A);  // 6.60  8.16  7.52
 
   // ── 소셜 (브랜드 규정색이라 손대지 않는다) ──────────────────
   static const kakao  = Color(0xFFFEE500);
@@ -159,28 +180,21 @@ abstract final class AppColors {
   static const paleLine     = line;
   static const paleLineSoft = line;
 
-  // 구 이름 (petSage 는 이제 clay 를 가리킨다)
-  static const petSage    = petClay;
-  static const petSageInk = petClayInk;
-
-  static const petColorMint     = petClay;
-  static const petColorPeach    = petPeach;
-  static const petColorSky      = petSky;
-  static const petColorLavender = petLilac;
-  static const petColorButter   = petButter;
-  static const petColorRose     = petCoral;
-
-  static const List<Color> petColorPalette = [
-    petClay, petPeach, petSky, petLilac, petButter, petCoral,
-  ];
-
-  // ── 카테고리 식별 (pale/ink) ───────────────────────────────
-  static const catWeight = petSky;    static const catWeightInk = petSkyInk;
-  static const catFeed   = petClay;   static const catFeedInk   = petClayInk;
-  static const catClean  = petButter; static const catCleanInk  = petButterInk;
+  // ── 기록 종류색 (pale/ink) ─────────────────────────────────
+  //
+  // ⚠️ **이 매핑의 단일 소스다.** 루틴 행(`dashboard_tab._RoutineRow._tint`)과 FAB 시트
+  // (`_recordTypes`)가 같은 짝을 직접 적고 있는데, 2026-10-13 이전까지 여기만 급여=clay,
+  // 청소=butter, 산란=peach 로 **어긋나 있었다** — 같은 급여 기록이 대시보드 최근기록에선
+  // 베이지, 루틴 행에선 복숭아로 보였다. 색조가 전부 뭉쳐 있어서 드러나지 않았던 것이고,
+  // 색을 벌리는 순간 바로 눈에 띈다.
+  // ⛔ 종류색을 새로 쓰는 화면은 이 토큰(또는 `PalePalette.catPale`/`catInk`)을 쓸 것.
+  //   `petPeach` 같은 원본 토큰을 직접 적으면 또 갈라진다.
+  static const catFeed   = petPeach;  static const catFeedInk   = petPeachInk;
+  static const catWeight = petClay;   static const catWeightInk = petClayInk;
+  static const catClean  = petSky;    static const catCleanInk  = petSkyInk;
   static const catMemo   = petLilac;  static const catMemoInk   = petLilacInk;
   static const catMating = petCoral;  static const catMatingInk = petCoralInk;
-  static const catLaying = petPeach;  static const catLayingInk = petPeachInk;
+  static const catLaying = petButter; static const catLayingInk = petButterInk;
 
   // ── 급여 전용 ────────────────────────────────────────────
   static const feedBand = petPeach;

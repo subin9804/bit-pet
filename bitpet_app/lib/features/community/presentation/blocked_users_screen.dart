@@ -94,7 +94,7 @@ class BlockedUsersScreen extends ConsumerWidget {
                   height: 36,
                   clipBehavior: Clip.hardEdge,
                   decoration: const BoxDecoration(
-                      color: AppColors.petSage, shape: BoxShape.circle),
+                      color: AppColors.petClay, shape: BoxShape.circle),
                   child: u.profileImageUrl != null
                       ? AppNetworkImage(u.profileImageUrl,
                           fit: BoxFit.cover,

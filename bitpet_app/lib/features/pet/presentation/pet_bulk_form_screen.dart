@@ -17,6 +17,7 @@ import 'widgets/species_bottom_sheet.dart';
 import 'widgets/parent_pet_bottom_sheet.dart';
 import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_dimens.dart';
+import '../../../core/widgets/sex_icon.dart';
 
 // ════════════════════════════════════════════════════════════════
 // 개체 일괄 등록 화면
@@ -401,7 +402,7 @@ class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
                             child: _TapField(
                               value: _fatherPet?.name,
                               placeholder: '아버지',
-                              icon: Icons.male,
+                              iconBuilder: (c) => SexIcon(PetSex.male, size: 16, color: c),
                               // 필드를 누르면 시트가 다시 열려 **다른 개체로 바꿀 수 있고**,
                               // X 를 누르면 비워진다. 시트는 취소 시 null 을 팝하므로
                               // 거기서는 해제가 성립하지 않는다 — 비우기는 여기 X 가 유일하다.
@@ -414,7 +415,7 @@ class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
                             child: _TapField(
                               value: _motherPet?.name,
                               placeholder: '어머니',
-                              icon: Icons.female,
+                              iconBuilder: (c) => SexIcon(PetSex.female, size: 16, color: c),
                               onTap: () => _openParentSheet(isFather: false),
                               onClear: () => setState(() => _motherPet = null),
                             ),
@@ -521,7 +522,11 @@ class _SectionHeader extends StatelessWidget {
 class _TapField extends StatelessWidget {
   final String? value;
   final String placeholder;
-  final IconData icon;
+  final IconData? icon;
+
+  /// 아이콘이 `IconData` 로 안 되는 경우(성별 아이콘처럼 직접 그리는 것)에만 쓴다.
+  /// 현재 색(값 있음/없음)을 받아 위젯을 돌려준다 — 색 분기를 호출부로 흘리지 않기 위해서다.
+  final Widget Function(Color color)? iconBuilder;
   final VoidCallback onTap;
 
   /// 값을 비우는 콜백. 주면 값이 있을 때 오른쪽에 X 가 뜬다.
@@ -535,7 +540,8 @@ class _TapField extends StatelessWidget {
   const _TapField({
     required this.value,
     required this.placeholder,
-    required this.icon,
+    this.icon,
+    this.iconBuilder,
     required this.onTap,
     this.onClear,
   });
@@ -543,6 +549,7 @@ class _TapField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasValue = value != null && value!.isNotEmpty;
+    final tint = hasValue ? AppColors.primary : AppColors.paleInk3;
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -556,9 +563,7 @@ class _TapField extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(icon,
-                size: 16,
-                color: hasValue ? AppColors.primary : AppColors.paleInk3),
+            iconBuilder?.call(tint) ?? Icon(icon, size: 16, color: tint),
             const SizedBox(width: 8),
             Expanded(
               child: Text(

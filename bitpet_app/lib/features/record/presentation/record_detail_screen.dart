@@ -22,6 +22,7 @@ import '../../pet/data/pet_repository.dart';
 import '../../pet/data/models/pet_models.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/widgets/pet_avatar.dart';
+import '../../../core/widgets/sex_icon.dart';
 
 const _weekKo = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -38,7 +39,7 @@ const _typeMeta = {
   'cleaning': _TypeMeta('청소 기록',  'CLEANING', AppColors.petSkyInk),
   'memo':     _TypeMeta('메모',       'MEMO',     AppColors.petLilacInk),
   'mating':   _TypeMeta('교배 기록',  'MATING',   AppColors.petCoralInk),
-  'laying':   _TypeMeta('산란 기록',  'LAYING',   AppColors.petSageInk),
+  'laying':   _TypeMeta('산란 기록',  'LAYING',   AppColors.petClayInk),
 };
 
 // ── 통합 기록 엔트리 ────────────────────────────────────────────
@@ -1315,7 +1316,7 @@ class _EditorSheetState extends State<_EditorSheet> {
                               child: AppChip(
                                 label: '성공',
                                 selected: e.form['isSuccessful'] == true,
-                                selectedColor: AppColors.petSage,
+                                selectedColor: AppColors.petClay,
                                 selectedTextColor: AppColors.primary,
                                 centered: true,
                                 padding: const EdgeInsets.symmetric(vertical: 12),
@@ -1753,9 +1754,8 @@ class _MatingPartnerFieldState extends ConsumerState<_MatingPartnerField> {
                                         fontWeight: FontWeight.w700,
                                         color: AppColors.primary)),
                               ),
-                              Text(p.gender == 'MALE' ? '♂' : '♀',
-                                  style: const TextStyle(fontSize: 13,
-                                      color: AppColors.paleInk2)),
+                              SexIcon.fromCode(p.gender,
+                                  size: 13, color: AppColors.paleInk2),
                             ]),
                           ),
                         );

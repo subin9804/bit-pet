@@ -25,14 +25,14 @@ import '../../../core/theme/app_dimens.dart';
 const _rtypeBg = {
   RoutineType.FEEDING:  AppColors.petPeach,
   RoutineType.CLEANING: AppColors.petSky,
-  RoutineType.WEIGHT:   AppColors.petSage,
+  RoutineType.WEIGHT:   AppColors.petClay,
   RoutineType.CUSTOM:   AppColors.petLilac,
 };
 
 const _rtypeInk = {
   RoutineType.FEEDING:  AppColors.petPeachInk,
   RoutineType.CLEANING: AppColors.petSkyInk,
-  RoutineType.WEIGHT:   AppColors.petSageInk,
+  RoutineType.WEIGHT:   AppColors.petClayInk,
   RoutineType.CUSTOM:   AppColors.petLilacInk,
 };
 

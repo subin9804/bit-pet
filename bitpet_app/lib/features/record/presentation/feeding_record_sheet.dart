@@ -165,7 +165,7 @@ class _FeedingRecordSheetState extends ConsumerState<FeedingRecordSheet> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppColors.petColorPeach,
+                      color: AppColors.petPeach,
                       borderRadius: AppRadius.brPill,
                     ),
                     child: Text(

@@ -71,7 +71,7 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
   Color get _accent => switch (widget.routine.routineType) {
         RoutineType.FEEDING  => AppColors.petPeach,
         RoutineType.CLEANING => AppColors.petSky,
-        RoutineType.WEIGHT   => AppColors.petSage,
+        RoutineType.WEIGHT   => AppColors.petClay,
         RoutineType.CUSTOM   => AppColors.petLilac,
       };
 

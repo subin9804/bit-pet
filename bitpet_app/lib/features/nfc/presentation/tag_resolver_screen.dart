@@ -143,7 +143,7 @@ String _publicPetLine(PetCard pet) {
     pet.name,
     if (pet.speciesName.isNotEmpty) pet.speciesName,
     if (pet.morphLabel.isNotEmpty) pet.morphLabel,
-    switch (pet.gender) { 'MALE' => '♂', 'FEMALE' => '♀', _ => '' },
+    switch (pet.gender) { 'MALE' => '수컷', 'FEMALE' => '암컷', _ => '' },
     if (pet.hatchingDate != null)
       '${pet.hatchingDate!.year}.${pet.hatchingDate!.month.toString().padLeft(2, '0')} 해칭',
   ]..removeWhere((s) => s.isEmpty);

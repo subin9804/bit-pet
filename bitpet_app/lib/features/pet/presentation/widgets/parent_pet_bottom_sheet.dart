@@ -10,6 +10,7 @@ import '../../providers/pet_provider.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_dimens.dart';
 import '../../../../core/widgets/app_network_image.dart';
+import '../../../../core/widgets/sex_icon.dart';
 
 /// 부모 개체 선택 바텀시트.
 ///
@@ -18,7 +19,7 @@ import '../../../../core/widgets/app_network_image.dart';
 ///  2. **일련번호 검색** — 남의 개체를 부모로 걸 때. 부모 등록은 소유자와 무관하게 되지만,
 ///     그렇다고 남의 개체 목록을 훑게 할 수는 없어 **정확한 일련번호 일치**로만 연다
 ///
-/// [isFather] : true → 부(♂) 선택, false → 모(♀) 선택
+/// [isFather] : true → 아버지(수컷) 선택, false → 어머니(암컷) 선택
 /// 팝 결과값: 선택된 [PetCard] 또는 null (취소)
 class ParentPetBottomSheet extends ConsumerStatefulWidget {
   final bool isFather;
@@ -63,7 +64,7 @@ class _ParentPetBottomSheetState
   }
 
   String get _genderCode => widget.isFather ? 'MALE' : 'FEMALE';
-  String get _genderLabel => widget.isFather ? '부 (♂)' : '모 (♀)';
+  String get _genderLabel => widget.isFather ? '아버지' : '어머니';
   String get _genderKo => widget.isFather ? '수컷' : '암컷';
 
   /// 일련번호 정확 일치로 남의 개체 찾기.
@@ -411,15 +412,7 @@ class _PetListCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 4),
-                      Text(
-                        isFather ? '♂' : '♀',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: isFather
-                              ? AppColors.male
-                              : AppColors.female,
-                        ),
-                      ),
+                      SexIcon(isFather ? PetSex.male : PetSex.female, size: 13),
                     ],
                   ),
                   const SizedBox(height: 4),

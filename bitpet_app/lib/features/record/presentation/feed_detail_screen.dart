@@ -29,7 +29,7 @@ const _foodColorKey = {
 
 const _foodDot = {
   'coral':  AppColors.petCoralInk,
-  'sage':   AppColors.petSageInk,
+  'sage':   AppColors.petClayInk,
   'butter': AppColors.petButterInk,
   'sky':    AppColors.petSkyInk,
   'lilac':  AppColors.petLilacInk,
@@ -37,16 +37,16 @@ const _foodDot = {
 
 const _foodChip = {
   'coral':  AppColors.petCoral,
-  'sage':   AppColors.petSage,
+  'sage':   AppColors.petClay,
   'butter': AppColors.petButter,
   'sky':    AppColors.petSky,
   'lilac':  AppColors.petLilac,
 };
 
 Color _dotColor(String food) =>
-    _foodDot[_foodColorKey[food] ?? 'sage'] ?? AppColors.petSageInk;
+    _foodDot[_foodColorKey[food] ?? 'sage'] ?? AppColors.petClayInk;
 Color _chipColor(String food) =>
-    _foodChip[_foodColorKey[food] ?? 'sage'] ?? AppColors.petSage;
+    _foodChip[_foodColorKey[food] ?? 'sage'] ?? AppColors.petClay;
 
 const _weekKo = ['일','월','화','수','목','금','토'];
 

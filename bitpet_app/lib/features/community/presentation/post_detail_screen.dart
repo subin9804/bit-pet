@@ -544,7 +544,7 @@ class _Avatar extends StatelessWidget {
       height: size,
       clipBehavior: Clip.hardEdge,
       decoration:
-          const BoxDecoration(color: AppColors.petSage, shape: BoxShape.circle),
+          const BoxDecoration(color: AppColors.petClay, shape: BoxShape.circle),
       child: imageUrl != null
           ? AppNetworkImage(
               imageUrl,

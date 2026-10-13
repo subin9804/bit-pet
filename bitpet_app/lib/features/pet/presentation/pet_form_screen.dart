@@ -23,6 +23,7 @@ import 'widgets/morph_picker_sheet.dart';
 import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/widgets/app_network_image.dart';
+import '../../../core/widgets/sex_icon.dart';
 
 // ════════════════════════════════════════════════════════════════
 // 03s · 개체 등록 — 6단계 스텝 위저드
@@ -1317,12 +1318,9 @@ class _ParentTile extends StatelessWidget {
                   color: AppColors.paleBgAlt,
                 ),
                 child: Center(
-                  child: Text(
-                    isFather ? '♂' : '♀',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: isFather ? AppColors.petSkyInk : AppColors.petCoralInk,
-                    ),
+                  child: SexIcon(
+                    isFather ? PetSex.male : PetSex.female,
+                    size: 18,
                   ),
                 ),
               ),

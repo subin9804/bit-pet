@@ -413,7 +413,7 @@ class _RoutineRow extends StatelessWidget {
   Color get _tint => switch (routine.routineType) {
         RoutineType.FEEDING  => AppColors.petPeach,
         RoutineType.CLEANING => AppColors.petSky,
-        RoutineType.WEIGHT   => AppColors.petSage,
+        RoutineType.WEIGHT   => AppColors.petClay,
         RoutineType.CUSTOM   => AppColors.petLilac,
       };
 

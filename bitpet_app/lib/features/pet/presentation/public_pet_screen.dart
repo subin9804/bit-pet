@@ -55,8 +55,8 @@ class _Body extends StatelessWidget {
   }
 
   String get _genderLabel => switch (card.gender) {
-        'MALE' => '수컷 ♂',
-        'FEMALE' => '암컷 ♀',
+        'MALE' => '수컷',
+        'FEMALE' => '암컷',
         _ => '미구분',
       };
 

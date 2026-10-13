@@ -6,6 +6,7 @@ import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_dimens.dart';
 import '../../../../core/widgets/app_network_image.dart';
 import '../../../../core/widgets/app_sheet.dart';
+import '../../../../core/widgets/sex_icon.dart';
 
 /// 가계도 부모 카드 — 좌측 썸네일 + 우측 2줄.
 ///
@@ -78,15 +79,7 @@ class PedigreeParentCard extends StatelessWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          card.isFather ? '♂' : '♀',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: card.isFather
-                                ? AppColors.male
-                                : AppColors.female,
-                          ),
-                        ),
+                        SexIcon(card.isFather ? PetSex.male : PetSex.female, size: 13),
                         const SizedBox(width: 4),
                         Flexible(
                           child: Text(
@@ -210,8 +203,8 @@ class _PetCardSheet extends StatelessWidget {
   const _PetCardSheet({required this.card});
 
   String get _genderLabel => switch (card.gender) {
-        'MALE' => '수컷 ♂',
-        'FEMALE' => '암컷 ♀',
+        'MALE' => '수컷',
+        'FEMALE' => '암컷',
         _ => '미구분',
       };
 

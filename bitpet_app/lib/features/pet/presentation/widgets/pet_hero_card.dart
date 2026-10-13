@@ -6,6 +6,7 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../data/models/pet_models.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/widgets/app_network_image.dart';
+import '../../../../core/widgets/sex_icon.dart';
 
 /// 개체 상세 최상단 — 연녹 밴드 위에 **카드 없이** 바로 놓이는 소개 줄.
 ///
@@ -40,16 +41,6 @@ class _PetHeroCardState extends State<PetHeroCard> {
   @override
   Widget build(BuildContext context) {
     final pet = widget.pet;
-    final genderSymbol = switch (pet.gender) {
-      'MALE'   => '♂',
-      'FEMALE' => '♀',
-      _        => '?',
-    };
-    final genderColor = switch (pet.gender) {
-      'MALE'   => AppColors.petSkyInk,
-      'FEMALE' => AppColors.petPeachInk,
-      _        => AppColors.ink3,
-    };
     final isPublic = pet.privateYn == 'N';
 
     // 종 한 줄. 모프를 뒤에 이어 붙여 두었다가 **상세 정보 카드 맨 아래로 내렸다** —
@@ -113,11 +104,11 @@ class _PetHeroCardState extends State<PetHeroCard> {
                     ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
-                  // 성별은 이름 옆 기호 하나로 — 아래 칩에 글자로도 있지만,
+                  // 성별은 이름 옆 아이콘 하나로 — 아래 칩에 글자로도 있지만,
                   // 이름 줄에서 바로 보이는 쪽이 먼저 읽힌다.
-                  Text(genderSymbol,
-                      style: AppTextStyles.subheading
-                          .copyWith(fontWeight: FontWeight.w700, color: genderColor)),
+                  // 예전엔 유니코드 ♂/♀ 를 글자로 찍었다. 기기 폰트에 따라 굵기와
+                  // 크기가 제멋대로였고 ♀ 는 베이스라인 아래로 처졌다.
+                  SexIcon.fromCode(pet.gender, size: 17),
                 ],
               ),
               const SizedBox(height: AppSpacing.xs),

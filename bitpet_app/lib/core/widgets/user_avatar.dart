@@ -14,7 +14,7 @@ class ProfilePalette {
 
   /// (키, 배경색, 잉크색) — 순서가 곧 화면에 보이는 순서다
   static const entries = <(String, Color, Color)>[
-    ('sage', AppColors.petSage, AppColors.petSageInk),
+    ('sage', AppColors.petClay, AppColors.petClayInk),
     ('peach', AppColors.petPeach, AppColors.petPeachInk),
     ('sky', AppColors.petSky, AppColors.petSkyInk),
     ('lilac', AppColors.petLilac, AppColors.petLilacInk),
