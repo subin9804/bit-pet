@@ -402,7 +402,7 @@ class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
                             child: _TapField(
                               value: _fatherPet?.name,
                               placeholder: '아버지',
-                              iconBuilder: (c) => SexIcon(PetSex.male, size: 16, color: c),
+                              iconBuilder: (_) => SexIcon(PetSex.male, size: 16),
                               // 필드를 누르면 시트가 다시 열려 **다른 개체로 바꿀 수 있고**,
                               // X 를 누르면 비워진다. 시트는 취소 시 null 을 팝하므로
                               // 거기서는 해제가 성립하지 않는다 — 비우기는 여기 X 가 유일하다.
@@ -415,7 +415,7 @@ class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
                             child: _TapField(
                               value: _motherPet?.name,
                               placeholder: '어머니',
-                              iconBuilder: (c) => SexIcon(PetSex.female, size: 16, color: c),
+                              iconBuilder: (_) => SexIcon(PetSex.female, size: 16),
                               onTap: () => _openParentSheet(isFather: false),
                               onClear: () => setState(() => _motherPet = null),
                             ),

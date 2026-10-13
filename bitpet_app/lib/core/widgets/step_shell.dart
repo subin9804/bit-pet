@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_icons.dart';
 import '../theme/app_dimens.dart';
+import 'app_buttons.dart';
 import 'confirm_modal.dart';
 
 /// 스텝 폼의 좌우 기준선.
@@ -130,6 +131,15 @@ class _StepShellState extends State<StepShell> {
     final ctx = StepContext(advance: _advance, goEdit: _goEdit);
 
     return Column(
+      // ⚠️ `stretch` 가 이 화면의 왼쪽 기준선을 지킨다.
+      //
+      // 없으면(기본 `center`) 아래 헤더 블록이 **자기 내용 폭만큼만** 차지하고
+      // 그게 화면 가운데로 밀린다 — 프로그레스 바·제목·설명이 스텝마다 다른
+      // 위치에서 시작하고, 설명이 긴 스텝만 폭이 꽉 차 우연히 왼쪽에 붙어
+      // 보였다(그래서 '스텝 3만 멀쩡'했다). Column 의 가로 크기는 가장 넓은
+      // 자식에 맞춰지므로, 안쪽에 `crossAxisAlignment.start` 를 줘도 블록
+      // 자체가 가운데 있으면 소용이 없다.
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _StepTopBar(
           idx: _idx,
@@ -391,71 +401,26 @@ class _StepFooter extends StatelessWidget {
           // 마지막(확인) 화면에는 '이전'을 두지 않는다. 그 화면은 항목마다
           // '수정'이 달려 있어 고칠 곳으로 **바로** 갈 수 있고, 한 칸씩 되짚는
           // 이전은 그보다 느린 길일 뿐이다. 저장 버튼도 그만큼 넓어진다.
+          // 색·비활성색·눌림색·로딩은 [AppActionButton] 이 갖는다. 여기서
+          // `Container(color: ...)` 로 다시 그리면 또 혼자 먹색으로 남는다 —
+          // 실제로 그래서 '다음'만 브랜드색이 아니었다.
           if (idx > 0 && !isLast) ...[
-            GestureDetector(
-              onTap: onPrev,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                decoration: const BoxDecoration(
-                  borderRadius: AppRadius.brMd,
-                  color: AppColors.surface,
-                  border: Border.fromBorderSide(BorderSide(color: AppColors.paleLine)),
-                ),
-                child: const Text(
-                  '이전',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                    color: AppColors.primary,
-                  ),
-                ),
+            SizedBox(
+              width: 96,
+              child: AppActionButton(
+                '이전',
+                tone: AppButtonTone.neutral,
+                onPressed: onPrev,
               ),
             ),
             const SizedBox(width: 8),
           ],
           Expanded(
-            child: GestureDetector(
-              onTap: canNext ? onNext : null,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                decoration: BoxDecoration(
-                  borderRadius: AppRadius.brMd,
-                  color: canNext ? AppColors.primary : AppColors.paleLine,
-                ),
-                child: submitting
-                    ? const Center(
-                        child: SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AppColors.paleBg,
-                          ),
-                        ),
-                      )
-                    : Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          if (isLast) ...[
-                            Icon(
-                              Icons.check,
-                              size: 16,
-                              color: canNext ? AppColors.paleBg : AppColors.paleInk3,
-                            ),
-                            const SizedBox(width: 8),
-                          ],
-                          Text(
-                            isLast ? doneLabel : (returnMode ? '확인으로' : '다음'),
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 14,
-                              color: canNext ? AppColors.paleBg : AppColors.paleInk3,
-                            ),
-                          ),
-                        ],
-                      ),
-              ),
+            child: AppActionButton(
+              isLast ? doneLabel : (returnMode ? '확인으로' : '다음'),
+              icon: isLast ? Icons.check : null,
+              loading: submitting,
+              onPressed: canNext ? onNext : null,
             ),
           ),
         ],
@@ -654,7 +619,9 @@ class PaleTextField extends StatelessWidget {
         fontWeight: FontWeight.w600,
         color: AppColors.primary,
       ),
-      cursorColor: AppColors.primary,
+      // 커서·포커스선은 '지금 쓰고 있는 자리'라 브랜드색이다. 먹색이면
+      // 테두리와 구분이 안 가 어느 칸에 들어와 있는지 안 보였다.
+      cursorColor: AppColors.brandAction,
       decoration: InputDecoration(
         hintText: placeholder,
         hintStyle: const TextStyle(
@@ -674,7 +641,7 @@ class PaleTextField extends StatelessWidget {
           borderSide: BorderSide(color: AppColors.paleLine),
         ),
         focusedBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: AppColors.primary, width: 1.5),
+          borderSide: BorderSide(color: AppColors.brandAction, width: 1.5),
         ),
       ),
     );

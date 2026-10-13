@@ -91,6 +91,13 @@ abstract final class AppColors {
   static const female  = Color(0xFFD95F8B);
   static const unknown = ink3;
 
+  /// 성별 아이콘의 **선** 색. 배경은 칠하지 않는다 — 카드마다 색 블록이 박히면
+  /// 저채도 화면과 부딪히지만, 선 한 가닥이면 모양과 함께 읽히기만 한다.
+  /// 수컷은 [male] 보다 하늘색 쪽으로 한 단 밝힌 값이다 — 원색 파랑은 선이
+  /// 가늘어지는 11pt 에서 검정에 가깝게 뭉쳤다.
+  static const sexMaleInk   = Color(0xFF3E9BDE);
+  static const sexFemaleInk = female;
+
   // ── 분류색 6종 (pale 배경 / ink 텍스트) ─────────────────────
   //
   // ⚠️ **개체별로 고르는 색이 아니다.** 예전엔 개체마다 색을 지정하는 기능이 있어서

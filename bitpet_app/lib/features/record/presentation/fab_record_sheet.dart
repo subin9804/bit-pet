@@ -2107,30 +2107,30 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
                                     letterSpacing: -0.2),
                                 overflow: TextOverflow.ellipsis),
                             const SizedBox(height: 4),
-                            Text(p.speciesName,
-                                style: TextStyle(
-                                    fontSize: 12, color: AppColors.paleInk2,
-                                    fontWeight: FontWeight.w600),
-                                overflow: TextOverflow.ellipsis),
-                            const SizedBox(height: 4),
-                            // 성별은 아이콘, 체중은 숫자 — 한 Text 에 섞어 찍던 자리다.
-                            // 유니코드 ♂/♀ 를 9pt mono 로 쓰면 글리프가 폰트마다 갈려
-                            // 숫자와 베이스라인이 안 맞았다.
-                            Row(mainAxisSize: MainAxisSize.min, children: [
-                              SexIcon.fromCode(p.gender,
-                                  size: 11,
-                                  color: isOn
-                                      ? AppColors.paleInk2
-                                      : AppColors.paleInk3),
-                              if (p.latestWeightG != null)
-                                Text(
-                                  "  ${p.latestWeightG!.toStringAsFixed(0)}g",
-                                  style: AppTextStyles.mono(9, FontWeight.w700,
-                                      color: isOn
-                                          ? AppColors.paleInk2
-                                          : AppColors.paleInk3),
+                            // 종 + 성별을 **한 줄**로 둔다. 세 줄(이름/종/성별·체중)이던
+                            // 자리인데, 3열 격자의 한 칸 높이(aspect 0.78)가 그걸 담지
+                            // 못해 `RenderFlex overflowed` 가 떴다.
+                            //
+                            // 줄이면서 **체중은 뺐다** — 여기서 하는 일은 '누구에게 기록할지'
+                            // 고르는 것뿐이라 몸무게는 판단에 쓰이지 않고, 숫자가 섞이면
+                            // 작은 칸에서 이름보다 먼저 눈에 들어온다. (체중은 개체 상세와
+                            // 체중 기록 화면에 있다.)
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                SexIcon.fromCode(p.gender, size: 11),
+                                const SizedBox(width: 3),
+                                Flexible(
+                                  child: Text(p.speciesName,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                          fontSize: 12,
+                                          color: AppColors.paleInk2,
+                                          fontWeight: FontWeight.w600)),
                                 ),
-                            ]),
+                              ],
+                            ),
                           ],
                         ),
                       ),

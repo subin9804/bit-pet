@@ -1754,8 +1754,7 @@ class _MatingPartnerFieldState extends ConsumerState<_MatingPartnerField> {
                                         fontWeight: FontWeight.w700,
                                         color: AppColors.primary)),
                               ),
-                              SexIcon.fromCode(p.gender,
-                                  size: 13, color: AppColors.paleInk2),
+                              SexIcon.fromCode(p.gender, size: 13),
                             ]),
                           ),
                         );

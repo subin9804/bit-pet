@@ -272,7 +272,9 @@ class _DayTile extends StatelessWidget {
                     BorderSide(color: AppColors.brandAction, width: 1.5)),
               )
             : null,
-        padding: const EdgeInsets.fromLTRB(4, 3, 4, 0),
+        // 좌우 3 — 글자에 1px 씩 더 준다. 칸이 45px 뿐이라 여기서 깎는 2px 이
+        // 한 글자 차이가 된다.
+        padding: const EdgeInsets.fromLTRB(3, 3, 3, 0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -356,9 +358,9 @@ class CalendarCellLine extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
-            width: 5,
-            height: 5,
-            margin: const EdgeInsets.only(right: 3),
+            width: 4,
+            height: 4,
+            margin: const EdgeInsets.only(right: 2.5),
             decoration: BoxDecoration(
               color: hollow ? Colors.transparent : dotColor,
               shape: BoxShape.circle,
@@ -371,8 +373,13 @@ class CalendarCellLine extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 12,
-                height: 1.2,
+                // 10pt — 한 칸(약 45px)에 **네 글자**가 들어가는 크기다. 12pt
+                // 에서는 세 글자도 못 채우고 … 로 잘려서, 칸만 보고는 무슨
+                // 기록인지 알 수 없었다. 점(4px)과 자간(-0.2)도 같이 조여
+                // 글자에 줄 폭을 넘긴다.
+                fontSize: 10,
+                letterSpacing: -0.2,
+                height: 1.25,
                 fontWeight: FontWeight.w600,
                 color: muted ? AppColors.ink3 : AppColors.ink2,
               ),
@@ -391,9 +398,11 @@ class CalendarCellMore extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(left: 8),
+        // 본문 줄과 같은 눈높이로 — 줄은 10pt 로 내렸는데 이게 12pt 로 남으면
+        // 더보기 표시가 기록 이름보다 커진다.
+        padding: const EdgeInsets.only(left: 6),
         child: Text('+$count',
             style:
-                AppTextStyles.mono(12, FontWeight.w700, color: AppColors.ink3)),
+                AppTextStyles.mono(10, FontWeight.w700, color: AppColors.ink3)),
       );
 }

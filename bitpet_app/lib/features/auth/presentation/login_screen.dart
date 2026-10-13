@@ -140,148 +140,175 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Scaffold(
       backgroundColor: AppColors.canvas,
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
-            child: Column(
-              children: [
-                const SizedBox(height: 48),
-
-                // ── 로고 (심볼 + 워드마크) ───────────────────────────
-                _logo,
-
-                const SizedBox(height: AppSpacing.md),
-
-                // ── 슬로건 ──────────────────────────────────────────
-                Text('작은 친구들을 위한 사육 노트', style: AppTextStyles.caption),
-
-                const SizedBox(height: 28),
-
-                // ── 소셜 로그인 ─────────────────────────────────────
-                if (kSocialLoginEnabled) ...[
-                  _SocialButton(
-                    label: '카카오로 시작하기',
-                    backgroundColor: AppColors.kakao,
-                    textColor: AppColors.ink,
-                    // ✏️ 아이콘 교체: assets/icons/kakao.png 준비 후 주석 해제
-                    // iconPath: 'assets/icons/kakao.png',
-                    fallbackIcon:
-                        const Text('💛', style: TextStyle(fontSize: 18)),
-                    onPressed: () => _onSocial('카카오'),
-                  ),
-
-                  const SizedBox(height: AppSpacing.sm),
-
-                  _SocialButton(
-                    label: '네이버로 시작하기',
-                    backgroundColor: AppColors.naver,
-                    textColor: Colors.white,
-                    // ✏️ 아이콘 교체: assets/icons/naver.png 준비 후 주석 해제
-                    // iconPath: 'assets/icons/naver.png',
-                    fallbackIcon: Text(
-                      'N',
-                      style: AppTextStyles.subheading.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    onPressed: () => _onSocial('네이버'),
-                  ),
-
-                  const SizedBox(height: AppSpacing.sm),
-
-                  _SocialButton(
-                    label: 'Google로 시작하기',
-                    backgroundColor: AppColors.card,
-                    textColor: AppColors.ink,
-                    hasBorder: true,
-                    // ✏️ 아이콘 교체: assets/icons/google.png 준비 후 주석 해제
-                    // iconPath: 'assets/icons/google.png',
-                    fallbackIcon: Text(
-                      'G',
-                      style: AppTextStyles.subheading.copyWith(
-                        color: AppColors.google,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    onPressed: () => _onSocial('Google'),
-                  ),
-
-                  const SizedBox(height: AppSpacing.lg),
-
-                  // ── 구분선 ───────────────────────────────────────
-                  Row(
+        // 세로 배치의 뼈대 — **로고는 위, 나머지는 내려서 화면 가운데 아래쯤**.
+        //
+        // 전엔 전부 고정 `SizedBox` 로 위에서부터 쌓아올렸다. 로고 아래 28px 만
+        // 두고 소셜 버튼 세 개가 8px 간격으로 붙어서, 화면 아래쪽은 통째로 비어
+        // 있는데 위쪽만 빽빽했다 — 첫 화면이 답답하게 읽히던 이유가 그거였다.
+        //
+        // 남는 높이를 `Spacer` 두 개가 **3:2** 로 나눈다. 로고와 버튼 덩어리 사이가
+        // 더 넓어서 버튼 덩어리가 '가운데보다 조금 아래'(엄지가 닿는 쪽)에 앉는다.
+        // 이메일 폼을 펼치거나 화면이 작으면 Spacer 가 0 까지 줄고, 그래도 넘치면
+        // 스크롤된다 — 그래서 고정 여백이 아니라 비율로 둔다.
+        //
+        // ⚠️ `IntrinsicHeight` 를 빼지 말 것. `SingleChildScrollView` 안의 Column 은
+        // 높이가 무한(unbounded)이라 `Spacer` 가 나눌 '남는 높이'를 모른다. 뷰포트
+        // 높이를 최소치로 걸고 intrinsic 으로 확정해야 flex 가 돈다.
+        child: LayoutBuilder(
+          builder: (context, viewport) => SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: viewport.maxHeight),
+              child: IntrinsicHeight(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.screenH),
+                  child: Column(
                     children: [
-                      const Expanded(
-                        child: Divider(color: AppColors.line, thickness: 1),
+                      const SizedBox(height: AppSpacing.x40),
+
+                      // ── 로고 (심볼 + 워드마크) ───────────────────────
+                      _logo,
+
+                      const SizedBox(height: AppSpacing.lg),
+
+                      // ── 슬로건 ──────────────────────────────────────
+                      Text('작은 친구들을 위한 사육 노트',
+                          style: AppTextStyles.caption),
+
+                      // 로고 블록 ↕ 버튼 덩어리 (넓은 쪽)
+                      const Spacer(flex: 3),
+
+                      // ── 소셜 로그인 ─────────────────────────────────
+                      if (kSocialLoginEnabled) ...[
+                        _SocialButton(
+                          label: '카카오로 시작하기',
+                          backgroundColor: AppColors.kakao,
+                          textColor: AppColors.ink,
+                          // ✏️ 아이콘 교체: assets/icons/kakao.png 준비 후 주석 해제
+                          // iconPath: 'assets/icons/kakao.png',
+                          fallbackIcon:
+                              const Text('💛', style: TextStyle(fontSize: 18)),
+                          onPressed: () => _onSocial('카카오'),
+                        ),
+
+                        const SizedBox(height: AppSpacing.md),
+
+                        _SocialButton(
+                          label: '네이버로 시작하기',
+                          backgroundColor: AppColors.naver,
+                          textColor: Colors.white,
+                          // ✏️ 아이콘 교체: assets/icons/naver.png 준비 후 주석 해제
+                          // iconPath: 'assets/icons/naver.png',
+                          fallbackIcon: Text(
+                            'N',
+                            style: AppTextStyles.subheading.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          onPressed: () => _onSocial('네이버'),
+                        ),
+
+                        const SizedBox(height: AppSpacing.md),
+
+                        _SocialButton(
+                          label: 'Google로 시작하기',
+                          backgroundColor: AppColors.card,
+                          textColor: AppColors.ink,
+                          hasBorder: true,
+                          // ✏️ 아이콘 교체: assets/icons/google.png 준비 후 주석 해제
+                          // iconPath: 'assets/icons/google.png',
+                          fallbackIcon: Text(
+                            'G',
+                            style: AppTextStyles.subheading.copyWith(
+                              color: AppColors.google,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          onPressed: () => _onSocial('Google'),
+                        ),
+
+                        const SizedBox(height: AppSpacing.xxl),
+
+                        // ── 구분선 ──────────────────────────────────
+                        Row(
+                          children: [
+                            const Expanded(
+                              child:
+                                  Divider(color: AppColors.line, thickness: 1),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: AppSpacing.md),
+                              child: Text('또는', style: AppTextStyles.label),
+                            ),
+                            const Expanded(
+                              child:
+                                  Divider(color: AppColors.line, thickness: 1),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: AppSpacing.xxl),
+                      ],
+
+                      // ── 이메일 로그인 (접힘 → 펼침) ─────────────────
+                      //
+                      // 접힌 동안엔 버튼만, 누르면 같은 자리에서 폼 카드가 열린다.
+                      // 화면을 새로 띄우지 않는 이유: 로그인 실패 토스트와 '회원가입'
+                      // 링크가 전부 이 화면에 있어서, 폼만 따로 떼면 왕복이 생긴다.
+                      AnimatedSize(
+                        duration: const Duration(milliseconds: 180),
+                        curve: Curves.easeOut,
+                        alignment: Alignment.topCenter,
+                        child: _emailOpen
+                            ? _emailForm(isLoading)
+                            : _EmailTriggerButton(
+                                onPressed: () =>
+                                    setState(() => _emailOpen = true),
+                              ),
                       ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.md),
-                        child: Text('또는', style: AppTextStyles.label),
+
+                      const SizedBox(height: AppSpacing.xxl),
+
+                      // ── 처음이신가요? 회원가입 ──────────────────────
+                      // 회원가입만 브랜드색이다 — 이 화면에서 '지금 할 수 있는 다른
+                      // 일'은 사실상 하나뿐이라, 비밀번호 찾기까지 같이 강조하면
+                      // 둘 다 안 읽힌다.
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text('처음이신가요?', style: AppTextStyles.caption),
+                          TextButton(
+                            onPressed: () => context.push('/signup'),
+                            style: TextButton.styleFrom(
+                              padding:
+                                  const EdgeInsets.only(left: AppSpacing.xs),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            child: Text(
+                              '회원가입',
+                              style: AppTextStyles.caption.copyWith(
+                                color: AppColors.brandAction,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      const Expanded(
-                        child: Divider(color: AppColors.line, thickness: 1),
-                      ),
+
+                      // 버튼 덩어리 ↕ 버전 푸터 (좁은 쪽)
+                      const Spacer(flex: 2),
+
+                      // ── 버전 푸터 ───────────────────────────────────
+                      Text('tailog v0.2', style: AppTextStyles.label),
+
+                      const SizedBox(height: AppSpacing.lg),
                     ],
                   ),
-
-                  const SizedBox(height: AppSpacing.lg),
-                ],
-
-                // ── 이메일 로그인 (접힘 → 펼침) ──────────────────────
-                //
-                // 접힌 동안엔 버튼만, 누르면 같은 자리에서 폼 카드가 열린다.
-                // 화면을 새로 띄우지 않는 이유: 로그인 실패 토스트와 '회원가입'
-                // 링크가 전부 이 화면에 있어서, 폼만 따로 떼면 왕복이 생긴다.
-                AnimatedSize(
-                  duration: const Duration(milliseconds: 180),
-                  curve: Curves.easeOut,
-                  alignment: Alignment.topCenter,
-                  child: _emailOpen
-                      ? _emailForm(isLoading)
-                      : _EmailTriggerButton(
-                          onPressed: () => setState(() => _emailOpen = true),
-                        ),
                 ),
-
-                const SizedBox(height: 28),
-
-                // ── 처음이신가요? 회원가입 ────────────────────────────
-                // 회원가입만 브랜드색이다 — 이 화면에서 '지금 할 수 있는 다른 일'은
-                // 사실상 하나뿐이라, 비밀번호 찾기까지 같이 강조하면 둘 다 안 읽힌다.
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text('처음이신가요?', style: AppTextStyles.caption),
-                    TextButton(
-                      onPressed: () => context.push('/signup'),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.only(left: AppSpacing.xs),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: Text(
-                        '회원가입',
-                        style: AppTextStyles.caption.copyWith(
-                          color: AppColors.brandAction,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: AppSpacing.lg),
-
-                // ── 버전 푸터 ────────────────────────────────────────
-                // 양옆의 ▼ 는 픽셀 컨셉 시절의 장식이었다. 로고가 제대로 들어간
-                // 화면에서는 같은 자리에서 두 개의 다른 톤이 부딪힌다.
-                Text('tailog v0.2', style: AppTextStyles.label),
-
-                const SizedBox(height: AppSpacing.xxl),
-              ],
+              ),
             ),
           ),
         ),
