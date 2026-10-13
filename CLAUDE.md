@@ -223,8 +223,10 @@ PostgreSQL이 재정규화하는데 의미는 같다.)
   V15(메모 없이 완료한 CUSTOM 루틴의 `memo_dtl` 백필 — `content=''`),
   V16(`laying_hatch_dtl.egg_index` 추가·클러치별 1부터 백필 + `laying_note_dtl` 신설 —
   클러치 **단위** 날짜별 관찰 메모. 알 단위 메모가 아니다),
-  V17(`pet_mst.keeping_report_yn`·`cites_report_yn` — 야생생물법 신고 **여부만**).
-  **다음은 V18.**
+  V17(`pet_mst.keeping_report_yn`·`cites_report_yn` — 야생생물법 신고 **여부만**),
+  V18(삭제된 개체를 가리키는 `laying_hatch_dtl.hatched_pet_id` 를 NULL 로 정리 — 개체 삭제가
+  소프트 삭제라 FK `ON DELETE SET NULL` 이 돌지 않아 남은 유령 링크. `status` 는 건드리지 않는다).
+  **다음은 V19.**
 - 코드성 시드(`memo_tag_cd`, `post_category_cd`, `serial_pool_stat_mst`)는 베이스라인 하단에 들어 있다.
   종·모프 마스터는 그대로 `R__01`/`R__02` 담당.
 - ⚠️ **`R__02` 는 파일에 없는 공식 모프를 매 실행마다 지운다** (개체가 물고 있으면 FK RESTRICT 라
@@ -368,6 +370,15 @@ PostgreSQL이 재정규화하는데 의미는 같다.)
   부화 폼을 띄우지 않는 이유는 "몇 번 알이 부화했다"가 한 번의 탭으로 끝나는 동작이기 때문이다
 - ⛔ **등록된 알은 순환에서 빠진다.** 서버가 `HATCH_ALREADY_REGISTERED` 로 막고, 앱은 탭하면
   그 개체 상세로 보낸다. 개체가 이미 생긴 뒤 상태를 되돌리면 계보만 남고 근거가 사라진다
+- **등록한 개체를 삭제하면 알의 연결이 끊긴다** (`LayingMaintenanceService.onPetDeleted`, V18, 2026-10-14).
+  개체 삭제는 **소프트 삭제**라 FK 의 `ON DELETE SET NULL` 도, 물리 삭제 경로(`PetPurgeRepository`)의
+  링크 해제도 돌지 않는다 — 안 끊으면 알 칸이 '등록됨'으로 보이는데 눌러도 없는 개체로 가고,
+  위 가드 때문에 상태를 되돌릴 수도 없는 유령 상태가 된다. 조회 쪽도 함께 막는다:
+  `HatchResponse.of` 는 개체를 못 찾으면 `hatchedPetId` 도 내리지 않는다 (앱의 '등록됨' 판정 기준)
+  - ⛔ `status` 는 `HATCHED` 로 남긴다 — 부화는 실제로 일어난 일이고 개체를 지운 것과 별개다.
+    `PENDING` 으로 되돌리면 "부화한 적 없는 알"이 되어 기록이 거짓이 된다. 연결이 끊긴 뒤에는
+    알 칸을 다시 눌러 순환시킬 수 있으므로 되돌리고 싶으면 사용자가 누르면 된다
+  - ⛔ 개체를 다시 만들지도, 알을 지우지도 않는다. 알은 부화 기록이고 개체는 사육 대상이라 수명이 다르다
 - 드문 조작(부화일 수정·실패/무정 지정·대기 복귀)은 **롱프레스 옵션 시트** → `PATCH .../hatches/{hatchId}`.
   ⚠️ `hatchedAt` 은 `OffsetDateTime` 이라 앱은 **UTC ISO-8601 전체**를 보낸다(날짜만 보내면 파싱이 깨진다)
 - **메모는 알이 아니라 클러치 단위**다 (`laying_note_dtl`: laying_id + note_date + content).
@@ -856,7 +867,7 @@ test → GHCR 이미지 빌드(**태그 = 커밋 SHA**) → SSH → `deploy/scri
 - 외부 시스템 영향(push·삭제·외부 API 호출)은 확인 후 진행
 - Flutter UI는 디자인 확정 전까지 **뼈대(Skeleton)만** 구현, 상세 UI는 별도 지시 대기
 - 새 Flyway 마이그레이션은 기존 파일 절대 수정 금지, 항상 다음 버전으로 신규 작성
-  (2026-08-19 스쿼시 이후 V2~V17 추가됨, **다음은 V18**. `V1__baseline_schema.sql` 수정 = 모든 DB 기동 불가)
+  (2026-08-19 스쿼시 이후 V2~V18 추가됨, **다음은 V19**. `V1__baseline_schema.sql` 수정 = 모든 DB 기동 불가)
 
 ---
 
