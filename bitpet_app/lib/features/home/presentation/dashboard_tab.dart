@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/species/breeding_terms.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/theme/app_icons.dart';
@@ -10,6 +11,7 @@ import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../notification/providers/notification_provider.dart';
+import '../../pet/data/models/pet_models.dart';
 import '../../pet/data/anniversary.dart';
 import '../../pet/presentation/widgets/anniversary_view.dart';
 import '../../pet/providers/pet_provider.dart';
@@ -671,8 +673,15 @@ class _HomeCalendarState extends ConsumerState<_HomeCalendar> {
     // 기념일은 서버 캘린더 집계에 없다(그 달에 쌓인 행을 세는 것이라 매년
     // 돌아오는 날을 담을 자리가 없다). 개체 목록에 해칭일·입양일이 이미
     // 실려 오므로 여기서 월/일만 맞춰 얹는다.
-    final anniversaries = anniversariesInMonth(
-        ref.watch(petListProvider).valueOrNull ?? const [], _month);
+    final pets = ref.watch(petListProvider).valueOrNull ?? const <Pet>[];
+    final anniversaries = anniversariesInMonth(pets, _month);
+
+    // 산란/출산 라벨 판정용. 여기는 여러 개체의 기록이 한 날에 섞이는 자리라
+    // 화면에서 용어를 하나로 정할 수 없다 — 묶음에 든 개체를 보고 고른다.
+    final mammalPetIds = pets
+        .where((p) => p.terms.isMammal)
+        .map((p) => p.id)
+        .toSet();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -763,6 +772,7 @@ class _HomeCalendarState extends ConsumerState<_HomeCalendar> {
             weekKo: _weekKo,
             recordsAsync: dayAsync ?? const AsyncLoading(),
             anniversaries: anniversaries[_selDate!] ?? const [],
+            mammalPetIds: mammalPetIds,
           ),
         ],
       ],
@@ -777,11 +787,15 @@ class _DayRecordSection extends StatelessWidget {
   final AsyncValue<List<RecentRecord>> recordsAsync;
   final List<Anniversary> anniversaries;
 
+  /// 포유류 개체의 id. 산란/출산 라벨을 고르는 데만 쓴다.
+  final Set<int> mammalPetIds;
+
   const _DayRecordSection({
     required this.dateStr,
     required this.weekKo,
     required this.recordsAsync,
     required this.anniversaries,
+    required this.mammalPetIds,
   });
 
   static const _catOrder = ['FEEDING', 'WEIGHT', 'CLEANING', 'MEMO', 'MATING', 'LAYING'];
@@ -790,12 +804,23 @@ class _DayRecordSection extends StatelessWidget {
     'MEMO': '메모', 'MATING': '메이팅', 'LAYING': '산란',
   };
 
+  /// 카테고리 묶음의 이름. LAYING 만 종에 따라 갈리는데, 이 줄은 **여러 개체의
+  /// 기록을 묶은 것**이라 섞여 있을 수 있다 — 그럴 때는 둘을 같이 적는다.
+  /// 한쪽만 적으면 묶음에 든 나머지 기록이 다른 종류로 읽힌다.
+  String _label(String type, List<RecentRecord> recs) {
+    if (type != 'LAYING') return _catLabel[type] ?? type;
+    final mammals = recs.where((r) => mammalPetIds.contains(r.petId)).length;
+    if (mammals == recs.length) return BreedingTerms.viviparous.laying;
+    if (mammals == 0) return BreedingTerms.oviparous.laying;
+    return '산란 · 출산';
+  }
+
   void _openDetail(BuildContext ctx, String type, List<RecentRecord> recs) {
     showAppSheet<void>(
       context: ctx,
       builder: (_) => _CategoryDetailSheet(
         type: type,
-        label: _catLabel[type] ?? type,
+        label: _label(type, recs),
         records: recs,
       ),
     );
@@ -880,7 +905,7 @@ class _DayRecordSection extends StatelessWidget {
                   final recs = grouped[type]!;
                   return _CategoryRow(
                     type: type,
-                    label: _catLabel[type] ?? type,
+                    label: _label(type, recs),
                     records: recs,
                     onTap: () => _openDetail(context, type, recs),
                   );

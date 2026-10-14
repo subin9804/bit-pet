@@ -98,7 +98,7 @@ public record PetResponse(
                 pet.getUserId(),
                 pet.getSpecies() != null ? pet.getSpecies().getId() : null,
                 pet.getSpecies() != null ? pet.getSpecies().getNameKo() : null,
-                pet.getSpecies() != null ? pet.getSpecies().getCategory() : null,
+                pet.getSpecies() != null ? pet.getSpecies().normalizedCategory() : null,
                 pet.getSpecies() != null ? pet.getSpecies().getSubcategory() : null,
                 morphList,
                 pet.getName(),

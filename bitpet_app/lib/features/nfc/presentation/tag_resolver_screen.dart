@@ -145,7 +145,7 @@ String _publicPetLine(PetCard pet) {
     if (pet.morphLabel.isNotEmpty) pet.morphLabel,
     switch (pet.gender) { 'MALE' => '수컷', 'FEMALE' => '암컷', _ => '' },
     if (pet.hatchingDate != null)
-      '${pet.hatchingDate!.year}.${pet.hatchingDate!.month.toString().padLeft(2, '0')} 해칭',
+      '${pet.hatchingDate!.year}.${pet.hatchingDate!.month.toString().padLeft(2, '0')} ${pet.terms.hatch}',
   ]..removeWhere((s) => s.isEmpty);
   return parts.join(' · ');
 }

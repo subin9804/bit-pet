@@ -14,7 +14,7 @@ public record SpeciesCdResponse(
 ) {
     public static SpeciesCdResponse from(SpeciesCd s) {
         return new SpeciesCdResponse(
-                s.getId(), s.getCode(), s.getCategory(), s.getSubcategory(),
+                s.getId(), s.getCode(), s.normalizedCategory(), s.getSubcategory(),
                 s.getNameKo(), s.getNameEn(), s.getScientificName(), s.getDisplayOrder()
         );
     }

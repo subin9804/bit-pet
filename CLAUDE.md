@@ -360,6 +360,44 @@ PostgreSQL이 재정규화하는데 의미는 같다.)
 - `laying_hatch_dtl.status`: PENDING / HATCHED / FAILED / SLUG
 - `POST /api/v1/layings/{layingId}/hatches/{hatchId}/register-pet` → 새 개체 + 계보 자동 생성
 
+#### 포유류는 '산란'이 아니라 '출산' (2026-10-14)
+
+종 대분류가 `M`(포유류)이면 같은 기록을 **출산**으로 적는다. 치환은 **포유류 개체 전역**이다 —
+폼·상세만 바꾸면 한 군데 남은 '산란'이 오히려 더 눈에 띈다.
+
+| | 비포유류(R/A) | 포유류(M) |
+|---|---|---|
+| 기록 이름 | 산란 / 산란일 | **출산 / 출산일** |
+| 개수 칸 | 알 총 개수 (개) | **새끼 수 (마리)** |
+| 유정란 칸 | 있음 | **없음** |
+| 날짜 라벨 | 해칭일 / 해칭 | **출생일 / 출생** |
+
+- 🔴 **`species_cd.category` 는 `character(2)`라 PostgreSQL 이 공백을 채워 돌려준다**(`"M "`).
+  `"M".equals(getCategory())` 는 **Java 에서 항상 false** 다. SQL 안에서는 bpchar 비교가 꼬리
+  공백을 무시해 드러나지 않고 **Java/앱에서만 터진다.** 판정은 반드시
+  `SpeciesCd.isMammal()` / `normalizedCategory()`(서버), `BreedingTerms.of()`(앱)로 할 것
+- 서버는 `PetResponse`·`PetCardResponse`·`SpeciesCdResponse`·`LayingResponse` 네 곳에서
+  `normalizedCategory()` 로 **trim 한 값**을 내린다. 앱의 `BreedingTerms.of` 도 한 번 더
+  `trim().toUpperCase()` 한다(구버전 서버·로컬 캐시 대비)
+- 앱 용어의 **단일 소스는 `core/species/breeding_terms.dart`** 하나다.
+  ⛔ 화면에서 `category == 'M'` 같은 비교를 직접 하지 말 것. 모델이 들고 다닌다 —
+  `Pet.terms` / `PetCard.terms` / `LayingRecord.terms` / `Anniversary.terms`
+- **마이그레이션은 없다 — `laying_dtl` 을 그대로 쓰고 구분 컬럼도 두지 않는다.**
+  저장할 게 `laid_at` + `egg_count_total` 둘뿐이고, `is_mammal` 플래그는 종에서 파생되는 값의
+  복제라 종을 수정하는 순간 어긋난다. `RecordCategory.BIRTH` 를 새로 만들면 캘린더·타임라인
+  UNION·sync·앱의 색/아이콘/라벨 맵이 전부 두 벌이 되는데 사용자가 얻는 건 0 이다
+- **서버가 포유류 값을 버린다**(`LayingService`): `eggCountFertile`·`incubationTemp`·
+  `incubationHumidity` 는 null 로, `syncEggRows` 는 **알 칸을 아예 만들지 않는다**.
+  `getMyLayings` 도 포유류 개체를 제외해 **'알' 탭에 출산 기록이 뜨지 않는다**
+- **FAB 기록 시트는 종류 선택이 개체 선택보다 먼저**라 박스를 그릴 때는 종을 모른다.
+  전부 포유류면 '출산', 전부 아니면 '산란', 모르거나 섞이면 **'산란 · 출산'** 으로 둘을 같이 적는다
+  (한쪽만 띄우면 반대편 사육자가 "그런 기록은 없다"고 읽고 지나간다). 홈 캘린더의 날짜별
+  묶음도 같은 규칙
+- **산란/출산은 한 번에 한 쪽만 고를 수 있다** (`_PetSelectStep._lockedMammal`). 다중 선택이라
+  게코+햄스터를 같이 고르면 같은 폼에 '알 총 개수'와 '새끼 수'를 동시에 담을 수 없다 →
+  첫 선택이 카테고리를 고정하고 나머지는 걸러낸다. 수컷 제외와 **같은 방식**(걸러내고 이유를
+  캡션에 적는다)이고, 제외 사유는 `수컷 N마리 제외 · 포유류 외 N마리 제외` 로 **나눠 적는다**
+- ⛔ `core/legal/legal_documents.dart` 의 '산란'·'해칭일' 은 **약관 전문**이라 건드리지 않는다
 #### 클러치(유정란) 관리 — 알 칸 탭 순환 (V16, 2026-10-13)
 
 '내 개체' 화면의 **`개체 | 알` 탭**(`petScreenTabProvider` + `EggTab`)에서 클러치를 보고,

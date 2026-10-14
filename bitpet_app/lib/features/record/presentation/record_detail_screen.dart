@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/species/breeding_terms.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_input_styles.dart';
@@ -234,11 +235,19 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
           await repo.addMating(widget.petId, data);
         }
       } else if (widget.recordType == 'laying') {
+        final terms =
+            ref.read(petDetailProvider(widget.petId)).whenOrNull(
+                    data: (p) => p.terms) ??
+                BreedingTerms.oviparous;
         final cnt = e.form['totalCount'] as int;
-        final fertile = e.form['fertileCount'] as int?;
+        // 출산 폼에는 유정란 칸이 없다 — 폼에 남아 있을 수 있는 값을 실어
+        // 보내지 않는다. 서버도 버리지만 보내지 않는 쪽이 정직하다.
+        final fertile =
+            terms.isMammal ? null : e.form['fertileCount'] as int?;
         final memo = (e.form['memo'] as String).trim();
         if (cnt <= 0) {
-          showToast(context, '알 총 개수를 적어주세요', type: ToastType.error);
+          showToast(context, '${terms.eggCountLabel}를 적어주세요',
+              type: ToastType.error);
           return;
         }
         // 서버도 막지만(`LAYING_FERTILE_EXCEEDS_TOTAL`) 400 을 받고 나서
@@ -306,6 +315,11 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
     final petAsync = ref.watch(petDetailProvider(widget.petId));
     final petName = petAsync.whenOrNull(data: (p) => p.name) ?? '';
 
+    // 이 화면은 개체 하나짜리라 용어가 한 쪽으로 정해진다 — 포유류면 산란이
+    // 아니라 출산이고, 알 칸 대신 새끼 수 하나만 받는다.
+    final terms = petAsync.whenOrNull(data: (p) => p.terms) ??
+        BreedingTerms.oviparous;
+
     return Scaffold(
       backgroundColor: AppColors.canvas,
       body: Stack(
@@ -316,7 +330,9 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
                 bottom: false,
                 child: _TopBar(
                   onBack: () => context.pop(),
-                  title: _meta.label,
+                  title: widget.recordType == 'laying'
+                      ? '${terms.laying} 기록'
+                      : _meta.label,
                   petName: petName,
                   onAdd: () => _openAdd(null),
                 ),
@@ -357,6 +373,7 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
               petId: widget.petId,
               recordType: widget.recordType,
               editor: _editor!,
+              terms: terms,
               accentColor: _meta.accent,
               onChanged: (e) => setState(() => _editor = e),
               onSave: _save,
@@ -419,8 +436,8 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
     // 유정란 수를 적어 둔 기록이면 함께 보여 준다 — 목록에서 '몇 개 낳았나'
     // 다음으로 궁금한 게 '그중 몇 개가 유정이냐'다.
     summary: r.fertileCount == null
-        ? '${r.totalCount}개'
-        : '${r.totalCount}개 · 유정 ${r.fertileCount}',
+        ? '${r.totalCount}${r.terms.eggUnit}'
+        : '${r.totalCount}${r.terms.eggUnit} · 유정 ${r.fertileCount}',
     raw: r);
 
   Map<String, dynamic> _defaultForm() => switch (widget.recordType) {
@@ -940,6 +957,10 @@ class _EditorSheet extends StatefulWidget {
   final int petId;
   final String recordType;
   final _EditorState editor;
+
+  /// 이 개체의 번식 용어. 포유류면 '알 총 개수'가 '새끼 수'가 되고
+  /// **유정란 칸이 사라진다** — 알이 없으니 유정·무정도 없다.
+  final BreedingTerms terms;
   final Color accentColor;
   final ValueChanged<_EditorState> onChanged;
   final VoidCallback onSave;
@@ -948,6 +969,7 @@ class _EditorSheet extends StatefulWidget {
 
   const _EditorSheet({
     required this.petId, required this.recordType, required this.editor,
+    required this.terms,
     required this.accentColor, required this.onChanged,
     required this.onSave, required this.onDelete, required this.onClose,
   });
@@ -1347,7 +1369,7 @@ class _EditorSheetState extends State<_EditorSheet> {
                       // FAB 산란 폼(`fab_record_sheet.dart` 의 'lay')과 같은
                       // 칸·같은 순서다. 한쪽만 고치지 말 것.
                       if (widget.recordType == 'laying') ...[
-                        _eggLabel('알 총 개수', required: true),
+                        _eggLabel(widget.terms.eggCountLabel, required: true),
                         const SizedBox(height: 8),
                         TextField(
                           controller: _totalCtrl,
@@ -1356,33 +1378,36 @@ class _EditorSheetState extends State<_EditorSheet> {
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
                               color: AppColors.primary),
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             hintText: '0',
-                            suffixText: '개',
-                            suffixStyle: TextStyle(
+                            suffixText: widget.terms.eggUnit,
+                            suffixStyle: const TextStyle(
                                 fontSize: 14, color: AppColors.paleInk2),
                           ),
                           onChanged: (v) => setState(() => _updateForm(
                               'totalCount', int.tryParse(v.trim()) ?? 0)),
                         ),
-                        const SizedBox(height: 16),
-                        _eggLabel('유정란 수', required: false),
-                        const SizedBox(height: 8),
-                        TextField(
-                          controller: _fertileCtrl,
-                          keyboardType: TextInputType.number,
-                          style: const TextStyle(
-                              fontSize: 14, color: AppColors.primary),
-                          decoration: const InputDecoration(
-                            hintText: '미확인 시 비워두세요',
-                            suffixText: '개',
-                            suffixStyle: TextStyle(
-                                fontSize: 14, color: AppColors.paleInk2),
+                        // 포유류(출산)에는 유정란이 없다. 서버도 값을 버린다.
+                        if (!widget.terms.isMammal) ...[
+                          const SizedBox(height: 16),
+                          _eggLabel('유정란 수', required: false),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: _fertileCtrl,
+                            keyboardType: TextInputType.number,
+                            style: const TextStyle(
+                                fontSize: 14, color: AppColors.primary),
+                            decoration: const InputDecoration(
+                              hintText: '미확인 시 비워두세요',
+                              suffixText: '개',
+                              suffixStyle: TextStyle(
+                                  fontSize: 14, color: AppColors.paleInk2),
+                            ),
+                            // 비우면 null — '전부 무정(0)'과 구별해야 한다.
+                            onChanged: (v) => _updateForm('fertileCount',
+                                v.trim().isEmpty ? null : int.tryParse(v.trim())),
                           ),
-                          // 비우면 null — '전부 무정(0)'과 구별해야 한다.
-                          onChanged: (v) => _updateForm('fertileCount',
-                              v.trim().isEmpty ? null : int.tryParse(v.trim())),
-                        ),
+                        ],
                       ],
 
                       // ── 공통 메모 (memo 타입 제외) ─────────

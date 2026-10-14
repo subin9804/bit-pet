@@ -9,6 +9,7 @@ import '../../../../features/record/data/models/record_models.dart';
 import '../../../../features/record/providers/record_provider.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_dimens.dart';
+import '../../../../core/species/breeding_terms.dart';
 
 // ── 카테고리 메타 ─────────────────────────────────────────────
 // 아이콘은 여기 들고 있지 않다 — 카테고리 코드만 [RecordTypeIcon] 에 넘긴다.
@@ -23,6 +24,8 @@ const _catMeta = {
   'CLEANING':_CatMeta('청소'),
   'MEMO':    _CatMeta('메모'),
   'MATING':  _CatMeta('메이팅'),
+  // ⚠️ 포유류는 '출산'이다. 라벨은 [_RecordTabState._label] 이 [BreedingTerms] 로
+  // 덮어쓰므로 이 값은 파충류·양서류용 기본값이다.
   'LAYING':  _CatMeta('산란'),
 };
 
@@ -51,14 +54,26 @@ class RecordTab extends ConsumerStatefulWidget {
   final int petId;
   /// 산란 줄을 띄울지 판정하는 데만 쓴다 ([canLayEggs]).
   final String gender;
+  /// R=파충류 / A=양서류 / M=포유류 — 산란/출산 라벨을 고른다.
+  final String? speciesCategory;
 
-  const RecordTab({super.key, required this.petId, required this.gender});
+  const RecordTab({
+    super.key,
+    required this.petId,
+    required this.gender,
+    this.speciesCategory,
+  });
 
   @override
   ConsumerState<RecordTab> createState() => _RecordTabState();
 }
 
 class _RecordTabState extends ConsumerState<RecordTab> {
+  /// 카테고리 줄의 라벨. LAYING 만 종에 따라 '산란'/'출산'으로 갈린다.
+  String _label(String cat) => cat == 'LAYING'
+      ? BreedingTerms.of(widget.speciesCategory).laying
+      : _catMeta[cat]!.label;
+
   // 캘린더는 캘린더 탭, 날짜별 기록은 각 기록 상세 화면이 맡는다.
   // 기록 탭에 남는 건 **요약 하나뿐**이다 — 아래에 '오늘 기록' 목록이 따로
   // 있었지만, 위 요약 줄이 이미 카테고리마다 마지막 기록과 '오늘/어제'를
@@ -182,7 +197,7 @@ class _RecordTabState extends ConsumerState<RecordTab> {
         children: restCats.asMap().entries.map((entry) {
           final i   = entry.key;
           final cat = entry.value;
-          final meta = _catMeta[cat]!;
+          final label = _label(cat);
           final item = latestByCategory[cat];
           final isEmpty = item == null;
           return GestureDetector(
@@ -229,7 +244,7 @@ class _RecordTabState extends ConsumerState<RecordTab> {
                     SizedBox(
                       width: (48 * MediaQuery.textScalerOf(context).scale(1.0))
                           .clamp(48.0, 76.0),
-                      child: Text(meta.label,
+                      child: Text(label,
                           maxLines: 1,
                           softWrap: false,
                           overflow: TextOverflow.ellipsis,

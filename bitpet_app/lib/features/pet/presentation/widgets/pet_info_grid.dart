@@ -50,7 +50,7 @@ class _PetInfoGridState extends ConsumerState<PetInfoGrid> {
           Row(
             children: [
               _Cell(
-                label: '해칭일',
+                label: pet.terms.hatchDate,
                 value: _fmtDate(hatch, precision),
                 mono: true,
                 chip: approx ? '부정확' : null,

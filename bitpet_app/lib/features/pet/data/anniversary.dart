@@ -6,6 +6,7 @@
 // 이미 실려 오므로(`Pet.hatchingDate` / `Pet.adoptionDate`) 앱에서 월/일만
 // 맞춰 보면 된다 — 서버 왕복도, 배포도 필요 없다.
 
+import '../../../core/species/breeding_terms.dart';
 import '../data/models/pet_models.dart';
 
 enum AnniversaryKind {
@@ -27,18 +28,24 @@ class Anniversary {
   /// 몇 번째 해인가. 0 = 그 날 당일(해칭한 해, 데려온 해).
   final int years;
 
+  /// 이 개체의 번식 용어. 포유류는 '해칭'이 아니라 '출생'이다.
+  /// 홈 캘린더는 여러 개체의 기념일을 한 날에 섞어 놓으므로 **줄마다** 달라야
+  /// 한다 — 화면에서 한 번 정해 쓸 수 있는 값이 아니라 기념일이 들고 다닌다.
+  final BreedingTerms terms;
+
   const Anniversary({
     required this.petId,
     required this.petName,
     required this.kind,
     required this.origin,
     required this.years,
+    this.terms = BreedingTerms.oviparous,
   });
 
-  /// '2주년' / '해칭' / '입양'
+  /// '2주년' / '해칭'·'출생' / '입양'
   String get badge {
     if (years == 0) {
-      return kind == AnniversaryKind.hatching ? '해칭' : '입양';
+      return kind == AnniversaryKind.hatching ? terms.hatch : '입양';
     }
     return '$years주년';
   }
@@ -47,7 +54,7 @@ class Anniversary {
   String get label => '$petName $badge';
 
   String get kindLabel =>
-      kind == AnniversaryKind.hatching ? '해칭일' : '입양일';
+      kind == AnniversaryKind.hatching ? terms.hatchDate : '입양일';
 }
 
 /// [month] 가 속한 달의 기념일을 'YYYY-MM-DD' → 목록으로 돌려준다.
@@ -83,6 +90,7 @@ Map<String, List<Anniversary>> anniversariesInMonth(
           kind: kind,
           origin: origin,
           years: years,
+          terms: pet.terms,
         ));
   }
 

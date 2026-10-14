@@ -91,7 +91,10 @@ public class LayingService {
     public LayingResponse createLaying(Long petId, Long userId, LayingCreateRequest req) {
         PetMst pet = loadOwnedPet(userId, petId);
         validateFemale(pet);
-        validateEggCounts(req.eggCountTotal(), req.eggCountFertile());
+
+        // 포유류(출산)는 알이 없다 — 유정란 수·인큐베이션 값을 통째로 버린다.
+        boolean mammal = isMammal(pet);
+        validateEggCounts(req.eggCountTotal(), mammal ? null : req.eggCountFertile());
 
         if (req.matingId() != null) {
             validateMatingFemale(req.matingId(), petId);
@@ -103,14 +106,15 @@ public class LayingService {
                 .matingId(req.matingId())
                 .laidAt(req.laidAt().toInstant())
                 .eggCountTotal(req.eggCountTotal())
-                .eggCountFertile(req.eggCountFertile())
-                .incubationTemp(req.incubationTemp())
-                .incubationHumidity(req.incubationHumidity())
+                .eggCountFertile(mammal ? null : req.eggCountFertile())
+                .incubationTemp(mammal ? null : req.incubationTemp())
+                .incubationHumidity(mammal ? null : req.incubationHumidity())
                 .memo(req.memo())
                 .build());
 
-        // 알 칸은 산란과 동시에 생긴다 — 화면이 알을 칸으로 그리려면 행이 미리 있어야 한다
-        syncEggRows(laying, userId);
+        // 알 칸은 산란과 동시에 생긴다 — 화면이 알을 칸으로 그리려면 행이 미리 있어야 한다.
+        // 포유류는 알 칸을 만들지 않는다 (아래 syncEggRows 주석 참고).
+        syncEggRows(laying, userId, mammal);
 
         return LayingResponse.of(laying, buildHatches(laying.getId()), List.of(), pet);
     }
@@ -142,15 +146,22 @@ public class LayingService {
      *
      * <p>개체별 목록과 달리 어미 이름·종까지 붙여 내린다. 탭의 클러치 카드가 어미를 적는데,
      * 개체를 하나씩 다시 조회하면 N+1 이 된다.
+     *
+     * <p><b>포유류의 출산은 빠진다.</b> 이 탭의 용도는 "지금 품고 있는 알"을 한 줄로 훑는
+     * 것인데, 출산은 적는 시점에 이미 끝난 일이라 품고 있을 것이 없다. 알 칸도 만들지
+     * 않으므로(아래 {@code syncEggRows}) 카드에 그릴 내용 자체가 없다. 포유류의 출산
+     * 기록은 개체 상세의 기록 요약·캘린더·출산 기록 목록에서 본다.
      */
     public List<LayingResponse> getMyLayings(Long userId) {
         List<Long> petIds = petKeeper.keptPetIds(userId);
         if (petIds.isEmpty()) return List.of();
 
         Map<Long, PetMst> pets = petRepo.findAllById(petIds).stream()
+                .filter(p -> !isMammal(p))
                 .collect(Collectors.toMap(PetMst::getId, Function.identity()));
+        if (pets.isEmpty()) return List.of();
 
-        return layingRepo.findAllByPetIdInOrderByLaidAtDesc(petIds).stream()
+        return layingRepo.findAllByPetIdInOrderByLaidAtDesc(List.copyOf(pets.keySet())).stream()
                 .map(l -> LayingResponse.of(l, buildHatches(l.getId()), buildNotes(l.getId()),
                         pets.get(l.getPetId())))
                 .toList();
@@ -173,19 +184,25 @@ public class LayingService {
     @Transactional
     public LayingResponse updateLaying(Long layingId, Long userId, LayingUpdateRequest req) {
         LayingDtl laying = loadAccessibleLaying(layingId, userId);
-        validateEggCounts(req.eggCountTotal(), req.eggCountFertile());
+        PetMst pet = petRepo.findById(laying.getPetId()).orElse(null);
+
+        // 생성과 같은 규칙 — 포유류는 알이 없다. 구버전 앱이 유정란·인큐베이션 값을
+        // 그대로 다시 올려도 여기서 버려야 거짓 데이터가 되살아나지 않는다.
+        boolean mammal = pet != null && isMammal(pet);
+        validateEggCounts(req.eggCountTotal(), mammal ? null : req.eggCountFertile());
 
         if (req.matingId() != null) {
             validateMatingFemale(req.matingId(), laying.getPetId());
         }
 
         laying.update(req.matingId(), req.laidAt().toInstant(), req.eggCountTotal(),
-                req.eggCountFertile(), req.incubationTemp(), req.incubationHumidity(), req.memo());
+                mammal ? null : req.eggCountFertile(),
+                mammal ? null : req.incubationTemp(),
+                mammal ? null : req.incubationHumidity(), req.memo());
 
-        syncEggRows(laying, userId);
+        syncEggRows(laying, userId, mammal);
 
-        return LayingResponse.of(laying, buildHatches(layingId), buildNotes(layingId),
-                petRepo.findById(laying.getPetId()).orElse(null));
+        return LayingResponse.of(laying, buildHatches(layingId), buildNotes(layingId), pet);
     }
 
     // -------------------------------------------------------------------------
@@ -407,8 +424,16 @@ public class LayingService {
      * <p>늘어나면 빈 번호를 PENDING 으로 채우고, 줄어들면 <b>남는 PENDING 행만</b> 지운다.
      * 부화·무정으로 이미 결과가 적힌 알은 개수를 잘못 입력했다는 이유로 지우지 않는다
      * (지우면 등록된 개체와의 연결이 끊긴다). 그래서 실제 행 수가 총 개수보다 많을 수 있다.
+     *
+     * <p><b>포유류(출산)는 행을 만들지 않는다.</b> 출산을 적는 시점에 새끼는 이미 태어나
+     * 있어서 {@code PENDING}(품고 있는 중)이라는 상태가 성립하지 않고, 알 화면을
+     * 보여주지 않으므로 만들어 둬도 손댈 길이 없는 죽은 데이터가 된다. 게다가 남겨두면
+     * '내 개체 → 알' 탭의 클러치 목록에 섞여 들어간다. 포유류의 출산 기록은
+     * {@code laid_at}(출산일) + {@code egg_count_total}(새끼 수) 두 값이 전부다.
      */
-    private void syncEggRows(LayingDtl laying, Long userId) {
+    private void syncEggRows(LayingDtl laying, Long userId, boolean mammal) {
+        if (mammal) return;
+
         List<LayingHatchDtl> rows = hatchRepo.findAllByLayingIdOrderByCreatedAtAsc(laying.getId());
         int total = laying.getEggCountTotal();
 
@@ -494,6 +519,16 @@ public class LayingService {
         return noteRepo.findAllByLayingIdOrderByNotedAtDescIdDesc(layingId).stream()
                 .map(LayingNoteResponse::of)
                 .toList();
+    }
+
+    /**
+     * 포유류(새끼를 낳는 종)인가 — 출산이지 산란이 아니다.
+     *
+     * <p>⛔ 이 판정을 {@code laying_dtl} 의 컬럼으로 복제하지 말 것. 개체의 종에서
+     * 파생되는 값이라 저장해두면 종을 수정하는 순간 기록 쪽이 거짓이 된다.
+     */
+    private boolean isMammal(PetMst pet) {
+        return pet.getSpecies() != null && pet.getSpecies().isMammal();
     }
 
     private void validateFemale(PetMst pet) {

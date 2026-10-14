@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/species/breeding_terms.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_input_styles.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -106,15 +107,43 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
       ? DateTime.now()
       : DateTime(_recordDate.year, _recordDate.month, _recordDate.day, 12);
 
+  /// 기록 종류 타일의 이름. '산란' 하나만 종에 따라 갈린다.
+  ///
+  /// ⚠️ **종류 선택이 개체 선택보다 먼저**라, 이 박스를 그릴 때는 보통 종을 모른다.
+  /// 개체가 고정된 시트(개체 상세 FAB)만 [pets] 가 차 있다. 아직 모를 때는
+  /// 둘을 같이 적어 둔다 — '산란'만 띄우면 햄스터 사육자가 "그런 기록은 없다"고 읽고
+  /// 지나가고, '출산'만 띄우면 반대가 된다.
+  String _typeLabel(_RecordType rt, List<Pet> pets) {
+    if (rt.id != 'lay') return rt.ko;
+    if (pets.isEmpty) return '산란 · 출산';
+    final mammals = pets.where((p) => p.terms.isMammal).length;
+    if (mammals == pets.length) return BreedingTerms.viviparous.laying;
+    if (mammals == 0) return BreedingTerms.oviparous.laying;
+    return '산란 · 출산';
+  }
+
+  /// 선택된 개체들에 쓸 번식 용어. 개체 선택 단계가 산란/출산을 한 쪽으로
+  /// 고정하므로([_PetSelectStep._lockedMammal]) **첫 개체 하나만 보면 된다.**
+  ///
+  /// 아직 아무것도 안 골랐으면 기본값(산란/알)이다 — 기록 종류 선택이 개체 선택보다
+  /// 먼저라, 박스를 그리는 시점엔 종을 알 수 없다.
+  BreedingTerms _laySheetTerms(List<Pet> pets) =>
+      pets.isEmpty ? BreedingTerms.oviparous : pets.first.terms;
+
   /// 기록 종류별 날짜 레이블 — '날짜' 하나로 두면 무슨 날짜인지가 애매하다.
-  String get _dateLabel => switch (_typeId) {
+  /// 산란일/출산일은 개체가 정해진 뒤에 그려지는 자리라 종을 반영한다.
+  String _dateLabelFor(List<Pet> pets) => switch (_typeId) {
         'feed'  => '급여일',
         'scale' => '측정일',
         'clean' => '청소일',
         'mate'  => '합사일',
-        'lay'   => '산란일',
+        'lay'   => _laySheetTerms(pets).layingDate,
         _       => '기록일',
       };
+
+  /// 급여·몸무게처럼 종과 무관한 폼의 날짜 라벨, 그리고 피커 헬프텍스트.
+  /// 산란/출산은 선택된 개체를 봐야 하므로 여기서 같이 읽는다.
+  String get _dateLabel => _dateLabelFor(_selectedPets(ref.read(petListProvider)));
 
   Future<void> _pickRecordDate() async {
     final today  = DateTime.now();
@@ -454,6 +483,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
             childAspectRatio: 0.95,
             children: _recordTypes.map((rt) => _CompactTypeCard(
               type: rt,
+              label: _typeLabel(rt, locked),
               onTap: () => _onTypeSelected(rt.id),
             )).toList(),
           ),
@@ -1201,7 +1231,11 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
             await repo.addMating(pet.id, matingData);
           case 'lay':
             final total   = int.parse(_eggTotalCtrl.text.trim());
-            final fertile = int.tryParse(_eggFertileCtrl.text.trim());
+            // 포유류(출산)는 유정란 칸을 보여주지 않는다 — 컨트롤러에 남아 있을 수
+            // 있는 값을 실어 보내지 않는다. 서버도 버리지만, 보내지 않는 쪽이 정직하다.
+            final fertile = pet.terms.isMammal
+                ? null
+                : int.tryParse(_eggFertileCtrl.text.trim());
             final layData = <String, dynamic>{
               'eggCountTotal': total,
               if (fertile != null && fertile > 0) 'eggCountFertile': fertile,
@@ -1247,7 +1281,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                 const StepDots(step: 3),
               ]),
               const SizedBox(height: 8),
-              Text('${rt.ko} 기록',
+              Text('${_typeLabel(rt, pets)} 기록',
                   style: const TextStyle(
                       fontSize: 20, fontWeight: FontWeight.w700,
                       color: AppColors.ink, letterSpacing: -0.4)),
@@ -1269,7 +1303,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
               children: [
                 // 날짜 — 기본은 오늘. 어제 걸 깜빡하고 적는 경우가 많다.
                 _DateRow(
-                  label: _dateLabel,
+                  label: _dateLabelFor(pets),
                   date: _recordDate,
                   onTap: _pickRecordDate,
                 ),
@@ -1702,12 +1736,19 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
           ],
         );
 
-      // ── 산란 ──────────────────────────────────────────────────
+      // ── 산란 / 출산 ────────────────────────────────────────────
       case 'lay':
+        // 포유류는 알이 없다 — **낳은 새끼 마리수 하나만** 받는다.
+        // 유정란·인큐베이션은 알이 있는 종에게만 성립하고, 서버도 포유류 행에서는
+        // 이 값들을 통째로 버린다(`LayingService`). 칸을 남겨두면 적을 수 있는 것처럼
+        // 보이는데 저장되지 않아 더 나쁘다.
+        // 개체 선택 단계가 카테고리를 한 쪽으로 고정하므로(`_lockedMammal`)
+        // 여기서 섞인 선택을 걱정할 필요는 없다.
+        final terms = _laySheetTerms(pets);
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _FieldLabel('알 총 개수', required: true),
+            _FieldLabel(terms.eggCountLabel, required: true),
             const SizedBox(height: 8),
             TextField(
               controller: _eggTotalCtrl,
@@ -1716,24 +1757,26 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                   color: AppColors.ink),
               decoration: inputDec.copyWith(
                 hintText: '0',
-                suffixText: '개',
+                suffixText: terms.eggUnit,
                 suffixStyle: const TextStyle(fontSize: 14, color: AppColors.ink2),
               ),
               onChanged: (_) => setState(() {}),
             ),
-            const SizedBox(height: 16),
-            _FieldLabel('유정란 수', required: false),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _eggFertileCtrl,
-              keyboardType: TextInputType.number,
-              style: const TextStyle(fontSize: 14, color: AppColors.ink),
-              decoration: inputDec.copyWith(
-                hintText: '미확인 시 비워두세요',
-                suffixText: '개',
-                suffixStyle: const TextStyle(fontSize: 14, color: AppColors.ink2),
+            if (!terms.isMammal) ...[
+              const SizedBox(height: 16),
+              _FieldLabel('유정란 수', required: false),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _eggFertileCtrl,
+                keyboardType: TextInputType.number,
+                style: const TextStyle(fontSize: 14, color: AppColors.ink),
+                decoration: inputDec.copyWith(
+                  hintText: '미확인 시 비워두세요',
+                  suffixText: '개',
+                  suffixStyle: const TextStyle(fontSize: 14, color: AppColors.ink2),
+                ),
               ),
-            ),
+            ],
             const SizedBox(height: 20),
             _FieldLabel('메모', required: false),
             const SizedBox(height: 8),
@@ -1778,7 +1821,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
             () {
               final rt = _recordTypes.firstWhere((r) => r.id == _typeId,
                   orElse: () => _recordTypes.first);
-              return '$_savedCount마리의 ${rt.ko} 기록이 저장되었어요';
+              return '$_savedCount마리의 ${_typeLabel(rt, _selectedPets(ref.read(petListProvider)))} 기록이 저장되었어요';
             }(),
             style: TextStyle(fontSize: 13, color: AppColors.ink2),
           ),
@@ -1850,6 +1893,22 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
   /// 종 필터(`_matchFilter`)와 달리 **사용자가 끌 수 없는 조건**이라 따로 둔다.
   bool _isEligible(Pet p) => widget.typeId != 'lay' || canLayEggs(p.gender);
 
+  /// 산란/출산은 **한 번에 한 쪽만** 고를 수 있다 — 첫 선택이 카테고리를 고정한다.
+  ///
+  /// 폼이 포유류면 '새끼 수'만, 그 외엔 '알 총 개수 + 유정란 + 인큐베이션'을 받는다.
+  /// 게코와 햄스터를 같이 고르면 **같은 폼에 둘을 동시에 담을 수 없다** — 서버는
+  /// 포유류 행의 유정란·인큐베이션을 버리므로 저장은 되지만, 사용자는 '알 총 개수'
+  /// 칸에 햄스터 새끼 수를 적게 된다. 수컷 제외와 같은 방식(걸러내고 이유를 적는다)으로 막는다.
+  ///
+  /// 반환값이 null 이면 아직 아무것도 안 골랐거나 산란 외의 기록이다(= 제약 없음).
+  bool? _lockedMammal(List<Pet> candidates) {
+    if (widget.typeId != 'lay' || _selected.isEmpty) return null;
+    for (final p in candidates) {
+      if (_selected.contains(p.id)) return p.terms.isMammal;
+    }
+    return null;
+  }
+
   bool _matchFilter(Pet p) {
     final sp = p.speciesName.toLowerCase();
     return switch (_filter) {
@@ -1869,9 +1928,15 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
     final q         = _query.toLowerCase();
     // 대상이 될 수 없는 개체를 먼저 걷어낸다. 검색·종 필터보다 앞이어야
     // '전체선택'·'N마리 표시 중'·카운트가 못 고르는 개체를 세지 않는다.
-    final eligible  = allPets.where(_isEligible).toList();
+    final genderOk  = allPets.where(_isEligible).toList();
+    // 산란/출산은 첫 선택이 카테고리를 고정한다 ([_lockedMammal]).
+    final locked    = _lockedMammal(genderOk);
+    final eligible  = locked == null
+        ? genderOk
+        : genderOk.where((p) => p.terms.isMammal == locked).toList();
     final eligibleIds = eligible.map((p) => p.id).toSet();
-    final excluded  = allPets.length - eligible.length;
+    final excludedMale  = allPets.length - genderOk.length;
+    final excludedOther = genderOk.length - eligible.length;
     final filtered  = eligible.where((p) =>
         _matchFilter(p) &&
         (q.isEmpty || p.name.toLowerCase().contains(q) ||
@@ -2035,9 +2100,16 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
             children: [
               Text(
                 // 왜 안 보이는지 말해준다 — 그냥 빼버리면 "내 개체가 없어졌다"가 된다.
-                excluded > 0
-                    ? '${filtered.length}마리 · 수컷 $excluded마리 제외'
-                    : '${filtered.length}마리 표시 중',
+                // 제외 사유가 둘(수컷 / 다른 카테고리)이라 각각 적는다 —
+                // 합쳐서 'N마리 제외'로 두면 왜 빠졌는지 알 수 없다.
+                (excludedMale == 0 && excludedOther == 0)
+                    ? '${filtered.length}마리 표시 중'
+                    : [
+                        '${filtered.length}마리',
+                        if (excludedMale > 0) '수컷 $excludedMale마리 제외',
+                        if (excludedOther > 0)
+                          '${locked == true ? '포유류 외' : '포유류'} $excludedOther마리 제외',
+                      ].join(' · '),
                 style: AppTextStyles.mono(11, FontWeight.w700,
                     color: AppColors.ink2),
               ),
@@ -2171,7 +2243,15 @@ class _CompactTypeCard extends StatelessWidget {
   final _RecordType type;
   final VoidCallback onTap;
 
-  const _CompactTypeCard({required this.type, required this.onTap});
+  /// 타일에 적을 이름. 산란/출산처럼 종에 따라 갈리는 값이 있어 밖에서 정한다
+  /// ([_FabRecordSheetState._typeLabel]).
+  final String label;
+
+  const _CompactTypeCard({
+    required this.type,
+    required this.label,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -2200,7 +2280,7 @@ class _CompactTypeCard extends StatelessWidget {
               child: AppIcon(type.icon, size: 20, color: AppColors.ink),
             ),
             const SizedBox(height: 8),
-            Text(type.ko,
+            Text(label,
                 style: const TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 14,

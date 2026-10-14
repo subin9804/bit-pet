@@ -13,6 +13,14 @@ public record LayingResponse(
         /** 어미 이름 — '알' 탭의 클러치 카드가 개체를 따로 조회하지 않도록 같이 내린다 */
         String petName,
         String speciesName,
+        /**
+         * R=파충류 / A=양서류 / M=포유류.
+         *
+         * <p>앱이 이 한 건을 '산란'으로 적을지 '출산'으로 적을지 고르는 기준이다.
+         * ⛔ 이걸 {@code laying_dtl} 의 컬럼으로 만들지 말 것 — 개체의 종에서 파생되는
+         * 값이라 복제해두면 종을 수정하는 순간 어긋난다.
+         */
+        String speciesCategory,
         Long matingId,
         Instant laidAt,
         int eggCountTotal,
@@ -41,6 +49,7 @@ public record LayingResponse(
                 laying.getPetId(),
                 pet != null ? pet.getName() : null,
                 pet != null && pet.getSpecies() != null ? pet.getSpecies().getNameKo() : null,
+                pet != null && pet.getSpecies() != null ? pet.getSpecies().normalizedCategory() : null,
                 laying.getMatingId(),
                 laying.getLaidAt(),
                 laying.getEggCountTotal(),

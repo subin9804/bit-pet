@@ -128,7 +128,7 @@ class _Body extends StatelessWidget {
         _Row(label: '종', value: card.speciesName.isEmpty ? '-' : card.speciesName),
         _Row(label: '모프', value: card.morphLabel.isEmpty ? '-' : card.morphLabel),
         _Row(label: '성별', value: _genderLabel),
-        _Row(label: '해칭일', value: _hatchLabel),
+        _Row(label: card.terms.hatchDate, value: _hatchLabel),
         if (card.isDeceased) const _Row(label: '상태', value: '이별한 개체 🕊'),
       ],
     );

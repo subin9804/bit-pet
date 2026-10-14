@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/species/breeding_terms.dart';
 import '../../../core/api/api_response.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_sheet.dart';
@@ -34,6 +35,9 @@ class PetBulkFormScreen extends ConsumerStatefulWidget {
 class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
   // ── 필수 ──────────────────────────────────────────────────────────────────
   Species? _species;
+
+  /// 종에 따라 달라지는 번식 용어 — 포유류는 '해칭일'이 아니라 '출생일'이다.
+  BreedingTerms get _terms => BreedingTerms.of(_species?.category);
   int _count = 1;
 
   // ── 선택 ──────────────────────────────────────────────────────────────────
@@ -372,10 +376,10 @@ class _PetBulkFormScreenState extends ConsumerState<PetBulkFormScreen> {
                     ),
 
                     SField(
-                      label: '해칭일',
+                      label: _terms.hatchDate,
                       child: _TapField(
                         value: _hatchDate != null ? _fmtDate(_hatchDate!) : null,
-                        placeholder: '해칭일 선택',
+                        placeholder: '${_terms.hatchDate} 선택',
                         icon: Icons.egg_outlined,
                         onTap: () => _pickDate(isHatch: true),
                         onClear: () => setState(() => _hatchDate = null),

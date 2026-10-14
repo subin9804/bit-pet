@@ -25,6 +25,7 @@ import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/widgets/app_network_image.dart';
 import '../../../core/widgets/sex_icon.dart';
+import '../../../core/species/breeding_terms.dart';
 
 // ════════════════════════════════════════════════════════════════
 // 03s · 개체 등록 — 6단계 스텝 위저드
@@ -55,6 +56,10 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
   final _memoCtrl   = TextEditingController();
 
   Species? _species;
+
+  /// 종에 따라 달라지는 번식 용어 — 포유류는 '해칭일'이 아니라 '출생일'이다.
+  /// 종을 아직 안 골랐으면 기본값(산란/해칭)으로 둔다.
+  BreedingTerms get _terms => BreedingTerms.of(_species?.category);
   final List<int>   _selectedMorphIds  = [];
   final List<Morph> _selectedMorphs    = [];
   String _gender = '수컷';
@@ -182,7 +187,7 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
         // 이름
         _nameCtrl.text = pet.name;
         // 종 (스텁)
-        _species = Species(id: pet.speciesId, code: '', category: '', nameKo: pet.speciesName);
+        _species = Species(id: pet.speciesId, code: '', category: pet.speciesCategory ?? '', nameKo: pet.speciesName);
         // 모프 (N:N)
         _selectedMorphIds
           ..clear()
@@ -826,7 +831,7 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
             ),
           ),
           SField(
-            label: '해칭일',
+            label: _terms.hatchDate,
             child: _HatchDateField(
               precision: _hatchPrecision,
               date: _hatchDate,
@@ -1071,7 +1076,7 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
           StepSummaryGroup(label: '성별·날짜', step: 2, rows: [
             StepSummaryRow(k: '성별', v: _gender),
             StepSummaryRow(
-              k: '해칭일',
+              k: _terms.hatchDate,
               v: () {
                 final base = _hatchPrecision == 'MONTH' && _hatchYear != null && _hatchMonth != null
                     ? '$_hatchYear년 ${_hatchMonth}월 (연·월)'

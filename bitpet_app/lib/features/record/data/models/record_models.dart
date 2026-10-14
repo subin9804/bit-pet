@@ -1,3 +1,4 @@
+import '../../../../core/species/breeding_terms.dart';
 import '../food_catalog.dart';
 
 /// 이 개체에게 산란 기록이 성립하는가.
@@ -337,6 +338,13 @@ class LayingRecord {
   final String? petName;
   final String? speciesName;
 
+  /// R=파충류 / A=양서류 / M=포유류. 이 한 건을 '산란'으로 적을지 '출산'으로 적을지
+  /// 고르는 기준이다 — 판정은 [terms] 로 한다.
+  ///
+  /// 개체 상세의 기록 목록처럼 개체를 이미 들고 있는 화면은 `pet.speciesCategory` 를
+  /// 그대로 쓰면 되고, 이 필드는 '알' 탭처럼 개체가 없는 자리를 위한 것이다.
+  final String? speciesCategory;
+
   final DateTime laidAt;
   final int totalCount;
 
@@ -358,6 +366,7 @@ class LayingRecord {
     required this.petId,
     this.petName,
     this.speciesName,
+    this.speciesCategory,
     required this.laidAt,
     required this.totalCount,
     this.fertileCount,
@@ -368,6 +377,9 @@ class LayingRecord {
     this.notes = const [],
     required this.createdAt,
   });
+
+  /// 이 기록에 쓸 번식 용어(산란/출산 · 알/새끼).
+  BreedingTerms get terms => BreedingTerms.of(speciesCategory);
 
   /// 산란일로부터 며칠째인가 (산란일 당일은 0).
   int get daysSinceLaid {
@@ -398,6 +410,7 @@ class LayingRecord {
         petId: (json['petId'] as int?) ?? 0,
         petName: json['petName'] as String?,
         speciesName: json['speciesName'] as String?,
+        speciesCategory: json['speciesCategory'] as String?,
         laidAt: DateTime.parse(json['laidAt'] as String),
         totalCount: ((json['eggCountTotal'] ?? json['totalCount']) as num).toInt(),
         fertileCount: (json['eggCountFertile'] as num?)?.toInt(),

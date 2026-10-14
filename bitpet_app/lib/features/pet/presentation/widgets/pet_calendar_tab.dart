@@ -9,6 +9,7 @@ import '../../../record/data/models/record_models.dart';
 import '../../../record/providers/record_provider.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_dimens.dart';
+import '../../../../core/species/breeding_terms.dart';
 import '../../data/anniversary.dart';
 import '../../providers/pet_provider.dart';
 import 'anniversary_view.dart';
@@ -44,8 +45,14 @@ const _catLabel = {
   'CLEANING': '청소',
   'MEMO': '메모',
   'MATING': '메이팅',
+  // ⚠️ 포유류는 '출산'이다 — 직접 쓰지 말고 [_catLabelOf] 를 거칠 것.
   'LAYING': '산란',
 };
+
+/// 범례·날짜별 목록의 카테고리 이름. LAYING 만 종에 따라 '산란'/'출산'으로 갈린다.
+String _catLabelOf(String cat, String? speciesCategory) => cat == 'LAYING'
+    ? BreedingTerms.of(speciesCategory).laying
+    : (_catLabel[cat] ?? cat);
 
 
 /// 개체 상세 — 캘린더 탭.
@@ -55,8 +62,15 @@ class PetCalendarTab extends ConsumerStatefulWidget {
   final int petId;
   /// 산란을 표시할지 판정하는 데만 쓴다 ([canLayEggs]).
   final String gender;
+  /// R=파충류 / A=양서류 / M=포유류 — 산란/출산 라벨을 고른다.
+  final String? speciesCategory;
 
-  const PetCalendarTab({super.key, required this.petId, required this.gender});
+  const PetCalendarTab({
+    super.key,
+    required this.petId,
+    required this.gender,
+    this.speciesCategory,
+  });
 
   @override
   ConsumerState<PetCalendarTab> createState() => _PetCalendarTabState();
@@ -237,7 +251,7 @@ class _PetCalendarTabState extends ConsumerState<PetCalendarTab> {
                             size: AppIconSize.badge,
                             color: PalePalette.catInk(c)),
                         const SizedBox(width: AppSpacing.xs),
-                        Text(_catLabel[c]!, style: _legendStyle),
+                        Text(_catLabelOf(c, widget.speciesCategory), style: _legendStyle),
                       ],
                     ),
                   for (final kind in AnniversaryKind.values)
@@ -247,7 +261,9 @@ class _PetCalendarTabState extends ConsumerState<PetCalendarTab> {
                         AnniversaryMark(kind: kind, size: AppIconSize.badge),
                         const SizedBox(width: AppSpacing.xs),
                         Text(
-                          kind == AnniversaryKind.hatching ? '해칭일' : '입양일',
+                          kind == AnniversaryKind.hatching
+                              ? BreedingTerms.of(widget.speciesCategory).hatchDate
+                              : '입양일',
                           style: _legendStyle,
                         ),
                       ],
@@ -402,7 +418,7 @@ class _PetCalendarTabState extends ConsumerState<PetCalendarTab> {
                     : null,
               ),
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-              child: _DayRecordRow(item: e.value),
+              child: _DayRecordRow(item: e.value, speciesCategory: widget.speciesCategory),
             );
           }).toList(),
         );
@@ -415,7 +431,9 @@ class _PetCalendarTabState extends ConsumerState<PetCalendarTab> {
 class _DayRecordRow extends StatelessWidget {
   final TimelineItem item;
 
-  const _DayRecordRow({required this.item});
+  final String? speciesCategory;
+
+  const _DayRecordRow({required this.item, this.speciesCategory});
 
   @override
   Widget build(BuildContext context) {
@@ -443,7 +461,7 @@ class _DayRecordRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(_catLabel[cat] ?? cat,
+              Text(_catLabelOf(cat, speciesCategory),
                   style: AppTextStyles.label.copyWith(
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0,

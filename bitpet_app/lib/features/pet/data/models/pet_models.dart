@@ -1,3 +1,5 @@
+import '../../../../core/species/breeding_terms.dart';
+
 class Species {
   final int id;
   final String code;
@@ -81,6 +83,9 @@ class Pet {
   final String serialNo;
   final int speciesId;
   final String speciesName;
+  /// R=파충류 / A=양서류 / M=포유류. 번식 용어(산란/출산, 해칭일/출생일)를 고르는 기준이다.
+  /// 비교는 직접 하지 말고 [BreedingTerms.of] 를 통한다 — [terms] 게터를 쓰면 된다.
+  final String? speciesCategory;
   /// GECKO / LIZARD / SNAKE / TURTLE / FROG / … — 종별 아이콘을 고르는 데 쓴다.
   /// 종 이름만으로는 무엇을 그릴지 알 수 없어 서버가 따로 내려준다.
   final String? speciesSubcategory;
@@ -122,6 +127,7 @@ class Pet {
     required this.serialNo,
     required this.speciesId,
     required this.speciesName,
+    this.speciesCategory,
     this.speciesSubcategory,
     this.morphName,
     List<Morph>? morphs,
@@ -162,11 +168,15 @@ class Pet {
 
   bool get isDeceased => deceasedAt != null;
 
+  /// 이 개체에 쓸 번식 용어(산란/출산 · 해칭일/출생일).
+  BreedingTerms get terms => BreedingTerms.of(speciesCategory);
+
   factory Pet.fromJson(Map<String, dynamic> json) => Pet(
         id: (json['id'] as num).toInt(),
         serialNo: json['serialNo'] as String? ?? '',
         speciesId: (json['speciesId'] as num?)?.toInt() ?? 0,
         speciesName: (json['speciesNameKo'] ?? json['speciesName']) as String? ?? '',
+        speciesCategory: json['speciesCategory'] as String?,
         speciesSubcategory: json['speciesSubcategory'] as String?,
         morphName: json['morphName'] as String?,
         morphs: (() {
@@ -251,6 +261,9 @@ class PetCard {
   final String gender;
   final int? speciesId;
   final String speciesName;
+  /// R=파충류 / A=양서류 / M=포유류. [Pet.speciesCategory] 와 같다 — 가계도·NFC 카드도
+  /// '해칭일'을 적는 자리라 포유류면 '출생일'로 바꿔야 한다.
+  final String? speciesCategory;
   /// GECKO / LIZARD / SNAKE / TURTLE / FROG / … — 종별 아이콘용. [Pet.speciesSubcategory] 와 같다.
   final String? speciesSubcategory;
   final List<Morph> morphs;
@@ -278,6 +291,7 @@ class PetCard {
     this.gender = 'UNKNOWN',
     this.speciesId,
     this.speciesName = '',
+    this.speciesCategory,
     this.speciesSubcategory,
     this.morphs = const [],
     this.hatchingDate,
@@ -305,6 +319,7 @@ class PetCard {
         gender: pet.gender,
         speciesId: pet.speciesId,
         speciesName: pet.speciesName,
+        speciesCategory: pet.speciesCategory,
         speciesSubcategory: pet.speciesSubcategory,
         morphs: pet.morphs,
         hatchingDate: pet.hatchingDate,
@@ -321,6 +336,9 @@ class PetCard {
 
   String get morphLabel => morphs.map((m) => m.label).join(' · ');
 
+  /// 이 개체에 쓸 번식 용어(산란/출산 · 해칭일/출생일).
+  BreedingTerms get terms => BreedingTerms.of(speciesCategory);
+
   factory PetCard.fromJson(Map<String, dynamic> json) => PetCard(
         relationId: (json['relationId'] as num?)?.toInt(),
         relationType: json['relationType'] as String?,
@@ -330,6 +348,7 @@ class PetCard {
         gender: json['gender'] as String? ?? 'UNKNOWN',
         speciesId: (json['speciesId'] as num?)?.toInt(),
         speciesName: json['speciesNameKo'] as String? ?? '',
+        speciesCategory: json['speciesCategory'] as String?,
         speciesSubcategory: json['speciesSubcategory'] as String?,
         morphs: (json['morphs'] as List<dynamic>? ?? [])
             .map((e) => Morph.fromJson(e as Map<String, dynamic>))

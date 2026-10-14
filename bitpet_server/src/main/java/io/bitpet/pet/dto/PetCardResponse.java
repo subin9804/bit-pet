@@ -32,6 +32,11 @@ public record PetCardResponse(
         PetGender gender,
         Long speciesId,
         String speciesNameKo,
+        /**
+         * R=파충류 / A=양서류 / M=포유류. 앱이 '해칭일'과 '출생일' 중 어느 라벨을 쓸지
+         * 고르는 데 필요하다 — 가계도·NFC 카드도 해칭일을 적는 자리다.
+         */
+        String speciesCategory,
         /** 종별 아이콘용. {@link PetResponse#speciesSubcategory} 와 같은 값이다. */
         String speciesSubcategory,
         List<MorphCdResponse> morphs,
@@ -61,6 +66,7 @@ public record PetCardResponse(
                 pet.getGender(),
                 pet.getSpecies() != null ? pet.getSpecies().getId() : null,
                 pet.getSpecies() != null ? pet.getSpecies().getNameKo() : null,
+                pet.getSpecies() != null ? pet.getSpecies().normalizedCategory() : null,
                 pet.getSpecies() != null ? pet.getSpecies().getSubcategory() : null,
                 pet.getMorphs().stream().map(rls -> MorphCdResponse.from(rls.getMorph())).toList(),
                 pet.getHatchingDate(),

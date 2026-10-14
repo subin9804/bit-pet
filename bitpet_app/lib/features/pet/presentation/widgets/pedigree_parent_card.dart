@@ -232,7 +232,7 @@ class _PetCardSheet extends StatelessWidget {
               label: '모프',
               value: card.morphLabel.isEmpty ? '-' : card.morphLabel),
           _SheetRow(label: '성별', value: _genderLabel),
-          _SheetRow(label: '해칭일', value: _hatchLabel),
+          _SheetRow(label: card.terms.hatchDate, value: _hatchLabel),
           const SizedBox(height: 16),
           const Text(
             '비공개 개체라 여기까지만 볼 수 있어요',
