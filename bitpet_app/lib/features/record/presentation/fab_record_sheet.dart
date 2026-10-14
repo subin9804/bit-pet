@@ -351,16 +351,15 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
   @override
   Widget build(BuildContext context) {
     final petsAsync = ref.watch(petListProvider);
-    final isFormStep = _step == _FabStep.feedBulk || _step == _FabStep.feedPerPet
-        || _step == _FabStep.simpleForm;
-    final screenH = MediaQuery.of(context).size.height;
+    final media = MediaQuery.of(context);
+    final screenH = media.size.height;
 
     // ⚠️ 이 시트만 `AppSheet` 의 7슬롯 골격을 쓰지 않는다 — 7단계 마법사라
     // 단계마다 제목이 바뀌고 **'뒤로'가 필요**한데, 7슬롯에는 뒤로 자리가
     // 의도적으로 없다(주 버튼 하나 규칙). 대신 **껍데기는 완전히 같게** 맞춘다:
     // 배경·모서리(brSheet)·핸들(40×4, border 색)·스크림·최대 높이 0.9.
     // 띄우는 쪽도 `showAppSheet` 를 쓴다.
-    final sheet = Container(
+    return Container(
       constraints: BoxConstraints(maxHeight: screenH * 0.9),
       decoration: const BoxDecoration(
         // `AppSheet` 과 같은 **canvas 바탕**. 안의 박스들이 이미 `AppColors.card`
@@ -368,8 +367,19 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         color: AppColors.canvas,
         borderRadius: AppRadius.brSheet,
       ),
+      // 키보드가 올라온 만큼 **시트 전체**를 띄운다 (`AppSheet` 슬롯 7과 동일).
+      // 본문 스크롤뷰에 `viewInsets` 를 먹이는 방식은 본문만 피하고 푸터는
+      // 키보드 뒤에 깔린다.
+      padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
       child: Column(
-        mainAxisSize: isFormStep ? MainAxisSize.max : MainAxisSize.min,
+        // ⛔ **높이를 고정하지 말 것** (`SizedBox(height: screenH * 0.85)`).
+        // 2026-10-14 에 '푸터가 중간에 뜬다'를 고치려고 시트를 0.85 높이로
+        // 못 박고 폼 단계만 `MainAxisSize.max` 로 돌렸는데, 내용이 짧은 단계는
+        // 반대로 **헤더와 푸터 사이가 통째로 비어** 같은 증상이 남았다.
+        // 앱의 다른 시트 26개가 쓰는 `AppSheet` 과 같은 방식이 답이다 —
+        // 높이는 내용이 정하고(최대 0.9) 푸터는 늘 시트의 마지막 자식이라
+        // 어느 단계에서나 시트 밑면 = 화면 밑면에 붙는다.
+        mainAxisSize: MainAxisSize.min,
         children: [
           // 그랩 핸들 — AppSheet 의 것과 같은 치수·색·여백
           Container(
@@ -387,11 +397,6 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         ],
       ),
     );
-
-    if (isFormStep) {
-      return SizedBox(height: screenH * 0.85, child: sheet);
-    }
-    return sheet;
   }
 
   Widget _buildStep(AsyncValue<List<Pet>> petsAsync) {
@@ -603,11 +608,10 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
   Widget _buildFeedBulk(AsyncValue<List<Pet>> petsAsync) {
     final pets = _selectedPets(petsAsync);
     return Column(
-      // ⚠️ 폼 단계는 **max** 다. 시트 높이가 화면의 85% 로 고정돼 있는데 여기서
-      // min 을 쓰면 Column 이 내용만큼만 차지하고, 푸터가 시트 중간에 떠서
-      // 그 아래로 canvas 가 통째로 비어 보인다 (사용자 지적: '하단 여백이
-      // 부자연스럽다 / 버튼이 하단에 안 붙는다').
-      mainAxisSize: MainAxisSize.max,
+      // 높이는 **내용이 정한다** (`build` 의 ⛔ 주석 참고). 시트를 고정 높이로
+      // 못 박고 여기서 `max` 를 쓰면, 급여 목록이 한두 줄인 흔한 경우에
+      // 헤더와 푸터 사이가 통째로 빈 canvas 가 된다.
+      mainAxisSize: MainAxisSize.min,
       children: [
         // 헤더
         Padding(
@@ -650,7 +654,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         Flexible(
           child: SingleChildScrollView(
             padding: EdgeInsets.fromLTRB(
-                20, 8, 20, MediaQuery.of(context).viewInsets.bottom + 16),
+                20, 8, 20, 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -706,7 +710,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
     final allFilled = _filledCount == pets.length;
 
     return Column(
-      mainAxisSize: MainAxisSize.max, // 06d 와 같은 이유 (푸터를 바닥에 붙인다)
+      mainAxisSize: MainAxisSize.min, // 06d 와 같은 이유 (높이는 내용이 정한다)
       children: [
         // 헤더
         Padding(
@@ -832,7 +836,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         Flexible(
           child: SingleChildScrollView(
             padding: EdgeInsets.fromLTRB(
-                20, 8, 20, MediaQuery.of(context).viewInsets.bottom + 16),
+                20, 8, 20, 16),
             child: Column(
               children: [
                 // 개체 히어로
@@ -1227,7 +1231,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
     final valid = _simpleFormValid();
 
     return Column(
-      mainAxisSize: MainAxisSize.max, // 06d 와 같은 이유 (푸터를 바닥에 붙인다)
+      mainAxisSize: MainAxisSize.min, // 06d 와 같은 이유 (높이는 내용이 정한다)
       children: [
         // 헤더
         Padding(
@@ -1259,7 +1263,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         Flexible(
           child: SingleChildScrollView(
             padding: EdgeInsets.fromLTRB(
-                20, 8, 20, MediaQuery.of(context).viewInsets.bottom + 16),
+                20, 8, 20, 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

@@ -502,7 +502,6 @@ class _CalendarViewState extends State<_CalendarView> {
     // 빈 셀로 두지 않는다 — 예전엔 여기서 null 을 돌려줘 캘린더에서 통째로 사라졌다.
     final foodless = recs.where((s) => s.isFoodless).toList();
     if (items.isEmpty && foodless.isEmpty) return null;
-    const maxLines = 3;
     final lines = <Widget>[
       for (final it in items)
         CalendarCellLine(
@@ -520,12 +519,16 @@ class _CalendarViewState extends State<_CalendarView> {
           muted: true,
         ),
     ];
+    // ⚠️ `+N` 더보기도 **한 줄을 차지한다** (기록 상세와 같은 이유 — 4줄이
+    // 되면 타일을 넘겨 조용히 잘린다). 넘칠 때는 줄을 하나 양보한다.
+    final overflow = lines.length > calendarCellMaxLines;
+    final shown = overflow ? calendarCellMaxLines - 1 : lines.length;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ...lines.take(maxLines),
-        if (lines.length > maxLines) CalendarCellMore(lines.length - maxLines),
+        ...lines.take(shown),
+        if (overflow) CalendarCellMore(lines.length - shown),
       ],
     );
   }

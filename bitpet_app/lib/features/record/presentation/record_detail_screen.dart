@@ -723,17 +723,21 @@ class _CalendarViewState extends ConsumerState<_CalendarView> {
         ),
       );
     }
-    const maxLines = 3;
+    // ⚠️ `+N` 더보기도 **한 줄을 차지한다.** 예전엔 3줄을 채운 뒤 그 아래
+    // 더보기를 붙여서 4줄이 됐고, 타일이 넘친 만큼 조용히 잘려 "날짜 칸
+    // 아래가 살짝 잘려 보인다"가 됐다. 넘칠 때는 줄을 하나 양보한다.
+    final overflow = recs.length > calendarCellMaxLines;
+    final shown = overflow ? calendarCellMaxLines - 1 : recs.length;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final e in recs.take(maxLines))
+        for (final e in recs.take(shown))
           CalendarCellLine(
             dotColor: widget.accentColor,
             label: e.summary.isEmpty ? e.timeStr : e.summary,
           ),
-        if (recs.length > maxLines) CalendarCellMore(recs.length - maxLines),
+        if (overflow) CalendarCellMore(recs.length - shown),
       ],
     );
   }

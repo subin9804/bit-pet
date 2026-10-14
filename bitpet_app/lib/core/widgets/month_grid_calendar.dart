@@ -21,9 +21,20 @@ import 'app_buttons.dart';
 
 const _weekKo = ['일', '월', '화', '수', '목', '금', '토'];
 
-/// 타일 한 칸 높이. 12px 라벨 두 줄 + 날짜가 들어가는 최소치다.
+/// 타일 한 칸 높이.
+///
+/// 본문에 쓸 수 있는 높이는 `_tileH - 날짜줄(16) - 위아래 패딩(3+2)` = **41** 이다.
+/// [CalendarCellLine] 한 줄이 약 11.8px 이므로 세 줄(35.4)까지 들어간다.
+/// ⛔ **호출부에서 네 줄째를 넣지 말 것** — 넘치면 조용히 잘린다([ClipRect]).
+/// `+N` 더보기도 한 줄을 차지하므로 **줄 + 더보기 합이 3줄**이어야 한다.
 const double _tileH = 62;
 const double _gap = 4;
+
+/// 본문 한 줄 높이 — 호출부가 몇 줄까지 넣을 수 있는지 계산할 때 쓴다.
+const double calendarCellLineH = 11.8;
+
+/// 타일 본문에 들어갈 수 있는 최대 줄 수 (`+N` 더보기 포함).
+const int calendarCellMaxLines = 3;
 
 /// DateTime → 'YYYY-MM-DD'
 String isoDate(DateTime d) =>
@@ -274,7 +285,10 @@ class _DayTile extends StatelessWidget {
             : null,
         // 좌우 3 — 글자에 1px 씩 더 준다. 칸이 45px 뿐이라 여기서 깎는 2px 이
         // 한 글자 차이가 된다.
-        padding: const EdgeInsets.fromLTRB(3, 3, 3, 0),
+        //
+        // 아래 2 는 **글자가 타일 밑면에 붙지 않게** 하는 것이다. 0 이던 동안은
+        // 마지막 줄의 내림획이 둥근 모서리에 닿아 '살짝 잘린' 것처럼 보였다.
+        padding: const EdgeInsets.fromLTRB(3, 3, 3, 2),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -283,6 +297,11 @@ class _DayTile extends StatelessWidget {
             // ⚠️ 폭을 고정하면 두 자리 날짜가 알약 안에서 줄바꿈되어 둘째 자리가
             // 잘려 나간다(23일 → '2'만 보임). 글자 수만큼 늘어나게 두고,
             // 줄바꿈 자체를 막는다.
+            //
+            // ⚠️ **숫자 스타일에 `height: 1.1` 을 반드시 남겨 둘 것.**
+            // `AppTextStyles` 의 기본 줄 높이가 1.5 라 `mono(12)` 의 줄 상자가
+            // 18px 이다 — 이 16px 칸에 넣으면 글자 아래가 잘린다
+            // (2026-10-14 사용자 지적: '날짜 하단이 살짝씩 잘려있어').
             SizedBox(
               height: 16,
               child: Align(
@@ -300,17 +319,19 @@ class _DayTile extends StatelessWidget {
                             maxLines: 1,
                             softWrap: false,
                             style: AppTextStyles.mono(12, FontWeight.w700,
-                                color: AppColors.brandTintInk)),
+                                    color: AppColors.brandTintInk)
+                                .copyWith(height: 1.1)),
                       )
                     : Padding(
                         padding: const EdgeInsets.only(left: 2),
                         child: Text('$day',
                             style: AppTextStyles.mono(
-                                12,
-                                selected
-                                    ? FontWeight.w700
-                                    : FontWeight.w600,
-                                color: numColor)),
+                                    12,
+                                    selected
+                                        ? FontWeight.w700
+                                        : FontWeight.w600,
+                                    color: numColor)
+                                .copyWith(height: 1.1)),
                       ),
               ),
             ),
@@ -353,7 +374,7 @@ class CalendarCellLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 1.5),
+      padding: const EdgeInsets.only(bottom: 1),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -373,13 +394,16 @@ class CalendarCellLine extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                // 10pt — 한 칸(약 45px)에 **네 글자**가 들어가는 크기다. 12pt
+                // 9pt — 한 칸(약 45px)에 **다섯 글자**가 들어가는 크기다. 12pt
                 // 에서는 세 글자도 못 채우고 … 로 잘려서, 칸만 보고는 무슨
                 // 기록인지 알 수 없었다. 점(4px)과 자간(-0.2)도 같이 조여
                 // 글자에 줄 폭을 넘긴다.
-                fontSize: 10,
+                //
+                // `height` 를 1.2 로 박아 두는 이유는 줄 높이를 **계산 가능하게**
+                // 만드는 것이다 — `_tileH` 가 몇 줄을 담는지가 여기서 정해진다.
+                fontSize: 9,
                 letterSpacing: -0.2,
-                height: 1.25,
+                height: 1.2,
                 fontWeight: FontWeight.w600,
                 color: muted ? AppColors.ink3 : AppColors.ink2,
               ),
@@ -398,11 +422,17 @@ class CalendarCellMore extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        // 본문 줄과 같은 눈높이로 — 줄은 10pt 로 내렸는데 이게 12pt 로 남으면
-        // 더보기 표시가 기록 이름보다 커진다.
         padding: const EdgeInsets.only(left: 6),
+        // ⛔ **`AppTextStyles.mono` 를 쓰지 말 것.** 그 함수는 12pt 미만을
+        //   12pt 로 올려버린다(`size < 12 ? 12 : size`) — `mono(10, …)` 이라고
+        //   적어 둔 동안 실제로는 12pt 로 그려져, 본문 줄(10pt)보다 큰 이 한
+        //   줄이 타일 높이를 넘겨 **날짜 칸 아래가 잘려 보였다**.
+        //   숫자 두 자를 세로로 맞출 일이 없으니 tabular 도 필요 없다.
         child: Text('+$count',
-            style:
-                AppTextStyles.mono(10, FontWeight.w700, color: AppColors.ink3)),
+            style: const TextStyle(
+                fontSize: 9,
+                height: 1.2,
+                fontWeight: FontWeight.w700,
+                color: AppColors.ink3)),
       );
 }
