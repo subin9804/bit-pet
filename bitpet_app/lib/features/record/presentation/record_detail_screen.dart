@@ -543,7 +543,9 @@ class _TopBar extends StatelessWidget {
             height: 36,
             padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
-              color: AppColors.primary,
+              // ⚠️ 먹색(`primary`) 로 칠해 둬서 **검정 버튼**이었다 — 눌리는 것은
+              // 브랜드색이다. 다른 화면 추가 버튼(내 개체·루틴)과 같은 색.
+              color: AppColors.brandAction,
               borderRadius: AppRadius.brMd,
             ),
             child: Row(children: [
@@ -582,39 +584,32 @@ class _RecordCard extends StatelessWidget {
     final body = Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 날짜(또는 시각) 컬럼 — 일/시각을 **한 줄**로 둔다.
+        // 날짜 컬럼 — **일(dd)만** 적는다.
         //
-        // 세로로 쌓으면 글자 배율을 키운 기기에서 카드가 그만큼 길어지고,
-        // 폭을 52로 주면 시각('14:30')이 간당간당해 줄바꿈까지 된다.
-        // FittedBox(scaleDown) 이면 좁아질 때 줄바꿈 대신 함께 줄어든다.
-        SizedBox(
-            width: timeOnly ? 46 : 76,
+        // ⚠️ 시각은 저장은 하지만 **보여주지 않는다** (2026-10-15 사용자 결정:
+        // "시간은 기록하되 화면에 보이지는 않게"). 사육 기록에서 의미가 있는
+        // 단위는 '그날 했는가'이고, 14:30 인지 21:00 인지는 지금 쓰이지 않는다.
+        // `entry.timeStr` 은 같은 날 기록의 **정렬 키로 계속 쓴다**.
+        //
+        // 그래서 `timeOnly`(날짜별 묶음 카드 안 — 머리말이 이미 날짜를 말한다)
+        // 에서는 이 컬럼에 적을 것이 하나도 남지 않는다 → 컬럼과 간격을
+        // 통째로 뺀다. 빈 46px 을 남기면 본문만 까닭 없이 들여쓴 꼴이 된다.
+        if (!timeOnly) ...[
+          SizedBox(
+            width: 34,
             child: Align(
               alignment: Alignment.centerLeft,
               child: FittedBox(
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
-                child: timeOnly
-                    ? Text(entry.timeStr,
-                        maxLines: 1, softWrap: false,
-                        style: AppTextStyles.monoSm)
-                    : Row(
-                        crossAxisAlignment: CrossAxisAlignment.baseline,
-                        textBaseline: TextBaseline.alphabetic,
-                        children: [
-                          Text(entry.dateStr.substring(8), // dd
-                              maxLines: 1, softWrap: false,
-                              style: AppTextStyles.monoBody),
-                          const SizedBox(width: 6),
-                          Text(entry.timeStr,
-                              maxLines: 1, softWrap: false,
-                              style: AppTextStyles.monoXxs),
-                        ],
-                      ),
+                child: Text(entry.dateStr.substring(8), // dd
+                    maxLines: 1, softWrap: false,
+                    style: AppTextStyles.monoBody),
               ),
             ),
           ),
-        const SizedBox(width: 10),
+          const SizedBox(width: 10),
+        ],
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -752,7 +747,9 @@ class _CalendarViewState extends ConsumerState<_CalendarView> {
         for (final e in recs.take(shown))
           CalendarCellLine(
             dotColor: widget.accentColor,
-            label: e.summary.isEmpty ? e.timeStr : e.summary,
+            // 요약이 빈 기록은 시각을 적어 칸을 채우고 있었다 — 시각은 더 이상
+            // 보여주지 않으므로(2026-10-15) 종류 이름으로 대신한다.
+            label: e.summary.isEmpty ? '기록' : e.summary,
           ),
         if (overflow) CalendarCellMore(recs.length - shown),
       ],
@@ -1713,7 +1710,9 @@ class _MatingPartnerFieldState extends ConsumerState<_MatingPartnerField> {
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: AppColors.primary,
+                    // ⚠️ 먹색(`primary`) 로 칠해 둬서 **검정 버튼**이었다 — 눌리는 것은
+              // 브랜드색이다. 다른 화면 추가 버튼(내 개체·루틴)과 같은 색.
+              color: AppColors.brandAction,
                     borderRadius: AppRadius.brMd,
                   ),
                   child: _searching

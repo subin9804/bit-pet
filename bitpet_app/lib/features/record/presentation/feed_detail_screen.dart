@@ -260,7 +260,9 @@ class _TopBar extends StatelessWidget {
             child: Container(
               height: 36, padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
-                color: AppColors.primary,
+                // ⚠️ 먹색(`primary`) 로 칠해 둬서 **검정 버튼**이었다 — 눌리는 것은
+              // 브랜드색이다. 다른 화면 추가 버튼(내 개체·루틴)과 같은 색.
+              color: AppColors.brandAction,
                 borderRadius: AppRadius.brMd,
               ),
               child: Row(
@@ -306,39 +308,30 @@ class SessionCard extends StatelessWidget {
     final body = Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 날짜 컬럼 — 일/시각을 **한 줄**로 둔다.
-        // 세로로 쌓으면 글자 배율을 키운 기기에서 카드가 그만큼 길어지고,
-        // 목록 전체에 빈 공간이 생긴다. 좁아지면 줄바꿈 대신 함께 줄어든다.
-        // bare 일 때는 날짜를 카드 머리말이 이미 말해주므로 시각만 남긴다.
-        if (showDate)
+        // 날짜 컬럼 — **일(dd)만** 적는다.
+        //
+        // ⚠️ 급여 시각은 저장은 하지만 **보여주지 않는다** (2026-10-15 사용자
+        // 결정). `session.time` 은 같은 날 급여를 **순서대로 세우는 키**로
+        // 계속 쓴다 — 하루 두 번 급여한 기록의 앞뒤가 뒤집히면 안 된다.
+        //
+        // `timeOnly`(날짜별 묶음 카드 안)에서는 머리말이 이미 날짜를 말하므로
+        // 적을 것이 남지 않는다 → 컬럼과 간격을 통째로 뺀다.
+        if (showDate && !timeOnly) ...[
           SizedBox(
-            width: timeOnly ? 46 : 76,
+            width: 34,
             child: Align(
               alignment: Alignment.centerLeft,
               child: FittedBox(
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
-                child: timeOnly
-                    ? Text(session.time,
-                        maxLines: 1, softWrap: false,
-                        style: AppTextStyles.monoSm)
-                    : Row(
-                        crossAxisAlignment: CrossAxisAlignment.baseline,
-                        textBaseline: TextBaseline.alphabetic,
-                        children: [
-                          Text(session.date.substring(8), // dd
-                              maxLines: 1, softWrap: false,
-                              style: AppTextStyles.monoBody),
-                          const SizedBox(width: 6),
-                          Text(session.time,
-                              maxLines: 1, softWrap: false,
-                              style: AppTextStyles.monoXxs),
-                        ],
-                      ),
+                child: Text(session.date.substring(8), // dd
+                    maxLines: 1, softWrap: false,
+                    style: AppTextStyles.monoBody),
               ),
             ),
           ),
-        if (showDate) const SizedBox(width: 10),
+          const SizedBox(width: 10),
+        ],
         // 아이템 목록
         Expanded(
           child: Column(

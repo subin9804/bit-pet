@@ -302,37 +302,40 @@ class _DayTile extends StatelessWidget {
             // `AppTextStyles` 의 기본 줄 높이가 1.5 라 `mono(12)` 의 줄 상자가
             // 18px 이다 — 이 16px 칸에 넣으면 글자 아래가 잘린다
             // (2026-10-14 사용자 지적: '날짜 하단이 살짝씩 잘려있어').
+            //
+            // ⚠️ **오늘과 다른 날의 숫자는 같은 상자에 담아야 한다.**
+            // 전에는 오늘만 `Container(horizontal: 5)`, 나머지는
+            // `Padding(left: 2)` 로 서로 다른 상자였다 — 숫자의 왼쪽 시작점이
+            // 3px 어긋나서 한 줄에 오늘이 끼면 그 칸만 숫자가 안쪽으로
+            // 밀려, 왼쪽 정렬된 다른 날짜 사이에서 **가운데 정렬처럼 보였다**
+            // (2026-10-15 사용자 지적). 상자는 하나로 두고 **바탕만** 켠다.
             SizedBox(
               height: 16,
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: isToday
-                    ? Container(
-                        height: 16,
-                        padding: const EdgeInsets.symmetric(horizontal: 5),
-                        alignment: Alignment.center,
-                        decoration: const BoxDecoration(
+                child: Container(
+                  height: 16,
+                  padding: const EdgeInsets.symmetric(horizontal: 3),
+                  alignment: Alignment.center,
+                  decoration: isToday
+                      ? const BoxDecoration(
                           color: AppColors.brandTint,
                           borderRadius: AppRadius.brPill,
-                        ),
-                        child: Text('$day',
-                            maxLines: 1,
-                            softWrap: false,
-                            style: AppTextStyles.mono(12, FontWeight.w700,
-                                    color: AppColors.brandTintInk)
-                                .copyWith(height: 1.1)),
-                      )
-                    : Padding(
-                        padding: const EdgeInsets.only(left: 2),
-                        child: Text('$day',
-                            style: AppTextStyles.mono(
-                                    12,
-                                    selected
-                                        ? FontWeight.w700
-                                        : FontWeight.w600,
-                                    color: numColor)
-                                .copyWith(height: 1.1)),
-                      ),
+                        )
+                      : null,
+                  child: Text('$day',
+                      maxLines: 1,
+                      softWrap: false,
+                      style: AppTextStyles.mono(
+                              12,
+                              isToday || selected
+                                  ? FontWeight.w700
+                                  : FontWeight.w600,
+                              color: isToday
+                                  ? AppColors.brandTintInk
+                                  : numColor)
+                          .copyWith(height: 1.1)),
+                ),
               ),
             ),
             // 본문 — 남는 공간만큼만, 넘치면 잘린다

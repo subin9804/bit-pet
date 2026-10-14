@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/app_chip.dart';
 import '../../../core/widgets/app_search_field.dart';
 import '../../../core/widgets/app_toggle.dart';
 import '../../../core/widgets/pet_avatar.dart';
@@ -288,11 +289,18 @@ class _RoutineFormScreenState extends ConsumerState<RoutineFormScreen> {
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 150),
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      // **고른 것은 브랜드색이 말한다** — [AppDecor.cardSelected] 와 같은 짝.
+                      //
+                      // ⚠️ 전에는 선택 시 바탕·테두리가 **루틴 타입색**(급여=복숭아,
+                      // 청소=하늘…)이었다. 타일 네 개가 각자 다른 색으로 선택을
+                      // 표시하니 "골랐다"는 상태가 색마다 달라 보였고, 같은 타입색이
+                      // 아래 미리보기 카드에서는 '종류 표시'로 쓰여 한 화면에서
+                      // 같은 색이 두 가지 뜻을 가졌다.
                       decoration: BoxDecoration(
-                        color: on ? _rtypeBg[ty]! : AppColors.surface,
+                        color: on ? AppColors.brandTintSoft : AppColors.surface,
                         borderRadius: AppRadius.brMd,
                         border: Border.all(
-                          color: on ? _rtypeInk[ty]! : AppColors.paleLine,
+                          color: on ? AppColors.brandAction : AppColors.line,
                           width: on ? 1.5 : 1,
                         ),
                       ),
@@ -301,8 +309,11 @@ class _RoutineFormScreenState extends ConsumerState<RoutineFormScreen> {
                           Container(
                             width: 32,
                             height: 32,
+                            // 아이콘 바탕은 **항상** 타입색이다 — 이건 상태가 아니라
+                            // 종류다. 선택 시 흰색으로 뒤집으면 고른 순간 종류색이
+                            // 사라져 네 타일 중 무엇을 골랐는지 아이콘 모양으로만 남는다.
                             decoration: BoxDecoration(
-                              color: on ? AppColors.surface : _rtypeBg[ty]!,
+                              color: _rtypeBg[ty]!,
                               borderRadius: AppRadius.brMd,
                             ),
                             child: RecordTypeIcon(ty.name, size: 16, color: AppColors.primary),
@@ -392,7 +403,6 @@ class _RoutineFormScreenState extends ConsumerState<RoutineFormScreen> {
         alarmHour: _alarmHour,
         alarmMinute: _alarmMinute,
         alarmOn: _alarmOn,
-        typeBg: _typeBg,
         cycleSummary: _cycleSummaryFull,
         onTimeChanged: (h, m) => setState(() {
           _alarmHour = h; _alarmMinute = m; _alarmTouched = true;
@@ -803,7 +813,11 @@ class _CycleStep extends StatelessWidget {
               lastDate: DateTime.now().add(const Duration(days: 365)),
               builder: (ctx, child) => Theme(
                 data: Theme.of(ctx).copyWith(
-                  colorScheme: Theme.of(ctx).colorScheme.copyWith(primary: AppColors.primary),
+                  // 날짜 피커의 선택 원·확인 버튼 색. `AppColors.primary` 는
+                  // 먹색이라 고른 날짜가 검은 동그라미로 찍혔다.
+                  colorScheme: Theme.of(ctx)
+                      .colorScheme
+                      .copyWith(primary: AppColors.brandAction),
                 ),
                 child: child!,
               ),
@@ -853,24 +867,14 @@ class _CycleStep extends StatelessWidget {
             for (final entry in {0: '오늘', 1: '내일', 7: '다음 주'}.entries) ...[
               Builder(builder: (_) {
                 final iso = _todayOffset(entry.key);
-                final on = startDate == iso;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: GestureDetector(
-                    onTap: () => onStartDateChanged(iso),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 120),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: on ? typeBg : AppColors.surface,
-                        borderRadius: AppRadius.brPill,
-                        border: on ? null : Border.all(color: AppColors.paleLine),
-                      ),
-                      child: Text(entry.value, style: const TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary,
-                      )),
-                    ),
-                  ),
+                // 손으로 그린 알약이었다 — 선택 시 **타입색** 채움에 테두리가
+                // 사라져서, 같은 화면의 다른 칩들과 선택 표시가 달랐다.
+                // [AppChip] 이 앱 전체 칩의 단일 소스다.
+                return AppChip(
+                  label: entry.value,
+                  selected: startDate == iso,
+                  margin: const EdgeInsets.only(right: AppSpacing.sm),
+                  onTap: () => onStartDateChanged(iso),
                 );
               }),
             ],
@@ -901,10 +905,18 @@ class _CycleStep extends StatelessWidget {
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 150),
                       padding: const EdgeInsets.symmetric(vertical: 8),
+                      // 세그먼트는 **회색 트랙 안의 흰 알약**이 모양이라 칩으로
+                      // 바꾸지 않는다. 다만 고른 칸의 테두리·글씨를 브랜드색으로
+                      // 올린다 — 전에는 연한 회색 테두리 + 먹색 글씨여서
+                      // 세 칸 중 어디가 켜져 있는지 바탕색 차이로만 읽혔다.
                       decoration: BoxDecoration(
-                        color: cycleMode == entry.key ? AppColors.surface : Colors.transparent,
+                        color: cycleMode == entry.key
+                            ? AppColors.surface
+                            : Colors.transparent,
                         borderRadius: AppRadius.brMd,
-                        border: cycleMode == entry.key ? Border.all(color: AppColors.paleLine) : null,
+                        border: cycleMode == entry.key
+                            ? Border.all(color: AppColors.brandAction)
+                            : null,
                       ),
                       child: Text(
                         entry.value,
@@ -912,7 +924,9 @@ class _CycleStep extends StatelessWidget {
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 13,
-                          color: cycleMode == entry.key ? AppColors.primary : AppColors.paleInk2,
+                          color: cycleMode == entry.key
+                              ? AppColors.brandTintInk
+                              : AppColors.ink2,
                         ),
                       ),
                     ),
@@ -924,11 +938,11 @@ class _CycleStep extends StatelessWidget {
         const SizedBox(height: 16),
         // 주기 컨텐츠
         if (cycleMode == _CycleMode.interval)
-          _IntervalPicker(interval: interval, typeBg: typeBg, onChanged: onIntervalChanged)
+          _IntervalPicker(interval: interval, onChanged: onIntervalChanged)
         else if (cycleMode == _CycleMode.weekday)
           _WeekdayPicker(weekdays: weekdays, onToggle: onWeekdayToggled)
         else
-          _MonthdayPicker(monthDays: monthDays, typeBg: typeBg, onToggle: onMonthDayToggled),
+          _MonthdayPicker(monthDays: monthDays, onToggle: onMonthDayToggled),
       ],
     );
   }
@@ -936,10 +950,9 @@ class _CycleStep extends StatelessWidget {
 
 class _IntervalPicker extends StatelessWidget {
   final int interval;
-  final Color typeBg;
   final void Function(int) onChanged;
 
-  const _IntervalPicker({required this.interval, required this.typeBg, required this.onChanged});
+  const _IntervalPicker({required this.interval, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -1002,24 +1015,13 @@ class _IntervalPicker extends StatelessWidget {
         Wrap(
           spacing: 6,
           runSpacing: 6,
-          children: _intervalPresets.map((p) {
-            final on = interval == p.$1;
-            return GestureDetector(
-              onTap: () => onChanged(p.$1),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 120),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: on ? typeBg : AppColors.surface,
-                  borderRadius: AppRadius.brPill,
-                  border: on ? null : Border.all(color: AppColors.paleLine),
-                ),
-                child: Text(p.$2, style: const TextStyle(
-                  fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary,
-                )),
-              ),
-            );
-          }).toList(),
+          children: _intervalPresets
+              .map((p) => AppChip(
+                    label: p.$2,
+                    selected: interval == p.$1,
+                    onTap: () => onChanged(p.$1),
+                  ))
+              .toList(),
         ),
       ],
     );
@@ -1049,10 +1051,17 @@ class _WeekdayPicker extends StatelessWidget {
               duration: const Duration(milliseconds: 150),
               margin: EdgeInsets.only(right: d < 8 ? 8 : 0),
               padding: const EdgeInsets.symmetric(vertical: 16),
+              // 🔴 **고른 요일이 검정으로 꽉 찼다.** `AppColors.primary` 는
+              // 브랜드색이 아니라 먹색(#121A15) 별칭이다 — 글자를 진하게 쓰는
+              // 용도인데 면을 채우는 데 쓰여서, 고른 요일이 '비활성'처럼도
+              // 읽히고 앱의 다른 선택 표시(칩·토글·체크)와 색이 아예 달랐다.
+              // 칩과 같은 짝으로: 틴트 바탕 + 진초록 테두리 + 진초록 글씨.
               decoration: BoxDecoration(
-                color: on ? AppColors.primary : AppColors.surface,
+                color: on ? AppColors.brandTint : AppColors.surface,
                 borderRadius: AppRadius.brLg,
-                border: Border.all(color: on ? AppColors.primary : AppColors.paleLine),
+                border: Border.all(
+                    color: on ? AppColors.brandAction : AppColors.line,
+                    width: on ? 1.5 : 1),
               ),
               child: Text(
                 _weekKo[d],
@@ -1060,7 +1069,9 @@ class _WeekdayPicker extends StatelessWidget {
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 14,
-                  color: on ? AppColors.paleBg : color,
+                  // 주말색(일=코랄, 토=하늘)은 **안 고른 상태에서만** 쓴다.
+                  // 고른 칸은 상태가 먼저 읽혀야 한다.
+                  color: on ? AppColors.brandTintInk : color,
                 ),
               ),
             ),
@@ -1073,10 +1084,9 @@ class _WeekdayPicker extends StatelessWidget {
 
 class _MonthdayPicker extends StatelessWidget {
   final Set<int> monthDays;
-  final Color typeBg;
   final void Function(int) onToggle;
 
-  const _MonthdayPicker({required this.monthDays, required this.typeBg, required this.onToggle});
+  const _MonthdayPicker({required this.monthDays, required this.onToggle});
 
   @override
   Widget build(BuildContext context) {
@@ -1105,16 +1115,19 @@ class _MonthdayPicker extends StatelessWidget {
               onTap: () => onToggle(d),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 120),
+                // 요일 칩과 같은 이유로 검정 채움이었다 (31칸이 전부).
                 decoration: BoxDecoration(
-                  color: on ? AppColors.primary : AppColors.surface,
+                  color: on ? AppColors.brandTint : AppColors.surface,
                   borderRadius: AppRadius.brMd,
-                  border: Border.all(color: on ? AppColors.primary : AppColors.paleLine),
+                  border: Border.all(
+                      color: on ? AppColors.brandAction : AppColors.line,
+                      width: on ? 1.5 : 1),
                 ),
                 child: Center(
                   child: Text('$d', style: TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 13,
-                    color: on ? AppColors.paleBg : AppColors.paleInk2,
+                    color: on ? AppColors.brandTintInk : AppColors.ink2,
                   )),
                 ),
               ),
@@ -1129,10 +1142,15 @@ class _MonthdayPicker extends StatelessWidget {
             duration: const Duration(milliseconds: 150),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: monthDays.contains(32) ? typeBg : AppColors.surface,
+              color: monthDays.contains(32)
+                  ? AppColors.brandTintSoft
+                  : AppColors.surface,
               borderRadius: AppRadius.brMd,
               border: Border.all(
-                color: monthDays.contains(32) ? Colors.transparent : AppColors.paleLine,
+                color: monthDays.contains(32)
+                    ? AppColors.brandAction
+                    : AppColors.line,
+                width: monthDays.contains(32) ? 1.5 : 1,
               ),
             ),
             child: Row(
@@ -1141,12 +1159,15 @@ class _MonthdayPicker extends StatelessWidget {
                   duration: const Duration(milliseconds: 150),
                   width: 22,
                   height: 22,
+                  // 체크박스 채움도 먹색이었다. 체크·토글 on 은 brandAction.
                   decoration: BoxDecoration(
-                    color: monthDays.contains(32) ? AppColors.primary : AppColors.paleBgAlt,
+                    color: monthDays.contains(32)
+                        ? AppColors.brandAction
+                        : AppColors.bgAlt,
                     borderRadius: AppRadius.brSm,
                   ),
                   child: monthDays.contains(32)
-                      ? const Icon(Icons.check, size: 16, color: AppColors.paleBg)
+                      ? const Icon(Icons.check, size: 16, color: AppColors.bg)
                       : null,
                 ),
                 const SizedBox(width: 8),
@@ -1172,22 +1193,25 @@ class _MonthdayPicker extends StatelessWidget {
               const Text('매월', style: TextStyle(
                 fontSize: 12, color: AppColors.paleInk3, fontWeight: FontWeight.w700,
               )),
+              // 고른 날짜 목록이라 '선택된 것'의 색을 쓴다 (타입색이었다).
               ...( monthDays.toList()..sort()).map((d) => Container(
                 padding: const EdgeInsets.fromLTRB(8, 4, 4, 4),
                 decoration: BoxDecoration(
-                  color: typeBg,
+                  color: AppColors.brandTint,
                   borderRadius: AppRadius.brPill,
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(d == 32 ? '말일' : '$d일', style: const TextStyle(
-                      fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary,
+                      fontSize: 12, fontWeight: FontWeight.w700,
+                      color: AppColors.brandTintInk,
                     )),
                     const SizedBox(width: 4),
                     GestureDetector(
                       onTap: () => onToggle(d),
-                      child: const Icon(Icons.close, size: 16, color: AppColors.paleInk2),
+                      child: const Icon(Icons.close, size: 16,
+                          color: AppColors.brandTintInk),
                     ),
                   ],
                 ),
@@ -1207,7 +1231,6 @@ class _MonthdayPicker extends StatelessWidget {
 class _AlarmStep extends StatelessWidget {
   final int alarmHour, alarmMinute;
   final bool alarmOn;
-  final Color typeBg;
   final String cycleSummary;
   final void Function(int, int) onTimeChanged;
   final VoidCallback onAlarmToggled;
@@ -1216,7 +1239,6 @@ class _AlarmStep extends StatelessWidget {
     required this.alarmHour,
     required this.alarmMinute,
     required this.alarmOn,
-    required this.typeBg,
     required this.cycleSummary,
     required this.onTimeChanged,
     required this.onAlarmToggled,
@@ -1251,7 +1273,6 @@ class _AlarmStep extends StatelessWidget {
                       value: alarmHour,
                       min: 0, max: 23,
                       wrap: false,
-                      typeBg: typeBg,
                       onDelta: (d) => onTimeChanged((alarmHour + d).clamp(0, 23), alarmMinute),
                       onSubmit: (t) {
                         final v = int.tryParse(t);
@@ -1269,7 +1290,6 @@ class _AlarmStep extends StatelessWidget {
                       value: alarmMinute,
                       min: 0, max: 59,
                       wrap: true,
-                      typeBg: typeBg,
                       onDelta: (d) {
                         final m = ((alarmMinute + d) % 60 + 60) % 60;
                         onTimeChanged(alarmHour, m);
@@ -1285,31 +1305,18 @@ class _AlarmStep extends StatelessWidget {
                 // ── 프리셋 칩 ──
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: _presets.map((tp) {
-                    final on = tp == _timeStr;
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: GestureDetector(
-                        onTap: () {
-                          final parts = tp.split(':').map(int.parse).toList();
-                          onTimeChanged(parts[0], parts[1]);
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 120),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: on ? typeBg : AppColors.paleBg,
-                            borderRadius: AppRadius.brPill,
-                            border: on ? null : Border.all(color: AppColors.paleLine),
-                          ),
-                          child: Text(tp, style: TextStyle(
-                            fontSize: 12, fontWeight: FontWeight.w700,
-                            color: on ? AppColors.primary : AppColors.paleInk2,
-                          )),
-                        ),
-                      ),
-                    );
-                  }).toList(),
+                  children: _presets
+                      .map((tp) => AppChip(
+                            label: tp,
+                            selected: tp == _timeStr,
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            onTap: () {
+                              final parts =
+                                  tp.split(':').map(int.parse).toList();
+                              onTimeChanged(parts[0], parts[1]);
+                            },
+                          ))
+                      .toList(),
                 ),
               ],
             ),
@@ -1327,14 +1334,17 @@ class _AlarmStep extends StatelessWidget {
             ),
             child: Row(
               children: [
+                // 켜짐/꺼짐은 **상태**라 브랜드색으로 말한다 (타입색이었다).
                 Container(
                   width: 34, height: 34,
                   decoration: BoxDecoration(
-                    color: alarmOn ? typeBg : AppColors.paleBgAlt,
+                    color: alarmOn ? AppColors.brandTint : AppColors.bgAlt,
                     borderRadius: AppRadius.brLg,
                   ),
                   child: Icon(Icons.notifications_outlined, size: 20,
-                      color: alarmOn ? AppColors.primary : AppColors.paleInk3),
+                      color: alarmOn
+                          ? AppColors.brandTintInk
+                          : AppColors.ink3),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -1369,7 +1379,6 @@ class _TimeSpinner extends StatefulWidget {
   final int value;
   final int min, max;
   final bool wrap;
-  final Color typeBg;
   final void Function(int) onDelta;
   final void Function(String) onSubmit;
 
@@ -1378,7 +1387,6 @@ class _TimeSpinner extends StatefulWidget {
     required this.min,
     required this.max,
     required this.wrap,
-    required this.typeBg,
     required this.onDelta,
     required this.onSubmit,
   });
@@ -1448,13 +1456,14 @@ class _TimeSpinnerState extends State<_TimeSpinner> {
             duration: const Duration(milliseconds: 120),
             width: 80, height: 60,
             alignment: Alignment.center,
+            // 입력 중 하이라이트는 **상태**라 브랜드색이다. 타입색을 25% 알파로
+            // 깔고 테두리에 원색을 쓰고 있었는데, 저채도 파스텔을 더 흐리게 만든
+            // 꼴이라 어느 칸을 편집 중인지 거의 보이지 않았다.
             decoration: BoxDecoration(
-              color: _editing
-                  ? widget.typeBg.withValues(alpha: 0.25)
-                  : AppColors.paleBgAlt,
+              color: _editing ? AppColors.brandTintSoft : AppColors.bgAlt,
               borderRadius: AppRadius.brPill,
               border: Border.all(
-                color: _editing ? widget.typeBg : Colors.transparent,
+                color: _editing ? AppColors.brandAction : Colors.transparent,
                 width: 2,
               ),
             ),

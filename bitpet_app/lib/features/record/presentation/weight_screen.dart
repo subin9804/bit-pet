@@ -588,11 +588,6 @@ class _WeightBody extends StatelessWidget {
     final d = dt.toLocal();
     return '${d.month.toString().padLeft(2,'0')}/${d.day.toString().padLeft(2,'0')}';
   }
-
-  String _fmtDateTime(DateTime dt) {
-    final d = dt.toLocal();
-    return '${d.year}.${d.month.toString().padLeft(2,'0')}.${d.day.toString().padLeft(2,'0')} · ${d.hour.toString().padLeft(2,'0')}:${d.minute.toString().padLeft(2,'0')}';
-  }
 }
 
 // ── 큰 라인 차트 (CustomPainter) ─────────────────────────────

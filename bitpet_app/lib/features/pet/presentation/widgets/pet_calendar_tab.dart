@@ -438,9 +438,6 @@ class _DayRecordRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cat = item.category;
-    final at = item.recordedAt.toLocal(); // 서버 UTC → 로컬(KST)
-    final time =
-        '${at.hour.toString().padLeft(2, '0')}:${at.minute.toString().padLeft(2, '0')}';
 
     return Row(
       children: [
@@ -473,10 +470,9 @@ class _DayRecordRow extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(width: AppSpacing.sm),
-        Text(time,
-            style: AppTextStyles.mono(11, FontWeight.w600,
-                color: AppColors.ink3)),
+        // ⚠️ 오른쪽에 기록 시각(11pt)을 적고 있었다. 저장은 계속 하지만
+        // **화면에는 보여주지 않는다** (2026-10-15 사용자 결정) — 이 행은
+        // 이미 '그날' 기록 묶음 안이라 시각까지 적을 자리가 아니다.
       ],
     );
   }

@@ -121,8 +121,17 @@ class AppSheet extends StatelessWidget {
           ),
 
           // ── 슬롯 3 · 4 · 5 ─────────────────────────────────────
+          //
+          // ⚠️ **스크롤 막대를 항상 띄운다** (`thumbVisibility: true`).
+          // 기본값(모바일)은 '끌 때만 잠깐 보임'이라, 내용이 시트 높이를 넘겨
+          // 잘려 있어도 **더 있다는 단서가 하나도 없었다** — 밑에 남은 항목이
+          // 그냥 누락된 것처럼 보인다(2026-10-15 사용자 지적: "스크롤이
+          // 비가시적이라 그냥 정보가 누락되어보여"). 넘치지 않으면 막대는
+          // 애초에 그려지지 않으므로 짧은 시트는 전과 똑같다.
           Flexible(
-            child: SingleChildScrollView(
+            child: Scrollbar(
+              thumbVisibility: true,
+              child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -138,6 +147,7 @@ class AppSheet extends StatelessWidget {
                   ],
                   const SizedBox(height: AppSpacing.xxl),
                 ],
+              ),
               ),
             ),
           ),

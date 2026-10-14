@@ -1069,97 +1069,142 @@ class _CategoryDetailSheet extends StatelessWidget {
 
     return AppSheet(
       title: label,
+      // 맥락 한 줄 — 몇 마리의 몇 건인지 **먼저** 말해준다. 목록이 시트 높이를
+      // 넘길 때 "아래가 더 있나"를 스크롤 막대와 함께 이 숫자가 받쳐준다.
+      subtitle: petKeys.length > 1
+          ? '개체 ${petKeys.length}마리 · 기록 ${records.length}건'
+          : null,
       // 목록만 있는 시트다 — 고르면 바로 닫히므로 주 버튼이 없다.
       // 개체별 기록 줄이 제 면을 안 들고 있어 카드 한 겹을 씌운다.
       child: SheetCard(
+        // ⚠️ 전에는 여기 `ConstrainedBox(화면 55%)` + `ListView(shrinkWrap)` 가
+        // 들어 있었다. [AppSheet] 의 본문이 **이미 스크롤**이라 스크롤이 두 겹이
+        // 됐고, 바깥은 90% 까지 커질 수 있는데 안쪽 리스트가 55% 에서 먼저
+        // 잘려서 — 끌어도 시트는 안 커지고 안쪽만 조용히 밀리는 상태였다.
+        // 그래서 "밑으로 내려야 하는데 스크롤이 비가시적"으로 읽혔다.
+        // 스크롤은 시트 하나에 맡기고 여기선 길이만큼 쌓는다.
         child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ConstrainedBox(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.55,
-            ),
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: petKeys.length,
-              itemBuilder: (_, i) {
-                final key      = petKeys[i];
-                final petRecs  = petGroups[key]!;
-                final first    = petRecs.first;
-                final petId    = int.tryParse(key);
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var i = 0; i < petKeys.length; i++) ...[
+              if (i > 0)
+                const Divider(
+                    height: 1, thickness: 1, color: AppColors.line),
+              _SheetPetRow(
+                type: type,
+                records: petGroups[petKeys[i]]!,
+                petId: int.tryParse(petKeys[i]),
+                translateFeeding: _translateFeedingSummary,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
 
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 8, height: 8,
-                        margin: const EdgeInsets.only(top: 4),
-                        decoration: BoxDecoration(
-                            // 개체색이던 점. 이 시트는 한 카테고리의 기록만 모아
-                            // 보여주므로, 점이 나를 수 있는 정보는 '무슨 기록이냐'다.
-                            color: _CategoryRow._catIconInk(type),
-                            shape: BoxShape.circle),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            GestureDetector(
-                              onTap: petId == null ? null : () {
-                                Navigator.of(context).pop();
-                                context.push('/pets/$petId');
-                              },
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(first.petName,
-                                      style: const TextStyle(
-                                          fontSize: 13, fontWeight: FontWeight.w700,
-                                          color: AppColors.textPrimary)),
-                                  if (petId != null) ...[
-                                    const SizedBox(width: 4),
-                                    const AppIcon(AppIcons.chevronRight,
-                                        size: 16, color: AppColors.textDisabled),
-                                  ],
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            ...petRecs.map((r) {
-                              final hasMemo = r.memo != null && r.memo!.isNotEmpty;
-                              final rawSummary = r.recordType == 'FEEDING'
-                                  ? _translateFeedingSummary(r.summary)
-                                  : r.summary;
-                              final display = [
-                                if (rawSummary.isNotEmpty) rawSummary,
-                                if (hasMemo) r.memo!,
-                              ].join('  ·  ');
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 4),
-                                child: Text(
-                                  display,
-                                  style: const TextStyle(
-                                      fontSize: 12,
-                                      color: AppColors.textSecondary),
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 2,
-                                ),
-                              );
-                            }),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
+/// 카테고리 시트의 개체 한 줄.
+///
+/// **행 전체가 그 개체의 해당 기록 상세로 가는 버튼이다** — 개체 상세가 아니다
+/// (2026-10-15 사용자 요청: "급여-핑핑 클릭하면 핑핑의 급여기록상세화면으로").
+/// 이 시트에 들어온 사람은 이미 '어떤 날의 어떤 기록'을 보고 있어서, 개체
+/// 홈으로 보내면 거기서 다시 기록 종류를 찾아 들어가야 한다.
+class _SheetPetRow extends StatelessWidget {
+  final String type;
+  final List<RecentRecord> records;
+  final int? petId;
+  final String Function(String) translateFeeding;
+
+  const _SheetPetRow({
+    required this.type,
+    required this.records,
+    required this.petId,
+    required this.translateFeeding,
+  });
+
+  /// 기록 종류 → 그 종류의 기록 상세 화면.
+  /// 급여·체중만 전용 화면이고 나머지는 `/records/:type` 한 화면이 받는다.
+  static String? _detailPath(int petId, String type) => switch (type) {
+        'FEEDING' => '/pets/$petId/feeding',
+        'WEIGHT' => '/pets/$petId/weight',
+        'CLEANING' => '/pets/$petId/records/cleaning',
+        'MEMO' => '/pets/$petId/records/memo',
+        'MATING' => '/pets/$petId/records/mating',
+        'LAYING' => '/pets/$petId/records/laying',
+        _ => null,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final path = petId == null ? null : _detailPath(petId!, type);
+
+    return GestureDetector(
+      // 이름 글자만이 아니라 **줄 전체**가 탭 타겟이다. 전에는 개체 이름
+      // 글자에만 제스처가 걸려 있어 기록 줄을 눌러도 아무 일이 없었다.
+      behavior: HitTestBehavior.opaque,
+      onTap: path == null
+          ? null
+          : () {
+              Navigator.of(context).pop();
+              context.push(path);
+            },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              margin: const EdgeInsets.only(top: 5),
+              decoration: BoxDecoration(
+                  // 개체색이던 점. 이 시트는 한 카테고리의 기록만 모아
+                  // 보여주므로, 점이 나를 수 있는 정보는 '무슨 기록이냐'다.
+                  color: _CategoryRow._catIconInk(type),
+                  shape: BoxShape.circle),
             ),
-          ),
-        ],
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(records.first.petName,
+                      style: AppTextStyles.caption
+                          .copyWith(fontWeight: FontWeight.w700,
+                              color: AppColors.ink)),
+                  const SizedBox(height: 3),
+                  ...records.map((r) {
+                    final hasMemo = r.memo != null && r.memo!.isNotEmpty;
+                    final rawSummary = r.recordType == 'FEEDING'
+                        ? translateFeeding(r.summary)
+                        : r.summary;
+                    final display = [
+                      if (rawSummary.isNotEmpty) rawSummary,
+                      if (hasMemo) r.memo!,
+                    ].join('  ·  ');
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 3),
+                      child: Text(
+                        display,
+                        style: AppTextStyles.label.copyWith(
+                            letterSpacing: 0, color: AppColors.ink2),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 2,
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+            if (path != null)
+              const Padding(
+                padding: EdgeInsets.only(left: AppSpacing.sm, top: 2),
+                child: AppIcon(AppIcons.chevronRight,
+                    size: AppIconSize.sm, color: AppColors.ink3),
+              ),
+          ],
         ),
       ),
     );

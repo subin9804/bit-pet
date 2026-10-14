@@ -42,9 +42,18 @@ enum _FeedMode { bulk, perPet }
 // 개체별 폼 상태
 class _PerPetEntry {
   List<FeedFormData> items;
-  bool filled;
+
+  /// **서버에 이미 저장했다**는 뜻이다 — '폼을 다 채웠다'가 아니다
+  /// (2026-10-15 사용자 결정: 개체마다 '기록'을 누를 때 바로 저장).
+  ///
+  /// ⚠️ 그래서 **되돌릴 수 없다.** 전에는 `filled` 라는 이름의 '작성 완료'
+  /// 표시였고 배너의 '미완료' 버튼으로 끌 수 있었는데, 지금 이 값을 끄면
+  /// 서버에는 기록이 남아 있는데 화면만 안 적은 척하게 된다 → 같은 개체를
+  /// 두 번 저장한다.
+  bool saved;
+
   String memo;
-  _PerPetEntry() : items = [], filled = false, memo = '';
+  _PerPetEntry() : items = [], saved = false, memo = '';
 }
 
 // ── 6 기록 종류 정의 ──────────────────────────────────────────
@@ -262,19 +271,47 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
     }
   }
 
-  int get _filledCount =>
-      _perPetForms.values.where((e) => e.filled).length;
+  int get _perPetSavedCount =>
+      _perPetForms.values.where((e) => e.saved).length;
 
-  void _markFilled(int petId, bool val, List<Pet> pets) {
-    setState(() {
-      _perPetForms[petId]!.filled = val;
-      if (val) {
-        // 다음 미완료 개체로 자동 이동
-        final nextIdx = pets.indexWhere(
-            (p) => !(_perPetForms[p.id]?.filled ?? false) && p.id != petId);
-        if (nextIdx != -1) _activePerPetIdx = nextIdx;
+  /// 개체 하나를 **그 자리에서 서버에 저장**한다.
+  ///
+  /// 전에는 마지막 개체까지 넘긴 뒤 푸터에서 한 번에 저장했다. 그런데
+  /// **바텀시트는 너무 잘 닫힌다** — 바깥을 살짝 스치거나 아래로 조금만
+  /// 끌어도 닫히고, 그러면 세 마리를 적어 둔 게 전부 사라진다
+  /// (2026-10-15 사용자 결정: "각 개체의 '기록'버튼을 누를 때 저장되는게
+  /// 좋을것 같아").
+  ///
+  /// ⚠️ 실패하면 `saved` 를 켜지 않고 **입력도 지우지 않는다** — 토스트만
+  /// 띄우고 그 개체 탭에 그대로 머문다. 다시 '기록'을 누르면 재시도다.
+  Future<void> _saveOnePet(Pet pet, List<Pet> pets) async {
+    final entry = _perPetForms[pet.id];
+    if (entry == null || entry.saved || entry.items.isEmpty) return;
+    setState(() => _saving = true);
+    try {
+      final repo    = ref.read(recordRepositoryProvider);
+      final now     = _recordAt;
+      final petMemo = entry.memo.trim();
+      for (final item in entry.items) {
+        final apiItem = petMemo.isNotEmpty ? item.copyWith(memo: petMemo) : item;
+        await repo.addFeeding(pet.id, apiItem.toApiMap(fedAt: now));
       }
-    });
+      invalidatePetRecords(ref, pet.id);
+      if (!mounted) return;
+      setState(() {
+        entry.saved = true;
+        // 아직 저장 안 한 다음 개체로 넘겨준다 (여러 마리를 연달아 적는 흐름)
+        final nextIdx = pets.indexWhere(
+            (p) => !(_perPetForms[p.id]?.saved ?? false) && p.id != pet.id);
+        if (nextIdx != -1) _activePerPetIdx = nextIdx;
+      });
+      showToast(context, '${pet.name} 기록을 저장했어요',
+          type: ToastType.success);
+    } catch (e) {
+      if (mounted) showToast(context, '저장 실패: $e', type: ToastType.error);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   // ── 저장 ─────────────────────────────────────────────────────
@@ -310,32 +347,22 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
     }
   }
 
-  Future<void> _savePerPet(List<Pet> pets) async {
-    setState(() => _saving = true);
-    try {
-      final repo = ref.read(recordRepositoryProvider);
-      final now  = _recordAt;
-      int count = 0;
-      for (final pet in pets) {
-        final entry = _perPetForms[pet.id];
-        if (entry == null || !entry.filled || entry.items.isEmpty) continue;
-        final petMemo = entry.memo.trim();
-        for (final item in entry.items) {
-          final apiItem = petMemo.isNotEmpty ? item.copyWith(memo: petMemo) : item;
-          await repo.addFeeding(pet.id, apiItem.toApiMap(fedAt: now));
-        }
-        invalidatePetRecords(ref, pet.id);
-        count++;
-      }
-      setState(() {
-        _savedCount = count;
-        _step = _FabStep.done;
-      });
-    } catch (e) {
-      if (mounted) showToast(context, '저장 실패: $e', type: ToastType.error);
-    } finally {
-      if (mounted) setState(() => _saving = false);
+  /// 개별 저장 흐름을 끝낸다 — **저장하는 단계가 아니다.**
+  ///
+  /// ⛔ 여기서 다시 서버로 보내지 말 것. 저장은 개체마다 [_saveOnePet] 이
+  /// 이미 끝냈고(2026-10-15), 여기서 한 번 더 돌면 같은 기록이 두 벌 생긴다.
+  /// 하는 일은 마무리 화면으로 넘기는 것뿐이고, 저장한 게 하나도 없으면
+  /// 보여줄 마무리도 없으니 그냥 닫는다.
+  void _finishPerPet() {
+    final count = _perPetSavedCount;
+    if (count == 0) {
+      Navigator.of(context).pop();
+      return;
     }
+    setState(() {
+      _savedCount = count;
+      _step = _FabStep.done;
+    });
   }
 
   // ── 뒤로 ─────────────────────────────────────────────────────
@@ -739,7 +766,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
     // **'지금 이걸 작성 중이다'** 이므로 선택 상태 = 브랜드색이다.
     const pale      = AppColors.brandTint;
     const accent   = AppColors.brandAction;
-    final allFilled = _filledCount == pets.length;
+    final allSaved  = _perPetSavedCount == pets.length;
 
     return Column(
       mainAxisSize: MainAxisSize.min, // 06d 와 같은 이유 (높이는 내용이 정한다)
@@ -774,16 +801,16 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 // 다 채웠다는 진행 상태를 복숭아색(분류색)으로 말하고 있었다.
                 decoration: BoxDecoration(
-                  color: allFilled ? AppColors.brandTint : AppColors.card,
-                  border: allFilled
+                  color: allSaved ? AppColors.brandTint : AppColors.card,
+                  border: allSaved
                       ? null
                       : Border.all(color: AppColors.line),
                   borderRadius: AppRadius.brPill,
                 ),
                 child: Text(
-                  '$_filledCount / ${pets.length}',
+                  '$_perPetSavedCount / ${pets.length}',
                   style: AppTextStyles.mono(11, FontWeight.w700,
-                      color: allFilled
+                      color: allSaved
                           ? AppColors.brandTintInk
                           : AppColors.ink2),
                 ),
@@ -812,7 +839,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
               final active  = i == _activePerPetIdx;
               const pPale   = AppColors.brandTintSoft;
               const pInk    = AppColors.brandAction;
-              final isFilled = _perPetForms[p.id]?.filled ?? false;
+              final isSaved = _perPetForms[p.id]?.saved ?? false;
               return GestureDetector(
                 onTap: () => setState(() => _activePerPetIdx = i),
                 child: Container(
@@ -840,7 +867,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                               fontSize: 13, fontWeight: FontWeight.w700,
                               color: AppColors.ink)),
                       const SizedBox(width: 8),
-                      isFilled
+                      isSaved
                           ? Container(
                               width: 14, height: 14,
                               decoration: const BoxDecoration(
@@ -945,41 +972,50 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                   onTap: _pickRecordDate,
                 ),
                 const SizedBox(height: 20),
-                // FeedItemsEditor (개체별 — 목록에 추가)
-                FeedItemsEditor(
-                  items: entry.items,
-                  petId: activePet.id,
-                  bandColor: pale,
-                  onChanged: (list) => setState(() => entry.items = list),
-                ),
-                const SizedBox(height: 16),
-                const _MemoLabel(),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _perPetMemoCtrl.putIfAbsent(
-                      activePet.id, () => TextEditingController()),
-                  onChanged: (v) => entry.memo = v,
-                  maxLines: 2,
-                  style: const TextStyle(
-                      fontSize: 13, color: AppColors.ink),
-                  decoration: AppInputStyles.textarea(hintText: '특이사항 (선택)'),
-                ),
-                const SizedBox(height: 16),
 
-                // 완료 / 저장됨 액션
-                if (entry.filled)
+                // ⚠️ 저장이 끝난 개체는 **입력칸을 치운다.** 전에는 저장이
+                // 푸터에서 한 번에 일어나 입력을 계속 고칠 수 있었지만, 지금은
+                // '기록'을 누른 순간 서버로 간다(2026-10-15) — 그 뒤에도 칸이
+                // 남아 있으면 고쳐도 아무 일이 안 일어나는 칸이 된다.
+                if (!entry.saved) ...[
+                  // FeedItemsEditor (개체별 — 목록에 추가)
+                  FeedItemsEditor(
+                    items: entry.items,
+                    petId: activePet.id,
+                    bandColor: pale,
+                    onChanged: (list) => setState(() => entry.items = list),
+                  ),
+                  const SizedBox(height: 16),
+                  const _MemoLabel(),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _perPetMemoCtrl.putIfAbsent(
+                        activePet.id, () => TextEditingController()),
+                    onChanged: (v) => entry.memo = v,
+                    maxLines: 2,
+                    style: const TextStyle(
+                        fontSize: 13, color: AppColors.ink),
+                    decoration: AppInputStyles.textarea(hintText: '특이사항 (선택)'),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                // 기록 / 저장됨 액션
+                //
+                // ⚠️ 라벨은 **'기록'** 이다 — '완료'가 아니다. 이 버튼이
+                // 실제로 하는 일이 그 개체의 기록을 **서버에 쓰는 것**이고,
+                // '완료'는 "폼을 다 채웠다"로 읽혀서 아직 저장 전인 것처럼
+                // 보였다 (2026-10-15 사용자 결정).
+                if (entry.saved)
                   _SavedBanner(
                     petName: activePet.name,
                     pale: pale,
                     accent: accent,
-                    onUndo: () => setState(() {
-                      _perPetForms[activePet.id]!.filled = false;
-                    }),
                   )
                 else
                   GestureDetector(
-                    onTap: entry.items.isNotEmpty
-                        ? () => _markFilled(activePet.id, true, pets)
+                    onTap: entry.items.isNotEmpty && !_saving
+                        ? () => _saveOnePet(activePet, pets)
                         : null,
                     child: Container(
                       width: double.infinity,
@@ -1002,8 +1038,8 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                           const SizedBox(width: 8),
                           Text(
                             entry.items.isEmpty
-                                ? '${activePet.name} 완료'
-                                : '${activePet.name} 완료 (${entry.items.length}종)',
+                                ? '${activePet.name} 기록'
+                                : '${activePet.name} 기록 (${entry.items.length}종)',
                             style: TextStyle(
                                 fontSize: 14, fontWeight: FontWeight.w700,
                                 color: entry.items.isNotEmpty
@@ -1103,10 +1139,10 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         _Footer(
           onBack: _goBack,
           nextLabel: '닫기',
-          nextBadge: '$_filledCount건 저장됨',
-          onNext: _filledCount > 0
-              ? () => _savePerPet(pets)
-              : () => Navigator.of(context).pop(),
+          // ⛔ 푸터는 **저장 버튼이 아니다.** 저장은 개체마다 끝나 있고
+          // (2026-10-15), 여기는 "몇 건 저장됐는지" 를 알려주며 닫는 자리다.
+          nextBadge: _perPetSavedCount > 0 ? '$_perPetSavedCount건 저장됨' : null,
+          onNext: _finishPerPet,
           loading: _saving,
         ),
       ],
@@ -1165,6 +1201,9 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
   /// 목록·캘린더·타임라인은 내용 한 줄로 기록을 보여주는데, 비워 두면 그 줄이
   /// 빈칸으로 남아 "뭔가 잘못 저장됐다"처럼 보인다. '급여'·'청소'처럼
   /// 종류 이름이라도 들어가 있으면 한 줄이 제 몫을 한다.
+  ///
+  /// ⛔ **메모 기록(`note`)에는 쓰지 말 것.** 거기선 이 글이 부가 설명이 아니라
+  /// **기록 본문 자체**라, 내용이 '메모'인 메모가 저장된다 (2026-10-15).
   String _autoMemo(List<Pet> pets) {
     final rt = _recordTypes.firstWhere((r) => r.id == _typeId,
         orElse: () => _recordTypes.first);
@@ -1181,8 +1220,15 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
       final repo = ref.read(recordRepositoryProvider);
       final now  = _recordAt;
       // 내용을 안 적었으면 기록 종류 이름으로 채운다 ([_autoMemo]).
+      //
+      // ⛔ **메모 기록은 예외다.** 메모는 사용자가 쓴 글이 **곧 기록 본문**이라,
+      // 비었을 때 '메모'라는 종류 이름을 넣으면 내용이 '메모'인 기록이 생긴다
+      // (2026-10-15 사용자 지적). 다른 종류에서 memo 는 값 옆의 **부가 한 줄**
+      // 이라 종류 이름으로 채워도 기록 자체는 체중·개수가 들고 있다.
       final typed = _simpleMemoCtrl.text.trim();
-      final memo  = typed.isEmpty ? _autoMemo(pets) : typed;
+      final memo = (typed.isEmpty && _typeId != 'note')
+          ? _autoMemo(pets)
+          : typed;
 
       for (final pet in pets) {
         switch (_typeId) {
@@ -1208,7 +1254,20 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                     .where((t) => t.code == _memoTag)
                     .map((t) => t.labelKo)
                     .firstOrNull;
+            // 내용이 비면 고른 분류 이름이 본문이 된다. 분류도 안 골랐으면
+            // **남길 내용이 없다** — 아래 가드가 저장 자체를 막는다.
             final content = memo.isNotEmpty ? memo : (tagLabel ?? '');
+            if (content.isEmpty) {
+              // 저장 버튼이 이미 잠겨 있어 보통은 닿지 않는 자리다
+              // ([_simpleFormValid]). 분류 목록을 아직 못 받아와 라벨이
+              // 비는 경우가 남아서, 빈 메모가 새어 나가지 않게 한 번 더 막는다.
+              if (mounted) {
+                setState(() => _saving = false);
+                showToast(context, '메모 내용을 입력하거나 분류를 골라 주세요',
+                    type: ToastType.warning);
+              }
+              return;
+            }
             final data = <String, dynamic>{
               'content': content,
               'loggedAt': now.toUtc().toIso8601String(),
@@ -2351,17 +2410,22 @@ class _ChoiceCard extends StatelessWidget {
 }
 
 // ── 저장됨 배너 (06e) ──────────────────────────────────────────
+/// 개별 저장이 끝난 개체 자리에 들어가는 배너.
+///
+/// ⛔ **'미완료로 되돌리기' 버튼을 다시 넣지 말 것.** 전에는 작성 완료 표시를
+/// 끄는 버튼이 있었는데, 지금은 누른 순간 **서버에 기록이 들어간다**
+/// (2026-10-15). 표시만 끄면 서버에는 남은 기록을 화면이 모르는 상태가 되고,
+/// 다시 '기록'을 누르면 같은 급여가 두 건이 된다. 고치거나 지우는 건 기록
+/// 상세 화면의 일이다.
 class _SavedBanner extends StatelessWidget {
   final String petName;
   final Color pale;
   final Color accent;
-  final VoidCallback onUndo;
 
   const _SavedBanner({
     required this.petName,
     required this.pale,
     required this.accent,
-    required this.onUndo,
   });
 
   @override
@@ -2391,24 +2455,9 @@ class _SavedBanner extends StatelessWidget {
                         fontSize: 13, fontWeight: FontWeight.w700,
                         color: AppColors.ink)),
                 const SizedBox(height: 4),
-                Text('수정하려면 미완료로 되돌린 뒤 다시 완료하세요',
+                Text('고치거나 지우려면 급여 기록 상세에서 하세요',
                     style: TextStyle(fontSize: 12, color: AppColors.ink2)),
               ],
-            ),
-          ),
-          GestureDetector(
-            onTap: onUndo,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: AppColors.card,
-                border: Border.all(color: AppColors.line),
-                borderRadius: AppRadius.brPill,
-              ),
-              child: const Text('미완료',
-                  style: TextStyle(
-                      fontSize: 12, fontWeight: FontWeight.w700,
-                      color: AppColors.ink)),
             ),
           ),
         ],

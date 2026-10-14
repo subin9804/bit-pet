@@ -197,9 +197,17 @@ class Memo {
         updatedAt: DateTime.parse(json['updatedAt'] as String),
       );
 
-  /// 목록 표시용. ⛔ 루틴 제목을 붙이지 않는다 — 이건 루틴이 아니라 **메모 기록**이다.
-  /// 내용이 비어 있으면 메모 없이 완료한 루틴 기록이다 ('완료' 자체가 기록).
-  String get displayContent => content.isEmpty ? '메모 미입력' : content;
+  /// 목록 표시용.
+  ///
+  /// 내용이 비어 있으면 메모 없이 완료한 루틴 기록이다 ('완료' 자체가 기록) —
+  /// 이때는 **`[루틴이름] 완료`** 로 적는다 (2026-10-15 사용자 요청).
+  /// '메모 미입력' 만으로는 왜 비어 있는지가 안 보여서 빠뜨린 것처럼 읽혔다.
+  ///
+  /// ⚠️ 루틴 제목을 붙이는 건 **내용이 빈 이 경우뿐**이다. 내용이 있는 메모에
+  /// `[루틴제목]` 을 접두사로 달지 말 것 — 기록은 루틴에 종속되지 않는다.
+  String get displayContent => content.isNotEmpty
+      ? content
+      : (routineTitle != null ? '[$routineTitle] 완료' : '메모 미입력');
 }
 
 // ── Mating (v5) ────────────────────────────────────────────
