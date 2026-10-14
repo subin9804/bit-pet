@@ -7,7 +7,9 @@ import '../../../core/species/breeding_terms.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_input_styles.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/app_search_field.dart';
 import '../../../core/widgets/pet_avatar.dart';
+import '../../../core/widgets/species_filter_chips.dart';
 import '../../../core/widgets/step_dots.dart';
 import '../../../core/widgets/app_buttons.dart';
 import '../../../core/widgets/toast_message.dart';
@@ -1133,19 +1135,40 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
   }
 
   // ── simpleForm 저장 ────────────────────────────────────────────
+  /// 저장 버튼을 켤 수 있는가.
+  ///
+  /// **내용(메모)은 어떤 종류에서도 저장을 막지 않는다.** 바쁠 때 한 손으로
+  /// 남기는 기록이라, 적을 말이 없으면 비워 두고 저장할 수 있어야 한다 —
+  /// 비어 있으면 기록 종류 이름이 들어간다([_autoMemo]).
+  ///
+  /// 그래서 여기 남은 조건은 **기록 그 자체인 값**뿐이다:
+  /// 체중 없는 체중 기록, 개수 없는 산란 기록은 데이터가 아니고 서버도 받지
+  /// 않는다(`weightG @NotNull`, `eggCountTotal @Min(1)`).
+  /// 메모는 사용자가 쓴 글이 곧 기록이라 유일하게 내용이 필수다(`content @NotBlank`).
+  ///
+  /// ⚠️ 청소 종류·메이팅 상대는 필수에서 **뺐다**. 서버가 청소 종류를 요구하긴
+  /// 하지만 기본값(전체 청소)이 있고, 메이팅 상대는 '미정'이 정상적인 상태다
+  /// (`petIdMale` 을 비워 저장한다) — 둘 다 "일단 남기고 나중에 고치는" 쪽이
+  /// 맞는 값이라 저장을 막을 이유가 없다.
   bool _simpleFormValid() {
     return switch (_typeId) {
-      'scale' => _weightCtrl.text.trim().isNotEmpty &&
-                 (double.tryParse(_weightCtrl.text.trim()) ?? 0) > 0,
-      'clean' => _cleaningType != null,
-      // 내용을 적었거나, 분류(병원/탈피/배변 등)를 하나 골랐으면 저장 가능
-      'note'  => _simpleMemoCtrl.text.trim().isNotEmpty || _memoTag != null,
-      'mate'  => _partnerExternal
-                   ? _searchedPartner != null
-                   : _partnerPet != null,
+      'scale' => (double.tryParse(_weightCtrl.text.trim()) ?? 0) > 0,
       'lay'   => (int.tryParse(_eggTotalCtrl.text.trim()) ?? 0) > 0,
+      'note'  => _simpleMemoCtrl.text.trim().isNotEmpty || _memoTag != null,
+      'clean' || 'mate' => true,
       _       => false,
     };
+  }
+
+  /// 내용을 비워둔 기록에 대신 넣을 글. 기록 종류 이름이다.
+  ///
+  /// 목록·캘린더·타임라인은 내용 한 줄로 기록을 보여주는데, 비워 두면 그 줄이
+  /// 빈칸으로 남아 "뭔가 잘못 저장됐다"처럼 보인다. '급여'·'청소'처럼
+  /// 종류 이름이라도 들어가 있으면 한 줄이 제 몫을 한다.
+  String _autoMemo(List<Pet> pets) {
+    final rt = _recordTypes.firstWhere((r) => r.id == _typeId,
+        orElse: () => _recordTypes.first);
+    return _typeLabel(rt, pets);
   }
 
   Future<void> _saveSimple(List<Pet> pets) async {
@@ -1157,18 +1180,24 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
     try {
       final repo = ref.read(recordRepositoryProvider);
       final now  = _recordAt;
-      final memo = _simpleMemoCtrl.text.trim();
+      // 내용을 안 적었으면 기록 종류 이름으로 채운다 ([_autoMemo]).
+      final typed = _simpleMemoCtrl.text.trim();
+      final memo  = typed.isEmpty ? _autoMemo(pets) : typed;
 
       for (final pet in pets) {
         switch (_typeId) {
           case 'scale':
             final w = double.parse(_weightCtrl.text.trim());
-            await repo.addWeight(pet.id, w, now, memo.isEmpty ? null : memo);
+            await repo.addWeight(pet.id, w, now, memo);
           case 'clean':
             await repo.addCleaning(
               pet.id,
-              CleaningType.values.firstWhere((c) => c.name == _cleaningType),
-              now, memo.isEmpty ? null : memo,
+              // 종류를 안 골랐으면 '전체 청소'. 서버가 요구하는 값이고
+              // (`cleaningType @NotNull`) 세 종류 중 가장 흔한 쪽이다.
+              CleaningType.values.firstWhere(
+                  (c) => c.name == _cleaningType,
+                  orElse: () => CleaningType.FULL),
+              now, memo,
             );
           case 'note':
             final isVet = _memoTag == 'VET';
@@ -1226,7 +1255,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
               // 미정이면 키 자체를 빼야 한다. null 을 실어 보내면 서버가 '아직
               // 모름'과 '실패'를 구분하지 못한다.
               if (_mateSuccess != null) 'isSuccessful': _mateSuccess,
-              if (memo.isNotEmpty) 'memo': memo,
+              'memo': memo,
             };
             await repo.addMating(pet.id, matingData);
           case 'lay':
@@ -1240,7 +1269,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
               'eggCountTotal': total,
               if (fertile != null && fertile > 0) 'eggCountFertile': fertile,
               'laidAt': now.toUtc().toIso8601String(),
-              if (memo.isNotEmpty) 'memo': memo,
+              'memo': memo,
             };
             await repo.addLaying(pet.id, layData);
         }
@@ -1384,7 +1413,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _FieldLabel('청소 종류', required: true),
+            _FieldLabel('청소 종류', required: false),
             const SizedBox(height: 8),
             Row(
               children: types.map((t) {
@@ -1530,7 +1559,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _FieldLabel('파트너', required: true),
+            _FieldLabel('파트너', required: false),
             const SizedBox(height: 8),
             // 내 개체 / 외부 개체 토글
             Row(
@@ -1874,11 +1903,15 @@ class _PetPickerContent extends ConsumerStatefulWidget {
 class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
   late Set<int> _selected;
   String _query  = '';
-  String _filter = 'all';
 
-  static const _filters = [
-    ('all', '전체'), ('gecko', '게코'), ('snake', '뱀'), ('lizard', '도마뱀'),
-  ];
+  /// 고른 종 필터의 speciesId. null = 전체.
+  ///
+  /// ⚠️ 전에는 '게코'·'뱀'·'도마뱀' 세 칩을 하드코딩하고 종 이름에 '파이톤'·
+  /// '보아'·'콘' 같은 조각이 들어 있는지로 걸렀다. 햄스터는 어느 칩에도 걸리지
+  /// 않아 '전체' 말고는 어디서도 안 보였고, 칩 옆 카운트는 **전체 개체**를
+  /// 세고 있어서 못 고르는 개체까지 들어갔다. 이제 speciesId 로 판정하고,
+  /// 칩 자체를 **고를 수 있는 개체에서** 만든다 ([SpeciesFilterChips]).
+  int? _speciesId;
 
   @override
   void initState() {
@@ -1909,17 +1942,7 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
     return null;
   }
 
-  bool _matchFilter(Pet p) {
-    final sp = p.speciesName.toLowerCase();
-    return switch (_filter) {
-      'gecko'  => sp.contains('게코'),
-      'snake'  => sp.contains('파이톤') || sp.contains('스네이크') ||
-                  sp.contains('보아') || sp.contains('콘'),
-      'lizard' => sp.contains('드래곤') || sp.contains('도마뱀') ||
-                  sp.contains('스킨크') || sp.contains('이구아나'),
-      _        => true,
-    };
-  }
+  bool _matchFilter(Pet p) => _speciesId == null || p.speciesId == _speciesId;
 
   @override
   Widget build(BuildContext context) {
@@ -1996,92 +2019,24 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
           ),
         ),
 
-        // 검색창
+        // 검색창 + 종 필터 칩
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-          child: Container(
-            decoration: BoxDecoration(
-              color: AppColors.card,
-              border: Border.all(color: AppColors.line),
-              borderRadius: AppRadius.brPill,
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: [
-                const Icon(Icons.search,
-                    size: 20, color: AppColors.ink2),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    onChanged: (v) => setState(() => _query = v),
-                    style: const TextStyle(
-                        fontSize: 14, color: AppColors.ink),
-                    decoration: InputDecoration.collapsed(
-                      hintText: '이름 또는 종 검색…',
-                      hintStyle: TextStyle(color: AppColors.ink3),
-                    ),
-                  ),
-                ),
-                if (_query.isNotEmpty)
-                  GestureDetector(
-                    onTap: () => setState(() => _query = ''),
-                    child: const Icon(Icons.close,
-                        size: 16, color: AppColors.ink3),
-                  ),
-              ],
-            ),
-          ),
-        ),
-
-        // 종 필터 칩
-        SizedBox(
-          height: 36,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
-            children: _filters.map((f) {
-              final active = _filter == f.$1;
-              final count  = allPets.where((p) => switch (f.$1) {
-                'gecko'  => p.speciesName.toLowerCase().contains('게코'),
-                'snake'  => p.speciesName.toLowerCase().contains('파이톤') ||
-                            p.speciesName.toLowerCase().contains('스네이크') ||
-                            p.speciesName.toLowerCase().contains('콘'),
-                'lizard' => p.speciesName.toLowerCase().contains('드래곤') ||
-                            p.speciesName.toLowerCase().contains('도마뱀'),
-                _        => true,
-              }).length;
-              return GestureDetector(
-                onTap: () => setState(() => _filter = f.$1),
-                child: Container(
-                  margin: const EdgeInsets.only(right: 8),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: active ? AppColors.brandAction : AppColors.card,
-                    border: active
-                        ? null
-                        : Border.all(color: AppColors.line),
-                    borderRadius: AppRadius.brPill,
-                  ),
-                  child: Row(
-                    children: [
-                      Text(f.$2,
-                          style: TextStyle(
-                              fontSize: 12, fontWeight: FontWeight.w700,
-                              color: active
-                                  ? AppColors.card
-                                  : AppColors.ink)),
-                      const SizedBox(width: 4),
-                      Text('$count',
-                          style: AppTextStyles.mono(10, FontWeight.w700,
-                              color: active
-                                  ? AppColors.card.withValues(alpha: 0.6)
-                                  : AppColors.ink3)),
-                    ],
-                  ),
-                ),
-              );
-            }).toList(),
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+          child: Column(
+            children: [
+              AppSearchField(
+                value: _query,
+                onChanged: (v) => setState(() => _query = v),
+              ),
+              // 칩은 **고를 수 있는 개체**에서 만든다. 산란 폼에서 수컷을 걸러낸
+              // 뒤라면 수컷만 있는 종의 칩은 애초에 뜨지 않는다 — 눌러서 빈
+              // 목록을 보게 하지 않는다.
+              SpeciesFilterChips(
+                pets: eligible,
+                selectedSpeciesId: _speciesId,
+                onChanged: (id) => setState(() => _speciesId = id),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 8),

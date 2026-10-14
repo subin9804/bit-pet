@@ -4,8 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_icons.dart';
+import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/app_search_field.dart';
 import '../../../core/widgets/app_toggle.dart';
 import '../../../core/widgets/pet_avatar.dart';
+import '../../../core/widgets/species_filter_chips.dart';
 import '../../../core/widgets/step_shell.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../../pet/data/models/pet_models.dart';
@@ -78,7 +81,15 @@ class _RoutineFormScreenState extends ConsumerState<RoutineFormScreen> {
 
   Set<int> _petIds = {};
   String _petQuery = '';
-  String _petFilter = 'all'; // all/gecko/snake/lizard
+
+  /// 선택된 종 필터의 speciesId. null = 전체.
+  ///
+  /// ⚠️ 전에는 'gecko'/'snake'/'lizard' 세 개를 **하드코딩**하고 종 이름에
+  /// '게코'·'도마뱀' 이 들어 있는지로 걸렀다. 내 개체가 햄스터와 크레스티드
+  /// 게코뿐이어도 칩 넷이 그대로 떠 있고 그중 둘은 눌러도 빈 목록이었다.
+  /// 종은 서버 코드표에서 오는 값이라 앱이 이름 조각으로 알아맞힐 일이 아니다 —
+  /// '내 개체' 탭처럼 **실제로 가진 종만** 칩으로 띄운다.
+  int? _petSpeciesId;
 
   _CycleMode _cycleMode = _CycleMode.interval;
   int _interval = 3;
@@ -333,10 +344,10 @@ class _RoutineFormScreenState extends ConsumerState<RoutineFormScreen> {
       render: (_) => _PetSelectorStep(
         petIds: _petIds,
         petQuery: _petQuery,
-        petFilter: _petFilter,
+        petSpeciesId: _petSpeciesId,
         onIdsChanged: (ids) => setState(() => _petIds = ids),
         onQueryChanged: (q) => setState(() => _petQuery = q),
-        onFilterChanged: (f) => setState(() => _petFilter = f),
+        onFilterChanged: (id) => setState(() => _petSpeciesId = id),
       ),
     ),
 
@@ -507,26 +518,19 @@ class _RoutineFormScreenState extends ConsumerState<RoutineFormScreen> {
 class _PetSelectorStep extends ConsumerWidget {
   final Set<int> petIds;
   final String petQuery;
-  final String petFilter;
+  final int? petSpeciesId;
   final void Function(Set<int>) onIdsChanged;
   final void Function(String) onQueryChanged;
-  final void Function(String) onFilterChanged;
+  final void Function(int?) onFilterChanged;
 
   const _PetSelectorStep({
     required this.petIds,
     required this.petQuery,
-    required this.petFilter,
+    required this.petSpeciesId,
     required this.onIdsChanged,
     required this.onQueryChanged,
     required this.onFilterChanged,
   });
-
-  static const _filters = [
-    ('all',    '전체'),
-    ('gecko',  '게코'),
-    ('snake',  '뱀'),
-    ('lizard', '도마뱀'),
-  ];
 
   List<Pet> _filtered(List<Pet> pets) {
     final q = petQuery.toLowerCase();
@@ -534,19 +538,9 @@ class _PetSelectorStep extends ConsumerWidget {
       final matchQ = q.isEmpty ||
           p.name.toLowerCase().contains(q) ||
           p.speciesName.toLowerCase().contains(q);
-      final matchF = petFilter == 'all' ? true :
-          petFilter == 'gecko'  ? p.speciesName.contains('게코') :
-          petFilter == 'snake'  ? p.speciesName.contains('뱀') || p.speciesName.contains('snake') :
-          petFilter == 'lizard' ? p.speciesName.contains('도마뱀') || p.speciesName.contains('드래곤') :
-          true;
+      final matchF = petSpeciesId == null || p.speciesId == petSpeciesId;
       return matchQ && matchF;
     }).toList();
-  }
-
-  Color _petBg(Pet p) {
-    // 개체 지정색은 걷어냈다 — 저장된 hex 를 그대로 칠하던 자리다.
-    // 자세한 이유는 core/theme/pale_palette.dart 주석 참고.
-    return AppColors.paleBgAlt;
   }
 
   @override
@@ -584,66 +578,21 @@ class _PetSelectorStep extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // 검색창
-              Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: AppRadius.brMd,
-                  border: Border.all(color: AppColors.paleLine),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.search, color: AppColors.paleInk2, size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        onChanged: onQueryChanged,
-                        style: const TextStyle(fontSize: 14, color: AppColors.primary),
-                        decoration: const InputDecoration(
-                          hintText: '이름 또는 종 검색…',
-                          hintStyle: TextStyle(fontSize: 13, color: AppColors.paleInk3),
-                          border: InputBorder.none,
-                          isDense: true,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ),
-                    ),
-                  ],
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: AppSearchField(
+                  value: petQuery,
+                  onChanged: onQueryChanged,
                 ),
               ),
-              // 종 필터 칩
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: _filters.map((f) {
-                    final (id, label) = f;
-                    final active = petFilter == id;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8, bottom: 8),
-                      child: GestureDetector(
-                        onTap: () => onFilterChanged(id),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 150),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: active ? AppColors.primary : AppColors.surface,
-                            borderRadius: AppRadius.brPill,
-                            border: active ? null : Border.all(color: AppColors.paleLine),
-                          ),
-                          child: Text(
-                            label,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: active ? AppColors.paleBg : AppColors.primary,
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
+              // 종 필터 칩 — 칩은 앱 전체가 AppChip 하나만 쓴다.
+              // ⚠️ 전에는 여기서 직접 그렸고 **선택된 칩이 먹색(primary)** 이었다.
+              // 앱의 다른 선택 표시는 모두 브랜드 틴트라, 검게 찍힌 칩은 오히려
+              // "비활성" 으로 읽혔다.
+              SpeciesFilterChips(
+                pets: all,
+                selectedSpeciesId: petSpeciesId,
+                onChanged: onFilterChanged,
               ),
               // 전체 선택
               GestureDetector(
@@ -657,26 +606,26 @@ class _PetSelectorStep extends ConsumerWidget {
                         duration: const Duration(milliseconds: 150),
                         width: 18,
                         height: 18,
+                        // 체크/토글 on 은 브랜드 액션색이다 (먹색 아님).
                         decoration: BoxDecoration(
-                          color: allOn ? AppColors.primary : AppColors.surface,
+                          color: allOn ? AppColors.brandAction : AppColors.surface,
                           borderRadius: AppRadius.brSm,
                           border: Border.all(
-                            color: allOn ? AppColors.primary : AppColors.paleLine,
+                            color: allOn ? AppColors.brandAction : AppColors.line,
                             width: 1.5,
                           ),
                         ),
                         child: allOn
-                            ? const Icon(Icons.check, size: 16, color: AppColors.paleBg)
+                            ? const Icon(Icons.check, size: 16, color: AppColors.bg)
                             : null,
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: AppSpacing.sm),
                       Text(
-                        petFilter == 'all' && petQuery.isEmpty ? '전체 선택' : '보이는 개체 모두 선택',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                          color: AppColors.paleInk2,
-                        ),
+                        petSpeciesId == null && petQuery.isEmpty
+                            ? '전체 선택'
+                            : '보이는 개체 모두 선택',
+                        style: AppTextStyles.caption
+                            .copyWith(fontWeight: FontWeight.w700),
                       ),
                     ],
                   ),
@@ -688,7 +637,10 @@ class _PetSelectorStep extends ConsumerWidget {
                   padding: EdgeInsets.symmetric(vertical: 24),
                   child: Center(
                     child: Text('검색 결과가 없어요',
-                        style: TextStyle(fontSize: 13, color: AppColors.paleInk3, fontWeight: FontWeight.w600)),
+                        style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.ink3,
+                            fontWeight: FontWeight.w600)),
                   ),
                 )
               else
@@ -705,16 +657,26 @@ class _PetSelectorStep extends ConsumerWidget {
                   itemBuilder: (_, i) {
                     final p = visible[i];
                     final on = petIds.contains(p.id);
-                    final bg = _petBg(p);
+                    // 선택 표시는 [AppDecor.cardSelected] 와 같은 짝 —
+                    // **연한 브랜드 바탕 + 진초록 1.5 테두리**.
+                    //
+                    // ⚠️ 전에는 바탕이 `paleBgAlt`(#F4F7F5) 였고 테두리는 그 색의
+                    // 50% 알파였다. 흰 카드 위에 연회색을 깔고 테두리를 **더
+                    // 연하게** 만든 꼴이라, 고른 칸이 안 고른 칸보다 오히려
+                    // 흐려 보였다 — 체크 배지 하나로만 구분되는 상태였다.
                     return GestureDetector(
                       onTap: () => togglePet(p.id),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 150),
                         decoration: BoxDecoration(
-                          color: on ? bg : AppColors.surface,
+                          color: on
+                              ? AppColors.brandTintSoft
+                              : AppColors.surface,
                           borderRadius: AppRadius.brMd,
                           border: Border.all(
-                            color: on ? bg.withValues(alpha: 0.5) : AppColors.paleLine,
+                            color: on
+                                ? AppColors.brandAction
+                                : AppColors.line,
                             width: on ? 1.5 : 1,
                           ),
                         ),
@@ -727,8 +689,9 @@ class _PetSelectorStep extends ConsumerWidget {
                                 PetAvatar(
                                   imageUrl: p.profileImageUrl,
                                   size: 46,
-                                  background: on ? AppColors.surface.withValues(alpha: 0.55) : bg,
-                                  iconColor: AppColors.paleInk2,
+                                  background:
+                                      on ? AppColors.bg : AppColors.bgAlt,
+                                  iconColor: AppColors.ink2,
                                   subcategory: p.speciesSubcategory,
                                 ),
                                 if (on)
@@ -738,11 +701,12 @@ class _PetSelectorStep extends ConsumerWidget {
                                     child: Container(
                                       width: 18,
                                       height: 18,
-                                      decoration: BoxDecoration(
-                                        color: AppColors.primary,
+                                      decoration: const BoxDecoration(
+                                        color: AppColors.brandAction,
                                         shape: BoxShape.circle,
                                       ),
-                                      child: const Icon(Icons.check, size: 12, color: AppColors.paleBg),
+                                      child: const Icon(Icons.check,
+                                          size: 12, color: AppColors.bg),
                                     ),
                                   ),
                               ],
@@ -750,13 +714,20 @@ class _PetSelectorStep extends ConsumerWidget {
                             const SizedBox(height: 8),
                             Text(
                               p.name,
-                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.primary),
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                  color: AppColors.ink,
+                                  letterSpacing: -0.2),
                               overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 1),
                             Text(
                               p.speciesName,
-                              style: const TextStyle(fontSize: 12, color: AppColors.paleInk3, fontWeight: FontWeight.w600),
+                              style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.ink2,
+                                  fontWeight: FontWeight.w600),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ],
@@ -813,7 +784,6 @@ class _CycleStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final today = _todayOffset(0);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

@@ -5,12 +5,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_icons.dart';
 import '../../../core/widgets/app_chip.dart';
+import '../../../core/widgets/app_search_field.dart';
 import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/app_toggle.dart';
 import '../../../core/widgets/confirm_modal.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/pet_avatar.dart';
 import '../../../core/widgets/skeleton_loader.dart';
+import '../../../core/widgets/species_filter_chips.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../data/models/routine_models.dart';
 import '../data/routine_repository.dart';
@@ -72,18 +74,11 @@ class RoutineScreen extends ConsumerStatefulWidget {
 }
 
 class _RoutineScreenState extends ConsumerState<RoutineScreen> {
-  final _searchCtrl = TextEditingController();
   String _query = '';
   RoutineType? _filterType;
 
   // 루틴 on/off 토글 로컬 상태 (낙관적 업데이트) — active 필드 제어, 홈 카드 노출 조건과 직결
   final Map<int, bool> _activeOverrides = {};
-
-  @override
-  void dispose() {
-    _searchCtrl.dispose();
-    super.dispose();
-  }
 
   bool _routineOn(Routine r) => _activeOverrides[r.id] ?? r.isActive;
 
@@ -134,45 +129,16 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
     return Column(
       children: [
         // ── 검색창 ──────────────────────────────────────────────
-        Container(
-          decoration: const BoxDecoration(
-            color: AppColors.bg2,
-            border: Border(bottom: BorderSide(color: AppColors.divider)),
-          ),
-          padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.screenH, vertical: AppSpacing.sm),
-          child: TextField(
-            controller: _searchCtrl,
+        // ⚠️ 여기만 **밑줄 입력칸**이었다 (회색 바탕 + 밑줄 + 먹색 포커스선).
+        // 테마 기본값을 그대로 쓴 자리인데, 내 개체·루틴 Step2·FAB 는 모두
+        // 흰 카드형 검색창이라 같은 기능이 화면마다 다른 모양이었다.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.screenH,
+              AppSpacing.sm, AppSpacing.screenH, AppSpacing.xs),
+          child: AppSearchField(
+            value: _query,
+            hintText: '루틴 이름 검색',
             onChanged: (v) => setState(() => _query = v),
-            style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
-            decoration: InputDecoration(
-              hintText: '루틴 이름 검색…',
-              hintStyle: const TextStyle(
-                  color: AppColors.textDisabled, fontSize: 13),
-              prefixIcon: const Icon(Icons.search,
-                  size: 20, color: AppColors.textSecondary),
-              suffixIcon: _query.isNotEmpty
-                  ? GestureDetector(
-                      onTap: () {
-                        _searchCtrl.clear();
-                        setState(() => _query = '');
-                      },
-                      child: const Icon(Icons.close,
-                          size: 16, color: AppColors.textDisabled),
-                    )
-                  : null,
-              contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 4, vertical: 12),
-              border: const UnderlineInputBorder(
-                borderSide: BorderSide(color: AppColors.border),
-              ),
-              enabledBorder: const UnderlineInputBorder(
-                borderSide: BorderSide(color: AppColors.border),
-              ),
-              focusedBorder: const UnderlineInputBorder(
-                borderSide: BorderSide(color: AppColors.textPrimary),
-              ),
-            ),
           ),
         ),
 
@@ -1007,16 +973,25 @@ class _RoutinePetPickerSheetState
   late Set<int> _selectedIds;
   bool _saving = false;
 
+  /// 검색어 · 종 필터. 개체가 스무 마리를 넘으면 3열 격자를 스크롤해서
+  /// 찾는 것보다 이름 두 글자를 치는 게 빠르다 — 루틴 등록 Step2 와 같은 도구를 둔다.
+  String _query = '';
+  int? _speciesId;
+
   @override
   void initState() {
     super.initState();
     _selectedIds = Set<int>.from(widget.routine.petIds);
   }
 
-  Color _petBg(Pet p) {
-    // 개체 지정색은 걷어냈다 — 저장된 hex 를 그대로 칠하던 자리다.
-    // 자세한 이유는 core/theme/pale_palette.dart 주석 참고.
-    return AppColors.paleBgAlt;
+  List<Pet> _filter(List<Pet> pets) {
+    final q = _query.trim().toLowerCase();
+    return pets.where((p) {
+      final matchQ = q.isEmpty ||
+          p.name.toLowerCase().contains(q) ||
+          p.speciesName.toLowerCase().contains(q);
+      return matchQ && (_speciesId == null || p.speciesId == _speciesId);
+    }).toList();
   }
 
   Future<void> _save() async {
@@ -1044,8 +1019,7 @@ class _RoutinePetPickerSheetState
   @override
   Widget build(BuildContext context) {
     final petsAsync = ref.watch(petListProvider);
-    final bg  = _rtypeBg(widget.routine.routineType);
-    final ink = _rtypeInk(widget.routine.routineType);
+    final allPets = petsAsync.valueOrNull ?? const <Pet>[];
 
     return AppSheet(
       title: '개체 추가·제거',
@@ -1057,6 +1031,18 @@ class _RoutinePetPickerSheetState
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // ── 검색 · 종 필터 ──
+          AppSearchField(
+            value: _query,
+            onChanged: (v) => setState(() => _query = v),
+          ),
+          SpeciesFilterChips(
+            pets: allPets,
+            selectedSpeciesId: _speciesId,
+            onChanged: (id) => setState(() => _speciesId = id),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+
           // ── 개체 그리드 ──
           ConstrainedBox(
             constraints: BoxConstraints(
@@ -1076,13 +1062,23 @@ class _RoutinePetPickerSheetState
                       style: TextStyle(color: AppColors.paleInk3)),
                 ),
               ),
-              data: (pets) {
-                if (pets.isEmpty) {
+              data: (allPets) {
+                if (allPets.isEmpty) {
                   return const Padding(
                     padding: EdgeInsets.all(40),
                     child: Center(
                       child: Text('등록된 개체가 없어요',
-                          style: TextStyle(color: AppColors.paleInk3)),
+                          style: TextStyle(color: AppColors.ink3)),
+                    ),
+                  );
+                }
+                final pets = _filter(allPets);
+                if (pets.isEmpty) {
+                  return const Padding(
+                    padding: EdgeInsets.all(40),
+                    child: Center(
+                      child: Text('검색 결과가 없어요',
+                          style: TextStyle(color: AppColors.ink3)),
                     ),
                   );
                 }
@@ -1100,7 +1096,12 @@ class _RoutinePetPickerSheetState
                   itemBuilder: (_, i) {
                     final p   = pets[i];
                     final on  = _selectedIds.contains(p.id);
-                    final petColor = _petBg(p);
+                    // 선택은 **브랜드색**이 말한다 ([AppDecor.cardSelected] 와 같은 짝).
+                    //
+                    // ⚠️ 전에는 루틴 **타입색**(급여=복숭아, 청소=하늘…)으로 칠했다.
+                    // 그러면 "이건 급여 루틴이다" 라는 종류 표시와 "이 개체를 골랐다"
+                    // 는 상태가 같은 색이 되어, 무엇이 선택된 건지 안 읽힌다.
+                    // (FAB 청소 종류 타일에서 같은 이유로 걷어낸 색이다)
                     return GestureDetector(
                       onTap: () => setState(() {
                         if (on) _selectedIds.remove(p.id);
@@ -1110,9 +1111,13 @@ class _RoutinePetPickerSheetState
                         duration: const Duration(milliseconds: 130),
                         decoration: BoxDecoration(
                           borderRadius: AppRadius.brMd,
-                          color: on ? bg : AppColors.bg2,
+                          color: on
+                              ? AppColors.brandTintSoft
+                              : AppColors.surface,
                           border: Border.all(
-                            color: on ? ink : AppColors.border,
+                            color: on
+                                ? AppColors.brandAction
+                                : AppColors.line,
                             width: on ? 1.5 : 1,
                           ),
                         ),
@@ -1126,10 +1131,9 @@ class _RoutinePetPickerSheetState
                                 PetAvatar(
                                   imageUrl: p.profileImageUrl,
                                   size: 46,
-                                  background: on
-                                      ? Colors.white.withValues(alpha: 0.55)
-                                      : petColor,
-                                  iconColor: ink,
+                                  background:
+                                      on ? AppColors.bg : AppColors.bgAlt,
+                                  iconColor: AppColors.ink2,
                                   subcategory: p.speciesSubcategory,
                                 ),
                                 if (on)
@@ -1137,13 +1141,12 @@ class _RoutinePetPickerSheetState
                                     top: -4, right: -4,
                                     child: Container(
                                       width: 18, height: 18,
-                                      decoration: BoxDecoration(
-                                        color: ink,
+                                      decoration: const BoxDecoration(
+                                        color: AppColors.brandAction,
                                         shape: BoxShape.circle,
                                       ),
                                       child: const Icon(Icons.check,
-                                          size: 12,
-                                          color: Colors.white),
+                                          size: 12, color: AppColors.bg),
                                     ),
                                   ),
                               ],
@@ -1163,7 +1166,7 @@ class _RoutinePetPickerSheetState
                               p.speciesName,
                               style: const TextStyle(
                                 fontSize: 12,
-                                color: AppColors.textDisabled,
+                                color: AppColors.ink2,
                                 fontWeight: FontWeight.w600,
                               ),
                               overflow: TextOverflow.ellipsis,

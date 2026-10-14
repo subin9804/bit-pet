@@ -4,10 +4,11 @@ import 'package:go_router/go_router.dart';
 import '../../../core/db/ui_prefs.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../../core/widgets/app_chip.dart';
+import '../../../core/widgets/app_search_field.dart';
 import '../../../core/widgets/confirm_modal.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/skeleton_loader.dart';
+import '../../../core/widgets/species_filter_chips.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../data/models/pet_models.dart';
 import '../providers/pet_provider.dart';
@@ -379,67 +380,30 @@ class _PetTabState extends ConsumerState<_PetTab> {
     // **매번 다시 눌러야 했다**. 고른 쪽이 그대로 있어야 고른 의미가 있다.
     final isGridView = ref.watch(petListGridProvider);
 
-    // 내 개체에 실제로 존재하는 종만 필터칩으로 노출 (등장 순서 유지, 중복 제거)
+    // 필터칩은 내 개체에 실제로 있는 종만 띄운다 ([SpeciesFilterChips]).
     final allPets = petsAsync.valueOrNull ?? const <Pet>[];
-    final speciesChips = <int, String>{};
-    for (final p in allPets) {
-      speciesChips.putIfAbsent(p.speciesId, () => p.speciesName);
-    }
 
     return Column(
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(
               AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.sm),
-          // 테마 기본 입력칸은 **밑줄**이다. 연회색 바탕에 밑줄 하나만 그어두면
-          // 옛 테마 그대로 보인다 — 바탕 위의 흰 카드로 띄워 다른 섹션과 같은 층에.
-          child: Container(
-            decoration: AppDecor.card,
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-            child: TextField(
-              onChanged: (v) => setState(() => _query = v),
-              style: AppTextStyles.body,
-              decoration: InputDecoration(
-                isDense: true,
-                hintText: '이름 또는 종 검색',
-                hintStyle:
-                    AppTextStyles.body.copyWith(color: AppColors.ink3),
-                prefixIcon: const Icon(Icons.search,
-                    size: AppIconSize.md, color: AppColors.ink3),
-                prefixIconConstraints: const BoxConstraints(
-                    minWidth: AppIconSize.lg, minHeight: AppIconSize.lg),
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                contentPadding: const EdgeInsets.fromLTRB(
-                    AppSpacing.sm, AppSpacing.md, 0, AppSpacing.md),
-              ),
-            ),
+          // 검색창은 앱 전체가 [AppSearchField] 하나만 쓴다 — 모양(흰 카드)·
+          // 힌트색·지우기 버튼이 루틴·FAB 의 같은 칸과 어긋나지 않게.
+          child: AppSearchField(
+            value: _query,
+            onChanged: (v) => setState(() => _query = v),
           ),
         ),
-        SizedBox(
-          height: AppChip.barHeight,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-            children: [
-              AppChip(
-                label: '전체',
-                selected: _selectedSpeciesId == null,
-                onTap: () => setState(() => _selectedSpeciesId = null),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              ...speciesChips.entries.map(
-                (e) => Padding(
-                  padding: const EdgeInsets.only(right: AppSpacing.sm),
-                  child: AppChip(
-                    label: e.value,
-                    selected: _selectedSpeciesId == e.key,
-                    onTap: () => setState(() => _selectedSpeciesId = e.key),
-                  ),
-                ),
-              ),
-            ],
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+          child: SpeciesFilterChips(
+            pets: allPets,
+            selectedSpeciesId: _selectedSpeciesId,
+            onChanged: (id) => setState(() => _selectedSpeciesId = id),
+            // 목록 자체가 카운트('총 N마리')를 따로 보여주는 자리라
+            // 칩마다 숫자를 또 붙이면 숫자가 두 겹이 된다.
+            showCount: false,
           ),
         ),
         const SizedBox(height: AppSpacing.xs),
