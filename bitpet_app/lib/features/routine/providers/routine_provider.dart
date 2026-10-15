@@ -134,6 +134,7 @@ class TodayRoutinesNotifier extends StateNotifier<AsyncValue<List<TodayRoutine>>
           alarmTime: r.alarmTime,
           isAlarmEnabled: r.isAlarmEnabled,
           cycleDays: r.cycleDays,
+          cycle: r.cycle,
           nextDueAt: r.nextDueAt,
           totalPetCount: r.totalPetCount,
           completedPetCount: r.totalPetCount,

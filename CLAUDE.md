@@ -226,7 +226,9 @@ PostgreSQL이 재정규화하는데 의미는 같다.)
   V17(`pet_mst.keeping_report_yn`·`cites_report_yn` — 야생생물법 신고 **여부만**),
   V18(삭제된 개체를 가리키는 `laying_hatch_dtl.hatched_pet_id` 를 NULL 로 정리 — 개체 삭제가
   소프트 삭제라 FK `ON DELETE SET NULL` 이 돌지 않아 남은 유령 링크. `status` 는 건드리지 않는다).
-  **다음은 V19.**
+  V19(`routine_mst.cycle_mode`·`cycle_days_of_week`·`cycle_days_of_month` — 루틴 반복 방식.
+  요일·날짜 지정이 `cycle_days` 하나로 뭉개지던 버그 수정, 기존 행은 전부 INTERVAL).
+  **다음은 V20.**
 - 코드성 시드(`memo_tag_cd`, `post_category_cd`, `serial_pool_stat_mst`)는 베이스라인 하단에 들어 있다.
   종·모프 마스터는 그대로 `R__01`/`R__02` 담당.
 - ⚠️ **`R__02` 는 파일에 없는 공식 모프를 매 실행마다 지운다** (개체가 물고 있으면 FK RESTRICT 라
@@ -298,6 +300,12 @@ PostgreSQL이 재정규화하는데 의미는 같다.)
   - 그룹 가입/탈퇴/해산 시 `routineRepo.assignGroupToUserRoutines`/`removeGroupFromUserRoutines`/`removeGroupFromAllRoutines`로 pet과 함께 동기화
   - 개체 검증도 그룹 기준: `verifyPetAccessible` (본인 개체 OR 같은 그룹 개체)
   - 스케줄러(알림)는 전역 스캔 유지 — 그룹과 무관
+- **반복 방식** (`cycle_mode`, V19, 2026-10-16): `INTERVAL`(cycleDays 일마다, 완료일 기준 전진) /
+  `WEEKDAY`(ISO 요일 1=월…7=일, CSV) / `MONTHDAY`(1~31, 32=말일, CSV — 그 달에 없는 날은 건너뜀).
+  - 요일·날짜 모드의 `cycle_days` 는 서버가 7/30 으로 맞춘다 — 미루기 프리셋 길이로만 쓰인다
+  - 수정 요청의 `cycleMode` 가 null 이면 **기존 방식 유지** (활성 토글이 방식 없이 보낸다)
+  - 방식·요일·날짜가 **실제로 바뀔 때만** 예정일 재계산 + 미룸 해제 (`RoutineMst.changeCycle`)
+  - 다음 해당일 계산은 서버 `RoutineMst.nextOccurrenceOnOrAfter` / 앱 `RoutineCycle.nextOnOrAfter` 가 같은 규칙
 - `routine_pet_rls`: 루틴-개체 다대다 연결
 - `routine_log_dtl`: 개체별 수행 기록, status = COMPLETED / REFUSED
 - REFUSED + 메모 없음 → INSERT 안 함
@@ -905,7 +913,7 @@ test → GHCR 이미지 빌드(**태그 = 커밋 SHA**) → SSH → `deploy/scri
 - 외부 시스템 영향(push·삭제·외부 API 호출)은 확인 후 진행
 - Flutter UI는 디자인 확정 전까지 **뼈대(Skeleton)만** 구현, 상세 UI는 별도 지시 대기
 - 새 Flyway 마이그레이션은 기존 파일 절대 수정 금지, 항상 다음 버전으로 신규 작성
-  (2026-08-19 스쿼시 이후 V2~V18 추가됨, **다음은 V19**. `V1__baseline_schema.sql` 수정 = 모든 DB 기동 불가)
+  (2026-08-19 스쿼시 이후 V2~V19 추가됨, **다음은 V20**. `V1__baseline_schema.sql` 수정 = 모든 DB 기동 불가)
 
 ---
 

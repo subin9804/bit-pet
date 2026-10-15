@@ -1,6 +1,7 @@
 package io.bitpet.routine.dto;
 
 import io.bitpet.routine.domain.RoutineMst;
+import io.bitpet.routine.domain.RoutineCycleMode;
 import io.bitpet.routine.domain.RoutineType;
 
 import java.time.Instant;
@@ -14,6 +15,11 @@ public record RoutineResponse(
         RoutineType routineType,
         String title,
         int cycleDays,
+        RoutineCycleMode cycleMode,
+        /** ISO 요일 (1=월 … 7=일). WEEKDAY 가 아니면 빈 배열 */
+        List<Integer> daysOfWeek,
+        /** 1~31, 32=말일. MONTHDAY 가 아니면 빈 배열 */
+        List<Integer> daysOfMonth,
         LocalTime alarmTime,
         boolean alarmEnabled,
         LocalDate startDate,
@@ -33,7 +39,9 @@ public record RoutineResponse(
     public static RoutineResponse from(RoutineMst r, List<Long> petIds) {
         return new RoutineResponse(
                 r.getId(), r.getUserId(), r.getRoutineType(), r.getTitle(),
-                r.getCycleDays(), r.getAlarmTime(), r.isAlarmEnabled(),
+                r.getCycleDays(), r.getCycleMode(),
+                List.copyOf(r.getCycleDaysOfWeek()), List.copyOf(r.getCycleDaysOfMonth()),
+                r.getAlarmTime(), r.isAlarmEnabled(),
                 r.getStartDate(), r.getLastExecutedAt(), r.getNextDueAt(),
                 r.isActive(), r.getMemo(),
                 r.getPostponedAt(), r.getPostponedFrom(),

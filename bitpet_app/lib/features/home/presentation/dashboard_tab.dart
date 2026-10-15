@@ -1074,6 +1074,10 @@ class _CategoryDetailSheet extends StatelessWidget {
       subtitle: petKeys.length > 1
           ? '개체 ${petKeys.length}마리 · 기록 ${records.length}건'
           : null,
+      // 화면을 다 덮지 않게 시트 자체의 상한을 낮춘다 (2026-10-16 사용자 요청:
+      // "화면 전체를 채우는건 별로"). 넘치는 기록은 시트 본문 스크롤 하나로 본다 —
+      // 안쪽에 높이 제한 리스트를 다시 넣으면 아래 ⚠️ 의 이중 스크롤로 돌아간다.
+      maxHeightFactor: 0.55,
       // 목록만 있는 시트다 — 고르면 바로 닫히므로 주 버튼이 없다.
       // 개체별 기록 줄이 제 면을 안 들고 있어 카드 한 겹을 씌운다.
       child: SheetCard(

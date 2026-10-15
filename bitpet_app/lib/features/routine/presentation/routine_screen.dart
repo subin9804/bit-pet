@@ -47,12 +47,8 @@ String _rtypeLabel(RoutineType t) => switch (t) {
       RoutineType.CUSTOM   => '사용자 정의',
     };
 
-String _cycleLabel(Routine r) {
-  if (r.cycleDays == 1) return '매일';
-  if (r.cycleDays == 7) return '매주';
-  if (r.cycleDays == 30) return '월 1회';
-  return '${r.cycleDays}일마다';
-}
+/// 요일·날짜 모드까지 한 곳([RoutineCycle.label])에서 만든다.
+String _cycleLabel(Routine r) => r.cycle.label;
 
 // ── 필터 정의 ────────────────────────────────────────────────────
 
@@ -152,19 +148,24 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
             child: routinesAsync.whenOrNull(data: (all) {
               return ListView(
                 scrollDirection: Axis.horizontal,
+                // ⚠️ 세로 여백이 sm(8)씩이던 때는 칩에 남는 높이가 36 이었는데 칩은
+                // 글자(13×1.5)+패딩 16+테두리 2 ≈ 37.5 라 아래가 잘렸다. 여백을 줄이고
+                // 칩은 Center 로 제 높이만 쓰게 한다 (가로 ListView 는 자식 높이를 꽉 채운다).
                 padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.screenH, vertical: AppSpacing.sm),
+                    horizontal: AppSpacing.screenH, vertical: AppSpacing.xs),
                 children: _kFilters.map((f) {
                   final (type, label) = f;
                   final count = type == null
                       ? all.length
                       : all.where((r) => r.routineType == type).length;
-                  return AppChip(
-                    label: label,
-                    count: count,
-                    selected: _filterType == type,
-                    margin: const EdgeInsets.only(right: 8),
-                    onTap: () => setState(() => _filterType = type),
+                  return Center(
+                    child: AppChip(
+                      label: label,
+                      count: count,
+                      selected: _filterType == type,
+                      margin: const EdgeInsets.only(right: 8),
+                      onTap: () => setState(() => _filterType = type),
+                    ),
                   );
                 }).toList(),
               );
@@ -658,6 +659,10 @@ class _CalendarSheetState extends ConsumerState<_CalendarSheet> {
                     final cell = DateTime(_month.year, _month.month, d);
                     if (cell.isAfter(today)) return false;
                     if (startDay != null && cell.isBefore(startDay)) return false;
+                    // 요일·날짜 모드는 달력에 고정된 일정이라 간격 계산이 아니라 해당일 여부로 본다
+                    if (!widget.routine.cycle.isInterval) {
+                      return widget.routine.cycle.occursOn(cell);
+                    }
                     final diff = anchorDate.difference(cell).inDays.abs();
                     return diff % cycleDays == 0;
                   }

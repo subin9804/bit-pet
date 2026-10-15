@@ -56,6 +56,17 @@ class _RoutinePostponeSheetState extends ConsumerState<RoutinePostponeSheet> {
   /// 프리셋 — 사용자가 고르는 건 결국 '다음 알림 날짜' 하나다.
   List<_Preset> get _presets {
     final tomorrow = _today.add(const Duration(days: 1));
+    final rule = widget.routine.cycle;
+    if (!rule.isInterval) {
+      // 요일·날짜 모드는 달력에 고정된 일정 — '건너뛰기'는 다음 해당일이고,
+      // '오늘부터 N일 후'로 리듬을 다시 잡는다는 개념이 없다.
+      final nextSlot = rule.nextOnOrAfter(_due.add(const Duration(days: 1)));
+      return [
+        _Preset(tomorrow, '내일로 미루기', '하루만 미뤄요'),
+        if (nextSlot.isAfter(_today) && nextSlot != tomorrow)
+          _Preset(nextSlot, '이번만 건너뛰기', '다음 ${rule.label} 일정으로'),
+      ];
+    }
     final keepRhythm = _due.add(Duration(days: _cycle));   // 이번만 건너뛰기
     final rebase = _today.add(Duration(days: _cycle));     // 오늘 기준 재조정
     final list = <_Preset>[

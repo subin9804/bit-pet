@@ -2,6 +2,7 @@ package io.bitpet.routine.domain;
 
 import io.bitpet.common.entity.BaseTimeEntity;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -20,7 +21,11 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Objects;
+import java.util.SortedSet;
+import java.util.TreeSet;
 
 @Entity
 @Getter
@@ -37,6 +42,9 @@ public class RoutineMst extends BaseTimeEntity {
 
     private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
 
+    /** 날짜 지정 모드에서 '말일'을 나타내는 값 */
+    public static final int LAST_DAY_OF_MONTH = 32;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -51,8 +59,23 @@ public class RoutineMst extends BaseTimeEntity {
     @Column(nullable = false, length = 100)
     private String title;
 
+    /** INTERVAL 모드의 간격. 요일·날짜 모드에서는 미루기 프리셋의 '한 주기' 길이(7/30)로만 쓰인다 */
     @Column(name = "cycle_days", nullable = false)
     private int cycleDays;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "cycle_mode", nullable = false, length = 10)
+    private RoutineCycleMode cycleMode = RoutineCycleMode.INTERVAL;
+
+    /** WEEKDAY 전용 — ISO 요일 (1=월 … 7=일) */
+    @Convert(converter = IntSetCsvConverter.class)
+    @Column(name = "cycle_days_of_week", length = 20)
+    private SortedSet<Integer> cycleDaysOfWeek = new TreeSet<>();
+
+    /** MONTHDAY 전용 — 1~31, {@link #LAST_DAY_OF_MONTH} = 말일 */
+    @Convert(converter = IntSetCsvConverter.class)
+    @Column(name = "cycle_days_of_month", length = 100)
+    private SortedSet<Integer> cycleDaysOfMonth = new TreeSet<>();
 
     @Column(name = "alarm_time", columnDefinition = "TIME")
     private LocalTime alarmTime;
@@ -134,7 +157,9 @@ public class RoutineMst extends BaseTimeEntity {
     public void reschedule(LocalDate newStartDate) {
         if (newStartDate == null || newStartDate.equals(this.startDate)) return;
         this.startDate = newStartDate;
-        this.nextDueAt = newStartDate;
+        // 요일·날짜 모드에서는 시작일이 해당 요일이 아닐 수 있다 (목요일 시작 + 월·수·금).
+        // 시작일을 그대로 예정일로 박으면 목요일에 알림이 간다.
+        this.nextDueAt = firstDueOnOrAfter(newStartDate);
         clearPostponed();
         forgetTodaysNotification();
     }
@@ -167,7 +192,10 @@ public class RoutineMst extends BaseTimeEntity {
     public void markExecuted(Instant at) {
         LocalDate completionDate = at.atZone(SEOUL).toLocalDate();
         this.lastExecutedAt = completionDate;
-        this.nextDueAt      = completionDate.plusDays(cycleDays);
+        // 요일·날짜 모드는 '완료한 다음 날부터 첫 해당일'. 같은 날 두 번 완료해도 결과가 같다.
+        this.nextDueAt      = cycleMode == RoutineCycleMode.INTERVAL
+                ? completionDate.plusDays(cycleDays)
+                : nextOccurrenceOnOrAfter(completionDate.plusDays(1));
         clearPostponed();   // 실제로 실행했으므로 미룸 표시는 해제
     }
 
@@ -224,8 +252,112 @@ public class RoutineMst extends BaseTimeEntity {
     public void advanceDueDate() {
         if (nextDueAt == null) return;
         LocalDate today = LocalDate.now(SEOUL);
+        if (!nextDueAt.isBefore(today)) return;
+        if (cycleMode != RoutineCycleMode.INTERVAL) {
+            // 요일·날짜는 달력에 고정된 일정이라 놓친 날은 건너뛰고 오늘 이후 첫 해당일로 간다
+            nextDueAt = nextOccurrenceOnOrAfter(today);
+            return;
+        }
         while (nextDueAt.isBefore(today)) {
             nextDueAt = nextDueAt.plusDays(cycleDays);
         }
+    }
+
+    // ── 반복 방식 ────────────────────────────────────────────────────────────
+
+    /**
+     * 반복 방식 변경. 요일·날짜는 해당 모드일 때만 남기고 나머지 칸은 비운다
+     * (DB CHECK {@code ck_routine_mst_cycle_fields_by_mode} 와 같은 규칙).
+     *
+     * <p>⚠️ <b>방식이나 요일·날짜가 실제로 바뀌었을 때만</b> 다음 예정일을 다시 잡는다.
+     * 앱은 수정 시 폼 전체를 보내므로 그대로인 값도 매번 온다 — 무조건 다시 잡으면
+     * 미뤄 둔 일정이 편집 한 번에 풀린다. INTERVAL 로 바꿀 때는 지금 예정일을 그대로 둔다
+     * (간격만 바꿀 때와 같은 동작 — 다음 완료부터 새 간격을 따른다).
+     *
+     * <p>새로 잡는 기준은 <b>오늘·시작일·마지막 완료 다음 날 중 가장 늦은 날</b>이다.
+     * 오늘 이미 완료했는데 오늘이 새 요일에 해당한다고 다시 '오늘 할 일'로 띄우면 안 된다.
+     */
+    public void changeCycle(RoutineCycleMode mode, int cycleDays,
+                            Collection<Integer> daysOfWeek, Collection<Integer> daysOfMonth) {
+        RoutineCycleMode newMode = mode != null ? mode : RoutineCycleMode.INTERVAL;
+        SortedSet<Integer> newWeek  = newMode == RoutineCycleMode.WEEKDAY  ? toSet(daysOfWeek)  : new TreeSet<>();
+        SortedSet<Integer> newMonth = newMode == RoutineCycleMode.MONTHDAY ? toSet(daysOfMonth) : new TreeSet<>();
+
+        boolean scheduleChanged = newMode != this.cycleMode
+                || !newWeek.equals(nonNull(this.cycleDaysOfWeek))
+                || !newMonth.equals(nonNull(this.cycleDaysOfMonth));
+
+        this.cycleMode        = newMode;
+        this.cycleDays        = cycleDays;
+        this.cycleDaysOfWeek  = newWeek;
+        this.cycleDaysOfMonth = newMonth;
+
+        if (scheduleChanged && newMode != RoutineCycleMode.INTERVAL) {
+            LocalDate from = LocalDate.now(SEOUL);
+            if (startDate != null && startDate.isAfter(from)) from = startDate;
+            if (lastExecutedAt != null && !lastExecutedAt.isBefore(from)) from = lastExecutedAt.plusDays(1);
+            this.nextDueAt = nextOccurrenceOnOrAfter(from);
+            clearPostponed();   // 미루기 직전 날짜는 옛 일정 기준이라 되돌릴 근거가 사라졌다
+        }
+    }
+
+    /** NULL 컬럼이면 Hibernate 가 컨버터를 거치지 않고 null 을 넣을 수 있어 빈 집합으로 받는다 */
+    public SortedSet<Integer> getCycleDaysOfWeek() {
+        return nonNull(cycleDaysOfWeek);
+    }
+
+    public SortedSet<Integer> getCycleDaysOfMonth() {
+        return nonNull(cycleDaysOfMonth);
+    }
+
+    /** 첫 예정일 — INTERVAL 은 그 날 그대로, 요일·날짜 모드는 그 날 이후 첫 해당일 */
+    public LocalDate firstDueOnOrAfter(LocalDate date) {
+        return cycleMode == RoutineCycleMode.INTERVAL ? date : nextOccurrenceOnOrAfter(date);
+    }
+
+    /** {@code from} 을 포함해 그 이후 첫 해당일. INTERVAL 은 {@code from} 그대로 */
+    public LocalDate nextOccurrenceOnOrAfter(LocalDate from) {
+        return nextOccurrenceOnOrAfter(cycleMode, cycleDaysOfWeek, cycleDaysOfMonth, from);
+    }
+
+    /**
+     * 순수 함수 — 상태 없이 부를 수 있게 떼어 냈다.
+     *
+     * <p>날짜 모드에서 그 달에 없는 날(2월 30일 등)은 <b>건너뛴다</b>. 말일로 당겨 맞추지 않는
+     * 이유: 폼에 '말일'이 따로 있어서, 31일을 고른 사람은 '31일이 있는 달'을 고른 것이다.
+     * 선택이 비어 있으면(정상 경로에선 서비스가 막는다) {@code from} 을 돌려 일정이 멈추지 않게 한다.
+     */
+    public static LocalDate nextOccurrenceOnOrAfter(RoutineCycleMode mode,
+                                                    SortedSet<Integer> daysOfWeek,
+                                                    SortedSet<Integer> daysOfMonth,
+                                                    LocalDate from) {
+        if (mode == null || mode == RoutineCycleMode.INTERVAL) return from;
+        if (mode == RoutineCycleMode.WEEKDAY) {
+            if (daysOfWeek == null || daysOfWeek.isEmpty()) return from;
+            for (int i = 0; i < 7; i++) {
+                LocalDate d = from.plusDays(i);
+                if (daysOfWeek.contains(d.getDayOfWeek().getValue())) return d;
+            }
+            return from;
+        }
+        if (daysOfMonth == null || daysOfMonth.isEmpty()) return from;
+        // 31일만 골라도 두 달 안에 나온다. 넉넉히 1년.
+        for (int i = 0; i < 366; i++) {
+            LocalDate d = from.plusDays(i);
+            boolean lastDay = d.getDayOfMonth() == d.lengthOfMonth();
+            if (daysOfMonth.contains(d.getDayOfMonth())
+                    || (lastDay && daysOfMonth.contains(LAST_DAY_OF_MONTH))) {
+                return d;
+            }
+        }
+        return from;
+    }
+
+    private static SortedSet<Integer> toSet(Collection<Integer> values) {
+        return values == null ? new TreeSet<>() : new TreeSet<>(values);
+    }
+
+    private static SortedSet<Integer> nonNull(SortedSet<Integer> s) {
+        return s == null ? Collections.emptySortedSet() : s;
     }
 }

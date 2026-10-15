@@ -35,6 +35,115 @@ String? normalizeAlarmTime(dynamic raw) {
 enum RoutineLogStatus { COMPLETED, REFUSED }
 
 // -----------------------------------------------------------------------
+// 반복 규칙 — 서버 V19 (cycle_mode / cycle_days_of_week / cycle_days_of_month)
+// -----------------------------------------------------------------------
+enum RoutineCycleMode { INTERVAL, WEEKDAY, MONTHDAY }
+
+/// 루틴 반복 규칙. 목록 라벨·캘린더 표시·미루기 계산이 **모두 여기 하나를 본다**.
+///
+/// 요일은 서버와 같은 **ISO (1=월 … 7=일)** 이다 — Dart `DateTime.weekday` 와도 같다.
+/// 폼 화면은 일요일부터 그리느라 0=일~6=토 를 쓰는데, 그 변환은
+/// [isoFromAppWeekday]/[appWeekdayFromIso] 두 곳에서만 한다.
+///
+/// ⚠️ 예전엔 서버에 요일·날짜를 받을 칸이 없어 앱이 `cycleDays` 하나로 뭉갰다
+/// (월·수·금 → 1 = '매일', 매월 N일 → 30 = '월 1회').
+class RoutineCycle {
+  final RoutineCycleMode mode;
+
+  /// INTERVAL 의 간격. 요일·날짜 모드에선 미루기 프리셋의 '한 주기' 길이(7/30)일 뿐이다.
+  final int cycleDays;
+  final List<int> daysOfWeek;  // ISO 1=월 … 7=일
+  final List<int> daysOfMonth; // 1~31, 32=말일
+
+  static const lastDayOfMonth = 32;
+
+  const RoutineCycle({
+    this.mode = RoutineCycleMode.INTERVAL,
+    this.cycleDays = 1,
+    this.daysOfWeek = const [],
+    this.daysOfMonth = const [],
+  });
+
+  bool get isInterval => mode == RoutineCycleMode.INTERVAL;
+
+  static int isoFromAppWeekday(int d) => d == 0 ? 7 : d;
+  static int appWeekdayFromIso(int iso) => iso % 7;
+
+  static RoutineCycleMode parseMode(dynamic raw) =>
+      RoutineCycleMode.values.firstWhere(
+        (e) => e.name == raw,
+        orElse: () => RoutineCycleMode.INTERVAL,
+      );
+
+  static List<int> parseInts(dynamic raw) =>
+      (raw as List<dynamic>? ?? const [])
+          .map((e) => e is int ? e : int.tryParse('$e'))
+          .whereType<int>()
+          .toList()
+        ..sort();
+
+  /// 그 날이 해당일인가 (요일·날짜 모드 전용 — INTERVAL 은 기준일이 있어야 해서 따로 판정한다).
+  /// 그 달에 없는 날(2/30 등)은 건너뛴다. 서버 `nextOccurrenceOnOrAfter` 와 같은 규칙.
+  bool occursOn(DateTime d) {
+    switch (mode) {
+      case RoutineCycleMode.INTERVAL:
+        return false;
+      case RoutineCycleMode.WEEKDAY:
+        return daysOfWeek.contains(d.weekday);
+      case RoutineCycleMode.MONTHDAY:
+        final lastDay = DateTime(d.year, d.month + 1, 0).day;
+        return daysOfMonth.contains(d.day) ||
+            (d.day == lastDay && daysOfMonth.contains(lastDayOfMonth));
+    }
+  }
+
+  /// [from] 을 포함한 첫 해당일. INTERVAL 이거나 선택이 비었으면 [from] 그대로.
+  DateTime nextOnOrAfter(DateTime from) {
+    if (isInterval) return from;
+    final start = DateTime(from.year, from.month, from.day);
+    final limit = mode == RoutineCycleMode.WEEKDAY ? 7 : 366;
+    for (var i = 0; i < limit; i++) {
+      final d = DateTime(start.year, start.month, start.day + i);
+      if (occursOn(d)) return d;
+    }
+    return start;
+  }
+
+  /// 목록·카드에 쓰는 짧은 라벨.
+  String get label {
+    switch (mode) {
+      case RoutineCycleMode.INTERVAL:
+        if (cycleDays == 1) return '매일';
+        if (cycleDays == 7) return '매주';
+        if (cycleDays == 30) return '월 1회';
+        return '$cycleDays일마다';
+      case RoutineCycleMode.WEEKDAY:
+        if (daysOfWeek.length == 7) return '매일';
+        if (daysOfWeek.isEmpty) return '요일 미선택';
+        const ko = ['', '월', '화', '수', '목', '금', '토', '일'];
+        return daysOfWeek.map((d) => ko[d]).join('·');
+      case RoutineCycleMode.MONTHDAY:
+        if (daysOfMonth.isEmpty) return '날짜 미선택';
+        return '매월 ${daysOfMonth.map((d) => d == lastDayOfMonth ? '말일' : '$d일').join('·')}';
+    }
+  }
+
+  Map<String, dynamic> toJson() => {
+        'cycleDays': cycleDays,
+        'cycleMode': mode.name,
+        'daysOfWeek': mode == RoutineCycleMode.WEEKDAY ? daysOfWeek : const <int>[],
+        'daysOfMonth': mode == RoutineCycleMode.MONTHDAY ? daysOfMonth : const <int>[],
+      };
+
+  factory RoutineCycle.fromJson(Map<String, dynamic> json) => RoutineCycle(
+        mode: parseMode(json['cycleMode']),
+        cycleDays: json['cycleDays'] as int? ?? 1,
+        daysOfWeek: parseInts(json['daysOfWeek']),
+        daysOfMonth: parseInts(json['daysOfMonth']),
+      );
+}
+
+// -----------------------------------------------------------------------
 // Today's routine status (per-pet completion for today)
 // -----------------------------------------------------------------------
 class TodayRoutine {
@@ -44,6 +153,7 @@ class TodayRoutine {
   final String? alarmTime;
   final bool isAlarmEnabled;
   final int cycleDays;          // 미루기 날짜 프리셋 계산용
+  final RoutineCycle cycle;      // 반복 규칙 (요일·날짜 모드면 미루기 '이번만 건너뛰기' 계산에 쓴다)
   final DateTime? nextDueAt;    // 현재 예정일 (보통 오늘)
   final int totalPetCount;
   final int completedPetCount;
@@ -56,6 +166,7 @@ class TodayRoutine {
     this.alarmTime,
     required this.isAlarmEnabled,
     this.cycleDays = 1,
+    this.cycle = const RoutineCycle(),
     this.nextDueAt,
     required this.totalPetCount,
     required this.completedPetCount,
@@ -75,6 +186,7 @@ class TodayRoutine {
         alarmTime: normalizeAlarmTime(json['alarmTime']),
         isAlarmEnabled: json['alarmEnabled'] as bool? ?? false,
         cycleDays: json['cycleDays'] as int? ?? 1,
+        cycle: RoutineCycle.fromJson(json),
         nextDueAt: json['nextDueAt'] != null
             ? DateTime.tryParse(json['nextDueAt'] as String)
             : null,
@@ -106,6 +218,7 @@ class TodayRoutine {
       alarmTime: alarmTime,
       isAlarmEnabled: isAlarmEnabled,
       cycleDays: cycleDays,
+      cycle: cycle,
       nextDueAt: nextDueAt,
       totalPetCount: totalPetCount,
       completedPetCount: newCompleted,
@@ -153,6 +266,7 @@ class Routine {
   final RoutineType routineType;
   final String title;
   final int cycleDays;
+  final RoutineCycle cycle;
   final String? alarmTime; // "HH:mm"
   final bool isAlarmEnabled;
   final DateTime? startDate; // 루틴 시작일 (고정) — 캘린더 표시 하한
@@ -174,6 +288,7 @@ class Routine {
     required this.routineType,
     required this.title,
     required this.cycleDays,
+    this.cycle = const RoutineCycle(),
     this.alarmTime,
     required this.isAlarmEnabled,
     this.startDate,
@@ -197,6 +312,7 @@ class Routine {
         ),
         title: json['title'] as String,
         cycleDays: json['cycleDays'] as int,
+        cycle: RoutineCycle.fromJson(json),
         alarmTime: normalizeAlarmTime(json['alarmTime']),
         isAlarmEnabled: json['alarmEnabled'] as bool? ?? false,
         startDate: json['startDate'] != null
@@ -317,11 +433,13 @@ class CreateRoutineRequest {
   final List<int> petIds;
   final String? memo;
   final DateTime? startAt;
+  final RoutineCycle? cycle;
 
   const CreateRoutineRequest({
     required this.routineType,
     required this.title,
     required this.cycleDays,
+    this.cycle,
     this.alarmTime,
     this.alarmEnabled = false,
     this.petIds = const [],
@@ -338,6 +456,7 @@ class CreateRoutineRequest {
         'petIds': petIds,
         if (memo != null) 'memo': memo,
         if (startAt != null) 'startAt': startAt!.toUtc().toIso8601String(),
+        if (cycle != null) ...cycle!.toJson(),
       };
 }
 

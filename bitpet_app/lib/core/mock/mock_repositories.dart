@@ -653,6 +653,7 @@ class MockRoutineRepository extends RoutineRepository {
         routineType: request.routineType,
         title: request.title,
         cycleDays: request.cycleDays,
+        cycle: request.cycle ?? RoutineCycle(cycleDays: request.cycleDays),
         alarmTime: request.alarmTime,
         isAlarmEnabled: request.alarmEnabled,
         isActive: true,

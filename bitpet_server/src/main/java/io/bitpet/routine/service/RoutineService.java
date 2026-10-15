@@ -17,6 +17,7 @@ import io.bitpet.record.memo.repository.MemoDtlRepository;
 import io.bitpet.record.repository.CleaningDtlRepository;
 import io.bitpet.record.repository.FeedingDtlRepository;
 import io.bitpet.record.repository.WeightDtlRepository;
+import io.bitpet.routine.domain.RoutineCycleMode;
 import io.bitpet.routine.domain.RoutineLogDtl;
 import io.bitpet.routine.domain.RoutineLogStatus;
 import io.bitpet.routine.domain.RoutineMst;
@@ -120,21 +121,31 @@ public class RoutineService {
 
     @Transactional
     public RoutineResponse createRoutine(Long userId, RoutineCreateRequest req) {
-        LocalDate nextDueAt = req.startAt() != null
-                ? req.startAt().atZone(SEOUL).toLocalDate()
-                : LocalDate.now(SEOUL).plusDays(req.cycleDays());
+        RoutineCycleMode mode = req.cycleMode() != null ? req.cycleMode() : RoutineCycleMode.INTERVAL;
+        validateCycle(mode, req.daysOfWeek(), req.daysOfMonth());
+        int cycleDays = normalizedCycleDays(mode, req.cycleDays());
+        LocalDate nextDueAt;
+        if (req.startAt() != null) {
+            nextDueAt = req.startAt().atZone(SEOUL).toLocalDate();
+        } else if (mode == RoutineCycleMode.INTERVAL) {
+            nextDueAt = LocalDate.now(SEOUL).plusDays(cycleDays);
+        } else {
+            nextDueAt = LocalDate.now(SEOUL);   // 아래 changeCycle 이 오늘 이후 첫 해당일로 맞춘다
+        }
 
         RoutineMst saved = routineRepository.save(RoutineMst.builder()
                 .userId(userId)
                 .routineType(req.routineType())
                 .title(req.title())
-                .cycleDays(req.cycleDays())
+                .cycleDays(cycleDays)
                 .alarmTime(req.alarmTime())
                 .alarmEnabled(req.alarmEnabled())
-                .startDate(nextDueAt)   // 시작일 = 첫 예정일 (이후 nextDueAt만 전진)
+                .startDate(nextDueAt)   // 시작일 = 사용자가 고른 날 (간격 모드는 첫 예정일과 같다)
                 .nextDueAt(nextDueAt)
                 .memo(req.memo())
                 .build());
+        // 요일·날짜 모드면 시작일 이후 첫 해당일로 예정일을 맞춘다 (시작일 자체는 사용자가 고른 날 그대로)
+        saved.changeCycle(mode, cycleDays, req.daysOfWeek(), req.daysOfMonth());
 
         List<Long> petIds = new ArrayList<>();
         if (req.petIds() != null) {
@@ -155,12 +166,49 @@ public class RoutineService {
         RoutineMst routine = findAccessibleRoutine(userId, routineId);
         routine.update(req.routineType(), req.title(), req.cycleDays(),
                 req.alarmTime(), req.alarmEnabled(), req.active(), req.memo());
+        // 반복 방식이 오면 바꾸고(실제로 바뀐 경우에만 예정일 재계산), 안 오면 지금 방식을 유지한다
+        if (req.cycleMode() != null) {
+            validateCycle(req.cycleMode(), req.daysOfWeek(), req.daysOfMonth());
+            routine.changeCycle(req.cycleMode(), normalizedCycleDays(req.cycleMode(), req.cycleDays()),
+                    req.daysOfWeek(), req.daysOfMonth());
+        } else if (routine.getCycleMode() != RoutineCycleMode.INTERVAL) {
+            // 방식을 모르는 호출(활성 토글 등)이 보낸 cycleDays 가 요일·날짜 루틴의 주기 길이를 흔들지 않게
+            routine.changeCycle(routine.getCycleMode(), normalizedCycleDays(routine.getCycleMode(), req.cycleDays()),
+                    routine.getCycleDaysOfWeek(), routine.getCycleDaysOfMonth());
+        }
         // 시작일을 바꿨으면 다음 예정일도 함께 옮긴다. 생성과 같은 변환을 쓴다.
         if (req.startAt() != null) {
             routine.reschedule(req.startAt().atZone(SEOUL).toLocalDate());
         }
         List<Long> petIds = routinePetRepository.findPetIdsByRoutineId(routineId);
         return RoutineResponse.from(routine, petIds);
+    }
+
+    /** 요일·날짜 모드는 선택이 하나 이상이고 범위 안이어야 한다 (DB CHECK 와 같은 규칙을 400 으로 먼저 알린다) */
+    private static void validateCycle(RoutineCycleMode mode, List<Integer> daysOfWeek, List<Integer> daysOfMonth) {
+        if (mode == RoutineCycleMode.WEEKDAY) {
+            if (daysOfWeek == null || daysOfWeek.isEmpty()
+                    || daysOfWeek.stream().anyMatch(d -> d == null || d < 1 || d > 7)) {
+                throw new BusinessException(ErrorCode.INVALID_INPUT, "요일을 하나 이상 골라 주세요 (1=월 … 7=일)");
+            }
+        } else if (mode == RoutineCycleMode.MONTHDAY) {
+            if (daysOfMonth == null || daysOfMonth.isEmpty()
+                    || daysOfMonth.stream().anyMatch(d -> d == null || d < 1 || d > RoutineMst.LAST_DAY_OF_MONTH)) {
+                throw new BusinessException(ErrorCode.INVALID_INPUT, "날짜를 하나 이상 골라 주세요 (1~31, 32=말일)");
+            }
+        }
+    }
+
+    /**
+     * 요일·날짜 모드의 cycleDays 는 서버가 정한다 — 미루기 프리셋의 '한 주기' 길이(주 7 / 월 30)로만 쓰인다.
+     * 앱이 보낸 값을 믿으면 예전처럼 1(=매일)이 들어와 목록·미루기 문구가 틀어진다.
+     */
+    private static int normalizedCycleDays(RoutineCycleMode mode, int requested) {
+        return switch (mode) {
+            case WEEKDAY  -> 7;
+            case MONTHDAY -> 30;
+            case INTERVAL -> requested;
+        };
     }
 
     @Transactional

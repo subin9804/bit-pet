@@ -1,6 +1,7 @@
 package io.bitpet.routine.dto;
 
 import io.bitpet.routine.domain.RoutineMst;
+import io.bitpet.routine.domain.RoutineCycleMode;
 import io.bitpet.routine.domain.RoutineType;
 
 import java.time.format.DateTimeFormatter;
@@ -14,6 +15,9 @@ public record TodayRoutineResponse(
         boolean alarmEnabled,
         /** 미루기 시트에서 날짜 프리셋을 계산하는 데 쓴다 */
         int cycleDays,
+        RoutineCycleMode cycleMode,
+        List<Integer> daysOfWeek,
+        List<Integer> daysOfMonth,
         java.time.LocalDate nextDueAt,
         int totalPetCount,
         int completedPetCount,
@@ -40,6 +44,9 @@ public record TodayRoutineResponse(
                 routine.getAlarmTime() != null ? routine.getAlarmTime().format(HH_MM) : null,
                 routine.isAlarmEnabled(),
                 routine.getCycleDays(),
+                routine.getCycleMode(),
+                List.copyOf(routine.getCycleDaysOfWeek()),
+                List.copyOf(routine.getCycleDaysOfMonth()),
                 routine.getNextDueAt(),
                 petStatuses.size(),
                 completedCount,

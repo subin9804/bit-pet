@@ -152,13 +152,27 @@ class _RoutineFormScreenState extends ConsumerState<RoutineFormScreen> {
     }
   }
 
+  /// ⚠️ 예전엔 이 값 하나만 서버로 나가서 월·수·금이 1(=매일), 매월 N일이 30(=월 1회)으로
+  /// 뭉개졌다. 요일·날짜 모드의 cycleDays 는 이제 미루기 프리셋의 '한 주기' 길이일 뿐이고
+  /// (서버도 7/30 으로 다시 맞춘다), 실제 일정은 [_cycle] 의 요일·날짜가 정한다.
   int get _cycleDays {
     switch (_cycleMode) {
       case _CycleMode.interval: return _interval;
-      case _CycleMode.weekday:  return 1;
+      case _CycleMode.weekday:  return 7;
       case _CycleMode.monthday: return 30;
     }
   }
+
+  RoutineCycle get _cycle => RoutineCycle(
+        mode: switch (_cycleMode) {
+          _CycleMode.interval => RoutineCycleMode.INTERVAL,
+          _CycleMode.weekday  => RoutineCycleMode.WEEKDAY,
+          _CycleMode.monthday => RoutineCycleMode.MONTHDAY,
+        },
+        cycleDays: _cycleDays,
+        daysOfWeek: (_weekdays.map(RoutineCycle.isoFromAppWeekday).toList()..sort()),
+        daysOfMonth: (_monthDays.toList()..sort()),
+      );
 
   String _fmtDate(String iso) {
     if (iso.isEmpty) return '—';
@@ -187,7 +201,23 @@ class _RoutineFormScreenState extends ConsumerState<RoutineFormScreen> {
       _titleCtrl   = TextEditingController(text: r.title);
       _titleEdited = true;
       _petIds      = Set<int>.from(r.petIds);
-      _interval    = r.cycleDays;
+      // 반복 방식까지 되살린다. 간격 값만 넣으면 요일 루틴이 '7일마다'로 열려
+      // 그대로 저장하는 순간 요일 선택이 사라진다.
+      switch (r.cycle.mode) {
+        case RoutineCycleMode.INTERVAL:
+          _cycleMode = _CycleMode.interval;
+          _interval  = r.cycleDays;
+        case RoutineCycleMode.WEEKDAY:
+          _cycleMode = _CycleMode.weekday;
+          if (r.cycle.daysOfWeek.isNotEmpty) {
+            _weekdays = r.cycle.daysOfWeek.map(RoutineCycle.appWeekdayFromIso).toSet();
+          }
+        case RoutineCycleMode.MONTHDAY:
+          _cycleMode = _CycleMode.monthday;
+          if (r.cycle.daysOfMonth.isNotEmpty) {
+            _monthDays = r.cycle.daysOfMonth.toSet();
+          }
+      }
       // `alarmTime` 은 모델에서 이미 "HH:mm" 으로 정규화돼 들어온다.
       // 그래도 파싱이 실패하면 시각을 건드리지 않고 넘어간다 — 여기서 9시를
       // 채워 넣으면 그게 그대로 저장돼 원래 시간을 지운다(`_alarmTimeForSave` 참고).
@@ -227,7 +257,7 @@ class _RoutineFormScreenState extends ConsumerState<RoutineFormScreen> {
         {
           'routineType': _type.name,
           'title': _titleCtrl.text.trim(),
-          'cycleDays': _cycleDays,
+          ..._cycle.toJson(),   // cycleDays + cycleMode + daysOfWeek/daysOfMonth
           'alarmTime': _alarmTimeForSave,
           'alarmEnabled': _alarmOn,
           'petIds': _petIds.toList(),
@@ -244,6 +274,7 @@ class _RoutineFormScreenState extends ConsumerState<RoutineFormScreen> {
           routineType: _type,
           title: _titleCtrl.text.trim(),
           cycleDays: _cycleDays,
+          cycle: _cycle,
           alarmTime: _alarmTimeForSave,
           alarmEnabled: _alarmOn,
           petIds: _petIds.toList(),
