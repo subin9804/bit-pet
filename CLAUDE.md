@@ -755,6 +755,11 @@ SUPER_ADMIN 이라고 남의 개체 기록을 고칠 수 없다.
   읽을 수 있으면 그 자체가 아동에게 접근하는 통로다. 카테고리 목록에서도 빠지고 전체 피드에서도 빠진다
 - **예외는 운영자의 읽기뿐. 운영자도 쓰지 못한다** — 쓰기를 열면 "글쓴이 전원이 아동"이라는 이 게시판의
   안전 전제가 깨진다. 전체 피드에서는 운영자에게도 KIDS 글이 섞이지 않는다
+  - 앱의 **KIDS 탭은 아동에게만** 보인다(`visibleCategoriesProvider`, 2026-10-16). 운영자도 탭으로는 못 들어가고
+    신고 큐에서 글로 직접 들어갈 때만 읽는다. 서버 `visibleCategories` 는 운영자에게 KIDS 를 계속 내린다 —
+    `categoriesProvider` 가 그 목록으로 신고된 KIDS 글의 카테고리 라벨을 푼다
+- 앱 글 상세: 아동이 **일반 게시판 글**을 열면 좋아요·댓글 입력바를 숨기고 안내 한 줄로 바꾼다
+  (`post_detail_screen` `readOnly`). 누른 뒤 서버가 거절하면 쓴 댓글을 버리게 된다
 - 목록에서 빼는 것만으로 부족하다(신고/차단과 같은 이유) — `getPost`/`listComments`/`createComment`/`toggleLike`
   가 각각 `assertCanRead`/`assertCanWrite` 를 거친다. `updatePost` 도 검사한다(카테고리 변경 우회로 차단)
 - ⛔ **카테고리 id(6)로 판정하지 말 것 — `code == 'KIDS'`** (NOTICE 와 같은 이유)

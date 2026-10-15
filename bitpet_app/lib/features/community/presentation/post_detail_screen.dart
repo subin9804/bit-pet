@@ -194,6 +194,11 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
           final cat = catById[post.categoryId];
           final code = cat?.code;
           final label = cat?.nameKo ?? '';
+          // 아동은 일반 게시판을 읽기만 한다 (서버 CHILD_BOARD_ONLY).
+          // 입력바·좋아요를 열어두고 누른 뒤에 거절하면 쓴 댓글을 버리게 된다.
+          final isChild =
+              ref.watch(authStateProvider).valueOrNull?.isChild ?? false;
+          final readOnly = isChild && code != kKidsCategoryCode;
 
           return Column(
             children: [
@@ -276,8 +281,8 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                     if (post.photos.isNotEmpty)
                       PostPhotoCarousel(post.photoUrls),
 
-                    // 좋아요 — 가려진 글에는 달지 않는다
-                    if (!post.isBlinded) Row(
+                    // 좋아요 — 가려진 글에는 달지 않는다. 읽기 전용(아동·일반 게시판)도 숨긴다
+                    if (!post.isBlinded && !readOnly) Row(
                       children: [
                         Expanded(
                           child: GestureDetector(
@@ -351,7 +356,8 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                               padding:
                                   const EdgeInsets.symmetric(vertical: 24),
                               child: Center(
-                                child: Text('첫 댓글을 남겨보세요',
+                                child: Text(
+                                    readOnly ? '아직 댓글이 없어요' : '첫 댓글을 남겨보세요',
                                     style: AppTextStyles.caption.copyWith(
                                         color: AppColors.paleInk3)),
                               ),
@@ -374,6 +380,25 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                 ),
               ),
 
+              // 읽기 전용이면 입력바 대신 안내 한 줄
+              if (readOnly)
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.fromLTRB(
+                      16, 12, 16, MediaQuery.of(context).padding.bottom + 12),
+                  decoration: const BoxDecoration(
+                    color: AppColors.paleBg,
+                    border:
+                        Border(top: BorderSide(color: AppColors.paleLine)),
+                  ),
+                  child: Text(
+                    '어린이 회원은 어린이 게시판에서만 글·댓글을 남길 수 있어요',
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.caption
+                        .copyWith(color: AppColors.paleInk3),
+                  ),
+                )
+              else
               // 댓글 입력바
               Container(
                 padding: EdgeInsets.fromLTRB(

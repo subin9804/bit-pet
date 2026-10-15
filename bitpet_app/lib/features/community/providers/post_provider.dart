@@ -29,11 +29,12 @@ const kKidsCategoryCode = 'KIDS';
 final visibleCategoriesProvider = Provider<List<PostCategory>>((ref) {
   final all = ref.watch(categoriesProvider).valueOrNull ?? const <PostCategory>[];
   final me = ref.watch(authStateProvider).valueOrNull;
-  // 어린이 게시판은 **아동 본인과 운영자에게만** 보인다.
+  // 어린이 게시판 탭은 **아동 본인에게만** 보인다 (운영자 포함 성인 전원에게 숨김).
   // 성인에게는 읽기조차 열지 않는다 — 읽을 수 있으면 그 자체가 아동에게 닿는 통로다.
   // 서버도 KIDS_BOARD_FORBIDDEN 으로 막지만, 탭이 보이는 채로 누를 때마다 에러를 띄우면
   // 있는 게시판을 못 들어가는 것처럼 읽힌다. 아예 없는 것이 맞다.
-  final canSeeKids = (me?.isChild ?? false) || (me?.isAdmin ?? false);
+  // 운영자는 신고 큐에서 해당 글로 직접 들어가는 경로로만 읽는다 (서버 assertCanRead 예외).
+  final canSeeKids = me?.isChild ?? false;
   return all
       .where((c) => !kHiddenCategoryCodes.contains(c.code))
       .where((c) => canSeeKids || c.code != kKidsCategoryCode)
