@@ -376,10 +376,15 @@ public class PetService {
         PetMst pet = petKeeper.assertKeeper(userId, petId);
         List<PetRelationRls> parentRels = relationRepository.findAllByChildPetId(petId);
         List<PetRelationRls> childRels  = relationRepository.findAllByParentPetId(petId);
+        // 조부모 — 부모는 최대 2마리라 부모마다 한 번씩 읽어도 쿼리 2개다
+        Map<Long, List<PetRelationRls>> grandRels = new java.util.LinkedHashMap<>();
+        parentRels.forEach(r -> grandRels.put(r.getParentPet().getId(),
+                relationRepository.findAllByChildPetId(r.getParentPet().getId())));
 
         List<PetMst> nodes = new ArrayList<>();
         parentRels.forEach(r -> nodes.add(r.getParentPet()));
         childRels.forEach(r -> nodes.add(r.getChildPet()));
+        grandRels.values().forEach(list -> list.forEach(r -> nodes.add(r.getParentPet())));
         Map<Long, PetOwnerResponse> owners = resolveOwners(userId, nodes);
 
         return new GenealogyResponse(
@@ -390,6 +395,11 @@ public class PetService {
                         .toList(),
                 childRels.stream()
                         .map(r -> toCard(userId, r.getChildPet(), r.getId(), r.getRelationType(), owners))
+                        .toList(),
+                grandRels.entrySet().stream()
+                        .map(e -> new GenealogyResponse.Grandparents(e.getKey(), e.getValue().stream()
+                                .map(r -> toCard(userId, r.getParentPet(), r.getId(), r.getRelationType(), owners))
+                                .toList()))
                         .toList()
         );
     }

@@ -59,6 +59,21 @@ class _PetInfoGridState extends ConsumerState<PetInfoGrid> {
               _Cell(label: '입양일', value: _fmtDate(adopt), mono: true),
             ],
           ),
+          // 모프는 날짜 줄 아래, 부모 위다 (2026-10-16 사용자 요청으로 부모를 모프 밑으로). 한때 맨 위였는데, 윗자리는 해칭일·입양일
+          // 처럼 자주 확인하는 값에 양보하는 게 맞다 — 모프는 한 번 알면 다시 볼
+          // 일이 드물고, 개체가 여러 개를 물고 있으면 높이가 들쭉날쭉해 그 아래
+          // 줄들이 개체마다 다른 자리에서 시작한다.
+          //
+          // **한 줄 전체**를 쓰는 건 그대로 유지한다. 2열 그리드의 반쪽에 두면 폭이
+          // 모자라 모프 이름 하나가 단어 중간에서 잘려 다음 줄로 넘어간다
+          // ('슈퍼 마카로니' → '슈퍼 마카로' / '니'). 칩이면 이름 단위로만 접힌다.
+          const SizedBox(height: AppSpacing.md),
+          _MorphRow(
+            names: pet.morphs.isNotEmpty
+                ? pet.morphs.map((m) => m.nameKo).toList()
+                : (pet.morphName != null ? [pet.morphName!] : const []),
+          ),
+
           // 부모 — 등록된 부모가 있을 때만 영역을 그린다. 등록·수정은 전부
           // **개체 수정 폼의 '부모 개체' 단계** 하나로 모았다 (예전엔 여기 '수정' 아이콘과
           // 상단 더보기 '부모 등록'이 따로 있어 같은 일을 하는 입구가 셋이었다).
@@ -95,21 +110,6 @@ class _PetInfoGridState extends ConsumerState<PetInfoGrid> {
               ],
             ),
           ],
-
-          // 모프는 **이 카드의 맨 아래**다. 한때 맨 위였는데, 윗자리는 해칭일·입양일
-          // 처럼 자주 확인하는 값에 양보하는 게 맞다 — 모프는 한 번 알면 다시 볼
-          // 일이 드물고, 개체가 여러 개를 물고 있으면 높이가 들쭉날쭉해 그 아래
-          // 줄들이 개체마다 다른 자리에서 시작한다.
-          //
-          // **한 줄 전체**를 쓰는 건 그대로 유지한다. 2열 그리드의 반쪽에 두면 폭이
-          // 모자라 모프 이름 하나가 단어 중간에서 잘려 다음 줄로 넘어간다
-          // ('슈퍼 마카로니' → '슈퍼 마카로' / '니'). 칩이면 이름 단위로만 접힌다.
-          const SizedBox(height: AppSpacing.md),
-          _MorphRow(
-            names: pet.morphs.isNotEmpty
-                ? pet.morphs.map((m) => m.nameKo).toList()
-                : (pet.morphName != null ? [pet.morphName!] : const []),
-          ),
 
           // 야생생물법 신고 — **지금은 화면에서 가려 둔다**
           // (`kShowLegalReportFields`). 앱이 신고를 거들 수 있는 게 없어서

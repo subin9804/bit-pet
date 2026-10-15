@@ -23,7 +23,11 @@ import '../../../../core/widgets/sex_icon.dart';
 class PedigreeParentCard extends StatelessWidget {
   final PetCard card;
 
-  const PedigreeParentCard({super.key, required this.card});
+  /// 부모 자리면 true — 성별 아이콘을 관계(FATHER/MOTHER)로 그린다.
+  /// 자식 카드의 relationType 은 **가운데 개체의** 역할이라 그 개체 자신의 성별로 그려야 한다.
+  final bool asParent;
+
+  const PedigreeParentCard({super.key, required this.card, this.asParent = true});
 
   Color get _identityColor {
     // 개체 지정색은 걷어냈다 — 저장된 hex 를 그대로 칠하던 자리다.
@@ -79,7 +83,11 @@ class PedigreeParentCard extends StatelessWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        SexIcon(card.isFather ? PetSex.male : PetSex.female, size: 13),
+                        SexIcon(
+                            asParent
+                                ? (card.isFather ? PetSex.male : PetSex.female)
+                                : petSexFrom(card.gender),
+                            size: 13),
                         const SizedBox(width: 4),
                         Flexible(
                           child: Text(

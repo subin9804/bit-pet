@@ -19,6 +19,7 @@ import 'widgets/pet_info_grid.dart';
 import 'widgets/record_tab.dart';
 import 'widgets/pet_calendar_tab.dart';
 import 'widgets/gallery_tab.dart';
+import 'widgets/pedigree_tab.dart';
 import '../../../core/theme/app_dimens.dart';
 
 class PetDetailScreen extends ConsumerStatefulWidget {
@@ -39,9 +40,7 @@ class PetDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
-  int _tabIndex = 0; // 0:기록 1:캘린더 2:갤러리
-
-  static const _tabs = ['기록', '캘린더', '갤러리'];
+  int _tabIndex = 0; // 0:기록 1:캘린더 2:갤러리 3:가계도(부모가 있을 때만)
 
   @override
   void initState() {
@@ -65,6 +64,15 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final petAsync = ref.watch(petDetailProvider(widget.petId));
+    // 가계도 탭은 부모가 등록된 개체에만 붙는다. 부모가 지워져 탭이 사라지면
+    // 가계도를 보고 있던 인덱스가 범위를 벗어나므로 첫 탭으로 되돌린다.
+    final hasPedigree = ref
+            .watch(genealogyProvider(widget.petId))
+            .valueOrNull
+            ?.hasParents ??
+        false;
+    final tabs = ['기록', '캘린더', '갤러리', if (hasPedigree) '가계도'];
+    final tabIndex = _tabIndex < tabs.length ? _tabIndex : 0;
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
@@ -164,8 +172,8 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
                               bottom: BorderSide(color: AppColors.line)),
                         ),
                         child: Row(
-                          children: List.generate(_tabs.length, (i) {
-                            final active = _tabIndex == i;
+                          children: List.generate(tabs.length, (i) {
+                            final active = tabIndex == i;
                             return GestureDetector(
                               behavior: HitTestBehavior.opaque,
                               onTap: () => setState(() => _tabIndex = i),
@@ -186,7 +194,7 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
                                         padding: const EdgeInsets.symmetric(
                                             vertical: AppSpacing.md),
                                         child: Text(
-                                          _tabs[i],
+                                          tabs[i],
                                           textAlign: TextAlign.center,
                                           style: AppTextStyles.subheading
                                               .copyWith(
@@ -227,7 +235,7 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: AppSpacing.xl),
                         child: IndexedStack(
-                          index: _tabIndex,
+                          index: tabIndex,
                           children: [
                             RecordTab(petId: widget.petId, gender: pet.gender,
                                 speciesCategory: pet.speciesCategory),
@@ -237,6 +245,7 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
                               petId: widget.petId,
                               profilePhotoId: pet.profilePhotoId,
                             ),
+                            if (hasPedigree) PedigreeTab(petId: widget.petId),
                           ],
                         ),
                       ),
