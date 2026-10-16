@@ -61,6 +61,7 @@ public class PetService {
     private final PetKeeperService petKeeper;
     private final io.bitpet.routine.service.RoutineMaintenanceService routineMaintenance;
     private final io.bitpet.record.laying.service.LayingMaintenanceService layingMaintenance;
+    private final io.bitpet.record.laying.repository.LayingHatchDtlRepository hatchRepository;
     private final WeightDtlRepository weightRepository;
     private final PhotoDtlRepository photoRepository;
     private final S3Service s3Service;
@@ -385,6 +386,8 @@ public class PetService {
         parentRels.forEach(r -> nodes.add(r.getParentPet()));
         childRels.forEach(r -> nodes.add(r.getChildPet()));
         grandRels.values().forEach(list -> list.forEach(r -> nodes.add(r.getParentPet())));
+        List<PetMst> siblings = findClutchmates(userId, pet, parentRels);
+        nodes.addAll(siblings);
         Map<Long, PetOwnerResponse> owners = resolveOwners(userId, nodes);
 
         return new GenealogyResponse(
@@ -400,8 +403,60 @@ public class PetService {
                         .map(e -> new GenealogyResponse.Grandparents(e.getKey(), e.getValue().stream()
                                 .map(r -> toCard(userId, r.getParentPet(), r.getId(), r.getRelationType(), owners))
                                 .toList()))
+                        .toList(),
+                siblings.stream()
+                        .map(s -> toCard(userId, s, null, null, owners))
                         .toList()
         );
+    }
+
+    /**
+     * 동배 — 같은 배에서 난 형제. 두 갈래를 합친다.
+     *
+     * <ol>
+     *   <li><b>같은 클러치</b>: 알 칸({@code laying_hatch_dtl})으로 등록된 개체. 알마다 부화일이
+     *       달라도 같은 배다.</li>
+     *   <li><b>부모 구성 + 해칭일이 같은 개체</b>: 클러치를 거치지 않고 직접 등록한 경우.
+     *       부모만 보면 다른 시즌 형제까지 섞이므로 해칭일까지 맞춘다.</li>
+     * </ol>
+     *
+     * <p>⛔ <b>내가 사육하는 개체이거나 공개 개체만</b> 싣는다. 부모 등록에 승인이 없어서, 남의 개체를
+     * 부모로 걸기만 하면 그 개체의 자식 목록(= 남의 비공개 개체들)을 훑을 수 있게 되기 때문이다.
+     */
+    private List<PetMst> findClutchmates(Long userId, PetMst pet, List<PetRelationRls> parentRels) {
+        Long petId = pet.getId();
+        Set<Long> ids = new LinkedHashSet<>();
+
+        hatchRepository.findAllByHatchedPetId(petId).stream()
+                .map(h -> h.getLayingId())
+                .distinct()
+                .flatMap(layingId -> hatchRepository.findAllByLayingIdOrderByCreatedAtAsc(layingId).stream())
+                .map(h -> h.getHatchedPetId())
+                .filter(java.util.Objects::nonNull)
+                .forEach(ids::add);
+
+        if (!parentRels.isEmpty() && pet.getHatchingDate() != null) {
+            Set<Long> myParents = parentRels.stream()
+                    .map(r -> r.getParentPet().getId())
+                    .collect(Collectors.toSet());
+            // 해칭일로 먼저 거른 뒤에만 부모 구성을 읽는다 — 번식 수컷은 자식이 수백일 수 있다
+            relationRepository.findChildrenOf(parentRels.get(0).getParentPet().getId()).stream()
+                    .filter(c -> pet.getHatchingDate().equals(c.getHatchingDate()))
+                    .filter(c -> !ids.contains(c.getId()))
+                    .filter(c -> relationRepository.findParentsOf(c.getId()).stream()
+                            .map(PetMst::getId)
+                            .collect(Collectors.toSet())
+                            .equals(myParents))
+                    .forEach(c -> ids.add(c.getId()));
+        }
+        ids.remove(petId);
+        if (ids.isEmpty()) return List.of();
+
+        Set<Long> kept = new java.util.HashSet<>(petKeeper.keptPetIds(userId));
+        return petRepository.findAllById(ids).stream()
+                .filter(p -> kept.contains(p.getId()) || "N".equals(p.getPrivateYn()))
+                .sorted(java.util.Comparator.comparing(PetMst::getName))
+                .toList();
     }
 
     /**

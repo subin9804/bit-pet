@@ -7,7 +7,9 @@ import '../../data/models/pet_models.dart';
 import '../../providers/pet_provider.dart';
 import 'pedigree_parent_card.dart';
 
-/// 개체 상세 '가계도' 탭 — 조부모 · 부모 · 이 개체 · 자식 네 세대.
+/// 개체 상세 '가계도' 탭 — 조부모 · 부모 · 이 개체(+동배) · 자식 네 세대.
+///
+/// 등록 안 된 개체는 자리표시 없이 생략하고, 조부모가 한 마리도 없으면 그 줄을 통째로 뺀다.
 ///
 /// 부모가 등록된 개체에서만 탭이 생긴다(`PetDetailScreen`). 그 위 세대는 보여주지 않는다 —
 /// 서버도 한 세대 위(조부모)까지만 내린다.
@@ -35,55 +37,63 @@ class PedigreeTab extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── 조부모 ──
-        const _GenLabel('조부모'),
-        _Halves(
-          left: Column(children: [
-            _Slot(ff, hint: '아비의 아비'),
-            const SizedBox(height: AppSpacing.sm),
-            _Slot(fm, hint: '아비의 어미'),
-          ]),
-          right: Column(children: [
-            _Slot(mf, hint: '어미의 아비'),
-            const SizedBox(height: AppSpacing.sm),
-            _Slot(mm, hint: '어미의 어미'),
-          ]),
-        ),
-        const _Connector(),
+        // ── 조부모 — 한 마리도 없으면 줄째 생략 ──
+        if (g.hasGrandparents) ...[
+          const _GenLabel('조부모'),
+          _Halves(
+            left: _Stack([ff, fm]),
+            right: _Stack([mf, mm]),
+          ),
+          const _Connector(),
+        ],
 
         // ── 부모 ──
         const _GenLabel('부모'),
         _Halves(
-          left: _Slot(father, hint: '아비'),
-          right: _Slot(mother, hint: '어미'),
+          left: _Stack([father]),
+          right: _Stack([mother]),
         ),
         const _Connector(),
 
-        // ── 이 개체 ──
+        // ── 이 개체 + 동배 (같은 세대라 선으로 잇지 않는다) ──
         _Self(pet: g.pet),
+        if (g.siblings.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.md),
+          _GenLabel('동배 ${g.siblings.length}'),
+          _CardGrid(g.siblings),
+        ],
 
         // ── 자식 ──
         if (g.children.isNotEmpty) ...[
           const _Connector(),
           _GenLabel('자식 ${g.children.length}'),
-          // 자식은 수가 정해져 있지 않아 반폭 2열로 흘려 놓는다
-          LayoutBuilder(builder: (context, c) {
-            final w = (c.maxWidth - AppSpacing.sm) / 2;
-            return Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.sm,
-              children: g.children
-                  .map((k) => SizedBox(
-                        width: w,
-                        child: PedigreeParentCard(card: k, asParent: false),
-                      ))
-                  .toList(),
-            );
-          }),
+          _CardGrid(g.children),
         ],
       ],
     );
   }
+}
+
+/// 수가 정해져 있지 않은 줄(동배·자식) — 반폭 2열로 흘려 놓는다.
+/// 성별 아이콘은 relationType 이 아니라 개체 자신의 gender 로 그린다(`asParent: false`).
+class _CardGrid extends StatelessWidget {
+  final List<PetCard> cards;
+  const _CardGrid(this.cards);
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(builder: (context, c) {
+        final w = (c.maxWidth - AppSpacing.sm) / 2;
+        return Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          children: cards
+              .map((k) => SizedBox(
+                    width: w,
+                    child: PedigreeParentCard(card: k, asParent: false),
+                  ))
+              .toList(),
+        );
+      });
 }
 
 class _GenLabel extends StatelessWidget {
@@ -116,27 +126,23 @@ class _Halves extends StatelessWidget {
       );
 }
 
-/// 카드 한 칸. 등록이 안 된 자리는 빈칸 대신 흐린 자리표시로 둔다 —
-/// 칸이 사라지면 왼쪽·오른쪽이 어느 혈통인지가 무너진다.
-class _Slot extends StatelessWidget {
-  final PetCard? card;
-  final String hint;
-  const _Slot(this.card, {required this.hint});
+/// 한쪽 혈통의 카드 묶음. 등록이 안 된 개체는 자리표시 없이 **그냥 빠진다**
+/// (2026-10-17 사용자 요청). 반쪽이 통째로 비어도 그 반폭은 비워 둔다 —
+/// 남은 카드가 가운데로 쏠리면 왼쪽=아비 쪽 / 오른쪽=어미 쪽 규칙이 무너진다.
+class _Stack extends StatelessWidget {
+  final List<PetCard?> cards;
+  const _Stack(this.cards);
 
   @override
   Widget build(BuildContext context) {
-    final c = card;
-    if (c != null) return PedigreeParentCard(card: c);
-    return Container(
-      width: double.infinity,
-      constraints: const BoxConstraints(minHeight: 62),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        borderRadius: AppRadius.brLg,
-        color: AppColors.bgAlt,
-      ),
-      child: Text('$hint 미등록',
-          style: AppTextStyles.caption.copyWith(color: AppColors.paleInk3)),
+    final present = cards.whereType<PetCard>().toList();
+    return Column(
+      children: [
+        for (var i = 0; i < present.length; i++) ...[
+          if (i > 0) const SizedBox(height: AppSpacing.sm),
+          PedigreeParentCard(card: present[i]),
+        ],
+      ],
     );
   }
 }

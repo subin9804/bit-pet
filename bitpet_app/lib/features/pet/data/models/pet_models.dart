@@ -372,7 +372,7 @@ class PetCard {
       );
 }
 
-/// 가계도 — 가운데 개체 + 부모 + 자식
+/// 가계도 — 가운데 개체 + 부모 + 자식 + 조부모 + 동배
 class Genealogy {
   final Pet pet;
   final List<PetCard> parents;
@@ -381,17 +381,23 @@ class Genealogy {
   /// 부모 petId → 그 부모의 부모들 (= 이 개체의 조부모). 서버가 한 세대 위까지만 내린다.
   final Map<int, List<PetCard>> grandparents;
 
+  /// 동배(같은 클러치 또는 같은 부모·해칭일). 서버가 내가 사육하거나 공개된 개체만 싣는다.
+  final List<PetCard> siblings;
+
   const Genealogy({
     required this.pet,
     this.parents = const [],
     this.children = const [],
     this.grandparents = const {},
+    this.siblings = const [],
   });
 
   PetCard? get father => _parentOf('FATHER');
   PetCard? get mother => _parentOf('MOTHER');
 
   bool get hasParents => parents.isNotEmpty;
+
+  bool get hasGrandparents => grandparents.values.any((l) => l.isNotEmpty);
 
   PetCard? _parentOf(String relationType) {
     for (final p in parents) {
@@ -420,7 +426,7 @@ class Genealogy {
         children: (json['children'] as List<dynamic>? ?? [])
             .map((e) => PetCard.fromJson(e as Map<String, dynamic>))
             .toList(),
-        // 구버전 서버는 이 키가 없다 — 비어 있으면 조부모 칸이 '미등록'으로 보일 뿐이다
+        // 구버전 서버는 이 키가 없다 — 비어 있으면 조부모 줄이 생략될 뿐이다
         grandparents: {
           for (final g in (json['grandparents'] as List<dynamic>? ?? []))
             ((g as Map<String, dynamic>)['parentPetId'] as num).toInt():
@@ -428,6 +434,9 @@ class Genealogy {
                     .map((e) => PetCard.fromJson(e as Map<String, dynamic>))
                     .toList(),
         },
+        siblings: (json['siblings'] as List<dynamic>? ?? [])
+            .map((e) => PetCard.fromJson(e as Map<String, dynamic>))
+            .toList(),
       );
 }
 

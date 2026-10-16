@@ -366,6 +366,9 @@ class _HeroShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      // 부모 Column 이 start 정렬이라 폭을 안 박으면 빈 상태·로딩처럼 내용이 짧을 때
+      // 상자가 글자 폭으로 줄어든다
+      width: double.infinity,
       decoration: AppDecor.cardRaised,
       padding: const EdgeInsets.all(AppSpacing.xl),
       child: child,
