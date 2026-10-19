@@ -211,6 +211,38 @@ public class RecordService {
     }
 
     // -------------------------------------------------------------------------
+    // 날짜만 옮기기 — 홈 캘린더 일괄 날짜 변경 ({@link RecordBulkService})
+    //
+    // 시각(한국시간)은 그대로 두고 날짜만 바꾼다. 날짜를 잘못 고른 채 여러 마리를
+    // 한꺼번에 적은 경우를 되돌리는 용도라, 그날 몇 시에 했는지는 맞는 값이다.
+    // -------------------------------------------------------------------------
+
+    @Transactional
+    public void moveFeeding(Long userId, Long feedingId, LocalDate date) {
+        FeedingDtl feeding = feedingRepository.findById(feedingId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.FEEDING_NOT_FOUND));
+        verifyPetOwnership(userId, feeding.getPetId());
+        feeding.update(null, null, null, null, null,
+                RecordDates.onDate(feeding.getFedAt(), date), null, null);
+    }
+
+    @Transactional
+    public void moveWeight(Long userId, Long weightId, LocalDate date) {
+        WeightDtl weight = weightRepository.findById(weightId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.WEIGHT_NOT_FOUND));
+        verifyPetOwnership(userId, weight.getPetId());
+        weight.update(null, RecordDates.onDate(weight.getMeasuredAt(), date), null, null);
+    }
+
+    @Transactional
+    public void moveCleaning(Long userId, Long cleaningId, LocalDate date) {
+        CleaningDtl cleaning = cleaningRepository.findById(cleaningId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.CLEANING_NOT_FOUND));
+        verifyPetOwnership(userId, cleaning.getPetId());
+        cleaning.update(null, RecordDates.onDate(cleaning.getCleanedAt(), date), null);
+    }
+
+    // -------------------------------------------------------------------------
     // Recent records — aggregated feed
     // -------------------------------------------------------------------------
 

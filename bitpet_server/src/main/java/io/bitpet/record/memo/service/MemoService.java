@@ -182,6 +182,13 @@ public class MemoService {
     // 메모 삭제
     // -------------------------------------------------------------------------
 
+    /** 날짜만 옮긴다 — 홈 캘린더 일괄 날짜 변경 ({@link io.bitpet.record.service.RecordBulkService}). */
+    @Transactional
+    public void moveMemo(Long memoId, Long userId, LocalDate date) {
+        MemoDtl memo = loadAccessibleMemo(memoId, userId);
+        memo.update(null, io.bitpet.record.service.RecordDates.onDate(memo.getLoggedAt(), date));
+    }
+
     @Transactional
     public void deleteMemo(Long memoId, Long userId) {
         MemoDtl memo = loadAccessibleMemo(memoId, userId);

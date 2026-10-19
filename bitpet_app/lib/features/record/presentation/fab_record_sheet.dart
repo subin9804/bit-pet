@@ -30,10 +30,11 @@ import '../../../core/widgets/sex_icon.dart';
 enum _FabStep {
   chooseType, // 06  기록 종류 6그리드
   pickPets,   // 06b 개체 다중 선택
-  feedChoice, // 06c BULK / PER-PET
+  modeChoice, // 06c BULK / PER-PET (여러 마리일 때, 모든 종류)
   feedBulk,   // 06d 일괄 폼
   feedPerPet, // 06e 개별 탭 폼
-  simpleForm, // scale / clean / note / mate / lay 폼
+  simpleForm, // scale / clean / note / mate / lay 폼 (일괄)
+  simplePerPet, // 같은 종류의 개별 탭 폼
   done,       // 완료
 }
 
@@ -54,6 +55,35 @@ class _PerPetEntry {
 
   String memo;
   _PerPetEntry() : items = [], saved = false, memo = '';
+}
+
+// 개별 입력(급여 외) — 개체 하나가 적어 둔 폼 값. 빈 값이 새 개체의 시작이다.
+class _SimpleDraft {
+  final String weight;
+  final String? cleaningType;
+  final String? memoTag;
+  final String memo;
+  final bool partnerExternal;
+  final Pet? partnerPet;
+  final Pet? searchedPartner;
+  final String partnerSerial;
+  final bool? mateSuccess;
+  final String eggTotal;
+  final String eggFertile;
+
+  const _SimpleDraft({
+    this.weight = '',
+    this.cleaningType,
+    this.memoTag,
+    this.memo = '',
+    this.partnerExternal = false,
+    this.partnerPet,
+    this.searchedPartner,
+    this.partnerSerial = '',
+    this.mateSuccess,
+    this.eggTotal = '',
+    this.eggFertile = '',
+  });
 }
 
 // ── 6 기록 종류 정의 ──────────────────────────────────────────
@@ -239,6 +269,11 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
 
   void _onTypeSelected(String typeId) {
     setState(() {
+      // 다른 종류로 바꿨으면 앞 종류의 개별 저장 표시가 남으면 안 된다
+      if (typeId != _typeId) {
+        _simpleSaved.clear();
+        _simpleDrafts.clear();
+      }
       _typeId = typeId;
       // 개체가 이미 정해진 시트면 개체 선택을 건너뛰고 바로 폼으로
       _step = _petLocked
@@ -252,17 +287,110 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
       _selectedPetIds
         ..clear()
         ..addAll(ids);
-      if (_typeId == 'feed') {
-        if (ids.length <= 1) {
-          // 1마리 → 06c 건너뛰고 06d 직행
-          _step = _FabStep.feedBulk;
-        } else {
-          _step = _FabStep.feedChoice;
-        }
+      // 여러 마리면 **어떤 종류든** 일괄/개별을 먼저 고른다. 전에는 급여만
+      // 물어봤는데, 몸무게처럼 개체마다 값이 다른 기록을 여러 마리 고르면
+      // 한 값으로 전부 저장되는 길밖에 없었다 (2026-10-19 사용자 지적:
+      // "왜 개별입력, 일괄입력 선택하는 부분이 없지?? 급여만 있네").
+      if (ids.length > 1) {
+        _step = _FabStep.modeChoice;
       } else {
-        _step = _FabStep.simpleForm;
+        // 1마리 → 06c 건너뛰고 폼 직행
+        _step = _typeId == 'feed' ? _FabStep.feedBulk : _FabStep.simpleForm;
       }
     });
+  }
+
+  // ── 개별 입력 (급여 외 종류) ────────────────────────────────
+  /// 개체마다 따로 적는 값. 폼 칸(컨트롤러·선택 상태)은 하나뿐이라, 탭을
+  /// 옮길 때 지금 개체 값을 여기 담아 두고 다음 개체 값을 꺼내 칸에 채운다.
+  /// 그래서 폼 코드([_buildSimpleFields])는 일괄과 개별이 같은 것을 쓴다.
+  final Map<int, _SimpleDraft> _simpleDrafts = {};
+
+  /// 서버에 이미 저장한 개체 (급여의 `_PerPetEntry.saved` 와 같은 뜻 — 되돌리지 않는다)
+  final Set<int> _simpleSaved = {};
+
+  bool _isPetSaved(int petId) => _typeId == 'feed'
+      ? (_perPetForms[petId]?.saved ?? false)
+      : _simpleSaved.contains(petId);
+
+  int get _perPetSavedTotal =>
+      _typeId == 'feed' ? _perPetSavedCount : _simpleSaved.length;
+
+  _SimpleDraft _captureDraft() => _SimpleDraft(
+        weight: _weightCtrl.text,
+        cleaningType: _cleaningType,
+        memoTag: _memoTag,
+        memo: _simpleMemoCtrl.text,
+        partnerExternal: _partnerExternal,
+        partnerPet: _partnerPet,
+        searchedPartner: _searchedPartner,
+        partnerSerial: _partnerExtCtrl.text,
+        mateSuccess: _mateSuccess,
+        eggTotal: _eggTotalCtrl.text,
+        eggFertile: _eggFertileCtrl.text,
+      );
+
+  void _restoreDraft(_SimpleDraft d) {
+    _weightCtrl.text     = d.weight;
+    _cleaningType        = d.cleaningType;
+    _memoTag             = d.memoTag;
+    _simpleMemoCtrl.text = d.memo;
+    _partnerExternal     = d.partnerExternal;
+    _partnerPet          = d.partnerPet;
+    _searchedPartner     = d.searchedPartner;
+    _partnerExtCtrl.text = d.partnerSerial;
+    _mateSuccess         = d.mateSuccess;
+    _eggTotalCtrl.text   = d.eggTotal;
+    _eggFertileCtrl.text = d.eggFertile;
+    _searchLoading       = false;
+    _searchError         = null;
+  }
+
+  /// 개별 입력에서 다른 개체 탭으로 옮긴다. 급여는 개체별 상태를 따로 들고
+  /// 있어 인덱스만 바꾸면 되고, 나머지는 폼 칸을 갈아끼운다.
+  void _goToPet(int idx, List<Pet> pets) {
+    if (idx < 0 || idx >= pets.length) return;
+    setState(() {
+      if (_typeId != 'feed') {
+        final cur = pets[_activePerPetIdx.clamp(0, pets.length - 1)];
+        if (!_simpleSaved.contains(cur.id)) _simpleDrafts[cur.id] = _captureDraft();
+        _restoreDraft(_simpleDrafts[pets[idx].id] ?? const _SimpleDraft());
+      }
+      _activePerPetIdx = idx;
+    });
+  }
+
+  /// 개별 입력 — 개체 하나를 그 자리에서 저장한다 ([_saveOnePet] 과 같은 규칙:
+  /// 실패하면 입력을 지우지 않고 그 탭에 머문다).
+  Future<void> _saveOneSimple(Pet pet, List<Pet> pets) async {
+    if (_simpleSaved.contains(pet.id) || !_simpleFormValid()) return;
+    final noteContent = _noteContent();
+    if (_typeId == 'note' && noteContent.isEmpty) {
+      showToast(context, '메모 내용을 입력하거나 분류를 골라 주세요',
+          type: ToastType.warning);
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      await _writeSimple(ref.read(recordRepositoryProvider), pet, _recordAt,
+          _simpleMemo([pet]), noteContent);
+      invalidatePetRecords(ref, pet.id);
+      if (!mounted) return;
+      _simpleSaved.add(pet.id);
+      _simpleDrafts.remove(pet.id);
+      final nextIdx = pets.indexWhere((p) => !_simpleSaved.contains(p.id));
+      if (nextIdx != -1) {
+        _goToPet(nextIdx, pets);
+      } else {
+        setState(() {});
+      }
+      showToast(context, '${pet.name} 기록을 저장했어요',
+          type: ToastType.success);
+    } catch (e) {
+      if (mounted) showToast(context, '저장 실패: $e', type: ToastType.error);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   void _initPerPetForms(List<Pet> pets) {
@@ -354,7 +482,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
   /// 하는 일은 마무리 화면으로 넘기는 것뿐이고, 저장한 게 하나도 없으면
   /// 보여줄 마무리도 없으니 그냥 닫는다.
   void _finishPerPet() {
-    final count = _perPetSavedCount;
+    final count = _perPetSavedTotal;
     if (count == 0) {
       Navigator.of(context).pop();
       return;
@@ -383,11 +511,13 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
     setState(() {
       _step = switch (_step) {
         _FabStep.pickPets   => _FabStep.chooseType,
-        _FabStep.feedChoice => _FabStep.pickPets,
+        _FabStep.modeChoice => _FabStep.pickPets,
         _FabStep.feedBulk   =>
-            _selectedPetIds.length > 1 ? _FabStep.feedChoice : afterForm,
-        _FabStep.feedPerPet => _FabStep.feedChoice,
-        _FabStep.simpleForm => afterForm,
+            _selectedPetIds.length > 1 ? _FabStep.modeChoice : afterForm,
+        _FabStep.feedPerPet => _FabStep.modeChoice,
+        _FabStep.simpleForm =>
+            _selectedPetIds.length > 1 ? _FabStep.modeChoice : afterForm,
+        _FabStep.simplePerPet => _FabStep.modeChoice,
         _                   => _FabStep.chooseType,
       };
     });
@@ -461,10 +591,12 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
     return switch (_step) {
       _FabStep.chooseType => _buildChooseType(petsAsync),
       _FabStep.pickPets   => _buildPickPets(),
-      _FabStep.feedChoice => _buildFeedChoice(petsAsync),
+      _FabStep.modeChoice => _buildFeedChoice(petsAsync),
       _FabStep.feedBulk   => _buildFeedBulk(petsAsync),
       _FabStep.feedPerPet => _buildFeedPerPet(petsAsync),
       _FabStep.simpleForm => _buildSimpleForm(petsAsync),
+      // 개별 탭 화면은 급여와 같은 것을 쓴다 — 안의 폼만 종류에 따라 갈린다
+      _FabStep.simplePerPet => _buildFeedPerPet(petsAsync),
       _FabStep.done       => _buildDone(),
     };
   }
@@ -588,9 +720,23 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
     );
   }
 
+  /// '개별 입력' 카드의 설명 — 종류마다 따로 적게 되는 값이 다르다.
+  String _perPetDesc(bool isFeed) => switch (_typeId) {
+        'feed'  => '개체마다 양·메모를 따로',
+        'scale' => '개체마다 체중을 따로',
+        'clean' => '개체마다 청소 종류·메모를 따로',
+        'note'  => '개체마다 분류·내용을 따로',
+        'mate'  => '개체마다 상대·결과를 따로',
+        'lay'   => '개체마다 개수·메모를 따로',
+        _       => '개체마다 따로',
+      };
+
   // ── 06c · 일괄/개별 선택 ──────────────────────────────────────
   Widget _buildFeedChoice(AsyncValue<List<Pet>> petsAsync) {
     final pets = _selectedPets(petsAsync);
+    final rt   = _recordTypes.firstWhere((r) => r.id == _typeId,
+        orElse: () => _recordTypes.first);
+    final isFeed = _typeId == 'feed';
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -601,7 +747,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(children: [
-                Text('NEW FEEDING',
+                Text('NEW ${rt.en}',
                     style: AppTextStyles.mono(11, FontWeight.w700,
                         color: AppColors.ink2)),
                 const SizedBox(width: 8),
@@ -623,7 +769,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         if (pets.isNotEmpty)
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-            child: SelectedPetRow(pets: pets, tint: AppColors.catFeed),
+            child: SelectedPetRow(pets: pets, tint: rt.color),
           ),
         // 선택 카드
         Flexible(
@@ -643,7 +789,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                 _ChoiceCard(
                   icon: Icons.view_list_outlined,
                   title: '개별 입력',
-                  desc: '개체마다 양·메모를 따로',
+                  desc: _perPetDesc(isFeed),
                   selected: _feedMode == _FeedMode.perPet,
                   onTap: () => setState(() => _feedMode = _FeedMode.perPet),
                 ),
@@ -655,9 +801,12 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         _Footer(
           onBack: _goBack,
           nextLabel: '다음',
-          onNext: () => setState(() => _step = _feedMode == _FeedMode.bulk
-              ? _FabStep.feedBulk
-              : _FabStep.feedPerPet),
+          onNext: () => setState(() {
+            final bulk = _feedMode == _FeedMode.bulk;
+            _step = isFeed
+                ? (bulk ? _FabStep.feedBulk : _FabStep.feedPerPet)
+                : (bulk ? _FabStep.simpleForm : _FabStep.simplePerPet);
+          }),
         ),
       ],
     );
@@ -760,13 +909,20 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
     if (pets.isEmpty) return const SizedBox.shrink();
     _initPerPetForms(pets);
 
+    // 개체 선택을 바꾸고 돌아오면 줄어든 목록 밖을 가리킬 수 있다
+    if (_activePerPetIdx >= pets.length) _activePerPetIdx = 0;
+    final isFeed    = _typeId == 'feed';
+    final rt        = _recordTypes.firstWhere((r) => r.id == _typeId,
+        orElse: () => _recordTypes.first);
     final activePet = pets[_activePerPetIdx];
     final entry     = _perPetForms[activePet.id]!;
+    final saved     = _isPetSaved(activePet.id);
+    final canSave   = isFeed ? entry.items.isNotEmpty : _simpleFormValid();
     // 개체별 색은 걷어냈다 — 이 화면에서 색이 나르는 정보는 '누구냐'가 아니라
     // **'지금 이걸 작성 중이다'** 이므로 선택 상태 = 브랜드색이다.
     const pale      = AppColors.brandTint;
     const accent   = AppColors.brandAction;
-    final allSaved  = _perPetSavedCount == pets.length;
+    final allSaved  = _perPetSavedTotal == pets.length;
 
     return Column(
       mainAxisSize: MainAxisSize.min, // 06d 와 같은 이유 (높이는 내용이 정한다)
@@ -782,15 +938,15 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(children: [
-                      Text('FEEDING · PER-PET',
+                      Text(isFeed ? 'FEEDING · PER-PET' : '${rt.en} · PER-PET',
                           style: AppTextStyles.mono(11, FontWeight.w700,
                               color: AppColors.ink2)),
                       const SizedBox(width: 8),
                       const StepDots(step: 3),
                     ]),
                     const SizedBox(height: 8),
-                    const Text('급여 기록',
-                        style: TextStyle(
+                    Text(isFeed ? '급여 기록' : '${_typeLabel(rt, pets)} 기록',
+                        style: const TextStyle(
                             fontSize: 20, fontWeight: FontWeight.w700,
                             color: AppColors.ink, letterSpacing: -0.4)),
                   ],
@@ -808,7 +964,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                   borderRadius: AppRadius.brPill,
                 ),
                 child: Text(
-                  '$_perPetSavedCount / ${pets.length}',
+                  '$_perPetSavedTotal / ${pets.length}',
                   style: AppTextStyles.mono(11, FontWeight.w700,
                       color: allSaved
                           ? AppColors.brandTintInk
@@ -839,9 +995,9 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
               final active  = i == _activePerPetIdx;
               const pPale   = AppColors.brandTintSoft;
               const pInk    = AppColors.brandAction;
-              final isSaved = _perPetForms[p.id]?.saved ?? false;
+              final isSaved = _isPetSaved(p.id);
               return GestureDetector(
-                onTap: () => setState(() => _activePerPetIdx = i),
+                onTap: () => _goToPet(i, pets),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 12, vertical: 8),
@@ -935,7 +1091,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                       ),
                       if (_activePerPetIdx > 0)
                         GestureDetector(
-                          onTap: () => setState(() => _activePerPetIdx--),
+                          onTap: () => _goToPet(_activePerPetIdx - 1, pets),
                           child: Container(
                             width: 30, height: 30,
                             decoration: BoxDecoration(
@@ -949,7 +1105,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                       if (_activePerPetIdx < pets.length - 1) ...[
                         const SizedBox(width: 8),
                         GestureDetector(
-                          onTap: () => setState(() => _activePerPetIdx++),
+                          onTap: () => _goToPet(_activePerPetIdx + 1, pets),
                           child: Container(
                             width: 30, height: 30,
                             decoration: BoxDecoration(
@@ -977,7 +1133,12 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                 // 푸터에서 한 번에 일어나 입력을 계속 고칠 수 있었지만, 지금은
                 // '기록'을 누른 순간 서버로 간다(2026-10-15) — 그 뒤에도 칸이
                 // 남아 있으면 고쳐도 아무 일이 안 일어나는 칸이 된다.
-                if (!entry.saved) ...[
+                if (!saved && !isFeed) ...[
+                  // 폼 칸은 일괄과 같은 것이다 — 탭을 옮길 때 값만 갈아끼운다([_goToPet])
+                  _buildSimpleFields([activePet]),
+                  const SizedBox(height: 16),
+                ],
+                if (!saved && isFeed) ...[
                   // FeedItemsEditor (개체별 — 목록에 추가)
                   FeedItemsEditor(
                     items: entry.items,
@@ -1006,7 +1167,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                 // 실제로 하는 일이 그 개체의 기록을 **서버에 쓰는 것**이고,
                 // '완료'는 "폼을 다 채웠다"로 읽혀서 아직 저장 전인 것처럼
                 // 보였다 (2026-10-15 사용자 결정).
-                if (entry.saved)
+                if (saved)
                   _SavedBanner(
                     petName: activePet.name,
                     pale: pale,
@@ -1014,15 +1175,17 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                   )
                 else
                   GestureDetector(
-                    onTap: entry.items.isNotEmpty && !_saving
-                        ? () => _saveOnePet(activePet, pets)
+                    onTap: canSave && !_saving
+                        ? () => isFeed
+                            ? _saveOnePet(activePet, pets)
+                            : _saveOneSimple(activePet, pets)
                         : null,
                     child: Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: entry.items.isNotEmpty
+                        color: canSave
                             ? AppColors.brandAction
                             : AppColors.brandTint,
                         borderRadius: AppRadius.brLg,
@@ -1031,18 +1194,18 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(Icons.check,
-                              color: entry.items.isNotEmpty
+                              color: canSave
                                   ? AppColors.bg
                                   : AppColors.brandTintInk,
                               size: 16),
                           const SizedBox(width: 8),
                           Text(
-                            entry.items.isEmpty
+                            !isFeed || entry.items.isEmpty
                                 ? '${activePet.name} 기록'
                                 : '${activePet.name} 기록 (${entry.items.length}종)',
                             style: TextStyle(
                                 fontSize: 14, fontWeight: FontWeight.w700,
-                                color: entry.items.isNotEmpty
+                                color: canSave
                                     ? AppColors.bg
                                     : AppColors.brandTintInk),
                           ),
@@ -1060,7 +1223,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                         Expanded(
                           flex: 0,
                           child: GestureDetector(
-                            onTap: () => setState(() => _activePerPetIdx--),
+                            onTap: () => _goToPet(_activePerPetIdx - 1, pets),
                             child: Container(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 16, vertical: 12),
@@ -1090,7 +1253,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                       if (_activePerPetIdx < pets.length - 1) ...[
                         Expanded(
                           child: GestureDetector(
-                            onTap: () => setState(() => _activePerPetIdx++),
+                            onTap: () => _goToPet(_activePerPetIdx + 1, pets),
                             child: Container(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 16, vertical: 12),
@@ -1141,7 +1304,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
           nextLabel: '닫기',
           // ⛔ 푸터는 **저장 버튼이 아니다.** 저장은 개체마다 끝나 있고
           // (2026-10-15), 여기는 "몇 건 저장됐는지" 를 알려주며 닫는 자리다.
-          nextBadge: _perPetSavedCount > 0 ? '$_perPetSavedCount건 저장됨' : null,
+          nextBadge: _perPetSavedTotal > 0 ? '$_perPetSavedTotal건 저장됨' : null,
           onNext: _finishPerPet,
           loading: _saving,
         ),
@@ -1215,22 +1378,65 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
       showToast(context, '개체 정보를 불러오는 중이에요', type: ToastType.warning);
       return;
     }
+    final noteContent = _noteContent();
+    if (_typeId == 'note' && noteContent.isEmpty) {
+      // 저장 버튼이 이미 잠겨 있어 보통은 닿지 않는 자리다
+      // ([_simpleFormValid]). 분류 목록을 아직 못 받아와 라벨이
+      // 비는 경우가 남아서, 빈 메모가 새어 나가지 않게 한 번 더 막는다.
+      showToast(context, '메모 내용을 입력하거나 분류를 골라 주세요',
+          type: ToastType.warning);
+      return;
+    }
     setState(() => _saving = true);
     try {
       final repo = ref.read(recordRepositoryProvider);
       final now  = _recordAt;
-      // 내용을 안 적었으면 기록 종류 이름으로 채운다 ([_autoMemo]).
-      //
-      // ⛔ **메모 기록은 예외다.** 메모는 사용자가 쓴 글이 **곧 기록 본문**이라,
-      // 비었을 때 '메모'라는 종류 이름을 넣으면 내용이 '메모'인 기록이 생긴다
-      // (2026-10-15 사용자 지적). 다른 종류에서 memo 는 값 옆의 **부가 한 줄**
-      // 이라 종류 이름으로 채워도 기록 자체는 체중·개수가 들고 있다.
-      final typed = _simpleMemoCtrl.text.trim();
-      final memo = (typed.isEmpty && _typeId != 'note')
-          ? _autoMemo(pets)
-          : typed;
+      final memo = _simpleMemo(pets);
+      // 개별 입력에서 이미 저장한 개체는 건너뛴다 — 개별로 몇 마리 적다가
+      // 뒤로 가서 일괄로 바꾸면 그 개체만 두 벌이 된다
+      final targets = pets.where((p) => !_simpleSaved.contains(p.id)).toList();
+      for (final pet in targets) {
+        await _writeSimple(repo, pet, now, memo, noteContent);
+        invalidatePetRecords(ref, pet.id);
+      }
+      setState(() {
+        _savedCount = targets.length + _simpleSaved.length;
+        _step = _FabStep.done;
+      });
+    } catch (e) {
+      if (mounted) showToast(context, '저장 실패: $e', type: ToastType.error);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
 
-      for (final pet in pets) {
+  /// 내용을 안 적었으면 기록 종류 이름으로 채운다 ([_autoMemo]).
+  ///
+  /// ⛔ **메모 기록은 예외다.** 메모는 사용자가 쓴 글이 **곧 기록 본문**이라,
+  /// 비었을 때 '메모'라는 종류 이름을 넣으면 내용이 '메모'인 기록이 생긴다
+  /// (2026-10-15 사용자 지적). 다른 종류에서 memo 는 값 옆의 **부가 한 줄**
+  /// 이라 종류 이름으로 채워도 기록 자체는 체중·개수가 들고 있다.
+  String _simpleMemo(List<Pet> pets) {
+    final typed = _simpleMemoCtrl.text.trim();
+    return (typed.isEmpty && _typeId != 'note') ? _autoMemo(pets) : typed;
+  }
+
+  /// 메모 기록의 본문. 내용이 비면 고른 분류 이름이 본문이 된다. 분류도 안
+  /// 골랐으면 **남길 내용이 없다**(빈 문자열) — 부르는 쪽이 저장을 막는다.
+  String _noteContent() {
+    final typed = _simpleMemoCtrl.text.trim();
+    if (typed.isNotEmpty) return typed;
+    if (_memoTag == null) return '';
+    return (ref.read(memoTagsProvider).valueOrNull ?? const <MemoTag>[])
+            .where((t) => t.code == _memoTag)
+            .map((t) => t.labelKo)
+            .firstOrNull ??
+        '';
+  }
+
+  /// 지금 폼 칸의 값으로 개체 하나의 기록을 서버에 쓴다. 일괄·개별 둘 다 이걸 쓴다.
+  Future<void> _writeSimple(RecordRepository repo, Pet pet, DateTime now,
+      String memo, String noteContent) async {
         switch (_typeId) {
           case 'scale':
             final w = double.parse(_weightCtrl.text.trim());
@@ -1247,29 +1453,8 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
             );
           case 'note':
             final isVet = _memoTag == 'VET';
-            // 선택한 분류의 한글 라벨 — 내용을 안 적었으면 이 값으로 저장
-            final tagLabel = _memoTag == null
-                ? null
-                : (ref.read(memoTagsProvider).valueOrNull ?? const <MemoTag>[])
-                    .where((t) => t.code == _memoTag)
-                    .map((t) => t.labelKo)
-                    .firstOrNull;
-            // 내용이 비면 고른 분류 이름이 본문이 된다. 분류도 안 골랐으면
-            // **남길 내용이 없다** — 아래 가드가 저장 자체를 막는다.
-            final content = memo.isNotEmpty ? memo : (tagLabel ?? '');
-            if (content.isEmpty) {
-              // 저장 버튼이 이미 잠겨 있어 보통은 닿지 않는 자리다
-              // ([_simpleFormValid]). 분류 목록을 아직 못 받아와 라벨이
-              // 비는 경우가 남아서, 빈 메모가 새어 나가지 않게 한 번 더 막는다.
-              if (mounted) {
-                setState(() => _saving = false);
-                showToast(context, '메모 내용을 입력하거나 분류를 골라 주세요',
-                    type: ToastType.warning);
-              }
-              return;
-            }
             final data = <String, dynamic>{
-              'content': content,
+              'content': noteContent,
               'loggedAt': now.toUtc().toIso8601String(),
               if (_memoTag != null) 'tags': [_memoTag],
               // VET 태그는 vetExt 필수 (없으면 서버가 400) — 상세 정보는 추후 입력
@@ -1332,17 +1517,6 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
             };
             await repo.addLaying(pet.id, layData);
         }
-        invalidatePetRecords(ref, pet.id);
-      }
-      setState(() {
-        _savedCount = pets.length;
-        _step = _FabStep.done;
-      });
-    } catch (e) {
-      if (mounted) showToast(context, '저장 실패: $e', type: ToastType.error);
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
   }
 
   // ── simpleForm 빌드 ────────────────────────────────────────────

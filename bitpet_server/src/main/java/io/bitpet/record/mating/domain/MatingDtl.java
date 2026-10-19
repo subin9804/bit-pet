@@ -92,6 +92,17 @@ public class MatingDtl extends BaseSyncEntity {
         this.memo = memo;
     }
 
+    /**
+     * 날짜만 옮긴다 (홈 캘린더 일괄 날짜 변경). 시즌 라벨이 기본값(시도 연도) 그대로면
+     * 새 연도를 따라가고, 사용자가 직접 붙인 라벨이면 건드리지 않는다.
+     */
+    public void moveTo(Instant newTriedAt, int oldYear, int newYear) {
+        if (String.valueOf(oldYear).equals(this.seasonLabel)) {
+            this.seasonLabel = String.valueOf(newYear);
+        }
+        this.triedAt = newTriedAt;
+    }
+
     public void softDelete() {
         this.deletedAt = Instant.now();
     }

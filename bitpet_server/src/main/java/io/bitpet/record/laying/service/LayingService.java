@@ -205,6 +205,13 @@ public class LayingService {
         return LayingResponse.of(laying, buildHatches(layingId), buildNotes(layingId), pet);
     }
 
+    /** 날짜만 옮긴다 — 홈 캘린더 일괄 날짜 변경 ({@link io.bitpet.record.service.RecordBulkService}). */
+    @Transactional
+    public void moveLaying(Long layingId, Long userId, LocalDate date) {
+        LayingDtl laying = loadAccessibleLaying(layingId, userId);
+        laying.moveTo(io.bitpet.record.service.RecordDates.onDate(laying.getLaidAt(), date));
+    }
+
     // -------------------------------------------------------------------------
     // 산란 삭제
     // -------------------------------------------------------------------------

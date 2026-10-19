@@ -91,6 +91,11 @@ public class LayingDtl extends BaseSyncEntity {
         this.memo = memo;
     }
 
+    /** 날짜만 옮긴다 (홈 캘린더 일괄 날짜 변경). 알 개수 등 나머지는 그대로. */
+    public void moveTo(Instant newLaidAt) {
+        this.laidAt = newLaidAt;
+    }
+
     public void softDelete() {
         this.deletedAt = Instant.now();
     }

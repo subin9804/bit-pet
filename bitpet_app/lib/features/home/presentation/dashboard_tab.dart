@@ -8,6 +8,8 @@ import '../../../core/theme/app_dimens.dart';
 import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_sheet.dart';
+import '../../../core/widgets/confirm_modal.dart';
+import '../../../core/widgets/toast_message.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../notification/providers/notification_provider.dart';
@@ -16,6 +18,8 @@ import '../../pet/data/anniversary.dart';
 import '../../pet/presentation/widgets/anniversary_view.dart';
 import '../../pet/providers/pet_provider.dart';
 import '../../record/providers/record_provider.dart';
+import '../../record/providers/record_invalidation.dart';
+import '../../record/data/record_repository.dart';
 import '../../record/data/models/record_models.dart';
 import '../../record/data/food_catalog.dart';
 import '../../routine/data/models/routine_models.dart';
@@ -822,6 +826,7 @@ class _DayRecordSection extends StatelessWidget {
     showAppSheet<void>(
       context: ctx,
       builder: (_) => _CategoryDetailSheet(
+        dateStr: dateStr,
         type: type,
         label: _label(type, recs),
         records: recs,
@@ -1043,12 +1048,29 @@ class _CategoryRow extends StatelessWidget {
 
 // ── 카테고리 상세 바텀시트 ─────────────────────────────────────
 // 바텀시트는 border-radius 유지
-class _CategoryDetailSheet extends StatelessWidget {
+//
+// 이 시트에서 바로 **날짜 변경 · 삭제 · 일괄 처리**를 한다 (2026-10-19 사용자 요청:
+// "날짜를 잘못 입력했더니 수정을 한마리 한마리 하기가 너무 어렵네"). 여러 마리를
+// 한꺼번에 적다 날짜를 잘못 고르면, 전에는 개체마다 기록 화면에 들어가 하나씩 고쳐야 했다.
+//
+// - 기록 줄의 ⋯ → 그 기록 하나의 날짜 변경 / 내용 수정(상세 화면) / 삭제
+// - '선택' → 체크해서 여러 건을 한 번에 날짜 변경(주 버튼) · 삭제
+//
+// 일괄 처리는 서버 한 트랜잭션이다(`/records/bulk-*`) — 중간에 실패해도 반만 옮겨진
+// 상태가 남지 않는다. 날짜만 바뀌고 기록한 시각은 그대로다.
+//
+// ⚠️ 목록은 넘겨받은 값이 아니라 [homeDayRecordsProvider] 를 **직접 본다**. 날짜를
+// 옮기거나 지우면 이 날에서 빠져야 하는데, 넘겨받은 리스트는 시트가 열린 순간의 사본이다.
+class _CategoryDetailSheet extends ConsumerStatefulWidget {
+  final String dateStr;
   final String type;
   final String label;
+
+  /// 시트를 연 순간의 기록. 새로 불러오는 동안만 쓴다.
   final List<RecentRecord> records;
 
   const _CategoryDetailSheet({
+    required this.dateStr,
     required this.type,
     required this.label,
     required this.records,
@@ -1062,16 +1084,151 @@ class _CategoryDetailSheet extends StatelessWidget {
   }
 
   @override
+  ConsumerState<_CategoryDetailSheet> createState() =>
+      _CategoryDetailSheetState();
+}
+
+class _CategoryDetailSheetState extends ConsumerState<_CategoryDetailSheet> {
+  bool _selecting = false;
+  final Set<int> _selected = {}; // 한 시트는 한 종류뿐이라 id 만으로 구분된다
+  bool _busy = false;
+
+  List<RecentRecord> get _records =>
+      ref
+          .watch(homeDayRecordsProvider(widget.dateStr))
+          .valueOrNull
+          ?.where((r) => r.recordType == widget.type)
+          .toList() ??
+      widget.records;
+
+  // ── 동작 ───────────────────────────────────────────────────
+  Future<DateTime?> _pickDate() {
+    final today = DateTime.now();
+    final current = DateTime.parse(widget.dateStr);
+    return showDatePicker(
+      context: context,
+      initialDate: current.isAfter(today) ? today : current,
+      firstDate: DateTime(today.year - 5),
+      lastDate: today,
+      helpText: '옮길 날짜 선택',
+    );
+  }
+
+  Future<void> _move(List<RecentRecord> recs) async {
+    if (recs.isEmpty || _busy) return;
+    final date = await _pickDate();
+    if (date == null || !mounted) return;
+    final from = DateTime.parse(widget.dateStr);
+    if (DateUtils.isSameDay(date, from)) return; // 같은 날로 옮기면 할 일이 없다
+    await _run(
+      () => ref.read(recordRepositoryProvider).bulkMoveRecords(recs, date),
+      recs,
+      '${recs.length}건을 ${date.month}.${date.day}로 옮겼어요',
+    );
+  }
+
+  Future<void> _delete(List<RecentRecord> recs) async {
+    if (recs.isEmpty || _busy) return;
+    // 메이팅은 양쪽 개체에 같이 걸린 기록이고, 산란은 알 칸·해칭이 딸려 있다 —
+    // 지우면 그쪽도 같이 사라진다는 걸 먼저 말한다.
+    final extra = switch (widget.type) {
+      'MATING' => '\n상대 개체 쪽 기록에서도 함께 사라집니다.',
+      'LAYING' => '\n딸린 알·해칭 기록도 함께 지워집니다.',
+      _ => '',
+    };
+    final ok = await ConfirmModal.show(
+      context,
+      title: '기록 삭제',
+      message: recs.length == 1
+          ? '이 기록을 삭제할까요?\n삭제하면 복구할 수 없습니다.$extra'
+          : '기록 ${recs.length}건을 삭제할까요?\n삭제하면 복구할 수 없습니다.$extra',
+      confirmLabel: '삭제',
+      isDangerous: true,
+    );
+    if (!ok || !mounted) return;
+    await _run(
+      () => ref.read(recordRepositoryProvider).bulkDeleteRecords(recs),
+      recs,
+      '${recs.length}건을 삭제했어요',
+    );
+  }
+
+  Future<void> _run(Future<void> Function() op, List<RecentRecord> recs,
+      String doneMsg) async {
+    setState(() => _busy = true);
+    try {
+      await op();
+      for (final id in recs.map((r) => r.petId).whereType<int>().toSet()) {
+        invalidatePetRecords(ref, id);
+      }
+      // 메이팅은 상대 개체 목록에도 걸려 있는데 여기엔 대표 개체 하나만 온다
+      if (widget.type == 'MATING') ref.invalidate(matingListProvider);
+      if (!mounted) return;
+      showToast(context, doneMsg, type: ToastType.success);
+      setState(() {
+        _selected.clear();
+        _selecting = false;
+      });
+      // 이 날의 이 종류가 다 빠졌으면 시트에 남을 게 없다
+      final left = await ref.read(homeDayRecordsProvider(widget.dateStr).future);
+      if (mounted && !left.any((r) => r.recordType == widget.type)) {
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) showToast(context, '처리하지 못했어요: $e', type: ToastType.error);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _openMenu(RecentRecord r) async {
+    final path = r.petId == null ? null : _SheetPetRow._detailPath(r.petId!, r.recordType);
+    final action = await showAppSheet<_RecordAction>(
+      context: context,
+      builder: (_) => _RecordMenuSheet(record: r, canOpenDetail: path != null),
+    );
+    if (!mounted || action == null) return;
+    switch (action) {
+      case _RecordAction.move:
+        await _move([r]);
+      case _RecordAction.delete:
+        await _delete([r]);
+      case _RecordAction.detail:
+        Navigator.of(context).pop();
+        if (path != null) context.push(path);
+    }
+  }
+
+  void _toggle(RecentRecord r) => setState(() {
+        if (!_selected.remove(r.id)) _selected.add(r.id);
+      });
+
+  /// 개체 이름을 누르면 그 개체의 기록을 통째로 넣거나 뺀다.
+  void _togglePet(List<RecentRecord> recs) => setState(() {
+        final all = recs.every((r) => _selected.contains(r.id));
+        for (final r in recs) {
+          all ? _selected.remove(r.id) : _selected.add(r.id);
+        }
+      });
+
+  @override
   Widget build(BuildContext context) {
+    final records = _records;
+    // 다른 경로로 사라진 기록이 선택에 남아 있지 않게
+    _selected.retainAll(records.map((r) => r.id));
+    final chosen = records.where((r) => _selected.contains(r.id)).toList();
+
     final Map<String, List<RecentRecord>> petGroups = {};
     for (final r in records) {
       final key = r.petId?.toString() ?? r.petName;
       petGroups.putIfAbsent(key, () => []).add(r);
     }
     final petKeys = petGroups.keys.toList();
+    final allSelected =
+        records.isNotEmpty && chosen.length == records.length;
 
     return AppSheet(
-      title: label,
+      title: widget.label,
       // 맥락 한 줄 — 몇 마리의 몇 건인지 **먼저** 말해준다. 목록이 시트 높이를
       // 넘길 때 "아래가 더 있나"를 스크롤 막대와 함께 이 숫자가 받쳐준다.
       subtitle: petKeys.length > 1
@@ -1080,31 +1237,169 @@ class _CategoryDetailSheet extends StatelessWidget {
       // 화면을 다 덮지 않게 시트 자체의 상한을 낮춘다 (2026-10-16 사용자 요청:
       // "화면 전체를 채우는건 별로"). 넘치는 기록은 시트 본문 스크롤 하나로 본다 —
       // 안쪽에 높이 제한 리스트를 다시 넣으면 아래 ⚠️ 의 이중 스크롤로 돌아간다.
-      maxHeightFactor: 0.55,
-      // 목록만 있는 시트다 — 고르면 바로 닫히므로 주 버튼이 없다.
-      // 개체별 기록 줄이 제 면을 안 들고 있어 카드 한 겹을 씌운다.
-      child: SheetCard(
-        // ⚠️ 전에는 여기 `ConstrainedBox(화면 55%)` + `ListView(shrinkWrap)` 가
-        // 들어 있었다. [AppSheet] 의 본문이 **이미 스크롤**이라 스크롤이 두 겹이
-        // 됐고, 바깥은 90% 까지 커질 수 있는데 안쪽 리스트가 55% 에서 먼저
-        // 잘려서 — 끌어도 시트는 안 커지고 안쪽만 조용히 밀리는 상태였다.
-        // 그래서 "밑으로 내려야 하는데 스크롤이 비가시적"으로 읽혔다.
-        // 스크롤은 시트 하나에 맡기고 여기선 길이만큼 쌓는다.
+      // 선택 중엔 주 버튼이 한 줄을 먹으므로 그만큼만 더 연다.
+      maxHeightFactor: _selecting ? 0.65 : 0.55,
+      // 주 버튼은 선택 중에만 — **날짜 변경**이 주 동작이다(이 기능이 생긴 이유).
+      // 삭제는 위 도구줄의 경고색 글자 버튼이다: 시트 규칙상 주 버튼은 하나다.
+      primaryLabel: _selecting
+          ? (chosen.isEmpty ? '날짜 변경' : '${chosen.length}건 날짜 변경')
+          : null,
+      onPrimary: chosen.isEmpty ? null : () => _move(chosen),
+      busy: _busy,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _SelectToolbar(
+            selecting: _selecting,
+            selectedCount: chosen.length,
+            allSelected: allSelected,
+            busy: _busy,
+            onStart: () => setState(() => _selecting = true),
+            onDone: () => setState(() {
+              _selecting = false;
+              _selected.clear();
+            }),
+            onToggleAll: () => setState(() {
+              allSelected
+                  ? _selected.clear()
+                  : _selected.addAll(records.map((r) => r.id));
+            }),
+            onDelete: chosen.isEmpty ? null : () => _delete(chosen),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          // 개체별 기록 줄이 제 면을 안 들고 있어 카드 한 겹을 씌운다.
+          SheetCard(
+            // ⚠️ 전에는 여기 `ConstrainedBox(화면 55%)` + `ListView(shrinkWrap)` 가
+            // 들어 있었다. [AppSheet] 의 본문이 **이미 스크롤**이라 스크롤이 두 겹이
+            // 됐고, 바깥은 90% 까지 커질 수 있는데 안쪽 리스트가 55% 에서 먼저
+            // 잘려서 — 끌어도 시트는 안 커지고 안쪽만 조용히 밀리는 상태였다.
+            // 그래서 "밑으로 내려야 하는데 스크롤이 비가시적"으로 읽혔다.
+            // 스크롤은 시트 하나에 맡기고 여기선 길이만큼 쌓는다.
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var i = 0; i < petKeys.length; i++) ...[
+                  if (i > 0)
+                    const Divider(
+                        height: 1, thickness: 1, color: AppColors.line),
+                  _SheetPetRow(
+                    type: widget.type,
+                    records: petGroups[petKeys[i]]!,
+                    petId: int.tryParse(petKeys[i]),
+                    translateFeeding:
+                        _CategoryDetailSheet._translateFeedingSummary,
+                    selecting: _selecting,
+                    selected: _selected,
+                    onToggle: _toggle,
+                    onTogglePet: () => _togglePet(petGroups[petKeys[i]]!),
+                    onMenu: _busy ? null : _openMenu,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 시트 본문 맨 위 한 줄 — 평소엔 '선택', 선택 중엔 전체 선택 · 삭제 · 완료.
+class _SelectToolbar extends StatelessWidget {
+  final bool selecting;
+  final int selectedCount;
+  final bool allSelected;
+  final bool busy;
+  final VoidCallback onStart;
+  final VoidCallback onDone;
+  final VoidCallback onToggleAll;
+  final VoidCallback? onDelete;
+
+  const _SelectToolbar({
+    required this.selecting,
+    required this.selectedCount,
+    required this.allSelected,
+    required this.busy,
+    required this.onStart,
+    required this.onDone,
+    required this.onToggleAll,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (!selecting) {
+      return Align(
+        alignment: Alignment.centerRight,
+        child: TextButton.icon(
+          onPressed: busy ? null : onStart,
+          icon: const Icon(Icons.checklist, size: AppIconSize.sm),
+          label: const Text('선택'),
+        ),
+      );
+    }
+    return Row(
+      children: [
+        TextButton.icon(
+          onPressed: busy ? null : onToggleAll,
+          icon: Icon(
+              allSelected ? Icons.check_box : Icons.check_box_outline_blank,
+              size: AppIconSize.sm),
+          label: Text(selectedCount == 0 ? '전체 선택' : '$selectedCount건 선택'),
+        ),
+        const Spacer(),
+        TextButton(
+          onPressed: busy ? null : onDelete,
+          style: TextButton.styleFrom(foregroundColor: AppColors.error),
+          child: const Text('삭제'),
+        ),
+        TextButton(
+          onPressed: busy ? null : onDone,
+          child: const Text('완료'),
+        ),
+      ],
+    );
+  }
+}
+
+enum _RecordAction { move, detail, delete }
+
+/// 기록 한 건의 동작 고르기.
+class _RecordMenuSheet extends StatelessWidget {
+  final RecentRecord record;
+  final bool canOpenDetail;
+
+  const _RecordMenuSheet({required this.record, required this.canOpenDetail});
+
+  @override
+  Widget build(BuildContext context) {
+    // 체중은 값 수정이 없다(서버에 수정 API 가 없다) — 상세에서는 보거나 지우는 것만
+    // 된다. '내용 수정'이라 적으면 눌러서 못 고치는 버튼이 된다.
+    final detailLabel = record.recordType == 'WEIGHT' ? '상세 보기' : '내용 수정';
+
+    Widget item(IconData icon, String label, _RecordAction a,
+            {Color color = AppColors.ink}) =>
+        ListTile(
+          leading: Icon(icon, size: AppIconSize.md, color: color),
+          title: Text(label,
+              style: AppTextStyles.bodyBold.copyWith(color: color)),
+          onTap: () => Navigator.of(context).pop(a),
+        );
+
+    return AppSheet(
+      title: record.petName,
+      subtitle: record.summary.isNotEmpty ? record.summary : null,
+      child: SheetCard.list(
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            for (var i = 0; i < petKeys.length; i++) ...[
-              if (i > 0)
-                const Divider(
-                    height: 1, thickness: 1, color: AppColors.line),
-              _SheetPetRow(
-                type: type,
-                records: petGroups[petKeys[i]]!,
-                petId: int.tryParse(petKeys[i]),
-                translateFeeding: _translateFeedingSummary,
-              ),
-            ],
+            item(Icons.event_outlined, '날짜 변경', _RecordAction.move),
+            if (canOpenDetail)
+              item(Icons.edit_outlined, detailLabel, _RecordAction.detail),
+            item(Icons.delete_outline, '삭제', _RecordAction.delete,
+                color: AppColors.error),
           ],
         ),
       ),
@@ -1118,17 +1413,29 @@ class _CategoryDetailSheet extends StatelessWidget {
 /// (2026-10-15 사용자 요청: "급여-핑핑 클릭하면 핑핑의 급여기록상세화면으로").
 /// 이 시트에 들어온 사람은 이미 '어떤 날의 어떤 기록'을 보고 있어서, 개체
 /// 홈으로 보내면 거기서 다시 기록 종류를 찾아 들어가야 한다.
+///
+/// 선택 중에는 이동하지 않는다 — 기록 줄은 체크, 개체 이름은 그 개체 전체 체크다.
 class _SheetPetRow extends StatelessWidget {
   final String type;
   final List<RecentRecord> records;
   final int? petId;
   final String Function(String) translateFeeding;
+  final bool selecting;
+  final Set<int> selected;
+  final ValueChanged<RecentRecord> onToggle;
+  final VoidCallback onTogglePet;
+  final ValueChanged<RecentRecord>? onMenu;
 
   const _SheetPetRow({
     required this.type,
     required this.records,
     required this.petId,
     required this.translateFeeding,
+    required this.selecting,
+    required this.selected,
+    required this.onToggle,
+    required this.onTogglePet,
+    required this.onMenu,
   });
 
   /// 기록 종류 → 그 종류의 기록 상세 화면.
@@ -1146,33 +1453,49 @@ class _SheetPetRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final path = petId == null ? null : _detailPath(petId!, type);
+    final petAllSelected = records.every((r) => selected.contains(r.id));
 
     return GestureDetector(
       // 이름 글자만이 아니라 **줄 전체**가 탭 타겟이다. 전에는 개체 이름
       // 글자에만 제스처가 걸려 있어 기록 줄을 눌러도 아무 일이 없었다.
       behavior: HitTestBehavior.opaque,
-      onTap: path == null
-          ? null
-          : () {
-              Navigator.of(context).pop();
-              context.push(path);
-            },
+      onTap: selecting
+          ? onTogglePet
+          : path == null
+              ? null
+              : () {
+                  Navigator.of(context).pop();
+                  context.push(path);
+                },
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 8,
-              height: 8,
-              margin: const EdgeInsets.only(top: 5),
-              decoration: BoxDecoration(
-                  // 개체색이던 점. 이 시트는 한 카테고리의 기록만 모아
-                  // 보여주므로, 점이 나를 수 있는 정보는 '무슨 기록이냐'다.
-                  color: _CategoryRow._catIconInk(type),
-                  shape: BoxShape.circle),
-            ),
-            const SizedBox(width: AppSpacing.sm),
+            if (selecting)
+              Padding(
+                padding: const EdgeInsets.only(right: AppSpacing.sm),
+                child: Icon(
+                  petAllSelected
+                      ? Icons.check_box
+                      : Icons.check_box_outline_blank,
+                  size: AppIconSize.sm,
+                  color: petAllSelected
+                      ? AppColors.brandAction
+                      : AppColors.ink3,
+                ),
+              )
+            else
+              Container(
+                width: 8,
+                height: 8,
+                margin: const EdgeInsets.only(top: 5, right: AppSpacing.sm),
+                decoration: BoxDecoration(
+                    // 개체색이던 점. 이 시트는 한 카테고리의 기록만 모아
+                    // 보여주므로, 점이 나를 수 있는 정보는 '무슨 기록이냐'다.
+                    color: _CategoryRow._catIconInk(type),
+                    shape: BoxShape.circle),
+              ),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1182,30 +1505,11 @@ class _SheetPetRow extends StatelessWidget {
                           .copyWith(fontWeight: FontWeight.w700,
                               color: AppColors.ink)),
                   const SizedBox(height: 3),
-                  ...records.map((r) {
-                    final hasMemo = r.memo != null && r.memo!.isNotEmpty;
-                    final rawSummary = r.recordType == 'FEEDING'
-                        ? translateFeeding(r.summary)
-                        : r.summary;
-                    final display = [
-                      if (rawSummary.isNotEmpty) rawSummary,
-                      if (hasMemo) r.memo!,
-                    ].join('  ·  ');
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 3),
-                      child: Text(
-                        display,
-                        style: AppTextStyles.label.copyWith(
-                            letterSpacing: 0, color: AppColors.ink2),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 2,
-                      ),
-                    );
-                  }),
+                  ...records.map((r) => _recordLine(r)),
                 ],
               ),
             ),
-            if (path != null)
+            if (path != null && !selecting)
               const Padding(
                 padding: EdgeInsets.only(left: AppSpacing.sm, top: 2),
                 child: AppIcon(AppIcons.chevronRight,
@@ -1215,6 +1519,59 @@ class _SheetPetRow extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget _recordLine(RecentRecord r) {
+    final hasMemo = r.memo != null && r.memo!.isNotEmpty;
+    final rawSummary =
+        r.recordType == 'FEEDING' ? translateFeeding(r.summary) : r.summary;
+    final display = [
+      if (rawSummary.isNotEmpty) rawSummary,
+      if (hasMemo) r.memo!,
+    ].join('  ·  ');
+    final isSel = selected.contains(r.id);
+
+    final text = Text(
+      display,
+      style: AppTextStyles.label.copyWith(
+          letterSpacing: 0,
+          color: isSel ? AppColors.ink : AppColors.ink2),
+      overflow: TextOverflow.ellipsis,
+      maxLines: 2,
+    );
+
+    if (selecting) {
+      // 한 개체에 같은 종류가 여러 건이면 그중 일부만 고를 수 있어야 한다
+      return GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => onToggle(r),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 3),
+          child: Row(children: [
+            Icon(isSel ? Icons.check_circle : Icons.radio_button_unchecked,
+                size: 16,
+                color: isSel ? AppColors.brandAction : AppColors.ink3),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(child: text),
+          ]),
+        ),
+      );
+    }
+    return Row(children: [
+      Expanded(child: text),
+      // 기록 한 건의 날짜 변경·수정·삭제. 줄 탭(상세로 이동)과 따로 잡힌다.
+      SizedBox(
+        width: 32,
+        height: 28,
+        child: IconButton(
+          padding: EdgeInsets.zero,
+          tooltip: '기록 메뉴',
+          onPressed: onMenu == null ? null : () => onMenu!(r),
+          icon: const Icon(Icons.more_horiz,
+              size: AppIconSize.sm, color: AppColors.ink3),
+        ),
+      ),
+    ]);
   }
 }
 

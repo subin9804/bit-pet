@@ -113,6 +113,16 @@ public class MatingService {
     // 메이팅 삭제
     // -------------------------------------------------------------------------
 
+    /** 날짜만 옮긴다 — 홈 캘린더 일괄 날짜 변경 ({@link io.bitpet.record.service.RecordBulkService}). */
+    @Transactional
+    public void moveMating(Long matingId, Long userId, java.time.LocalDate date) {
+        MatingDtl mating = loadAccessibleMating(matingId, userId);
+        java.time.Instant moved = io.bitpet.record.service.RecordDates.onDate(mating.getTriedAt(), date);
+        mating.moveTo(moved,
+                io.bitpet.record.service.RecordDates.yearOf(mating.getTriedAt()),
+                date.getYear());
+    }
+
     @Transactional
     public void deleteMating(Long matingId, Long userId) {
         MatingDtl mating = loadAccessibleMating(matingId, userId);

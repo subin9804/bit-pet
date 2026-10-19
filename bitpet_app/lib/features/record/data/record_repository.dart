@@ -552,6 +552,24 @@ class RecordRepository {
     return apiRes.data ?? [];
   }
 
+  // ── 홈 캘린더 날짜 시트 — 일괄 작업 ─────────────────────────
+  // 서버 한 트랜잭션이다: 하나라도 실패하면 아무것도 안 바뀐다.
+
+  static List<Map<String, dynamic>> _bulkItems(Iterable<RecentRecord> recs) =>
+      recs.map((r) => {'recordType': r.recordType, 'id': r.id}).toList();
+
+  Future<void> bulkDeleteRecords(Iterable<RecentRecord> recs) async {
+    await _dio.post('/records/bulk-delete', data: {'items': _bulkItems(recs)});
+  }
+
+  /// 날짜만 [date] 로 옮긴다. 기록한 시각은 서버가 그대로 둔다.
+  Future<void> bulkMoveRecords(Iterable<RecentRecord> recs, DateTime date) async {
+    await _dio.post('/records/bulk-move', data: {
+      'items': _bulkItems(recs),
+      'date': _ymd(date),
+    });
+  }
+
   Future<List<RecentRecord>> getRecentRecords({int limit = 5}) async {
     final res = await _dio.get('/records/recent',
         queryParameters: {'limit': limit});

@@ -3,10 +3,15 @@ package io.bitpet.record.controller;
 import io.bitpet.auth.jwt.AuthPrincipal;
 import io.bitpet.common.response.ApiResponse;
 import io.bitpet.record.dto.RecentRecordResponse;
+import io.bitpet.record.dto.RecordBulkRequest;
+import io.bitpet.record.service.RecordBulkService;
 import io.bitpet.record.service.RecordService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -20,6 +25,7 @@ import java.util.List;
 public class RecordController {
 
     private final RecordService recordService;
+    private final RecordBulkService recordBulkService;
 
     @GetMapping
     public ApiResponse<List<RecentRecordResponse>> getRecordsByDate(
@@ -34,5 +40,21 @@ public class RecordController {
             @AuthenticationPrincipal AuthPrincipal principal,
             @RequestParam(defaultValue = "10") int limit) {
         return ApiResponse.ok(recordService.getRecentRecords(principal.userId(), limit));
+    }
+
+    /** 홈 캘린더 날짜 시트 — 고른 기록 일괄 삭제. 처리한 건수를 돌려준다. */
+    @PostMapping("/bulk-delete")
+    public ApiResponse<Integer> bulkDelete(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @Valid @RequestBody RecordBulkRequest.Delete req) {
+        return ApiResponse.ok(recordBulkService.delete(principal.userId(), req.items()));
+    }
+
+    /** 홈 캘린더 날짜 시트 — 고른 기록의 날짜만 일괄 변경 (시각은 그대로). */
+    @PostMapping("/bulk-move")
+    public ApiResponse<Integer> bulkMove(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @Valid @RequestBody RecordBulkRequest.Move req) {
+        return ApiResponse.ok(recordBulkService.move(principal.userId(), req.items(), req.date()));
     }
 }
