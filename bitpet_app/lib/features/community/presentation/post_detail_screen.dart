@@ -7,6 +7,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/confirm_modal.dart';
+import '../../../core/widgets/empty_state.dart';
+import '../../../core/widgets/toast_message.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../data/models/post_models.dart';
 import '../data/models/report_models.dart';
@@ -22,7 +24,7 @@ Color _catBg(String? code) => switch (code?.toUpperCase()) {
       'QNA' => AppColors.commQnaBg,
       'INFO' => AppColors.commInfoBg,
       'ADOPTION' => AppColors.commSellBg,
-      _ => AppColors.paleBgAlt,
+      _ => AppColors.bgAlt,
     };
 
 Color _catInk(String? code) => switch (code?.toUpperCase()) {
@@ -30,7 +32,7 @@ Color _catInk(String? code) => switch (code?.toUpperCase()) {
       'QNA' => AppColors.commQnaInk,
       'INFO' => AppColors.commInfoInk,
       'ADOPTION' => AppColors.commSellInk,
-      _ => AppColors.paleInk2,
+      _ => AppColors.ink2,
     };
 
 String _relativeTime(DateTime dt) {
@@ -76,10 +78,8 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
       // 조용히 삼키면 어린이 게시판 제한(CHILD_BOARD_ONLY)에 걸렸을 때
       // 버튼만 되살아나고 아무 일도 안 일어난 것처럼 보인다.
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(serverMessageOf(e) ?? '댓글을 남기지 못했어요.')),
-        );
+        showToast(context, serverMessageOf(e) ?? '댓글을 남기지 못했어요.',
+            type: ToastType.error);
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -120,7 +120,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
   List<Widget> _ownerTiles(BuildContext context, Post post) => [
         ListTile(
           contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.edit_outlined, color: AppColors.primary),
+          leading: const Icon(Icons.edit_outlined, color: AppColors.ink),
           title: const Text('수정'),
           onTap: () {
             Navigator.pop(context);
@@ -181,15 +181,52 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
         ref.watch(categoriesProvider).valueOrNull ?? const <PostCategory>[];
     final catById = {for (final c in categories) c.id: c};
 
+    final loadedPost = postAsync.valueOrNull;
+    final headerLabel = loadedPost == null
+        ? null
+        : catById[loadedPost.categoryId]?.nameKo;
+
     return Scaffold(
       backgroundColor: AppColors.canvas,
+      // 손으로 그린 상단바(흰 띠 + 테두리 원형 뒤로가기 + 가운데 제목 2줄 '게시글 / 자유 · 자세히')였다.
+      // 흰 띠가 연회색 본문 위에 따로 떠서 한 화면이 두 장으로 보였다 — 다른 하위 화면처럼 AppBar.
+      // 게시판 이름은 제목에 바로 올린다('자세히'는 읽을 정보가 없는 말이다).
+      appBar: AppBar(
+        backgroundColor: AppColors.canvas,
+        title: Text(headerLabel == null || headerLabel.isEmpty
+            ? '게시글'
+            : headerLabel),
+        titleSpacing: 0,
+        actions: [
+          if (loadedPost != null)
+            IconButton(
+              tooltip: '더보기',
+              icon: const Icon(Icons.more_vert),
+              onPressed: () => _showMenu(context, loadedPost),
+            ),
+          const SizedBox(width: AppSpacing.xs),
+        ],
+      ),
       body: postAsync.when(
         loading: () =>
             const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-        error: (e, _) => Center(child: Text(e.toString())),
+        // 예외 문자열을 그대로 띄웠다 — 사용자는 읽을 수 없고 할 수 있는 것도 없다.
+        error: (e, _) => EmptyState(
+          message: '불러오지 못했어요',
+          subMessage: '연결을 확인하고 다시 시도해주세요.',
+          icon: Icons.cloud_off,
+          tone: EmptyTone.neutral,
+          actionLabel: '다시 시도',
+          onAction: () => ref.invalidate(postDetailProvider(widget.postId)),
+        ),
         data: (post) {
           if (post == null) {
-            return const Center(child: Text('게시글을 찾을 수 없어요'));
+            return const EmptyState(
+              message: '게시글을 찾을 수 없어요',
+              subMessage: '삭제되었거나 볼 수 없는 글이에요.',
+              icon: Icons.article_outlined,
+              tone: EmptyTone.neutral,
+            );
           }
           final cat = catById[post.categoryId];
           final code = cat?.code;
@@ -202,28 +239,6 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
 
           return Column(
             children: [
-              SafeArea(
-                bottom: false,
-                child: _TopBar(
-                  title: '게시글',
-                  sub: '$label · 자세히',
-                  onBack: () => context.pop(),
-                  trailing: GestureDetector(
-                    onTap: () => _showMenu(context, post),
-                    child: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: AppColors.card,
-                        border: Border.all(color: AppColors.paleLine),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.more_horiz_rounded,
-                          size: 20, color: AppColors.primary),
-                    ),
-                  ),
-                ),
-              ),
               Expanded(
                 child: ListView(
                   controller: _scrollCtrl,
@@ -267,8 +282,8 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                       style: AppTextStyles.body.copyWith(
                         height: 1.7,
                         color: post.isBlinded
-                            ? AppColors.paleInk3
-                            : AppColors.primary,
+                            ? AppColors.ink3
+                            : AppColors.ink,
                         fontStyle: post.isBlinded
                             ? FontStyle.italic
                             : FontStyle.normal,
@@ -336,7 +351,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                           TextSpan(
                             text: '${post.commentCount}',
                             style: AppTextStyles.bodyBold.copyWith(
-                                fontSize: 14, color: AppColors.paleInk2),
+                                fontSize: 14, color: AppColors.ink2),
                           ),
                         ],
                       ),
@@ -350,7 +365,14 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                             child:
                                 CircularProgressIndicator(strokeWidth: 2)),
                       ),
-                      error: (e, _) => Text(e.toString()),
+                      error: (e, _) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 24),
+                        child: Center(
+                          child: Text('댓글을 불러오지 못했어요',
+                              style: AppTextStyles.caption
+                                  .copyWith(color: AppColors.ink3)),
+                        ),
+                      ),
                       data: (comments) => comments.isEmpty
                           ? Padding(
                               padding:
@@ -359,7 +381,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                                 child: Text(
                                     readOnly ? '아직 댓글이 없어요' : '첫 댓글을 남겨보세요',
                                     style: AppTextStyles.caption.copyWith(
-                                        color: AppColors.paleInk3)),
+                                        color: AppColors.ink3)),
                               ),
                             )
                           : Column(
@@ -387,15 +409,15 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                   padding: EdgeInsets.fromLTRB(
                       16, 12, 16, MediaQuery.of(context).padding.bottom + 12),
                   decoration: const BoxDecoration(
-                    color: AppColors.paleBg,
+                    color: AppColors.bg,
                     border:
-                        Border(top: BorderSide(color: AppColors.paleLine)),
+                        Border(top: BorderSide(color: AppColors.line)),
                   ),
                   child: Text(
                     '어린이 회원은 어린이 게시판에서만 글·댓글을 남길 수 있어요',
                     textAlign: TextAlign.center,
                     style: AppTextStyles.caption
-                        .copyWith(color: AppColors.paleInk3),
+                        .copyWith(color: AppColors.ink3),
                   ),
                 )
               else
@@ -407,9 +429,9 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                         MediaQuery.of(context).padding.bottom +
                         8),
                 decoration: const BoxDecoration(
-                  color: AppColors.paleBg,
+                  color: AppColors.bg,
                   border:
-                      Border(top: BorderSide(color: AppColors.paleLine)),
+                      Border(top: BorderSide(color: AppColors.line)),
                 ),
                 child: Row(
                   children: [
@@ -417,19 +439,20 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                       child: TextField(
                         controller: _commentCtrl,
                         style: AppTextStyles.body
-                            .copyWith(color: AppColors.primary),
+                            .copyWith(color: AppColors.ink),
                         decoration: InputDecoration(
                           hintText: '댓글을 남겨보세요…',
                           hintStyle: AppTextStyles.body
-                              .copyWith(color: AppColors.paleInk3),
+                              .copyWith(color: AppColors.ink3),
                           isDense: true,
                           enabledBorder: const UnderlineInputBorder(
                             borderSide:
-                                BorderSide(color: AppColors.paleLine),
+                                BorderSide(color: AppColors.line),
                           ),
+                          // 포커스 밑줄이 먹색이었다 — 앱 입력칸은 포커스를 브랜드색으로 보인다.
                           focusedBorder: const UnderlineInputBorder(
                             borderSide: BorderSide(
-                                color: AppColors.primary, width: 1.5),
+                                color: AppColors.brandAction, width: 1.5),
                           ),
                           contentPadding: const EdgeInsets.symmetric(
                               horizontal: 4, vertical: 8),
@@ -437,13 +460,14 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
+                    // 보내기 — 검정 원(먹색 `primary`)이었다. 눌리는 주 행동은 브랜드색이다.
                     GestureDetector(
                       onTap: _isSubmitting ? null : _submitComment,
                       child: Container(
                         width: 40,
                         height: 40,
                         decoration: const BoxDecoration(
-                          color: AppColors.primary,
+                          color: AppColors.brandAction,
                           shape: BoxShape.circle,
                         ),
                         child: _isSubmitting
@@ -453,12 +477,12 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                                   height: 18,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    color: AppColors.paleBg,
+                                    color: AppColors.bg,
                                   ),
                                 ),
                               )
-                            : const Icon(Icons.check_rounded,
-                                color: AppColors.paleBg, size: 20),
+                            : const Icon(Icons.arrow_upward_rounded,
+                                color: AppColors.bg, size: 20),
                       ),
                     ),
                   ],
@@ -473,61 +497,6 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
 }
 
 // ── 공통 위젯들 ─────────────────────────────────────────────────────
-
-class _TopBar extends StatelessWidget {
-  final String title;
-  final String? sub;
-  final VoidCallback onBack;
-  final Widget? trailing;
-
-  const _TopBar({
-    required this.title,
-    this.sub,
-    required this.onBack,
-    this.trailing,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-      color: AppColors.paleBg,
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: onBack,
-            child: Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: AppColors.card,
-                border: Border.all(color: AppColors.paleLine),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.arrow_back_ios_new_rounded,
-                  size: 16, color: AppColors.primary),
-            ),
-          ),
-          Expanded(
-            child: Column(
-              children: [
-                Text(
-                  title,
-                  style: AppTextStyles.bodyBold.copyWith(
-                    fontSize: 15,
-                    letterSpacing: -0.2,
-                  ),
-                ),
-                if (sub != null) Text(sub!, style: AppTextStyles.monoXs),
-              ],
-            ),
-          ),
-          if (trailing != null) trailing! else const SizedBox(width: 36),
-        ],
-      ),
-    );
-  }
-}
 
 class _CategoryPill extends StatelessWidget {
   final String? code;
@@ -569,17 +538,17 @@ class _Avatar extends StatelessWidget {
       height: size,
       clipBehavior: Clip.hardEdge,
       decoration:
-          const BoxDecoration(color: AppColors.petClay, shape: BoxShape.circle),
+          const BoxDecoration(color: AppColors.bgAlt, shape: BoxShape.circle),
       child: imageUrl != null
           ? AppNetworkImage(
               imageUrl,
               fit: BoxFit.cover,
               memWidth: (size * 3).round(),
-              placeholder: Icon(Icons.pets_rounded,
-                  size: size * 0.45, color: AppColors.paleInk2),
+              placeholder: Icon(Icons.person,
+                  size: size * 0.62, color: AppColors.ink3),
             )
-          : Icon(Icons.pets_rounded,
-              size: size * 0.45, color: AppColors.paleInk2),
+          : Icon(Icons.person,
+              size: size * 0.62, color: AppColors.ink3),
     );
   }
 }
@@ -651,8 +620,8 @@ class _CommentItem extends StatelessWidget {
                     fontSize: 13,
                     height: 1.55,
                     color: comment.isBlinded
-                        ? AppColors.paleInk3
-                        : AppColors.primary,
+                        ? AppColors.ink3
+                        : AppColors.ink,
                     fontStyle: comment.isBlinded
                         ? FontStyle.italic
                         : FontStyle.normal,
@@ -669,7 +638,7 @@ class _CommentItem extends StatelessWidget {
                         children: [
                           Text('↳ ',
                               style: AppTextStyles.caption
-                                  .copyWith(color: AppColors.paleInk3)),
+                                  .copyWith(color: AppColors.ink3)),
                           _Avatar(size: 26, imageUrl: r.authorImageUrl),
                           const SizedBox(width: 8),
                           Expanded(
@@ -694,8 +663,8 @@ class _CommentItem extends StatelessWidget {
                                       fontSize: 13,
                                       height: 1.55,
                                       color: r.isBlinded
-                                          ? AppColors.paleInk3
-                                          : AppColors.primary,
+                                          ? AppColors.ink3
+                                          : AppColors.ink,
                                       fontStyle: r.isBlinded
                                           ? FontStyle.italic
                                           : FontStyle.normal,
@@ -733,7 +702,7 @@ class _MenuDot extends StatelessWidget {
       child: const Padding(
         padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
         child: Icon(Icons.more_horiz_rounded,
-            size: 16, color: AppColors.paleInk3),
+            size: 16, color: AppColors.ink3),
       ),
     );
   }

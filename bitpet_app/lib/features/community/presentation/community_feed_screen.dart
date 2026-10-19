@@ -6,6 +6,10 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_chip.dart';
+import '../../../core/widgets/app_search_field.dart';
+import '../../../core/widgets/empty_state.dart';
+import '../../../core/widgets/skeleton_loader.dart';
+import '../../notification/providers/notification_provider.dart';
 import '../data/models/post_models.dart';
 import '../providers/post_provider.dart';
 import '../../../core/theme/app_dimens.dart';
@@ -17,7 +21,7 @@ Color _catBg(String? code) => switch (code?.toUpperCase()) {
       'QNA' => AppColors.commQnaBg,
       'INFO' => AppColors.commInfoBg,
       'ADOPTION' => AppColors.commSellBg,
-      _ => AppColors.paleBgAlt,
+      _ => AppColors.bgAlt,
     };
 
 Color _catInk(String? code) => switch (code?.toUpperCase()) {
@@ -26,7 +30,7 @@ Color _catInk(String? code) => switch (code?.toUpperCase()) {
       'QNA' => AppColors.commQnaInk,
       'INFO' => AppColors.commInfoInk,
       'ADOPTION' => AppColors.commSellInk,
-      _ => AppColors.paleInk2,
+      _ => AppColors.ink2,
     };
 
 String _relativeTime(DateTime dt) {
@@ -48,7 +52,6 @@ class CommunityFeedScreen extends ConsumerStatefulWidget {
 
 class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
   bool _showSearch = false;
-  final _searchCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
 
   @override
@@ -59,7 +62,6 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
 
   @override
   void dispose() {
-    _searchCtrl.dispose();
     _scrollCtrl.removeListener(_onScroll);
     _scrollCtrl.dispose();
     super.dispose();
@@ -84,170 +86,114 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
     final catById = {for (final c in allCategories) c.id: c};
     final categories = ref.watch(visibleCategoriesProvider);
 
+    // 알림 점은 **안 읽은 알림이 있을 때만** 찍는다. 예전엔 조건 없이 늘 떠 있어서
+    // 다 읽어도 빨간 점이 남았다 — 홈 헤더 종과 같은 값을 본다.
+    final hasUnread = ref.watch(unreadNotificationCountProvider) > 0;
+
     return Scaffold(
       backgroundColor: AppColors.canvas,
-      body: SafeArea(
-        bottom: false,
-        child: Stack(
-          children: [
-            Column(
-              children: [
-                // ── 헤더 ──────────────────────────────────────────
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'community',
-                            style: AppTextStyles.label
-                                .copyWith(color: AppColors.paleInk2),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            '커뮤니티',
-                            style: AppTextStyles.h1.copyWith(
-                              color: AppColors.primary,
-                              letterSpacing: -0.5,
-                              height: 1.15,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const Spacer(),
-                      _CircleBtn(
-                        onTap: () {
-                          setState(() => _showSearch = !_showSearch);
-                          if (!_showSearch) {
-                            _searchCtrl.clear();
-                            ref.read(postSearchProvider.notifier).state = '';
-                          }
-                        },
-                        child: const Icon(Icons.search_rounded,
-                            size: 20, color: AppColors.primary),
-                      ),
-                      const SizedBox(width: 8),
-                      Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          _CircleBtn(
-                            onTap: () => context.push('/notifications'),
-                            child: const Icon(Icons.notifications_none_rounded,
-                                size: 20, color: AppColors.primary),
-                          ),
-                          Positioned(
-                            top: 8,
-                            right: 10,
-                            child: Container(
-                              width: 7,
-                              height: 7,
-                              decoration: const BoxDecoration(
-                                color: AppColors.commNotifDot,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-                // ── 검색바 (토글) ─────────────────────────────────
-                if (_showSearch)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.card,
-                        border: Border.all(color: AppColors.paleLine),
-                        borderRadius: AppRadius.brMd,
-                      ),
-                      child: TextField(
-                        controller: _searchCtrl,
-                        autofocus: true,
-                        style: AppTextStyles.body
-                            .copyWith(color: AppColors.primary),
-                        decoration: InputDecoration(
-                          hintText: '제목 검색…',
-                          hintStyle: AppTextStyles.body
-                              .copyWith(color: AppColors.paleInk3),
-                          prefixIcon: const Icon(Icons.search_rounded,
-                              size: 20, color: AppColors.paleInk3),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 12),
-                        ),
-                        onChanged: (v) =>
-                            ref.read(postSearchProvider.notifier).state = v,
-                      ),
-                    ),
-                  ),
-
-                // ── 탭 칩 (전체 + 서버 카테고리) ──────────────────
-                SizedBox(
-                  height: AppChip.barHeight,
-                  child: _buildTabRow(selectedCat, categories),
-                ),
-
-                const SizedBox(height: 8),
-
-                // ── 게시글 목록 ──────────────────────────────────
-                Expanded(
-                  child: _buildBody(feed, search, catById),
-                ),
-              ],
+      // ⚠️ 이 화면만 헤더를 손으로 그려 두 줄이었다 — 영문 소제목('community')
+      // + 32px 제목. 홈·내 개체·루틴에서 이미 걷어낸 장식이고, 탭을 오가면
+      // 제목 크기·위치가 이 화면에서만 튀었다. 다른 탭과 같은 AppBar 로.
+      appBar: AppBar(
+        backgroundColor: AppColors.canvas,
+        title: const Text('커뮤니티'),
+        titleSpacing: AppSpacing.xl,
+        actions: [
+          IconButton(
+            tooltip: _showSearch ? '검색 닫기' : '제목 검색',
+            onPressed: _toggleSearch,
+            icon: Icon(
+              _showSearch ? Icons.close : Icons.search,
+              size: AppIconSize.lg,
             ),
-
-            // ── 플로팅 글쓰기 버튼 (홈 FAB와 동일 위치·크기) ──────────
-            Positioned(
-              right: 16,
-              bottom: 16,
-              child: GestureDetector(
-                onTap: () => context.push('/community/new'),
-                child: Container(
-                  width: 50,
-                  height: 50,
-                  // 홈 FAB 와 같은 '만들기' 동작이므로 같은 액션색을 쓴다.
-                  // 예전엔 primary(먹색)라서 홈은 초록, 커뮤니티는 검정으로 갈려 있었다.
-                  decoration: const BoxDecoration(
-                    color: AppColors.brandAction,
-                    borderRadius: AppRadius.brMd,
-                  ),
-                  child: const Icon(Icons.edit_outlined,
-                      color: AppColors.paleBg, size: 24),
-                ),
+          ),
+          IconButton(
+            tooltip: '알림',
+            onPressed: () => context.push('/notifications'),
+            icon: Badge(
+              isLabelVisible: hasUnread,
+              smallSize: 8,
+              backgroundColor: AppColors.commNotifDot,
+              child: const Icon(Icons.notifications_none_outlined,
+                  size: AppIconSize.lg),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+        ],
+      ),
+      body: Column(
+        children: [
+          // ── 검색바 (토글) ─────────────────────────────────
+          // 손으로 그린 각진 박스였다 — 검색창은 앱 전체가 [AppSearchField] 하나다.
+          if (_showSearch)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.md),
+              child: AppSearchField(
+                value: search,
+                hintText: '제목 검색',
+                autofocus: true,
+                onChanged: (v) =>
+                    ref.read(postSearchProvider.notifier).state = v,
               ),
             ),
-          ],
+
+          // ── 탭 칩 (전체 + 서버 카테고리) ──────────────────
+          SizedBox(
+            height: AppChip.barHeight,
+            child: _buildTabRow(selectedCat, categories),
+          ),
+
+          const SizedBox(height: AppSpacing.sm),
+
+          // ── 게시글 목록 ──────────────────────────────────
+          Expanded(
+            child: _buildBody(feed, search, catById),
+          ),
+        ],
+      ),
+      // ── 글쓰기 버튼 (홈 FAB와 동일 위치·크기) ──────────
+      // 홈 FAB 와 같은 '만들기' 동작이므로 같은 액션색을 쓴다.
+      // 예전엔 primary(먹색)라서 홈은 초록, 커뮤니티는 검정으로 갈려 있었다.
+      floatingActionButton: SizedBox(
+        width: 50,
+        height: 50,
+        child: FloatingActionButton(
+          heroTag: 'community-compose',
+          tooltip: '글쓰기',
+          onPressed: () => context.push('/community/new'),
+          backgroundColor: AppColors.brandAction,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          highlightElevation: 0,
+          shape: const RoundedRectangleBorder(borderRadius: AppRadius.brMd),
+          child: const Icon(Icons.edit_outlined, size: 24),
         ),
       ),
     );
   }
 
+  void _toggleSearch() {
+    setState(() => _showSearch = !_showSearch);
+    if (!_showSearch) {
+      ref.read(postSearchProvider.notifier).state = '';
+    }
+  }
+
   Widget _buildBody(
       FeedState feed, String search, Map<int, PostCategory> catById) {
     if (feed.loading) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+      return const SkeletonCardList();
     }
     if (feed.error != null && feed.posts.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('불러오기 실패',
-                style: AppTextStyles.bodyBold
-                    .copyWith(color: AppColors.paleInk2)),
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: () => ref.read(feedProvider.notifier).refresh(),
-              child: const Text('다시 시도'),
-            ),
-          ],
-        ),
+      return EmptyState(
+        message: '불러오지 못했어요',
+        subMessage: '연결을 확인하고 다시 시도해주세요.',
+        icon: Icons.cloud_off,
+        tone: EmptyTone.neutral,
+        actionLabel: '다시 시도',
+        onAction: () => ref.read(feedProvider.notifier).refresh(),
       );
     }
 
@@ -261,26 +207,23 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
     if (filtered.isEmpty) {
       return RefreshIndicator(
         onRefresh: () => ref.read(feedProvider.notifier).refresh(),
-        color: AppColors.primary,
+        color: AppColors.brandAction,
+        // 당겨서 새로고침이 되려면 스크롤 가능한 자식이어야 한다.
         child: ListView(
           children: [
             SizedBox(
-              height: 260,
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(q.isEmpty ? '아직 게시글이 없어요' : '검색 결과가 없어요',
-                        style: AppTextStyles.bodyBold
-                            .copyWith(color: AppColors.paleInk2)),
-                    const SizedBox(height: 4),
-                    if (q.isEmpty)
-                      Text('첫 글을 작성해보세요',
-                          style: AppTextStyles.caption
-                              .copyWith(color: AppColors.paleInk3)),
-                  ],
-                ),
-              ),
+              height: 320,
+              child: q.isEmpty
+                  ? const EmptyState(
+                      message: '아직 게시글이 없어요',
+                      subMessage: '첫 글을 작성해보세요',
+                      icon: Icons.forum_outlined,
+                    )
+                  : const EmptyState(
+                      message: '검색 결과가 없어요',
+                      icon: Icons.search_off,
+                      tone: EmptyTone.neutral,
+                    ),
             ),
           ],
         ),
@@ -289,7 +232,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
 
     return RefreshIndicator(
       onRefresh: () => ref.read(feedProvider.notifier).refresh(),
-      color: AppColors.primary,
+      color: AppColors.brandAction,
       child: ListView.builder(
         controller: _scrollCtrl,
         padding: const EdgeInsets.only(bottom: 110),
@@ -299,12 +242,12 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
             // 하단 로더 / 끝 표시
             if (feed.loadingMore) {
               return const Padding(
-                padding: EdgeInsets.symmetric(vertical: 20),
+                padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
                 child: Center(
                     child: CircularProgressIndicator(strokeWidth: 2)),
               );
             }
-            return const SizedBox(height: 8);
+            return const SizedBox(height: AppSpacing.sm);
           }
           final p = filtered[i];
           return _PostRow(
@@ -342,29 +285,6 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
   }
 }
 
-class _CircleBtn extends StatelessWidget {
-  final VoidCallback onTap;
-  final Widget child;
-  const _CircleBtn({required this.onTap, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 38,
-        height: 38,
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          border: Border.all(color: AppColors.paleLine),
-          shape: BoxShape.circle,
-        ),
-        child: Center(child: child),
-      ),
-    );
-  }
-}
-
 class _PostRow extends StatelessWidget {
   final Post post;
   final String? code;
@@ -389,7 +309,7 @@ class _PostRow extends StatelessWidget {
           // 이게 없으면 며칠 지난 공지가 매번 새 글처럼 보인다.
           color: post.isPinned ? AppColors.commPinnedBg : null,
           border: const Border(
-            bottom: BorderSide(color: AppColors.paleLineSoft),
+            bottom: BorderSide(color: AppColors.line),
           ),
         ),
         child: Row(
@@ -405,13 +325,13 @@ class _PostRow extends StatelessWidget {
                       if (post.isPinned) ...[
                         const SizedBox(width: 4),
                         const Icon(Icons.push_pin,
-                            size: 16, color: AppColors.paleInk2),
+                            size: 16, color: AppColors.ink2),
                       ],
                       const Spacer(),
                       Text(
                         _relativeTime(post.createdAt),
                         style: AppTextStyles.monoXs
-                            .copyWith(color: AppColors.paleInk3),
+                            .copyWith(color: AppColors.ink3),
                       ),
                     ],
                   ),
@@ -420,7 +340,7 @@ class _PostRow extends StatelessWidget {
                     post.title,
                     style: AppTextStyles.bodyBold.copyWith(
                       fontSize: 14,
-                      color: AppColors.primary,
+                      color: AppColors.ink,
                       letterSpacing: -0.2,
                       height: 1.4,
                     ),
@@ -438,7 +358,7 @@ class _PostRow extends StatelessWidget {
                       const SizedBox(width: 8),
                       Text('·',
                           style: AppTextStyles.caption
-                              .copyWith(color: AppColors.paleInk3)),
+                              .copyWith(color: AppColors.ink3)),
                       const SizedBox(width: 8),
                       _MetaIcon(
                           icon: AppIcons.likeLine,
@@ -451,7 +371,7 @@ class _PostRow extends StatelessWidget {
                       Text(
                         '조회 ${post.viewCount}',
                         style: AppTextStyles.monoXs
-                            .copyWith(color: AppColors.paleInk3),
+                            .copyWith(color: AppColors.ink3),
                       ),
                     ],
                   ),
@@ -475,7 +395,7 @@ class _PostRow extends StatelessWidget {
                   memWidth: 300,
                   placeholder: const Center(
                     child: Icon(Icons.image_outlined,
-                        size: 28, color: AppColors.paleInk3),
+                        size: 28, color: AppColors.ink3),
                   ),
                 ),
               ),
@@ -523,11 +443,11 @@ class _MetaIcon extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        AppIcon(icon, size: 16, color: AppColors.paleInk2),
+        AppIcon(icon, size: 16, color: AppColors.ink2),
         const SizedBox(width: 4),
         Text(
           '$value',
-          style: AppTextStyles.monoXs.copyWith(color: AppColors.paleInk2),
+          style: AppTextStyles.monoXs.copyWith(color: AppColors.ink2),
         ),
       ],
     );
@@ -546,16 +466,16 @@ class _AuthorAvatar extends StatelessWidget {
       height: size,
       clipBehavior: Clip.hardEdge,
       decoration: const BoxDecoration(
-          color: AppColors.paleBgAlt, shape: BoxShape.circle),
+          color: AppColors.bgAlt, shape: BoxShape.circle),
       child: imageUrl != null
           ? AppNetworkImage(
               imageUrl,
               fit: BoxFit.cover,
               memWidth: (size * 3).round(),
               placeholder:
-                  Icon(Icons.person, size: size * 0.62, color: AppColors.paleInk3),
+                  Icon(Icons.person, size: size * 0.62, color: AppColors.ink3),
             )
-          : Icon(Icons.person, size: size * 0.62, color: AppColors.paleInk3),
+          : Icon(Icons.person, size: size * 0.62, color: AppColors.ink3),
     );
   }
 }

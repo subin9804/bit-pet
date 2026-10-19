@@ -367,6 +367,16 @@ PostgreSQL이 재정규화하는데 의미는 같다.)
 개별 탭 화면은 급여의 것(`_buildFeedPerPet`)을 같이 쓰고, 폼 칸은 일괄과 같은 `_buildSimpleFields` 다 —
 탭을 옮길 때 `_SimpleDraft` 로 값만 갈아끼운다. 저장은 급여와 같이 **개체마다 '기록'을 누를 때 즉시**.
 
+### 커뮤니티 화면 디자인 가이드 정렬 (2026-10-19)
+
+커뮤니티 4화면만 헤더·버튼을 손으로 그려 다른 탭과 달랐다. 지금 기준:
+- 헤더는 전부 **`AppBar(backgroundColor: canvas)`** — 목록 '커뮤니티'(영문 소제목·32px 제목 제거), 상세는 게시판 이름 + ⋮,
+  작성은 ✕ + '새 글 작성/글 수정' + 브랜드 `ElevatedButton` '등록/저장', 차단 목록도 같은 형식
+- 목록 알림 점은 `unreadNotificationCountProvider > 0` 일 때만(전엔 항상 떠 있었다). 검색창은 `AppSearchField(autofocus)`
+- 눌리는 주 행동(글쓰기 FAB·등록·댓글 보내기)·포커스 밑줄은 `brandAction`. ⛔ `AppColors.primary` 는 먹색이다
+- 게시판 고르기는 `AppChip`, 오류·빈 상태는 `EmptyState`, 알림은 `showToast`(SnackBar 금지), 작성자 아바타는 bgAlt + person 로 통일
+- `pale*` 별칭 대신 실토큰(`ink2/ink3/line/bgAlt/bg`)
+
 ### Memo 도메인 (v5)
 - `health_memo_dtl` → `memo_dtl` (V15 마이그레이션)
 - 태그: `memo_tag_cd` + `memo_tag_rls` (다대다)

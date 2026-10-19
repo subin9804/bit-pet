@@ -4,10 +4,11 @@
 // 신고로 함께 생긴 차단도 여기서 푼다 — 다만 신고 자체는 이력이라 남는다.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/confirm_modal.dart';
+import '../../../core/widgets/empty_state.dart';
+import '../../../core/widgets/toast_message.dart';
 import '../data/models/report_models.dart';
 import '../data/post_repository.dart';
 import '../../../core/widgets/app_network_image.dart';
@@ -35,9 +36,8 @@ class BlockedUsersScreen extends ConsumerWidget {
       ref.invalidate(blockedUsersProvider);
     } catch (_) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('차단 해제에 실패했어요. 잠시 후 다시 시도해주세요.')),
-      );
+      showToast(context, '차단 해제에 실패했어요. 잠시 후 다시 시도해주세요.',
+          type: ToastType.error);
     }
   }
 
@@ -47,38 +47,32 @@ class BlockedUsersScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
+      // 흰 AppBar + 가운데 15px 제목이었다 — 연회색 본문 위에 머리만 흰 띠로 떴다.
+      // 다른 하위 화면과 같은 테마 기본(왼쪽 정렬 제목, 본문과 같은 바탕)으로.
       appBar: AppBar(
-        backgroundColor: AppColors.card,
-        elevation: 0,
-        leading: IconButton(
-          tooltip: '뒤로',
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              size: 16, color: AppColors.ink),
-          onPressed: () => context.pop(),
-        ),
-        title: Text('차단 목록',
-            style: AppTextStyles.bodyBold.copyWith(fontSize: 15)),
-        centerTitle: true,
+        backgroundColor: AppColors.canvas,
+        title: const Text('차단 목록'),
+        titleSpacing: 0,
       ),
       body: blockedAsync.when(
         loading: () =>
             const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-        error: (e, _) => Center(
-          child: Text('목록을 불러오지 못했어요',
-              style: AppTextStyles.body.copyWith(color: AppColors.ink3)),
+        error: (e, _) => EmptyState(
+          message: '불러오지 못했어요',
+          subMessage: '연결을 확인하고 다시 시도해주세요.',
+          icon: Icons.cloud_off,
+          tone: EmptyTone.neutral,
+          actionLabel: '다시 시도',
+          onAction: () => ref.invalidate(blockedUsersProvider),
         ),
         data: (users) {
           if (users.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32),
-                child: Text(
-                  '차단한 사용자가 없어요.\n게시글이나 댓글의 ⋯ 메뉴에서 차단할 수 있어요.',
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.body
-                      .copyWith(color: AppColors.ink3, height: 1.6),
-                ),
-              ),
+            // 차단 목록이 빈 것은 정상이고 '만들 것'도 아니다 → 무채색.
+            return const EmptyState(
+              message: '차단한 사용자가 없어요',
+              subMessage: '게시글이나 댓글의 ⋯ 메뉴에서 차단할 수 있어요.',
+              icon: Icons.block,
+              tone: EmptyTone.neutral,
             );
           }
           return ListView.separated(
@@ -94,16 +88,16 @@ class BlockedUsersScreen extends ConsumerWidget {
                   height: 36,
                   clipBehavior: Clip.hardEdge,
                   decoration: const BoxDecoration(
-                      color: AppColors.petClay, shape: BoxShape.circle),
+                      color: AppColors.bgAlt, shape: BoxShape.circle),
                   child: u.profileImageUrl != null
                       ? AppNetworkImage(u.profileImageUrl,
                           fit: BoxFit.cover,
                           memWidth: 100,
                           placeholder: const Icon(
-                              Icons.pets_rounded,
+                              Icons.person,
                               size: 16,
                               color: AppColors.ink2))
-                      : const Icon(Icons.pets_rounded,
+                      : const Icon(Icons.person,
                           size: 16, color: AppColors.ink2),
                 ),
                 title: Text(u.nickname,

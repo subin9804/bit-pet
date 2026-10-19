@@ -49,7 +49,7 @@ class _PostPhotoCarouselState extends State<PostPhotoCarousel> {
                 itemBuilder: (_, i) => GestureDetector(
                   onTap: () => _open(i),
                   child: Container(
-                    color: AppColors.paleBgAlt,
+                    color: AppColors.bgAlt,
                     child: AppNetworkImage(
                       urls[i],
                       width: double.infinity,

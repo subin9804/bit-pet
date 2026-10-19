@@ -27,12 +27,17 @@ class AppSearchField extends StatefulWidget {
   /// 자리에서는 지우기 한 번이 키보드 여는 것보다 빠르다.
   final bool clearable;
 
+  /// 처음 그려질 때 키보드를 연다. 버튼으로 펼치는 검색창(커뮤니티 목록)은
+  /// 펼친 뒤 칸을 한 번 더 누르게 하지 않는다.
+  final bool autofocus;
+
   const AppSearchField({
     super.key,
     required this.value,
     required this.onChanged,
     this.hintText = '이름 또는 종 검색',
     this.clearable = true,
+    this.autofocus = false,
   });
 
   @override
@@ -70,6 +75,7 @@ class _AppSearchFieldState extends State<AppSearchField> {
           Expanded(
             child: TextField(
               controller: _c,
+              autofocus: widget.autofocus,
               onChanged: widget.onChanged,
               style: AppTextStyles.body,
               decoration: InputDecoration(

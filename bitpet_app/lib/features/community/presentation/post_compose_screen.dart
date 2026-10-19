@@ -7,7 +7,9 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_input_styles.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/upload/image_upload.dart';
+import '../../../core/widgets/app_chip.dart';
 import '../../../core/widgets/app_network_image.dart';
+import '../../../core/widgets/toast_message.dart';
 import '../data/models/post_models.dart';
 import '../providers/post_provider.dart';
 import '../../../core/theme/app_dimens.dart';
@@ -90,17 +92,14 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
       // 글 본문은 저장된 상태다. 화면을 닫지 않고 남겨서 실패한 사진만 다시 올리게 한다
       // ('등록'을 다시 눌러도 글이 또 만들어지지는 않는다).
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('$e')));
+        showToast(context, '$e', type: ToastType.warning);
       }
     } catch (e) {
       if (mounted) {
         // 어린이 게시판 제한(CHILD_BOARD_ONLY / KIDS_BOARD_FORBIDDEN)처럼
         // 어디에 써야 하는지를 서버가 문장으로 알려주는 경우가 있다.
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(serverMessageOf(e) ?? '글을 저장하지 못했어요.')),
-        );
+        showToast(context, serverMessageOf(e) ?? '글을 저장하지 못했어요.',
+            type: ToastType.error);
       }
     }
   }
@@ -111,19 +110,48 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
     // visible 이 아니라 composable — 운영자가 아니면 공지사항이 목록에 없다
     final categories = ref.watch(composableCategoriesProvider);
 
+    final canSubmit = state.canSubmit && !state.isSubmitting;
+
     return Scaffold(
       backgroundColor: AppColors.canvas,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            _TopBar(
-              isEdit: widget.isEdit,
-              canSubmit: state.canSubmit && !state.isSubmitting,
-              isSubmitting: state.isSubmitting,
-              onCancel: () => context.pop(),
-              onSubmit: _submit,
+      // 손으로 그린 흰 띠 상단바('취소' 글자 + 가운데 '새 글 작성 / NEW' 2줄 + 검정 알약 '등록')였다.
+      // 영문 소제목은 다른 화면에서 걷어낸 장식이고, 검정 버튼은 먹색 `primary` 를 칠한 것이다.
+      // '루틴 추가'·'추가' 와 같은 AppBar + 브랜드색 버튼으로.
+      appBar: AppBar(
+        backgroundColor: AppColors.canvas,
+        leading: IconButton(
+          tooltip: '취소',
+          icon: const Icon(Icons.close),
+          onPressed: () => context.pop(),
+        ),
+        title: Text(widget.isEdit ? '글 수정' : '새 글 작성'),
+        titleSpacing: 0,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: AppSpacing.xl),
+            child: ElevatedButton(
+              onPressed: canSubmit ? _submit : null,
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(0, 36),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                textStyle: AppTextStyles.caption
+                    .copyWith(fontWeight: FontWeight.w700),
+              ),
+              child: state.isSubmitting
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: AppColors.brandTintInk),
+                    )
+                  : Text(widget.isEdit ? '저장' : '등록'),
             ),
+          ),
+        ],
+      ),
+      body: Column(
+          children: [
             Expanded(
               child: ListView(
                 padding: EdgeInsets.fromLTRB(
@@ -134,41 +162,20 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
                   _Field(
                     label: '게시판 선택',
                     required: true,
+                    // 손으로 그린 칩(선택 시 검정 채움)이었다 — 목록 화면의 게시판 칩과
+                    // 같은 [AppChip] 이어야 '같은 게시판을 고르는 것'으로 읽힌다.
                     child: Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: categories.map((c) {
-                        final active = state.categoryId == c.id;
-                        return GestureDetector(
-                          onTap: () => ref
-                              .read(composeProvider.notifier)
-                              .setCategory(c.id),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: active
-                                  ? AppColors.primary
-                                  : AppColors.card,
-                              border: Border.all(
-                                color: active
-                                    ? Colors.transparent
-                                    : AppColors.paleLine,
-                              ),
-                              borderRadius: AppRadius.brMd,
-                            ),
-                            child: Text(
-                              c.nameKo,
-                              style: AppTextStyles.bodyBold.copyWith(
-                                fontSize: 13,
-                                color: active
-                                    ? AppColors.paleBg
-                                    : AppColors.primary,
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
+                      spacing: AppSpacing.sm,
+                      runSpacing: AppSpacing.sm,
+                      children: categories
+                          .map((c) => AppChip(
+                                label: c.nameKo,
+                                selected: state.categoryId == c.id,
+                                onTap: () => ref
+                                    .read(composeProvider.notifier)
+                                    .setCategory(c.id),
+                              ))
+                          .toList(),
                     ),
                   ),
 
@@ -195,11 +202,11 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
                       maxLines: null,
                       minLines: 8,
                       style: AppTextStyles.body
-                          .copyWith(color: AppColors.primary, height: 1.6),
+                          .copyWith(color: AppColors.ink, height: 1.6),
                       decoration: AppInputStyles.textarea(
                         hintText: '자유롭게 작성해보세요.',
                         hintStyle: AppTextStyles.body
-                            .copyWith(color: AppColors.paleInk3),
+                            .copyWith(color: AppColors.ink3),
                         contentPadding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 16),
                       ),
@@ -222,7 +229,8 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
                                   height: 78,
                                   clipBehavior: Clip.hardEdge,
                                   decoration: const BoxDecoration(
-                                      color: AppColors.paleBgAlt),
+                                      color: AppColors.bgAlt,
+                                      borderRadius: AppRadius.brMd),
                                   child: e.value.isExisting
                                       ? AppNetworkImage(e.value.url,
                                           width: 78,
@@ -240,7 +248,10 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
                                         .removeAttachment(e.key),
                                     child: Container(
                                       padding: const EdgeInsets.all(4),
-                                      color: Colors.black54,
+                                      decoration: const BoxDecoration(
+                                        color: Colors.black54,
+                                        shape: BoxShape.circle,
+                                      ),
                                       child: const Icon(Icons.close,
                                           size: 16, color: Colors.white),
                                     ),
@@ -264,22 +275,22 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
                               width: 78,
                               height: 78,
                               decoration: BoxDecoration(
-                                borderRadius: AppRadius.brLg,
+                                borderRadius: AppRadius.brMd,
                                 color: AppColors.card,
                                 border: Border.all(
-                                    color: AppColors.paleLine, width: 1.5),
+                                    color: AppColors.line, width: 1.5),
                               ),
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   const Icon(Icons.camera_alt_outlined,
-                                      size: 20, color: AppColors.paleInk2),
+                                      size: 20, color: AppColors.ink2),
                                   const SizedBox(height: 4),
                                   Text(
                                       '${state.attachments.length}/$kMaxPostPhotos',
                                       style: AppTextStyles.monoXs.copyWith(
                                           fontWeight: FontWeight.w600,
-                                          color: AppColors.paleInk2)),
+                                          color: AppColors.ink2)),
                                 ],
                               ),
                             ),
@@ -292,93 +303,11 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
             ),
           ],
         ),
-      ),
     );
   }
 }
 
 // ── 공통 위젯들 ─────────────────────────────────────────────────────
-
-class _TopBar extends StatelessWidget {
-  final bool isEdit;
-  final bool canSubmit;
-  final bool isSubmitting;
-  final VoidCallback onCancel;
-  final VoidCallback onSubmit;
-
-  const _TopBar({
-    required this.isEdit,
-    required this.canSubmit,
-    required this.isSubmitting,
-    required this.onCancel,
-    required this.onSubmit,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-      color: AppColors.paleBg,
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: onCancel,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-              child: Text(
-                '취소',
-                style: AppTextStyles.bodyBold.copyWith(
-                  fontSize: 13,
-                  color: AppColors.paleInk2,
-                ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: Column(
-              children: [
-                Text(
-                  isEdit ? '글 수정' : '새 글 작성',
-                  style: AppTextStyles.bodyBold
-                      .copyWith(fontSize: 15, letterSpacing: -0.2),
-                ),
-                Text(
-                  isEdit ? 'EDIT' : 'NEW',
-                  style: AppTextStyles.monoXs,
-                ),
-              ],
-            ),
-          ),
-          GestureDetector(
-            onTap: canSubmit ? onSubmit : null,
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: canSubmit ? AppColors.primary : AppColors.paleLine,
-                borderRadius: AppRadius.brPill,
-              ),
-              child: isSubmitting
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: AppColors.paleBg),
-                    )
-                  : Text(
-                      '등록',
-                      style: AppTextStyles.bodyBold.copyWith(
-                        fontSize: 12,
-                        color: AppColors.paleBg,
-                      ),
-                    ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _Field extends StatelessWidget {
   final String label;
@@ -399,7 +328,7 @@ class _Field extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 16),
       decoration: const BoxDecoration(
         border: Border(
-            bottom: BorderSide(color: AppColors.paleLineSoft)),
+            bottom: BorderSide(color: AppColors.line)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -411,7 +340,7 @@ class _Field extends StatelessWidget {
                 style: AppTextStyles.caption.copyWith(
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.3,
-                  color: AppColors.paleInk2,
+                  color: AppColors.ink2,
                 ),
               ),
               if (required)
@@ -431,7 +360,7 @@ class _Field extends StatelessWidget {
             const SizedBox(height: 8),
             Text(hint!,
                 style: AppTextStyles.caption
-                    .copyWith(color: AppColors.paleInk3)),
+                    .copyWith(color: AppColors.ink3)),
           ],
         ],
       ),
@@ -455,16 +384,16 @@ class _PaleTextField extends StatelessWidget {
     return TextField(
       controller: controller,
       onChanged: onChanged,
-      style: AppTextStyles.body.copyWith(color: AppColors.primary),
+      style: AppTextStyles.body.copyWith(color: AppColors.ink),
       decoration: InputDecoration(
         hintText: placeholder,
         hintStyle:
-            AppTextStyles.body.copyWith(color: AppColors.paleInk3),
+            AppTextStyles.body.copyWith(color: AppColors.ink3),
         enabledBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: AppColors.paleLine),
+          borderSide: BorderSide(color: AppColors.line),
         ),
         focusedBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: AppColors.primary, width: 1.5),
+          borderSide: BorderSide(color: AppColors.brandAction, width: 1.5),
         ),
         isDense: true,
         contentPadding:

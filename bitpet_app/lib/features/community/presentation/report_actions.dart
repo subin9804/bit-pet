@@ -13,6 +13,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/confirm_modal.dart';
+import '../../../core/widgets/toast_message.dart';
 import '../data/models/report_models.dart';
 import '../data/post_repository.dart';
 
@@ -42,8 +43,7 @@ Future<T?> showBitpetSheet<T>(
 
 void _toast(BuildContext context, String message) {
   if (!context.mounted) return;
-  ScaffoldMessenger.of(context)
-      .showSnackBar(SnackBar(content: Text(message)));
+  showToast(context, message);
 }
 
 /// 남의 글/댓글 메뉴에 붙는 두 줄. 신고·차단이 **따로** 보이는 것이 핵심이다.
@@ -79,7 +79,7 @@ List<Widget> reportBlockTiles({
     ),
     ListTile(
       contentPadding: EdgeInsets.zero,
-      leading: const Icon(Icons.block, color: AppColors.primary),
+      leading: const Icon(Icons.block, color: AppColors.ink),
       title: const Text('차단하기'),
       subtitle: Text('$authorName 님의 글과 댓글이 보이지 않습니다',
           style: AppTextStyles.monoXs),
@@ -128,7 +128,7 @@ Future<void> showReportSheet({
             contentPadding: EdgeInsets.zero,
             title: Text(r.label, style: AppTextStyles.body),
             trailing: const Icon(Icons.chevron_right_rounded,
-                size: 20, color: AppColors.paleInk3),
+                size: 20, color: AppColors.ink3),
             onTap: () => Navigator.pop(context, r),
           ),
         ),
