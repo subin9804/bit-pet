@@ -141,6 +141,19 @@ class PetRepository {
     return apiRes.data!;
   }
 
+  /// 내 목록 순서 저장 — 보이는 순서 그대로의 id. 순서는 사람마다 따로라
+  /// 공유받은 개체를 옮겨도 소유자 목록은 그대로다.
+  Future<void> reorderPets(List<int> ids) async {
+    final res = await _dio.put('/pets/order', data: {'petIds': ids});
+    final apiRes = ApiResponse.fromJson(
+        res.data as Map<String, dynamic>, (_) => null);
+    if (!apiRes.success) {
+      throw ApiException(
+          statusCode: res.statusCode ?? 0,
+          message: apiRes.message ?? '순서 저장에 실패했습니다.');
+    }
+  }
+
   /// 갤러리 사진 하나를 대표(프로필) 사진으로 지정
   Future<Pet> setProfilePhoto(int petId, int photoId) async {
     final res = await _dio.put('/pets/$petId/profile-photo/$photoId');

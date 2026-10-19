@@ -13,6 +13,7 @@ import io.bitpet.pet.dto.PetRelationRequest;
 import io.bitpet.pet.dto.PetRelationResponse;
 import io.bitpet.pet.dto.PetNameAvailabilityResponse;
 import io.bitpet.pet.dto.PetQuotaResponse;
+import io.bitpet.pet.dto.PetReorderRequest;
 import io.bitpet.pet.dto.PetResponse;
 import io.bitpet.pet.dto.PetUpdateRequest;
 import io.bitpet.pet.service.PetService;
@@ -67,6 +68,15 @@ public class PetController {
     public ApiResponse<List<PetResponse>> list(
             @AuthenticationPrincipal AuthPrincipal principal) {
         return ApiResponse.ok(petService.listByOwner(principal.userId()));
+    }
+
+    @Operation(summary = "내 개체 목록 순서 저장 — 보이는 순서 그대로의 id (사람마다 따로)")
+    @org.springframework.web.bind.annotation.PutMapping("/order")
+    public ApiResponse<Void> reorder(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @Valid @RequestBody PetReorderRequest request) {
+        petService.reorder(principal.userId(), request.petIds());
+        return ApiResponse.ok();
     }
 
     @Operation(summary = "개체 검색 (종·성별·이름 필터)")

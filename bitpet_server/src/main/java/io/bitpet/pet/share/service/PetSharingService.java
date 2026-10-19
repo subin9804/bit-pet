@@ -313,17 +313,19 @@ public class PetSharingService {
         PetMst pet = petRepository.findById(petId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PET_NOT_FOUND));
 
-        // 기존 소유자 → KEEPER 강등 (기록 접근 유지)
-        keeperRepository.findByIdPetIdAndIdUserId(petId, oldOwnerUserId)
-                .ifPresent(old -> keeperRepository.delete(old));
+        // 기존 소유자 → KEEPER 강등 (기록 접근 유지). 목록 순서는 그 사람이 정한 자리 그대로.
+        int oldOwnerOrder = keeperRepository.findByIdPetIdAndIdUserId(petId, oldOwnerUserId)
+                .map(old -> { keeperRepository.delete(old); return old.getSortOrder(); })
+                .orElseGet(() -> petKeeper.topSortOrder(oldOwnerUserId));
         keeperRepository.save(PetKeeperRls.of(petId, oldOwnerUserId,
-                io.bitpet.pet.domain.PetKeeperRole.KEEPER));
+                io.bitpet.pet.domain.PetKeeperRole.KEEPER, oldOwnerOrder));
 
-        // 새 소유자 → OWNER (기존 KEEPER 행이 있으면 교체)
-        keeperRepository.findByIdPetIdAndIdUserId(petId, newOwnerUserId)
-                .ifPresent(k -> keeperRepository.delete(k));
+        // 새 소유자 → OWNER (기존 KEEPER 행이 있으면 교체 — 자리 유지, 처음 받는 개체면 맨 위)
+        int newOwnerOrder = keeperRepository.findByIdPetIdAndIdUserId(petId, newOwnerUserId)
+                .map(k -> { keeperRepository.delete(k); return k.getSortOrder(); })
+                .orElseGet(() -> petKeeper.topSortOrder(newOwnerUserId));
         keeperRepository.save(PetKeeperRls.of(petId, newOwnerUserId,
-                io.bitpet.pet.domain.PetKeeperRole.OWNER));
+                io.bitpet.pet.domain.PetKeeperRole.OWNER, newOwnerOrder));
 
         // 비정규화된 소유자 포인터 동기화
         pet.transferOwnerTo(newOwnerUserId);

@@ -142,12 +142,17 @@ public class PetService {
 
     /** 내가 사육하는 개체 목록 (소유 + 공유받은 개체) */
     public List<PetResponse> listByOwner(Long userId) {
-        List<Long> petIds = petKeeper.keptPetIds(userId);
+        // 사람마다 정한 순서(pet_keeper_rls.sort_order). findAllById 는 순서를 지키지 않으므로 id 로 다시 맞춘다
+        List<Long> petIds = petKeeper.keptPetIdsOrdered(userId);
         if (petIds.isEmpty()) return List.of();
         // 목록에는 공유받은 개체도 섞여 있다 — 개체마다 소유자를 다시 묻지 않도록 한 번에 받아둔다
         Set<Long> ownedIds = petKeeper.ownedPetIds(userId);
-        return petRepository.findAllById(petIds).stream()
-                // 폐사(이별) 개체는 목록 마지막으로 (stable sort — 기존 순서 유지)
+        java.util.Map<Long, PetMst> byId = new java.util.HashMap<>();
+        petRepository.findAllById(petIds).forEach(p -> byId.put(p.getId(), p));
+        return petIds.stream()
+                .map(byId::get)
+                .filter(java.util.Objects::nonNull) // 지운 개체(@SQLRestriction)는 빠진다
+                // 폐사(이별) 개체는 순서값과 무관하게 목록 마지막으로 (stable sort — 정한 순서 유지)
                 .sorted(java.util.Comparator.comparing(p -> p.getDeceasedAt() != null))
                 .map(pet -> {
                     Double latestWeight = weightRepository.findAllByPetIdOrderByMeasuredAtDesc(pet.getId())
@@ -158,6 +163,12 @@ public class PetService {
                             resolveProfileImageUrl(pet), ownedIds.contains(pet.getId()));
                 })
                 .toList();
+    }
+
+    /** 내 목록 순서 저장 — 클래스가 readOnly 라 여기서 쓰기 트랜잭션을 연다 */
+    @Transactional
+    public void reorder(Long userId, List<Long> petIds) {
+        petKeeper.reorder(userId, petIds);
     }
 
     public List<PetResponse> search(Long userId, Long speciesId, PetGender gender, String name) {

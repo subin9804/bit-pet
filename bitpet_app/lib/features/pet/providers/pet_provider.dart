@@ -25,12 +25,27 @@ class PetListNotifier extends StateNotifier<AsyncValue<List<Pet>>> {
     state = await AsyncValue.guard(() async => _sorted(await _repo.getMyPets()));
   }
 
+  /// 새 개체는 맨 위 — 서버도 그 사람 목록의 최솟값 - 1 로 넣는다(pet_keeper_rls.sort_order).
   Future<Pet> add(CreatePetRequest request) async {
     final pet = await _repo.createPet(request);
     state.whenData((list) {
-      state = AsyncValue.data(_sorted([...list, pet]));
+      state = AsyncValue.data(_sorted([pet, ...list]));
     });
     return pet;
+  }
+
+  /// 순서 바꾸기 — 화면이 먼저 바뀌고(드래그를 놓는 순간) 저장은 뒤따른다.
+  /// 이별 개체는 어디에 놓아도 맨 뒤로 돌아간다. 저장이 실패하면 원래 순서로 되돌리고 예외를 올린다.
+  Future<void> reorder(List<Pet> ordered) async {
+    final before = state.valueOrNull;
+    final next = _sorted(ordered);
+    state = AsyncValue.data(next);
+    try {
+      await _repo.reorderPets(next.map((p) => p.id).toList());
+    } catch (_) {
+      if (before != null) state = AsyncValue.data(before);
+      rethrow;
+    }
   }
 
   Future<void> update(int id, Map<String, dynamic> data) async {

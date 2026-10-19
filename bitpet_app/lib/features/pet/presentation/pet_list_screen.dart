@@ -49,19 +49,27 @@ void _exitSelection(WidgetRef ref) {
   ref.read(selectedPetIdsProvider.notifier).state = {};
 }
 
-/// 롱프레스 등으로 선택 모드에 바로 진입하며 해당 개체를 선택.
+/// 길게 누르기 = **순서 바꾸기**다 (2026-10-19, 전에는 공유·분양 선택 모드 진입).
+/// 선택 모드는 AppBar '공유·분양' 버튼으로만 들어간다.
 ///
-/// 공유받은 개체(KEEPER)는 공유·분양·삭제 어느 것도 소유자만 할 수 있어
-/// 선택 모드에서 아예 목록에 나오지 않는다. 그 개체를 길게 눌러 선택 모드로
-/// 들어가면 방금 누른 카드가 사라져 버리므로, 진입시키지 않고 이유만 알린다.
-void _enterSelectionWith(BuildContext context, WidgetRef ref, Pet pet) {
-  if (!pet.isOwner) {
-    showToast(context, '공유받은 개체는 분양·삭제할 수 없어요. 소유자만 가능합니다.',
-        type: ToastType.info);
-    return;
+/// 종 필터·검색이 켜져 있으면 순서를 못 바꾼다 — 보이는 건 일부뿐이라, 거기서 옮긴
+/// 결과가 '전체' 목록의 어디에 떨어지는지 사용자가 예상할 수 없다. 핸들을 숨기고
+/// 길게 누르면 이유만 알린다.
+void _showReorderLocked(BuildContext context) {
+  showToast(context, "순서는 '전체'에서 바꿀 수 있어요", type: ToastType.info);
+}
+
+/// 옮긴 순서 저장 — 화면은 이미 바뀌어 있고, 실패하면 provider 가 되돌린다.
+Future<void> _saveOrder(
+    BuildContext context, WidgetRef ref, List<Pet> ordered) async {
+  try {
+    await ref.read(petListProvider.notifier).reorder(ordered);
+  } catch (_) {
+    if (context.mounted) {
+      showToast(context, '순서를 저장하지 못했어요. 잠시 후 다시 시도해주세요.',
+          type: ToastType.error);
+    }
   }
-  ref.read(petSelectionModeProvider.notifier).state = true;
-  ref.read(selectedPetIdsProvider.notifier).state = {pet.id};
 }
 
 /// 선택한 개체 일괄 삭제 — 확인 모달을 거쳐 `DELETE /api/v1/pets` 한 번으로 처리한다.
@@ -436,6 +444,11 @@ class _PetTabState extends ConsumerState<_PetTab> {
                 return matchQuery && matchCategory && selectable;
               }).toList();
 
+              // 순서는 '전체'가 다 보일 때만 바꾼다 (_showReorderLocked 주석).
+              // 선택 모드에서는 길게 누르기도 드래그도 끈다 — 탭이 체크 토글이다.
+              final canReorder =
+                  !selecting && _query.isEmpty && _selectedSpeciesId == null;
+
               // 필터 때문이 아니라 '공유받아서' 사라진 개체는 이유를 알려준다
               final hiddenShared = selecting
                   ? allPets.where((p) => !p.isOwner).length
@@ -486,8 +499,8 @@ class _PetTabState extends ConsumerState<_PetTab> {
                     if (hiddenShared > 0) _SharedHiddenNotice(hiddenShared),
                     Expanded(
                       child: isGridView
-                          ? _PetGrid(pets: pets)
-                          : _PetListView(pets: pets),
+                          ? _PetGrid(pets: pets, canReorder: canReorder)
+                          : _PetListView(pets: pets, canReorder: canReorder),
                     ),
                   ],
                 ),
@@ -669,32 +682,130 @@ class _SharedHiddenNotice extends StatelessWidget {
   }
 }
 
-class _PetGrid extends StatelessWidget {
+/// 갤러리 — 3열, 길게 눌러 끌면 순서가 바뀐다.
+///
+/// Flutter 에는 격자용 Reorderable 위젯이 없어 칸마다 [LongPressDraggable] +
+/// [DragTarget] 을 직접 단다. 끌고 다니는 동안은 [_dragOrder] 로만 자리를 바꿔 보여주고,
+/// 손을 떼는 순간 한 번 저장한다(칸을 지날 때마다 저장하지 않는다).
+///
+/// ⚠️ 칸은 `GridView(children:)` + `ValueKey(pet.id)` 다. builder 로 만들면 자리가
+/// 바뀔 때 위젯이 다른 개체로 재사용돼 끌고 있던 [Draggable] 이 버려지고,
+/// 그러면 `onDragEnd` 가 불리지 않아 저장이 안 된다.
+class _PetGrid extends ConsumerStatefulWidget {
   final List<Pet> pets;
-  const _PetGrid({required this.pets});
+  final bool canReorder;
+  const _PetGrid({required this.pets, required this.canReorder});
+
+  @override
+  ConsumerState<_PetGrid> createState() => _PetGridState();
+}
+
+class _PetGridState extends ConsumerState<_PetGrid> {
+  /// 끄는 동안의 임시 순서. null 이면 provider 순서 그대로.
+  List<Pet>? _dragOrder;
+
+  List<Pet> get _shown => _dragOrder ?? widget.pets;
+
+  void _hover(int draggedId, int targetId) {
+    if (draggedId == targetId) return;
+    final list = [..._shown];
+    final from = list.indexWhere((p) => p.id == draggedId);
+    final to = list.indexWhere((p) => p.id == targetId);
+    if (from < 0 || to < 0) return;
+    list.insert(to, list.removeAt(from));
+    setState(() => _dragOrder = list);
+  }
+
+  void _commit() {
+    final order = _dragOrder;
+    if (order == null) return;
+    final changed = order.map((p) => p.id).join(',') !=
+        widget.pets.map((p) => p.id).join(',');
+    // provider 를 먼저 바꾸고(동기) 임시 순서를 지운다 — 반대면 한 프레임 원래 자리로 튄다
+    if (changed) _saveOrder(context, ref, order);
+    setState(() => _dragOrder = null);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
-      padding: const EdgeInsets.all(AppSpacing.xl),
-      // ⛔ 3열로 늘렸다가 되돌렸다. 카드 폭이 ~110px 이 되면 이름·종·체중이
-      //    들어갈 자리가 없어 전부 말줄임이 걸린다 — 스크롤 길이를 줄이려고
-      //    **정보를 못 읽게 만드는** 교환이었다. 2열이 이 카드의 하한이다.
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: AppSpacing.md,
-        mainAxisSpacing: AppSpacing.md,
-        childAspectRatio: 0.78,
+    final pets = _shown;
+    // ⛔ 전에는 2열이 하한이었다 — 3열(카드 폭 ~100px)에 이름·종·체중을 넣으면 전부
+    //    말줄임이 걸렸다. 체중을 카드에서 빼고(목록 모드·상세에는 그대로) 이름·종 두 줄만
+    //    남겨서 3열이 된다. 체중을 다시 넣으려면 2열로 돌아가야 한다.
+    //
+    // 칸 높이는 비율이 아니라 '사진 정사각형 + 글자 두 줄'로 계산한다. 비율로 고정하면
+    // OS 글자 크기를 키운 사람에게 정보칸이 넘친다(아래 _PetCard 주석).
+    return LayoutBuilder(builder: (context, constraints) {
+      const cols = 3;
+      const pad = AppSpacing.xl;
+      const gap = AppSpacing.sm;
+      final cellW =
+          (constraints.maxWidth - pad * 2 - gap * (cols - 1)) / cols;
+      final scaler = MediaQuery.textScalerOf(context);
+      // 이름 15px · 종 13px, 둘 다 줄높이 1.5 (AppTextStyles). 끝의 +2 는 반올림 여유
+      final infoH = AppSpacing.sm * 2 +
+          scaler.scale(15) * 1.5 + 2 + scaler.scale(13) * 1.5 + 2;
+      final cellH = cellW + infoH;
+
+      return GridView(
+        padding: const EdgeInsets.all(pad),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: cols,
+          crossAxisSpacing: gap,
+          mainAxisSpacing: gap,
+          mainAxisExtent: cellH,
+        ),
+        children: [
+          for (final pet in pets)
+            KeyedSubtree(
+              key: ValueKey(pet.id),
+              child: widget.canReorder
+                  ? _draggableCell(pet, Size(cellW, cellH))
+                  : _PetCard(pet: pet, canReorder: false),
+            ),
+        ],
+      );
+    });
+  }
+
+  Widget _draggableCell(Pet pet, Size size) {
+    return DragTarget<int>(
+      onWillAcceptWithDetails: (d) {
+        _hover(d.data, pet.id);
+        return true;
+      },
+      onAcceptWithDetails: (_) => _commit(),
+      builder: (context, _, _) => LongPressDraggable<int>(
+        data: pet.id,
+        onDragStarted: () => setState(() => _dragOrder = [...widget.pets]),
+        onDragEnd: (_) => _commit(),
+        feedback: SizedBox.fromSize(
+          size: size,
+          child: Material(
+            type: MaterialType.transparency,
+            child: Transform.scale(
+              scale: 1.05,
+              child: _PetCard(pet: pet, canReorder: true),
+            ),
+          ),
+        ),
+        childWhenDragging: Opacity(
+          opacity: 0.3,
+          child: _PetCard(pet: pet, canReorder: true),
+        ),
+        child: _PetCard(pet: pet, canReorder: true),
       ),
-      itemCount: pets.length,
-      itemBuilder: (_, i) => _PetCard(pet: pets[i]),
     );
   }
 }
 
 class _PetCard extends ConsumerWidget {
   final Pet pet;
-  const _PetCard({required this.pet});
+
+  /// true 면 길게 누르기를 바깥 [LongPressDraggable] 이 가져간다.
+  /// false 면 (필터·검색 중) 길게 눌렀을 때 이유만 알린다. 선택 모드에선 아무 일도 없다.
+  final bool canReorder;
+  const _PetCard({required this.pet, required this.canReorder});
 
   Color get _bgColor {
     // 개체 지정색은 걷어냈다 — 저장된 hex 를 그대로 칠하던 자리다.
@@ -711,8 +822,9 @@ class _PetCard extends ConsumerWidget {
       onTap: selecting
           ? () => _togglePet(ref, pet.id)
           : () => context.push('/pets/${pet.id}'),
-      onLongPress:
-          selecting ? null : () => _enterSelectionWith(context, ref, pet),
+      onLongPress: selecting || canReorder
+          ? null
+          : () => _showReorderLocked(context),
       child: Container(
         // 카드 위쪽 절반이 사진으로 꽉 차는 구조라, 자르지 않으면 사진이
         // 둥근 모서리를 그대로 뚫고 나온다 — 테두리만 둥글고 내용은 각진 모양이 된다.
@@ -731,8 +843,8 @@ class _PetCard extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // 사진이 남는 높이를 다 먹고, 정보칸은 글자만큼만 — 칸 높이는 _PetGrid 가 계산한다
             Expanded(
-              flex: 6,
               child: Stack(
                 children: [
                   Container(
@@ -743,7 +855,7 @@ class _PetCard extends ConsumerWidget {
                     child: pet.profileImageUrl != null
                         ? AppNetworkImage(pet.profileImageUrl,
                                 fit: BoxFit.cover,
-                                memWidth: 400,
+                                memWidth: 300,
                                 placeholder: _spriteIcon())
                         : _spriteIcon(),
                   ),
@@ -771,50 +883,25 @@ class _PetCard extends ConsumerWidget {
                 ],
               ),
             ),
-            Expanded(
-              flex: 4,
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.sm),
-                // ⚠️ 여기서 overflow 가 났다. 정보칸은 카드 높이의 4/10 로
-                // **고정**인데 이름·종·체중을 **세 줄**로 쌓고 있었다. 기기가
-                // 좁거나 OS 글자 크기를 키운 사람(textScaler > 1)에게는 세 줄이
-                // 그 높이를 넘긴다 — 비율을 조금 키워봐야 글자 배율은 한계가 없다.
-                //
-                // 그래서 줄 수를 줄인다: **종과 체중을 한 줄에** 놓는다
-                // (종은 왼쪽에서 남는 폭을 먹고, 체중은 오른쪽 끝). 두 줄이면
-                // 여유가 생기고, 종·체중은 성격이 달라 가로로 나란히 두는 게
-                // 위아래로 쌓는 것보다 오히려 잘 읽힌다.
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(pet.name,
-                        style: AppTextStyles.bodyBold,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis),
-                    const SizedBox(height: 2),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.baseline,
-                      textBaseline: TextBaseline.alphabetic,
-                      children: [
-                        Expanded(
-                          child: Text(pet.speciesName,
-                              style: AppTextStyles.caption,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis),
-                        ),
-                        if (pet.latestWeightG != null) ...[
-                          const SizedBox(width: AppSpacing.xs),
-                          Text(
-                            '${pet.latestWeightG!.toStringAsFixed(0)}g',
-                            style: AppTextStyles.caption
-                                .copyWith(color: AppColors.ink3),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ],
-                ),
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.sm),
+              // ⚠️ 여기서 overflow 가 났었다 — 정보칸을 카드 높이의 4/10 로 **고정**해 두고
+              // 이름·종·체중을 쌓았더니, OS 글자 크기를 키운 사람(textScaler > 1)에게
+              // 넘쳤다. 지금은 정보칸이 글자 높이만큼 잡히고 사진이 나머지를 먹는다.
+              // 3열이라 체중은 뺐다(_PetGrid 주석) — 이름·종 두 줄.
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(pet.name,
+                      style: AppTextStyles.bodyBold,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 2),
+                  Text(pet.speciesName,
+                      style: AppTextStyles.caption,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                ],
               ),
             ),
           ],
@@ -827,7 +914,7 @@ class _PetCard extends ConsumerWidget {
   // 뱀만 키우는 사람의 목록이 통째로 거짓말을 한다.
   Widget _spriteIcon() => Center(
       child: AppIcon(AppIcons.species(pet.speciesSubcategory),
-          size: 48, color: AppColors.primary.withValues(alpha: 0.3)));
+          size: 36, color: AppColors.ink.withValues(alpha: 0.3)));
 }
 
 /// 선택 모드 체크 배지
@@ -856,29 +943,66 @@ class _CheckBadge extends StatelessWidget {
   }
 }
 
-class _PetListView extends StatelessWidget {
+/// 목록 모드 — 순서를 바꿀 수 있으면 왼쪽 `≡` 핸들(바로 끌림) 또는 타일 길게 누르기로 옮긴다.
+/// 필터·검색·선택 모드에선 핸들을 숨긴 평범한 목록이다.
+class _PetListView extends ConsumerWidget {
   final List<Pet> pets;
-  const _PetListView({required this.pets});
+  final bool canReorder;
+  const _PetListView({required this.pets, required this.canReorder});
 
   @override
-  Widget build(BuildContext context) {
-    return ListView.separated(
-      padding: const EdgeInsets.all(AppSpacing.xl),
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (!canReorder) {
+      return ListView.separated(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        itemCount: pets.length,
+        separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
+        itemBuilder: (_, i) => _PetListTile(pet: pets[i]),
+      );
+    }
+    // ReorderableListView 에는 separated 가 없다 — 칸 아래 여백으로 간격을 만들고,
+    // 마지막 칸 여백만큼 바깥 아래 패딩을 줄인다.
+    return ReorderableListView.builder(
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.xl, AppSpacing.xl, AppSpacing.xl, AppSpacing.md),
+      buildDefaultDragHandles: false,
       itemCount: pets.length,
-      separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
-      itemBuilder: (_, i) => _PetListTile(pet: pets[i]),
+      // 기본 proxy 는 네모난 Material 그림자를 씌워 둥근 카드 밖으로 각이 진다.
+      // 카드가 자기 그림자를 이미 갖고 있으니 투명하게 띄우기만 한다.
+      proxyDecorator: (child, _, _) =>
+          Material(type: MaterialType.transparency, child: child),
+      // onReorderItem 은 newIndex 를 '빼고 난 뒤' 기준으로 이미 맞춰 준다
+      onReorderItem: (oldIndex, newIndex) {
+        if (newIndex == oldIndex) return;
+        final list = [...pets];
+        list.insert(newIndex, list.removeAt(oldIndex));
+        _saveOrder(context, ref, list);
+      },
+      itemBuilder: (_, i) => Padding(
+        key: ValueKey(pets[i].id),
+        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+        child: ReorderableDelayedDragStartListener(
+          index: i,
+          child: _PetListTile(pet: pets[i], reorderIndex: i),
+        ),
+      ),
     );
   }
 }
 
 class _PetListTile extends ConsumerWidget {
   final Pet pet;
-  const _PetListTile({required this.pet});
+
+  /// 순서를 바꿀 수 있을 때만 값이 있다 — 왼쪽 `≡` 핸들이 이 자리로 끌기 시작한다.
+  /// null 이면 핸들이 없고, (선택 모드가 아니면) 길게 눌렀을 때 이유만 알린다.
+  final int? reorderIndex;
+  const _PetListTile({required this.pet, this.reorderIndex});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selecting = ref.watch(petSelectionModeProvider);
     final selected = ref.watch(selectedPetIdsProvider).contains(pet.id);
+    final canReorder = reorderIndex != null;
 
     // ⚠️ `ListTile` 은 `tileColor` 를 자기가 칠하므로 **그림자를 넣을 자리가
     // 없다**(shape 의 border 까지가 한계였다). 그래서 카드 모양·그림자는 바깥
@@ -895,25 +1019,47 @@ class _PetListTile extends ConsumerWidget {
             width: selected ? 2 : 1),
         boxShadow: AppShadows.elev1,
       ),
-      child: ListTile(
-      onTap: selecting
-          ? () => _togglePet(ref, pet.id)
-          : () => context.push('/pets/${pet.id}'),
-      onLongPress:
-          selecting ? null : () => _enterSelectionWith(context, ref, pet),
-      contentPadding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md, vertical: AppSpacing.xs),
-      shape: const RoundedRectangleBorder(borderRadius: AppRadius.brLg),
-      tileColor: Colors.transparent,
-      leading: selecting
-          ? _CheckBadge(selected: selected)
-          : _PetAvatarSmall(pet: pet),
-      title: Text(pet.name, style: AppTextStyles.bodyBold),
-      subtitle: Text(pet.speciesName, style: AppTextStyles.caption),
-      trailing: pet.latestWeightG != null
-          ? Text('${pet.latestWeightG!.toStringAsFixed(0)}g',
-              style: AppTextStyles.caption)
-          : null,
+      child: Row(
+        children: [
+          if (canReorder)
+            // 핸들은 누르자마자 끌린다(길게 누를 필요 없음) — 타일 쪽 길게 누르기와 별개
+            ReorderableDragStartListener(
+              index: reorderIndex!,
+              child: const Padding(
+                padding: EdgeInsets.only(
+                    left: AppSpacing.md, top: AppSpacing.md, bottom: AppSpacing.md),
+                child: Icon(Icons.drag_handle,
+                    size: AppIconSize.md, color: AppColors.ink3),
+              ),
+            ),
+          Expanded(
+            child: ListTile(
+              onTap: selecting
+                  ? () => _togglePet(ref, pet.id)
+                  : () => context.push('/pets/${pet.id}'),
+              // 순서를 바꿀 수 있으면 길게 누르기는 바깥 ReorderableDelayedDragStartListener 몫
+              onLongPress: selecting || canReorder
+                  ? null
+                  : () => _showReorderLocked(context),
+              contentPadding: EdgeInsets.only(
+                  left: canReorder ? AppSpacing.sm : AppSpacing.md,
+                  right: AppSpacing.md,
+                  top: AppSpacing.xs,
+                  bottom: AppSpacing.xs),
+              shape: const RoundedRectangleBorder(borderRadius: AppRadius.brLg),
+              tileColor: Colors.transparent,
+              leading: selecting
+                  ? _CheckBadge(selected: selected)
+                  : _PetAvatarSmall(pet: pet),
+              title: Text(pet.name, style: AppTextStyles.bodyBold),
+              subtitle: Text(pet.speciesName, style: AppTextStyles.caption),
+              trailing: pet.latestWeightG != null
+                  ? Text('${pet.latestWeightG!.toStringAsFixed(0)}g',
+                      style: AppTextStyles.caption)
+                  : null,
+            ),
+          ),
+        ],
       ),
     );
   }

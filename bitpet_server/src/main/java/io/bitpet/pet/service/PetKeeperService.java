@@ -91,6 +91,11 @@ public class PetKeeperService {
         return keeperRepository.findPetIdsByUserId(userId);
     }
 
+    /** 유저가 사육하는 개체 id — 그 사람이 정한 목록 순서대로 (내 개체 목록용) */
+    public List<Long> keptPetIdsOrdered(Long userId) {
+        return keeperRepository.findPetIdsByUserIdOrdered(userId);
+    }
+
     /** 유저가 소유(OWNER)한 개체 id 집합 — 목록 응답에서 개체마다 재조회하지 않으려고 한 번에 받는다 */
     public Set<Long> ownedPetIds(Long userId) {
         return keeperRepository.findOwnedByUser(userId).stream()
@@ -135,12 +140,43 @@ public class PetKeeperService {
     /** 개체 생성 시 소유자 등록 */
     @Transactional
     public void registerOwner(Long petId, Long userId) {
-        keeperRepository.save(PetKeeperRls.of(petId, userId, PetKeeperRole.OWNER));
+        keeperRepository.save(PetKeeperRls.of(petId, userId, PetKeeperRole.OWNER, topSortOrder(userId)));
     }
 
     /** 공유 수락 시 사육자(KEEPER) 등록 */
     @Transactional
     public void registerKeeper(Long petId, Long userId) {
-        keeperRepository.save(PetKeeperRls.of(petId, userId, PetKeeperRole.KEEPER));
+        keeperRepository.save(PetKeeperRls.of(petId, userId, PetKeeperRole.KEEPER, topSortOrder(userId)));
+    }
+
+    /** 새로 들어오는 개체는 그 사람 목록의 맨 위 — 지금 최솟값보다 1 작게 */
+    public int topSortOrder(Long userId) {
+        return keeperRepository.findMinSortOrder(userId).map(min -> min - 1).orElse(0);
+    }
+
+    /**
+     * 내 목록 순서 저장 — 앱이 보여주는 순서 그대로 id 를 받아 0, 1, 2 … 로 다시 매긴다.
+     *
+     * <p>내가 사육하지 않는 id 는 무시한다(남의 순서를 건드릴 수 없다). 목록에 없는 내 개체
+     * (앱 목록이 오래됐거나 동시에 새로 생긴 개체)는 받은 것들 뒤로 기존 순서대로 붙인다 —
+     * 그 개체 때문에 저장 전체를 실패시키지는 않는다.
+     */
+    @Transactional
+    public void reorder(Long userId, List<Long> petIds) {
+        java.util.Map<Long, PetKeeperRls> mine = new java.util.HashMap<>();
+        for (PetKeeperRls k : keeperRepository.findAllByIdUserId(userId)) mine.put(k.getPetId(), k);
+        int order = 0;
+        java.util.Set<Long> placed = new java.util.HashSet<>();
+        for (Long petId : petIds) {
+            PetKeeperRls k = mine.get(petId);
+            if (k == null || !placed.add(petId)) continue;
+            k.changeSortOrder(order++);
+        }
+        List<PetKeeperRls> rest = mine.values().stream()
+                .filter(k -> !placed.contains(k.getPetId()))
+                .sorted(java.util.Comparator.comparingInt(PetKeeperRls::getSortOrder)
+                        .thenComparing(PetKeeperRls::getPetId))
+                .toList();
+        for (PetKeeperRls k : rest) k.changeSortOrder(order++);
     }
 }

@@ -58,5 +58,13 @@ public interface PetKeeperRlsRepository
     @Query("SELECT k FROM PetKeeperRls k WHERE k.id.userId = :userId AND k.role = 'OWNER'")
     List<PetKeeperRls> findOwnedByUser(@Param("userId") Long userId);
 
+    /** 유저 목록의 가장 위 순서값 — 새 개체를 그보다 1 작게 넣어 맨 위로 */
+    @Query("SELECT MIN(k.sortOrder) FROM PetKeeperRls k WHERE k.id.userId = :userId")
+    Optional<Integer> findMinSortOrder(@Param("userId") Long userId);
+
+    /** 유저가 사육하는 개체 id — 그 사람이 정한 순서대로 (같은 값이면 등록 순) */
+    @Query("SELECT k.id.petId FROM PetKeeperRls k WHERE k.id.userId = :userId ORDER BY k.sortOrder ASC, k.id.petId ASC")
+    List<Long> findPetIdsByUserIdOrdered(@Param("userId") Long userId);
+
     void deleteByIdPetIdAndIdUserId(Long petId, Long userId);
 }
