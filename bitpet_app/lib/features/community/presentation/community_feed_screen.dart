@@ -16,22 +16,22 @@ import '../../../core/theme/app_dimens.dart';
 import '../../../core/widgets/app_network_image.dart';
 
 Color _catBg(String? code) => switch (code?.toUpperCase()) {
-      'NOTICE' => AppColors.commNoticeBg,
-      'FREE' => AppColors.commFreeBg,
-      'QNA' => AppColors.commQnaBg,
-      'INFO' => AppColors.commInfoBg,
-      'ADOPTION' => AppColors.commSellBg,
-      _ => AppColors.bgAlt,
-    };
+  'NOTICE' => AppColors.commNoticeBg,
+  'FREE' => AppColors.commFreeBg,
+  'QNA' => AppColors.commQnaBg,
+  'INFO' => AppColors.commInfoBg,
+  'ADOPTION' => AppColors.commSellBg,
+  _ => AppColors.bgAlt,
+};
 
 Color _catInk(String? code) => switch (code?.toUpperCase()) {
-      'NOTICE' => AppColors.commNoticeInk,
-      'FREE' => AppColors.commFreeInk,
-      'QNA' => AppColors.commQnaInk,
-      'INFO' => AppColors.commInfoInk,
-      'ADOPTION' => AppColors.commSellInk,
-      _ => AppColors.ink2,
-    };
+  'NOTICE' => AppColors.commNoticeInk,
+  'FREE' => AppColors.commFreeInk,
+  'QNA' => AppColors.commQnaInk,
+  'INFO' => AppColors.commInfoInk,
+  'ADOPTION' => AppColors.commSellInk,
+  _ => AppColors.ink2,
+};
 
 String _relativeTime(DateTime dt) {
   final d = DateTime.now().difference(dt.toLocal());
@@ -115,8 +115,10 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
               isLabelVisible: hasUnread,
               smallSize: 8,
               backgroundColor: AppColors.commNotifDot,
-              child: const Icon(Icons.notifications_none_outlined,
-                  size: AppIconSize.lg),
+              child: const Icon(
+                Icons.notifications_none_outlined,
+                size: AppIconSize.lg,
+              ),
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
@@ -129,7 +131,11 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
           if (_showSearch)
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.md),
+                AppSpacing.xl,
+                0,
+                AppSpacing.xl,
+                AppSpacing.md,
+              ),
               child: AppSearchField(
                 value: search,
                 hintText: '제목 검색',
@@ -148,9 +154,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
           const SizedBox(height: AppSpacing.sm),
 
           // ── 게시글 목록 ──────────────────────────────────
-          Expanded(
-            child: _buildBody(feed, search, catById),
-          ),
+          Expanded(child: _buildBody(feed, search, catById)),
         ],
       ),
       // ── 글쓰기 버튼 (홈 FAB와 동일 위치·크기) ──────────
@@ -182,7 +186,10 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
   }
 
   Widget _buildBody(
-      FeedState feed, String search, Map<int, PostCategory> catById) {
+    FeedState feed,
+    String search,
+    Map<int, PostCategory> catById,
+  ) {
     if (feed.loading) {
       return const SkeletonCardList();
     }
@@ -200,9 +207,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
     final q = search.trim().toLowerCase();
     final filtered = q.isEmpty
         ? feed.posts
-        : feed.posts
-            .where((p) => p.title.toLowerCase().contains(q))
-            .toList();
+        : feed.posts.where((p) => p.title.toLowerCase().contains(q)).toList();
 
     if (filtered.isEmpty) {
       return RefreshIndicator(
@@ -243,8 +248,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
             if (feed.loadingMore) {
               return const Padding(
                 padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
-                child: Center(
-                    child: CircularProgressIndicator(strokeWidth: 2)),
+                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
               );
             }
             return const SizedBox(height: AppSpacing.sm);
@@ -271,14 +275,13 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
       itemCount: tabs.length,
-      separatorBuilder: (_, __) => const SizedBox(width: 8),
+      separatorBuilder: (_, _) => const SizedBox(width: 8),
       itemBuilder: (_, i) {
         final tab = tabs[i];
         return AppChip(
           label: tab.$2,
           selected: selected == tab.$1,
-          onTap: () =>
-              ref.read(categoryFilterProvider.notifier).state = tab.$1,
+          onTap: () => ref.read(categoryFilterProvider.notifier).state = tab.$1,
         );
       },
     );
@@ -299,108 +302,148 @@ class _PostRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        decoration: BoxDecoration(
-          // 고정된 글은 바탕을 깔아 "맨 위에 있는 최신 글"이 아니라 "고정된 글"로 읽히게 한다.
-          // 이게 없으면 며칠 지난 공지가 매번 새 글처럼 보인다.
-          color: post.isPinned ? AppColors.commPinnedBg : null,
-          border: const Border(
-            bottom: BorderSide(color: AppColors.line),
-          ),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+    // 글 한 건 = 흰 카드 한 장(2026-10-19). 예전엔 캔버스 위에 줄만 그어 둬서
+    // 화면 전체가 회색 한 면으로 보였고, 다른 탭(카드에 내용을 얹는 규칙)과 결이 달랐다.
+    return Container(
+      margin: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        0,
+        AppSpacing.lg,
+        AppSpacing.sm,
+      ),
+      decoration: post.isPinned
+          // 고정된 글은 연녹 바탕 + 브랜드 테두리로 "맨 위에 있는 최신 글"이 아니라
+          // "고정된 글"로 읽히게 한다. 이게 없으면 며칠 지난 공지가 매번 새 글처럼 보인다.
+          ? const BoxDecoration(
+              color: AppColors.commPinnedBg,
+              borderRadius: AppRadius.brLg,
+              border: Border.fromBorderSide(
+                BorderSide(color: AppColors.brand200),
+              ),
+            )
+          : AppDecor.cardRaised,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: AppRadius.brLg,
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _CategoryPill(code: code, label: label),
-                      if (post.isPinned) ...[
-                        const SizedBox(width: 4),
-                        const Icon(Icons.push_pin,
-                            size: 16, color: AppColors.ink2),
-                      ],
-                      const Spacer(),
+                      Row(
+                        children: [
+                          _CategoryPill(code: code, label: label),
+                          if (post.isPinned) ...[
+                            const SizedBox(width: 4),
+                            const Icon(
+                              Icons.push_pin,
+                              size: 16,
+                              color: AppColors.ink2,
+                            ),
+                          ],
+                          const Spacer(),
+                          Text(
+                            _relativeTime(post.createdAt),
+                            style: AppTextStyles.monoXs.copyWith(
+                              color: AppColors.ink3,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
                       Text(
-                        _relativeTime(post.createdAt),
-                        style: AppTextStyles.monoXs
-                            .copyWith(color: AppColors.ink3),
+                        post.title,
+                        style: AppTextStyles.bodyBold.copyWith(
+                          fontSize: 14,
+                          color: AppColors.ink,
+                          letterSpacing: -0.2,
+                          height: 1.4,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          _AuthorAvatar(
+                            imageUrl: post.authorImageUrl,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 4),
+                          // 긴 닉네임이 카드 폭을 넘어 오버플로하지 않게
+                          Flexible(
+                            child: Text(
+                              post.authorName,
+                              style: AppTextStyles.caption.copyWith(
+                                fontSize: 12,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '·',
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.ink3,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          _MetaIcon(
+                            icon: AppIcons.likeLine,
+                            value: post.likeCount,
+                          ),
+                          const SizedBox(width: 8),
+                          _MetaIcon(
+                            icon: AppIcons.comment,
+                            value: post.commentCount,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '조회 ${post.viewCount}',
+                            style: AppTextStyles.monoXs.copyWith(
+                              color: AppColors.ink3,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    post.title,
-                    style: AppTextStyles.bodyBold.copyWith(
-                      fontSize: 14,
-                      color: AppColors.ink,
-                      letterSpacing: -0.2,
-                      height: 1.4,
+                ),
+                // 썸네일 — 사진이 있는 게시글만 표시
+                if (post.thumbnailUrl != null) ...[
+                  const SizedBox(width: 12),
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      color: _catBg(code).withAlpha(216),
+                      borderRadius: AppRadius.brMd,
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      _AuthorAvatar(imageUrl: post.authorImageUrl, size: 16),
-                      const SizedBox(width: 4),
-                      Text(post.authorName,
-                          style: AppTextStyles.caption
-                              .copyWith(fontSize: 12)),
-                      const SizedBox(width: 8),
-                      Text('·',
-                          style: AppTextStyles.caption
-                              .copyWith(color: AppColors.ink3)),
-                      const SizedBox(width: 8),
-                      _MetaIcon(
-                          icon: AppIcons.likeLine,
-                          value: post.likeCount),
-                      const SizedBox(width: 8),
-                      _MetaIcon(
-                          icon: AppIcons.comment,
-                          value: post.commentCount),
-                      const SizedBox(width: 8),
-                      Text(
-                        '조회 ${post.viewCount}',
-                        style: AppTextStyles.monoXs
-                            .copyWith(color: AppColors.ink3),
+                    clipBehavior: Clip.hardEdge,
+                    child: AppNetworkImage(
+                      post.thumbnailUrl,
+                      fit: BoxFit.cover,
+                      memWidth: 300,
+                      placeholder: const Center(
+                        child: Icon(
+                          Icons.image_outlined,
+                          size: 28,
+                          color: AppColors.ink3,
+                        ),
                       ),
-                    ],
+                    ),
                   ),
                 ],
-              ),
+              ],
             ),
-            // 썸네일 — 사진이 있는 게시글만 표시
-            if (post.thumbnailUrl != null) ...[
-              const SizedBox(width: 12),
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  color: _catBg(code).withAlpha(216),
-                  borderRadius: AppRadius.brMd,
-                ),
-                clipBehavior: Clip.hardEdge,
-                child: AppNetworkImage(
-                  post.thumbnailUrl,
-                  fit: BoxFit.cover,
-                  memWidth: 300,
-                  placeholder: const Center(
-                    child: Icon(Icons.image_outlined,
-                        size: 28, color: AppColors.ink3),
-                  ),
-                ),
-              ),
-            ],
-          ],
+          ),
         ),
       ),
     );
@@ -466,14 +509,19 @@ class _AuthorAvatar extends StatelessWidget {
       height: size,
       clipBehavior: Clip.hardEdge,
       decoration: const BoxDecoration(
-          color: AppColors.bgAlt, shape: BoxShape.circle),
+        color: AppColors.bgAlt,
+        shape: BoxShape.circle,
+      ),
       child: imageUrl != null
           ? AppNetworkImage(
               imageUrl,
               fit: BoxFit.cover,
               memWidth: (size * 3).round(),
-              placeholder:
-                  Icon(Icons.person, size: size * 0.62, color: AppColors.ink3),
+              placeholder: Icon(
+                Icons.person,
+                size: size * 0.62,
+                color: AppColors.ink3,
+              ),
             )
           : Icon(Icons.person, size: size * 0.62, color: AppColors.ink3),
     );

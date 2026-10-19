@@ -20,20 +20,20 @@ import '../../../core/theme/app_dimens.dart';
 import '../../../core/widgets/app_network_image.dart';
 
 Color _catBg(String? code) => switch (code?.toUpperCase()) {
-      'FREE' => AppColors.commFreeBg,
-      'QNA' => AppColors.commQnaBg,
-      'INFO' => AppColors.commInfoBg,
-      'ADOPTION' => AppColors.commSellBg,
-      _ => AppColors.bgAlt,
-    };
+  'FREE' => AppColors.commFreeBg,
+  'QNA' => AppColors.commQnaBg,
+  'INFO' => AppColors.commInfoBg,
+  'ADOPTION' => AppColors.commSellBg,
+  _ => AppColors.bgAlt,
+};
 
 Color _catInk(String? code) => switch (code?.toUpperCase()) {
-      'FREE' => AppColors.commFreeInk,
-      'QNA' => AppColors.commQnaInk,
-      'INFO' => AppColors.commInfoInk,
-      'ADOPTION' => AppColors.commSellInk,
-      _ => AppColors.ink2,
-    };
+  'FREE' => AppColors.commFreeInk,
+  'QNA' => AppColors.commQnaInk,
+  'INFO' => AppColors.commInfoInk,
+  'ADOPTION' => AppColors.commSellInk,
+  _ => AppColors.ink2,
+};
 
 String _relativeTime(DateTime dt) {
   final d = DateTime.now().difference(dt.toLocal());
@@ -78,8 +78,11 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
       // 조용히 삼키면 어린이 게시판 제한(CHILD_BOARD_ONLY)에 걸렸을 때
       // 버튼만 되살아나고 아무 일도 안 일어난 것처럼 보인다.
       if (mounted) {
-        showToast(context, serverMessageOf(e) ?? '댓글을 남기지 못했어요.',
-            type: ToastType.error);
+        showToast(
+          context,
+          serverMessageOf(e) ?? '댓글을 남기지 못했어요.',
+          type: ToastType.error,
+        );
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -118,36 +121,36 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
   }
 
   List<Widget> _ownerTiles(BuildContext context, Post post) => [
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.edit_outlined, color: AppColors.ink),
-          title: const Text('수정'),
-          onTap: () {
-            Navigator.pop(context);
-            context.push('/community/${post.id}/edit');
-          },
-        ),
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.delete_outline, color: AppColors.commHot),
-          title: Text('삭제', style: TextStyle(color: AppColors.commHot)),
-          onTap: () async {
-            Navigator.pop(context);
-            final ok = await ConfirmModal.show(
-              context,
-              title: '게시글 삭제',
-              message: '정말 삭제하시겠어요? 되돌릴 수 없어요.',
-              confirmLabel: '삭제',
-              isDangerous: true,
-            );
-            if (ok && context.mounted) {
-              await ref.read(postRepositoryProvider).deletePost(post.id);
-              ref.invalidate(feedProvider);
-              if (context.mounted) context.pop();
-            }
-          },
-        ),
-      ];
+    ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.edit_outlined, color: AppColors.ink),
+      title: const Text('수정'),
+      onTap: () {
+        Navigator.pop(context);
+        context.push('/community/${post.id}/edit');
+      },
+    ),
+    ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.delete_outline, color: AppColors.commHot),
+      title: Text('삭제', style: TextStyle(color: AppColors.commHot)),
+      onTap: () async {
+        Navigator.pop(context);
+        final ok = await ConfirmModal.show(
+          context,
+          title: '게시글 삭제',
+          message: '정말 삭제하시겠어요? 되돌릴 수 없어요.',
+          confirmLabel: '삭제',
+          isDangerous: true,
+        );
+        if (ok && context.mounted) {
+          await ref.read(postRepositoryProvider).deletePost(post.id);
+          ref.invalidate(feedProvider);
+          if (context.mounted) context.pop();
+        }
+      },
+    ),
+  ];
 
   /// 댓글 메뉴. 내 댓글은 아직 앱에서 수정/삭제를 지원하지 않으므로
   /// 남의 댓글일 때만 시트를 연다 (내 댓글은 아예 아이콘을 숨긴다).
@@ -193,9 +196,9 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
       // 게시판 이름은 제목에 바로 올린다('자세히'는 읽을 정보가 없는 말이다).
       appBar: AppBar(
         backgroundColor: AppColors.canvas,
-        title: Text(headerLabel == null || headerLabel.isEmpty
-            ? '게시글'
-            : headerLabel),
+        title: Text(
+          headerLabel == null || headerLabel.isEmpty ? '게시글' : headerLabel,
+        ),
         titleSpacing: 0,
         actions: [
           if (loadedPost != null)
@@ -242,161 +245,196 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
               Expanded(
                 child: ListView(
                   controller: _scrollCtrl,
-                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 100),
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.lg,
+                    AppSpacing.xs,
+                    AppSpacing.lg,
+                    100,
+                  ),
                   children: [
-                    _CategoryPill(code: code, label: label),
-                    const SizedBox(height: 8),
-                    Text(
-                      post.title,
-                      style: AppTextStyles.h2
-                          .copyWith(letterSpacing: -0.4, height: 1.3),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // 작성자 행
-                    Row(
+                    _SectionCard(
                       children: [
-                        _Avatar(size: 36, imageUrl: post.authorImageUrl),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(post.authorName,
-                                  style: AppTextStyles.bodyBold
-                                      .copyWith(fontSize: 13)),
-                              const SizedBox(height: 1),
-                              Text(
-                                '${_relativeTime(post.createdAt)} · 조회 ${post.viewCount}',
-                                style: AppTextStyles.monoXs,
-                              ),
-                            ],
+                        _CategoryPill(code: code, label: label),
+                        const SizedBox(height: 8),
+                        Text(
+                          post.title,
+                          style: AppTextStyles.h2.copyWith(
+                            letterSpacing: -0.4,
+                            height: 1.3,
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
+                        const SizedBox(height: 12),
 
-                    Text(
-                      post.content,
-                      style: AppTextStyles.body.copyWith(
-                        height: 1.7,
-                        color: post.isBlinded
-                            ? AppColors.ink3
-                            : AppColors.ink,
-                        fontStyle: post.isBlinded
-                            ? FontStyle.italic
-                            : FontStyle.normal,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // 첨부 사진 — 세로로 쌓지 않고 한 칸짜리 캐러셀로 넘겨 본다.
-                    // (탭하면 전체화면, 개체 갤러리 뷰어와 같은 조작)
-                    if (post.photos.isNotEmpty)
-                      PostPhotoCarousel(post.photoUrls),
-
-                    // 좋아요 — 가려진 글에는 달지 않는다. 읽기 전용(아동·일반 게시판)도 숨긴다
-                    if (!post.isBlinded && !readOnly) Row(
-                      children: [
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () => ref
-                                .read(postDetailProvider(widget.postId)
-                                    .notifier)
-                                .toggleLike(),
-                            child: Container(
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 8),
-                              decoration: BoxDecoration(
-                                color: post.isLiked
-                                    ? AppColors.commLikeBg
-                                    : AppColors.commLikeBg.withAlpha(100),
-                                borderRadius: AppRadius.brMd,
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
+                        // 작성자 행
+                        Row(
+                          children: [
+                            _Avatar(size: 36, imageUrl: post.authorImageUrl),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  AppIcon(
-                                    post.isLiked
-                                        ? AppIcons.like
-                                        : AppIcons.likeLine,
-                                    size: 16,
-                                    color: AppColors.commLikeInk,
-                                  ),
-                                  const SizedBox(width: 8),
                                   Text(
-                                    '좋아요 ${post.likeCount}',
+                                    post.authorName,
                                     style: AppTextStyles.bodyBold.copyWith(
                                       fontSize: 13,
-                                      color: AppColors.commLikeInk,
                                     ),
+                                  ),
+                                  const SizedBox(height: 1),
+                                  Text(
+                                    '${_relativeTime(post.createdAt)} · 조회 ${post.viewCount}',
+                                    style: AppTextStyles.monoXs,
                                   ),
                                 ],
                               ),
                             ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+
+                        Text(
+                          post.content,
+                          style: AppTextStyles.body.copyWith(
+                            height: 1.7,
+                            color: post.isBlinded
+                                ? AppColors.ink3
+                                : AppColors.ink,
+                            fontStyle: post.isBlinded
+                                ? FontStyle.italic
+                                : FontStyle.normal,
                           ),
                         ),
+                        const SizedBox(height: 20),
+
+                        // 첨부 사진 — 세로로 쌓지 않고 한 칸짜리 캐러셀로 넘겨 본다.
+                        // (탭하면 전체화면, 개체 갤러리 뷰어와 같은 조작)
+                        if (post.photos.isNotEmpty)
+                          PostPhotoCarousel(post.photoUrls),
+
+                        // 좋아요 — 가려진 글에는 달지 않는다. 읽기 전용(아동·일반 게시판)도 숨긴다
+                        if (!post.isBlinded && !readOnly)
+                          Row(
+                            children: [
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () => ref
+                                      .read(
+                                        postDetailProvider(
+                                          widget.postId,
+                                        ).notifier,
+                                      )
+                                      .toggleLike(),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: post.isLiked
+                                          ? AppColors.commLikeBg
+                                          : AppColors.commLikeBg.withAlpha(100),
+                                      borderRadius: AppRadius.brMd,
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        AppIcon(
+                                          post.isLiked
+                                              ? AppIcons.like
+                                              : AppIcons.likeLine,
+                                          size: 16,
+                                          color: AppColors.commLikeInk,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          '좋아요 ${post.likeCount}',
+                                          style: AppTextStyles.bodyBold
+                                              .copyWith(
+                                                fontSize: 13,
+                                                color: AppColors.commLikeInk,
+                                              ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                       ],
                     ),
-                    const SizedBox(height: 24),
-
-                    // 댓글 헤더
-                    RichText(
-                      text: TextSpan(
-                        text: '댓글 ',
-                        style:
-                            AppTextStyles.bodyBold.copyWith(fontSize: 14),
-                        children: [
-                          TextSpan(
-                            text: '${post.commentCount}',
+                    const SizedBox(height: AppSpacing.md),
+                    _SectionCard(
+                      children: [
+                        // 댓글 헤더
+                        RichText(
+                          text: TextSpan(
+                            text: '댓글 ',
                             style: AppTextStyles.bodyBold.copyWith(
-                                fontSize: 14, color: AppColors.ink2),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    commentsAsync.when(
-                      loading: () => const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 20),
-                        child: Center(
-                            child:
-                                CircularProgressIndicator(strokeWidth: 2)),
-                      ),
-                      error: (e, _) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 24),
-                        child: Center(
-                          child: Text('댓글을 불러오지 못했어요',
-                              style: AppTextStyles.caption
-                                  .copyWith(color: AppColors.ink3)),
-                        ),
-                      ),
-                      data: (comments) => comments.isEmpty
-                          ? Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 24),
-                              child: Center(
-                                child: Text(
-                                    readOnly ? '아직 댓글이 없어요' : '첫 댓글을 남겨보세요',
-                                    style: AppTextStyles.caption.copyWith(
-                                        color: AppColors.ink3)),
-                              ),
-                            )
-                          : Column(
-                              children: comments
-                                  .map((c) => _CommentItem(
-                                        comment: c,
-                                        myUserId: ref
-                                            .watch(authStateProvider)
-                                            .valueOrNull
-                                            ?.id,
-                                        onMenu: (target) =>
-                                            _showCommentMenu(context, target),
-                                      ))
-                                  .toList(),
+                              fontSize: 14,
                             ),
+                            children: [
+                              TextSpan(
+                                text: '${post.commentCount}',
+                                style: AppTextStyles.bodyBold.copyWith(
+                                  fontSize: 14,
+                                  color: AppColors.ink2,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        commentsAsync.when(
+                          loading: () => const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 20),
+                            child: Center(
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ),
+                          error: (e, _) => Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 24),
+                            child: Center(
+                              child: Text(
+                                '댓글을 불러오지 못했어요',
+                                style: AppTextStyles.caption.copyWith(
+                                  color: AppColors.ink3,
+                                ),
+                              ),
+                            ),
+                          ),
+                          data: (comments) => comments.isEmpty
+                              ? Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 24,
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      readOnly ? '아직 댓글이 없어요' : '첫 댓글을 남겨보세요',
+                                      style: AppTextStyles.caption.copyWith(
+                                        color: AppColors.ink3,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              : Column(
+                                  children: comments
+                                      .map(
+                                        (c) => _CommentItem(
+                                          comment: c,
+                                          myUserId: ref
+                                              .watch(authStateProvider)
+                                              .valueOrNull
+                                              ?.id,
+                                          onMenu: (target) =>
+                                              _showCommentMenu(context, target),
+                                        ),
+                                      )
+                                      .toList(),
+                                ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -407,87 +445,101 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                 Container(
                   width: double.infinity,
                   padding: EdgeInsets.fromLTRB(
-                      16, 12, 16, MediaQuery.of(context).padding.bottom + 12),
+                    16,
+                    12,
+                    16,
+                    MediaQuery.of(context).padding.bottom + 12,
+                  ),
                   decoration: const BoxDecoration(
                     color: AppColors.bg,
-                    border:
-                        Border(top: BorderSide(color: AppColors.line)),
+                    border: Border(top: BorderSide(color: AppColors.line)),
                   ),
                   child: Text(
                     '어린이 회원은 어린이 게시판에서만 글·댓글을 남길 수 있어요',
                     textAlign: TextAlign.center,
-                    style: AppTextStyles.caption
-                        .copyWith(color: AppColors.ink3),
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.ink3,
+                    ),
                   ),
                 )
               else
-              // 댓글 입력바
-              Container(
-                padding: EdgeInsets.fromLTRB(
-                    16, 8, 16,
+                // 댓글 입력바
+                Container(
+                  padding: EdgeInsets.fromLTRB(
+                    16,
+                    8,
+                    16,
                     MediaQuery.of(context).viewInsets.bottom +
                         MediaQuery.of(context).padding.bottom +
-                        8),
-                decoration: const BoxDecoration(
-                  color: AppColors.bg,
-                  border:
-                      Border(top: BorderSide(color: AppColors.line)),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _commentCtrl,
-                        style: AppTextStyles.body
-                            .copyWith(color: AppColors.ink),
-                        decoration: InputDecoration(
-                          hintText: '댓글을 남겨보세요…',
-                          hintStyle: AppTextStyles.body
-                              .copyWith(color: AppColors.ink3),
-                          isDense: true,
-                          enabledBorder: const UnderlineInputBorder(
-                            borderSide:
-                                BorderSide(color: AppColors.line),
+                        8,
+                  ),
+                  decoration: const BoxDecoration(
+                    color: AppColors.bg,
+                    border: Border(top: BorderSide(color: AppColors.line)),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _commentCtrl,
+                          style: AppTextStyles.body.copyWith(
+                            color: AppColors.ink,
                           ),
-                          // 포커스 밑줄이 먹색이었다 — 앱 입력칸은 포커스를 브랜드색으로 보인다.
-                          focusedBorder: const UnderlineInputBorder(
-                            borderSide: BorderSide(
-                                color: AppColors.brandAction, width: 1.5),
+                          decoration: InputDecoration(
+                            hintText: '댓글을 남겨보세요…',
+                            hintStyle: AppTextStyles.body.copyWith(
+                              color: AppColors.ink3,
+                            ),
+                            isDense: true,
+                            enabledBorder: const UnderlineInputBorder(
+                              borderSide: BorderSide(color: AppColors.line),
+                            ),
+                            // 포커스 밑줄이 먹색이었다 — 앱 입력칸은 포커스를 브랜드색으로 보인다.
+                            focusedBorder: const UnderlineInputBorder(
+                              borderSide: BorderSide(
+                                color: AppColors.brandAction,
+                                width: 1.5,
+                              ),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 4,
+                              vertical: 8,
+                            ),
                           ),
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 4, vertical: 8),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    // 보내기 — 검정 원(먹색 `primary`)이었다. 눌리는 주 행동은 브랜드색이다.
-                    GestureDetector(
-                      onTap: _isSubmitting ? null : _submitComment,
-                      child: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: const BoxDecoration(
-                          color: AppColors.brandAction,
-                          shape: BoxShape.circle,
-                        ),
-                        child: _isSubmitting
-                            ? const Center(
-                                child: SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: AppColors.bg,
+                      const SizedBox(width: 8),
+                      // 보내기 — 검정 원(먹색 `primary`)이었다. 눌리는 주 행동은 브랜드색이다.
+                      GestureDetector(
+                        onTap: _isSubmitting ? null : _submitComment,
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: const BoxDecoration(
+                            color: AppColors.brandAction,
+                            shape: BoxShape.circle,
+                          ),
+                          child: _isSubmitting
+                              ? const Center(
+                                  child: SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppColors.bg,
+                                    ),
                                   ),
+                                )
+                              : const Icon(
+                                  Icons.arrow_upward_rounded,
+                                  color: AppColors.bg,
+                                  size: 20,
                                 ),
-                              )
-                            : const Icon(Icons.arrow_upward_rounded,
-                                color: AppColors.bg, size: 20),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
             ],
           );
         },
@@ -537,18 +589,22 @@ class _Avatar extends StatelessWidget {
       width: size,
       height: size,
       clipBehavior: Clip.hardEdge,
-      decoration:
-          const BoxDecoration(color: AppColors.bgAlt, shape: BoxShape.circle),
+      decoration: const BoxDecoration(
+        color: AppColors.bgAlt,
+        shape: BoxShape.circle,
+      ),
       child: imageUrl != null
           ? AppNetworkImage(
               imageUrl,
               fit: BoxFit.cover,
               memWidth: (size * 3).round(),
-              placeholder: Icon(Icons.person,
-                  size: size * 0.62, color: AppColors.ink3),
+              placeholder: Icon(
+                Icons.person,
+                size: size * 0.62,
+                color: AppColors.ink3,
+              ),
             )
-          : Icon(Icons.person,
-              size: size * 0.62, color: AppColors.ink3),
+          : Icon(Icons.person, size: size * 0.62, color: AppColors.ink3),
     );
   }
 }
@@ -593,7 +649,9 @@ class _CommentItem extends StatelessWidget {
                     if (comment.isPostAuthor)
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 4, vertical: 1),
+                          horizontal: 4,
+                          vertical: 1,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.commSellBg,
                           borderRadius: AppRadius.brPill,
@@ -619,9 +677,7 @@ class _CommentItem extends StatelessWidget {
                   style: AppTextStyles.body.copyWith(
                     fontSize: 13,
                     height: 1.55,
-                    color: comment.isBlinded
-                        ? AppColors.ink3
-                        : AppColors.ink,
+                    color: comment.isBlinded ? AppColors.ink3 : AppColors.ink,
                     fontStyle: comment.isBlinded
                         ? FontStyle.italic
                         : FontStyle.normal,
@@ -636,9 +692,12 @@ class _CommentItem extends StatelessWidget {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('↳ ',
-                              style: AppTextStyles.caption
-                                  .copyWith(color: AppColors.ink3)),
+                          Text(
+                            '↳ ',
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.ink3,
+                            ),
+                          ),
                           _Avatar(size: 26, imageUrl: r.authorImageUrl),
                           const SizedBox(width: 8),
                           Expanded(
@@ -646,29 +705,35 @@ class _CommentItem extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Wrap(
-                                  crossAxisAlignment:
-                                      WrapCrossAlignment.center,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
                                   spacing: 6,
                                   children: [
-                                    Text(r.authorName,
-                                        style: AppTextStyles.bodyBold
-                                            .copyWith(fontSize: 12)),
-                                    Text(_relativeTime(r.createdAt),
-                                        style: AppTextStyles.monoXs),
+                                    Text(
+                                      r.authorName,
+                                      style: AppTextStyles.bodyBold.copyWith(
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    Text(
+                                      _relativeTime(r.createdAt),
+                                      style: AppTextStyles.monoXs,
+                                    ),
                                   ],
                                 ),
                                 const SizedBox(height: 4),
-                                Text(r.content,
-                                    style: AppTextStyles.body.copyWith(
-                                      fontSize: 13,
-                                      height: 1.55,
-                                      color: r.isBlinded
-                                          ? AppColors.ink3
-                                          : AppColors.ink,
-                                      fontStyle: r.isBlinded
-                                          ? FontStyle.italic
-                                          : FontStyle.normal,
-                                    )),
+                                Text(
+                                  r.content,
+                                  style: AppTextStyles.body.copyWith(
+                                    fontSize: 13,
+                                    height: 1.55,
+                                    color: r.isBlinded
+                                        ? AppColors.ink3
+                                        : AppColors.ink,
+                                    fontStyle: r.isBlinded
+                                        ? FontStyle.italic
+                                        : FontStyle.normal,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -701,9 +766,25 @@ class _MenuDot extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       child: const Padding(
         padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-        child: Icon(Icons.more_horiz_rounded,
-            size: 16, color: AppColors.ink3),
+        child: Icon(Icons.more_horiz_rounded, size: 16, color: AppColors.ink3),
       ),
     );
   }
+}
+
+/// 본문 / 댓글을 각각 흰 카드 한 장에 얹는다. 캔버스에 글자만 흘려 두면 화면 전체가
+/// 회색 한 면이라 어디까지가 글이고 어디부터 댓글인지 경계가 없었다(2026-10-19).
+class _SectionCard extends StatelessWidget {
+  final List<Widget> children;
+  const _SectionCard({required this.children});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(AppSpacing.lg),
+    decoration: AppDecor.cardRaised,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: children,
+    ),
+  );
 }

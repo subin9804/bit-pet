@@ -405,6 +405,13 @@ PostgreSQL이 재정규화하는데 의미는 같다.)
 - 앱 정보 버전 줄이 잘리던 원인: `SizedBox(height: 18)` < caption 한 줄(19.5). 고정 높이 대신 빈 값이면 공백 `' '` 을 그린다
 - 자녀 계정: SnackBar → 토스트, 빈/에러는 `EmptyState`, 자녀 행은 카드 + brandTint 아바타(petClay 제거)
 
+### 커뮤니티 카드화 (2026-10-19)
+
+- 피드: 글 한 건 = `AppDecor.cardRaised` 한 장(좌우 lg, 사이 sm). 고정 글은 `commPinnedBg` + `brand200` 테두리.
+  ⛔ 캔버스 위 밑줄 행으로 되돌리지 말 것 — 화면 전체가 회색 한 면으로 읽힌다
+- 상세: 본문(게시판 칩~좋아요)과 댓글(헤더~목록)을 각각 `_SectionCard` 로. 입력바는 그대로 흰 바
+- 글쓰기: `_Field` 하나 = 카드 한 장(밑줄 구분 제거)
+
 ### Memo 도메인 (v5)
 - `health_memo_dtl` → `memo_dtl` (V15 마이그레이션)
 - 태그: `memo_tag_cd` + `memo_tag_rls` (다대다)

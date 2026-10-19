@@ -155,7 +155,7 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
             Expanded(
               child: ListView(
                 padding: EdgeInsets.fromLTRB(
-                    20, 8, 20,
+                    AppSpacing.lg, AppSpacing.sm, AppSpacing.lg,
                     MediaQuery.of(context).viewInsets.bottom + 32),
                 children: [
                   // ── 게시판 선택 ────────────────────────────────
@@ -324,12 +324,12 @@ class _Field extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 항목 하나 = 흰 카드 한 장. 캔버스 위에 밑줄로만 나눠 두면 입력칸이 어디서
+    // 시작하는지 안 보였다(2026-10-19) — 다른 입력 화면과 같은 카드 결로.
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      decoration: const BoxDecoration(
-        border: Border(
-            bottom: BorderSide(color: AppColors.line)),
-      ),
+      margin: const EdgeInsets.only(bottom: AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: AppDecor.cardRaised,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
