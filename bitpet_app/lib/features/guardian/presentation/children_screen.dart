@@ -8,10 +8,16 @@
 //    작성자가 누구인지 아무도 답할 수 없게 된다.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_dimens.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/app_buttons.dart';
 import '../../../core/widgets/confirm_modal.dart';
+import '../../../core/widgets/empty_state.dart';
+import '../../../core/widgets/skeleton_loader.dart';
+import '../../../core/widgets/toast_message.dart';
+import '../../my/presentation/widgets/menu_group.dart';
 import '../data/guardian_repository.dart';
 import 'child_create_screen.dart';
 import '../../../core/widgets/app_network_image.dart';
@@ -38,107 +44,158 @@ class ChildrenScreen extends ConsumerWidget {
       ref.invalidate(childrenProvider);
     } catch (_) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('삭제하지 못했어요. 잠시 후 다시 시도해주세요.')),
-      );
+      showToast(context, '삭제하지 못했어요. 잠시 후 다시 시도해주세요.',
+          type: ToastType.error);
     }
+  }
+
+  Future<void> _create(BuildContext context, WidgetRef ref) async {
+    final created = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const ChildCreateScreen()),
+    );
+    if (created == true) ref.invalidate(childrenProvider);
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final childrenAsync = ref.watch(childrenProvider);
 
+    const intro = Padding(
+      padding: EdgeInsets.fromLTRB(
+          AppSpacing.xl, AppSpacing.sm, AppSpacing.xl, AppSpacing.xl),
+      child: _Intro(),
+    );
+
     return Scaffold(
       backgroundColor: AppColors.canvas,
       appBar: AppBar(
-        backgroundColor: AppColors.card,
-        elevation: 0,
-        leading: IconButton(
-          tooltip: '뒤로',
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              size: 16, color: AppColors.ink),
-          onPressed: () => context.pop(),
-        ),
-        title: Text('자녀 계정',
-            style: AppTextStyles.bodyBold.copyWith(fontSize: 15)),
-        centerTitle: true,
+        backgroundColor: AppColors.canvas,
+        titleSpacing: 0,
+        title: const Text('자녀 계정'),
       ),
       body: childrenAsync.when(
-        loading: () =>
-            const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-        error: (e, _) => Center(
-          child: Text('목록을 불러오지 못했어요',
-              style: AppTextStyles.body.copyWith(color: AppColors.ink3)),
+        loading: () => const SkeletonCardList(count: 2),
+        error: (e, _) => EmptyState(
+          icon: Icons.cloud_off_outlined,
+          tone: EmptyTone.neutral,
+          message: '목록을 불러오지 못했어요',
+          subMessage: '잠시 후 다시 시도해 주세요.',
+          actionLabel: '다시 시도',
+          onAction: () => ref.invalidate(childrenProvider),
         ),
-        data: (children) => ListView(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-              child: Text(
-                '만 14세 미만 자녀는 보호자가 계정을 만들어 주셔야 해요.\n'
-                '자녀 계정은 어린이 게시판에서만 글과 댓글을 남길 수 있어요.',
-                style: AppTextStyles.body
-                    .copyWith(color: AppColors.ink3, height: 1.6),
-              ),
-            ),
-            if (children.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Text('아직 만든 자녀 계정이 없어요.',
-                    style: AppTextStyles.body
-                        .copyWith(color: AppColors.ink3)),
-              ),
-            for (final c in children)
-              ListTile(
-                leading: Container(
-                  width: 36,
-                  height: 36,
-                  clipBehavior: Clip.hardEdge,
-                  decoration: const BoxDecoration(
-                      color: AppColors.petClay, shape: BoxShape.circle),
-                  child: c.profileImageUrl != null
-                      ? AppNetworkImage(c.profileImageUrl,
-                          fit: BoxFit.cover,
-                          memWidth: 120,
-                          placeholder: const Icon(
-                              Icons.child_care_rounded,
-                              size: 20,
-                              color: AppColors.ink2))
-                      : const Icon(Icons.child_care_rounded,
-                          size: 20, color: AppColors.ink2),
+        data: (children) {
+          if (children.isEmpty) {
+            return Column(
+              children: [
+                intro,
+                Expanded(
+                  child: EmptyState(
+                    icon: Icons.child_care_outlined,
+                    message: '아직 만든 자녀 계정이 없어요',
+                    subMessage: '보호자가 직접 만들어 주면 바로 쓸 수 있어요.',
+                    actionLabel: '자녀 계정 만들기',
+                    onAction: () => _create(context, ref),
+                  ),
                 ),
-                title: Text(c.nickname,
-                    style: AppTextStyles.bodyBold.copyWith(fontSize: 13)),
-                subtitle: Text(
+              ],
+            );
+          }
+          return ListView(
+            padding: const EdgeInsets.only(top: AppSpacing.sm, bottom: 40),
+            children: [
+              intro,
+              MenuCard(children: [
+                for (final c in children)
+                  _ChildRow(child: c, onDelete: () => _delete(context, ref, c)),
+              ]),
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                child: AppActionButton(
+                  '자녀 계정 만들기',
+                  icon: Icons.add_rounded,
+                  tone: AppButtonTone.neutral,
+                  onPressed: () => _create(context, ref),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _Intro extends StatelessWidget {
+  const _Intro();
+
+  @override
+  Widget build(BuildContext context) => Text(
+        '만 14세 미만 자녀는 보호자가 계정을 만들어 주셔야 해요.\n'
+        '자녀 계정은 어린이 게시판에서만 글과 댓글을 남길 수 있어요.',
+        style: AppTextStyles.caption.copyWith(height: 1.6),
+      );
+}
+
+/// 자녀 한 명. 아바타 40 + 닉네임/이메일 + 삭제. 구분선 들여쓰기(52)는
+/// [MenuCard] 기본값이 아이콘 20 기준이라 아바타 폭과는 다르지만, 줄 높이가 커서
+/// 카드 왼쪽 끝까지 긋지 않는 정도면 충분하다.
+class _ChildRow extends StatelessWidget {
+  final ChildAccount child;
+  final VoidCallback onDelete;
+  const _ChildRow({required this.child, required this.onDelete});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = child;
+    const fallback =
+        Icon(Icons.child_care_rounded, size: 20, color: AppColors.brandTintInk);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg, AppSpacing.md, AppSpacing.sm, AppSpacing.md),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            alignment: Alignment.center,
+            clipBehavior: Clip.antiAlias,
+            decoration: const BoxDecoration(
+                color: AppColors.brandTint, shape: BoxShape.circle),
+            child: c.profileImageUrl != null
+                ? AppNetworkImage(c.profileImageUrl,
+                    width: 40,
+                    height: 40,
+                    fit: BoxFit.cover,
+                    memWidth: 120,
+                    placeholder: fallback)
+                : fallback,
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(c.nickname,
+                    style: AppTextStyles.bodyBold,
+                    overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 2),
+                Text(
                   // 만 14세가 지나면 어린이 게시판 제한이 풀린다 — 보호자가 알아야 할 변화다.
                   c.isChild ? c.email : '${c.email} · 만 14세가 되어 일반 회원이에요',
-                  style: AppTextStyles.monoXs,
+                  style: AppTextStyles.caption,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                trailing: TextButton(
-                  onPressed: () => _delete(context, ref, c),
-                  child: Text('삭제',
-                      style: AppTextStyles.bodyBold
-                          .copyWith(fontSize: 12, color: AppColors.ink3)),
-                ),
-              ),
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: OutlinedButton.icon(
-                onPressed: () async {
-                  final created = await Navigator.of(context).push<bool>(
-                    MaterialPageRoute(
-                        builder: (_) => const ChildCreateScreen()),
-                  );
-                  if (created == true) ref.invalidate(childrenProvider);
-                },
-                icon: const Icon(Icons.add_rounded, size: 20),
-                label: const Text('자녀 계정 만들기'),
-              ),
+              ],
             ),
-          ],
-        ),
+          ),
+          TextButton(
+            onPressed: onDelete,
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('삭제'),
+          ),
+        ],
       ),
     );
   }

@@ -112,20 +112,9 @@ class _ChildCreateScreenState extends ConsumerState<ChildCreateScreen> {
     return Scaffold(
       backgroundColor: AppColors.canvas,
       appBar: AppBar(
-        backgroundColor: AppColors.card,
-        elevation: 0,
-        leading: IconButton(
-          tooltip: '뒤로',
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              size: 16, color: AppColors.ink),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text('자녀 계정 만들기',
-            style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: AppColors.ink)),
-        centerTitle: true,
+        backgroundColor: AppColors.canvas,
+        titleSpacing: 0,
+        title: const Text('자녀 계정 만들기'),
       ),
       body: SafeArea(
         child: ListView(

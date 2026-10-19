@@ -3,8 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_dimens.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/toast_message.dart';
+import '../../my/presentation/widgets/menu_group.dart';
 import '../providers/notification_provider.dart';
 
 /// 알림 설정 — 종류별 수신 토글.
@@ -80,61 +83,71 @@ class _NotificationSettingsScreenState
     return Scaffold(
       backgroundColor: AppColors.canvas,
       appBar: AppBar(
-        title: Text('알림 설정', style: AppTextStyles.title),
-        backgroundColor: AppColors.bg,
-        elevation: 0,
+        backgroundColor: AppColors.canvas,
+        titleSpacing: 0,
+        title: const Text('알림 설정'),
       ),
       body: prefState.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => _ErrorRetry(
+        error: (e, _) => EmptyState(
+          icon: Icons.cloud_off_outlined,
+          tone: EmptyTone.neutral,
           message: '알림 설정을 불러오지 못했어요',
-          onRetry: notifier.load,
+          subMessage: '잠시 후 다시 시도해 주세요.',
+          actionLabel: '다시 시도',
+          onAction: notifier.load,
         ),
         data: (pref) => ListView(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.only(top: AppSpacing.sm),
           children: [
             if (_osAllowed == false) _OsPermissionBanner(onTap: _requestOsPermission),
 
-            const _SectionLabel('사육 기록'),
-            _ToggleRow(
-              icon: Icons.alarm,
-              label: '루틴 알림',
-              description: '급여·체중·청소 예정 알림',
-              value: pref.routine,
-              onChanged: (v) => _toggle(() => notifier.setRoutine(v)),
-            ),
+            const MenuGroupTitle('사육 기록'),
+            MenuCard(children: [
+              _ToggleRow(
+                icon: Icons.alarm,
+                label: '루틴 알림',
+                description: '급여·체중·청소 예정 알림',
+                value: pref.routine,
+                onChanged: (v) => _toggle(() => notifier.setRoutine(v)),
+              ),
+            ]),
 
-            const _SectionLabel('커뮤니티'),
-            _ToggleRow(
-              icon: Icons.mode_comment_outlined,
-              label: '댓글 알림',
-              description: '내 글에 달린 댓글',
-              value: pref.comment,
-              onChanged: (v) => _toggle(() => notifier.setComment(v)),
-            ),
-            _ToggleRow(
-              icon: Icons.favorite_border,
-              label: '좋아요 알림',
-              description: '내 글을 좋아한 사람',
-              value: pref.postLike,
-              onChanged: (v) => _toggle(() => notifier.setPostLike(v)),
-            ),
+            const MenuGroupTitle('커뮤니티'),
+            MenuCard(children: [
+              _ToggleRow(
+                icon: Icons.mode_comment_outlined,
+                label: '댓글 알림',
+                description: '내 글에 달린 댓글',
+                value: pref.comment,
+                onChanged: (v) => _toggle(() => notifier.setComment(v)),
+              ),
+              _ToggleRow(
+                icon: Icons.favorite_border,
+                label: '좋아요 알림',
+                description: '내 글을 좋아한 사람',
+                value: pref.postLike,
+                onChanged: (v) => _toggle(() => notifier.setPostLike(v)),
+              ),
+            ]),
 
-            const _SectionLabel('기타'),
-            // 끌 수 없는 항목이지만 목록에서 빼지 않는다. 없으면 "공지도 껐는데 왜 오지"가
-            // 되고, 있으면 끌 수 없다는 사실이 그 자리에서 설명된다.
-            const _FixedOnRow(
-              icon: Icons.campaign_outlined,
-              label: '공지사항',
-              description: '점검·업데이트 안내 · 끌 수 없어요',
-            ),
-            _ToggleRow(
-              icon: Icons.local_offer_outlined,
-              label: '마케팅·이벤트',
-              description: '신기능·굿즈 소식',
-              value: pref.marketing,
-              onChanged: (v) => _toggle(() => notifier.setMarketing(v)),
-            ),
+            const MenuGroupTitle('기타'),
+            MenuCard(children: [
+              // 끌 수 없는 항목이지만 목록에서 빼지 않는다. 없으면 "공지도 껐는데 왜 오지"가
+              // 되고, 있으면 끌 수 없다는 사실이 그 자리에서 설명된다.
+              const _FixedOnRow(
+                icon: Icons.campaign_outlined,
+                label: '공지사항',
+                description: '점검·업데이트 안내 · 끌 수 없어요',
+              ),
+              _ToggleRow(
+                icon: Icons.local_offer_outlined,
+                label: '마케팅·이벤트',
+                description: '신기능·굿즈 소식',
+                value: pref.marketing,
+                onChanged: (v) => _toggle(() => notifier.setMarketing(v)),
+              ),
+            ]),
 
             const _MarketingNotice(),
             const _PushOnlyNotice(),
@@ -146,18 +159,6 @@ class _NotificationSettingsScreenState
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-
-class _SectionLabel extends StatelessWidget {
-  final String text;
-  const _SectionLabel(this.text);
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-        child: Text(text,
-            style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w600)),
-      );
-}
 
 class _ToggleRow extends StatelessWidget {
   final IconData icon;
@@ -178,7 +179,7 @@ class _ToggleRow extends StatelessWidget {
   Widget build(BuildContext context) => InkWell(
         onTap: () => onChanged(!value),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.lg),
           child: Row(
             children: [
               Icon(icon, size: 20, color: AppColors.ink2),
@@ -220,7 +221,7 @@ class _FixedOnRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.lg),
         child: Row(
           children: [
             Icon(icon, size: 20, color: AppColors.ink2),
@@ -249,7 +250,8 @@ class _OsPermissionBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        margin: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+        margin: const EdgeInsets.fromLTRB(
+            AppSpacing.lg, AppSpacing.xs, AppSpacing.lg, AppSpacing.xl),
         decoration: BoxDecoration(
           color: AppColors.warning.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(12),
@@ -288,7 +290,7 @@ class _MarketingNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
         child: Text(
           '마케팅·이벤트 수신 동의는 변경 시각이 기록으로 남아요. '
           '동의하지 않아도 서비스 이용에는 제한이 없어요.',
@@ -306,24 +308,6 @@ class _PushOnlyNotice extends StatelessWidget {
         child: Text(
           '끈 알림도 알림함에는 그대로 쌓여요. 휴대폰이 울리지 않을 뿐이에요.',
           style: AppTextStyles.caption.copyWith(color: AppColors.ink3),
-        ),
-      );
-}
-
-class _ErrorRetry extends StatelessWidget {
-  final String message;
-  final VoidCallback onRetry;
-  const _ErrorRetry({required this.message, required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(message, style: AppTextStyles.body),
-            const SizedBox(height: 12),
-            TextButton(onPressed: onRetry, child: const Text('다시 시도')),
-          ],
         ),
       );
 }

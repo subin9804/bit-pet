@@ -391,6 +391,20 @@ PostgreSQL이 재정규화하는데 의미는 같다.)
 - 갤러리 **3열, 카드에서 체중 제거**(이름·종 두 줄, 목록 모드·상세엔 체중 유지). 칸 높이는 비율 대신 `사진 정사각형 + 글자 두 줄(textScaler 반영)`
 - 알려진 한계: 갤러리 드래그는 화면 끝 자동 스크롤이 없다(목록 모드는 있음)
 
+### 마이페이지·하위 화면 정리 (2026-10-19)
+
+- **헤더 = 캔버스.** 테마 기본 AppBar 는 흰색(`bg`)이라 캔버스 바디 위에서 띠처럼 뜬다. 탭 화면은
+  `AppBar(backgroundColor: canvas, titleSpacing: xl)`, 하위 화면은 `canvas + titleSpacing: 0 + 기본 뒤로가기`
+  (커스텀 `arrow_back_ios` 리딩·가운데 정렬 제목·제목 스타일 덮어쓰기 금지)
+- 공용 `features/my/presentation/widgets/menu_group.dart` — `MenuCard`(흰 cardRaised 한 장 + 들여 그은 구분선,
+  `dividerIndent` 아이콘 줄 52 / 글자만 16) · `MenuGroupTitle`. 마이·알림 설정·앱 정보·자녀 계정이 같이 쓴다
+- 마이 히어로: `brandTintSoft` → **`brandAction` 진한 면 + 흰 글씨**(이메일 brand100). 연녹은 캔버스와 명도가 같아 안 보였다.
+  카메라 배지는 흰 테두리 1.5. 프로필 에러에 '다시 시도' 없음 — authStateProvider invalidate 는 세션 초기화가 다시 돈다
+- ⚠️ **내 게시글 '작성한 글' 탭이 통째로 안 뜨던 원인**: 썸네일 `Container(color:, clipBehavior:)` — clip 은 decoration 이
+  있어야 해서 assert. → `decoration: BoxDecoration(color, brMd)`. 글·댓글 행은 흰 카드(`_RowCard`), 로딩은 스켈레톤
+- 앱 정보 버전 줄이 잘리던 원인: `SizedBox(height: 18)` < caption 한 줄(19.5). 고정 높이 대신 빈 값이면 공백 `' '` 을 그린다
+- 자녀 계정: SnackBar → 토스트, 빈/에러는 `EmptyState`, 자녀 행은 카드 + brandTint 아바타(petClay 제거)
+
 ### Memo 도메인 (v5)
 - `health_memo_dtl` → `memo_dtl` (V15 마이그레이션)
 - 태그: `memo_tag_cd` + `memo_tag_rls` (다대다)

@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_dimens.dart';
 import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/empty_state.dart';
+import '../../../core/widgets/skeleton_loader.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../../community/data/models/post_models.dart';
 import '../../community/providers/post_provider.dart';
@@ -35,6 +37,8 @@ class _MyActivityScreenState extends ConsumerState<MyActivityScreen>
     return Scaffold(
       backgroundColor: AppColors.canvas,
       appBar: AppBar(
+        backgroundColor: AppColors.canvas,
+        titleSpacing: 0,
         title: const Text('내 게시글'),
         bottom: TabBar(
           controller: _tab,
@@ -73,7 +77,7 @@ class _MyPostsTab extends ConsumerWidget {
     final notifier = ref.read(myPostsProvider.notifier);
 
     if (state.loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const SkeletonCardList();
     }
     if (state.error != null) {
       return _ErrorRetry(onRetry: notifier.refresh);
@@ -97,6 +101,7 @@ class _MyPostsTab extends ConsumerWidget {
         },
         child: ListView.builder(
           physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           itemCount: state.posts.length + (state.hasMore ? 1 : 0),
           itemBuilder: (_, i) {
             if (i >= state.posts.length) return const _LoadingRow();
@@ -134,14 +139,9 @@ class _MyPostRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return _RowCard(
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: AppColors.line)),
-        ),
-        child: Row(
+      child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
@@ -153,12 +153,15 @@ class _MyPostRow extends StatelessWidget {
                       if (categoryLabel != null) ...[
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          color: AppColors.bgAlt,
+                              horizontal: 8, vertical: 2),
+                          decoration: const BoxDecoration(
+                            color: AppColors.brandTint,
+                            borderRadius: AppRadius.brPill,
+                          ),
                           child: Text(
                             categoryLabel!,
                             style: AppTextStyles.monoXs.copyWith(
-                              color: AppColors.ink2,
+                              color: AppColors.brandTintInk,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -202,11 +205,16 @@ class _MyPostRow extends StatelessWidget {
             ),
             if (post.thumbnailUrl != null) ...[
               const SizedBox(width: 12),
+              // ⚠️ clipBehavior 는 decoration 이 있어야 한다 — color: 만 주면
+              // assert 로 터져서 '작성한 글' 탭 전체가 안 그려졌다(2026-10-19).
               Container(
                 width: 60,
                 height: 60,
-                color: AppColors.bgAlt,
-                clipBehavior: Clip.hardEdge,
+                decoration: const BoxDecoration(
+                  color: AppColors.bgAlt,
+                  borderRadius: AppRadius.brMd,
+                ),
+                clipBehavior: Clip.antiAlias,
                 child: AppNetworkImage(
                   post.thumbnailUrl,
                   fit: BoxFit.cover,
@@ -220,7 +228,6 @@ class _MyPostRow extends StatelessWidget {
             ],
           ],
         ),
-      ),
     );
   }
 }
@@ -236,7 +243,7 @@ class _MyCommentsTab extends ConsumerWidget {
     final notifier = ref.read(myCommentsProvider.notifier);
 
     if (state.loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const SkeletonCardList();
     }
     if (state.error != null) {
       return _ErrorRetry(onRetry: notifier.refresh);
@@ -258,6 +265,7 @@ class _MyCommentsTab extends ConsumerWidget {
         },
         child: ListView.builder(
           physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           itemCount: state.comments.length + (state.hasMore ? 1 : 0),
           itemBuilder: (_, i) {
             if (i >= state.comments.length) return const _LoadingRow();
@@ -291,14 +299,9 @@ class _MyCommentRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final dimmed = comment.postDeleted;
 
-    return InkWell(
+    return _RowCard(
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: AppColors.line)),
-        ),
-        child: Column(
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // 내가 쓴 댓글 본문이 주인공이라 위에 둔다.
@@ -358,7 +361,6 @@ class _MyCommentRow extends StatelessWidget {
             ),
           ],
         ),
-      ),
     );
   }
 }
@@ -408,14 +410,39 @@ class _ErrorRetry extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text('목록을 불러오지 못했어요', style: AppTextStyles.body),
-          const SizedBox(height: 8),
-          TextButton(onPressed: onRetry, child: const Text('다시 시도')),
-        ],
+    return EmptyState(
+      icon: Icons.cloud_off_outlined,
+      tone: EmptyTone.neutral,
+      message: '목록을 불러오지 못했어요',
+      subMessage: '잠시 후 다시 시도해 주세요.',
+      actionLabel: '다시 시도',
+      onAction: onRetry,
+    );
+  }
+}
+
+/// 글·댓글 한 건 = 흰 카드 한 장. 캔버스 위에 선만 그어 두면 행 경계가 흐려서
+/// 마이 메뉴 카드와 같은 [AppDecor.cardRaised] 를 쓴다.
+class _RowCard extends StatelessWidget {
+  final VoidCallback onTap;
+  final Widget child;
+  const _RowCard({required this.onTap, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+      decoration: AppDecor.cardRaised,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: AppRadius.brLg,
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: child,
+          ),
+        ),
       ),
     );
   }

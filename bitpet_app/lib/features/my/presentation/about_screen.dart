@@ -5,8 +5,10 @@ import '../../../core/constants/external_links.dart';
 import '../../../core/legal/legal_document_sheet.dart';
 import '../../../core/legal/legal_documents.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_dimens.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/app_icons.dart';
+import 'widgets/menu_group.dart';
 
 /// 앱 정보 — 버전·약관·문의처.
 ///
@@ -50,49 +52,53 @@ class _AboutScreenState extends State<AboutScreen> {
     return Scaffold(
       backgroundColor: AppColors.canvas,
       appBar: AppBar(
+        backgroundColor: AppColors.canvas,
+        titleSpacing: 0,
         title: const Text('앱 정보'),
-        backgroundColor: AppColors.bg,
-        elevation: 0,
       ),
       body: ListView(
         children: [
-          const SizedBox(height: 24),
+          const SizedBox(height: AppSpacing.xl),
           _AppIdentity(version: _version),
-          const SizedBox(height: 32),
+          const SizedBox(height: AppSpacing.xxl),
 
-          const _SectionLabel('약관·정책'),
-          for (final doc in legalDocuments)
+          const MenuGroupTitle('약관·정책'),
+          MenuCard(dividerIndent: AppSpacing.lg, children: [
+            for (final doc in legalDocuments)
+              _Row(
+                label: doc.title,
+                onTap: () => showLegalDocument(context, doc),
+              ),
             _Row(
-              label: doc.title,
-              onTap: () => showLegalDocument(context, doc),
+              label: '오픈소스 라이선스',
+              onTap: () => showLicensePage(
+                context: context,
+                applicationName: 'tailog',
+                applicationVersion: _version ?? '',
+              ),
             ),
-          _Row(
-            label: '오픈소스 라이선스',
-            onTap: () => showLicensePage(
-              context: context,
-              applicationName: 'tailog',
-              applicationVersion: _version ?? '',
-            ),
-          ),
+          ]),
 
-          const _SectionLabel('문의'),
-          _Row(
-            label: '문의하기',
-            trailing: ExternalLinks.supportEmail,
-            onTap: () => openMailTo(
-              context,
-              ExternalLinks.supportEmail,
-              subject: '[tailog] 문의',
+          const MenuGroupTitle('문의'),
+          MenuCard(dividerIndent: AppSpacing.lg, children: [
+            _Row(
+              label: '문의하기',
+              trailing: ExternalLinks.supportEmail,
+              onTap: () => openMailTo(
+                context,
+                ExternalLinks.supportEmail,
+                subject: '[tailog] 문의',
+              ),
             ),
-          ),
-          _Row(
-            label: '이름표 스토어',
-            trailing: '스마트스토어',
-            onTap: () =>
-                openExternalLink(context, ExternalLinks.smartStore),
-          ),
+            _Row(
+              label: '이름표 스토어',
+              trailing: '스마트스토어',
+              onTap: () =>
+                  openExternalLink(context, ExternalLinks.smartStore),
+            ),
+          ]),
 
-          const SizedBox(height: 32),
+          const SizedBox(height: AppSpacing.md),
           Center(
             child: Text(
               '© 2026 tailog',
@@ -119,42 +125,31 @@ class _AppIdentity extends StatelessWidget {
     return Column(
       children: [
         Container(
-          width: 64,
-          height: 64,
+          width: 72,
+          height: 72,
           alignment: Alignment.center,
-          color: AppColors.bgAlt,
-          child: const AppIcon(AppIcons.petLine, size: 30, color: AppColors.brandAction),
+          decoration: const BoxDecoration(
+            color: AppColors.brandTint,
+            borderRadius: AppRadius.brLg,
+          ),
+          child: const AppIcon(AppIcons.petLine,
+              size: 36, color: AppColors.brandAction),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: AppSpacing.lg),
         Text('tailog', style: AppTextStyles.h3),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppSpacing.xs),
         // 읽는 중에는 자리만 잡아둔다. 스피너를 돌리면 버전 한 줄 때문에
         // 화면이 로딩 중인 것처럼 보인다.
-        SizedBox(
-          height: 18,
-          child: Text(
-            version ?? '',
-            style: AppTextStyles.caption,
-          ),
+        // ⚠️ 높이를 숫자로 박지 말 것 — 예전 SizedBox(height: 18) 은 caption 한 줄
+        // (13 × 1.5 = 19.5) 보다 작아서 글자 아랫부분이 잘렸다(2026-10-19).
+        // 빈 문자열 대신 공백 한 칸을 그려서 글자 높이만큼 자리를 잡는다.
+        Text(
+          (version == null || version!.isEmpty) ? ' ' : version!,
+          style: AppTextStyles.caption,
         ),
       ],
     );
   }
-}
-
-class _SectionLabel extends StatelessWidget {
-  final String text;
-  const _SectionLabel(this.text);
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-        child: Text(
-          text,
-          style:
-              AppTextStyles.caption.copyWith(fontWeight: FontWeight.w600),
-        ),
-      );
 }
 
 class _Row extends StatelessWidget {
@@ -170,17 +165,21 @@ class _Row extends StatelessWidget {
   Widget build(BuildContext context) => InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg, vertical: AppSpacing.lg),
           child: Row(
             children: [
               Expanded(child: Text(label, style: AppTextStyles.body)),
               if (trailing != null) ...[
-                Text(
-                  trailing!,
-                  style: AppTextStyles.caption
-                      .copyWith(color: AppColors.ink3),
+                Flexible(
+                  child: Text(
+                    trailing!,
+                    style: AppTextStyles.caption
+                        .copyWith(color: AppColors.ink3),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppSpacing.sm),
               ],
               const AppIcon(AppIcons.chevronRight,
                   size: 20, color: AppColors.ink3),

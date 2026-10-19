@@ -7,12 +7,13 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/upload/image_upload.dart';
 import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/confirm_modal.dart';
-import '../../../core/widgets/section_header.dart';
+import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../../../core/widgets/user_avatar.dart';
 import '../../auth/data/models/auth_models.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../pet/share/providers/share_provider.dart';
+import 'widgets/menu_group.dart';
 import '../../../core/theme/app_icons.dart';
 
 class MyScreen extends ConsumerWidget {
@@ -24,25 +25,36 @@ class MyScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
+      // 헤더는 바디와 같은 캔버스 — 테마 기본(흰색)을 두면 헤더만 띠처럼 떠 보인다.
       appBar: AppBar(
+        backgroundColor: AppColors.canvas,
+        titleSpacing: AppSpacing.xl,
         title: const Text('마이'),
       ),
       body: userAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, __) =>
-            const Center(child: Text('프로필 로드 실패')),
+        // ⛔ 여기서 authStateProvider 를 invalidate 하는 '다시 시도'를 달지 말 것 —
+        // 세션 초기화·푸시 등록이 다시 돌고 라우터 리다이렉트가 흔들린다.
+        error: (_, _) => const EmptyState(
+          icon: Icons.cloud_off_outlined,
+          tone: EmptyTone.neutral,
+          message: '프로필을 불러오지 못했어요',
+          subMessage: '잠시 후 다시 열어 주세요.',
+        ),
         data: (user) => ListView(
           padding: const EdgeInsets.only(bottom: 24),
           children: [
-            // 프로필은 연녹 면 위에 올린다 — 개체 상세 헤더와 같은 처리라
-            // "여기가 이 화면의 주인"이라는 것이 색으로 먼저 읽힌다.
+            // 프로필은 **진한 브랜드 면**에 올린다. 연녹(brandTintSoft)일 때는
+            // 캔버스(F4F6F5)와 거의 같은 명도라 카드가 있는 줄도 몰랐다(2026-10-19).
+            // 글씨는 흰색 — brandAction 위 흰 글씨 5.39:1 이라 통과한다.
             Container(
               margin: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xxl),
+                  AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.xxl),
               padding: const EdgeInsets.all(AppSpacing.xl),
               decoration: const BoxDecoration(
-                color: AppColors.brandTintSoft,
+                color: AppColors.brandAction,
                 borderRadius: AppRadius.brLg,
+                boxShadow: AppShadows.elev1,
               ),
               child: Row(
                 children: [
@@ -56,11 +68,13 @@ class MyScreen extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(user?.name ?? '사용자',
-                            style: AppTextStyles.h3,
+                            style: AppTextStyles.h3
+                                .copyWith(color: Colors.white),
                             overflow: TextOverflow.ellipsis),
                         const SizedBox(height: AppSpacing.xs),
                         Text(user?.email ?? '',
-                            style: AppTextStyles.caption,
+                            style: AppTextStyles.caption
+                                .copyWith(color: AppColors.brand100),
                             overflow: TextOverflow.ellipsis),
                         const SizedBox(height: AppSpacing.sm),
                         // 알약이다. 각진 회색 띠였을 때는 '라벨'이 아니라
@@ -95,8 +109,8 @@ class MyScreen extends ConsumerWidget {
             //
             // 기준은 **"개체에 관한 것 / 내 계정에 관한 것"** 이다. 기능의 중요도나
             // 사용 빈도로 나누지 말 것 — 그건 사람마다 달라서 다음에 또 뒤집힌다.
-            const _GroupTitle('사육'),
-            _MenuCard(children: [
+            const MenuGroupTitle('사육'),
+            MenuCard(children: [
               // 공유 관리 허브 — 공유코드·받은 초대·개체 공유 시작
               const _ShareManageItem(),
               // NFC 이름표 — 연결 확인·기본 동작 변경·해제
@@ -111,8 +125,8 @@ class MyScreen extends ConsumerWidget {
               ),
             ]),
 
-            const _GroupTitle('계정'),
-            _MenuCard(children: [
+            const MenuGroupTitle('계정'),
+            MenuCard(children: [
               _MenuItem(
                 icon: Icons.notifications_outlined,
                 label: '알림 설정',
@@ -150,7 +164,7 @@ class MyScreen extends ConsumerWidget {
             // 면을 떼어놓는 편이 "여기부터는 되돌아오지 않는 영역"으로 읽힌다
             // (예전엔 Divider 한 줄로 떼어놨는데, 메뉴가 카드에 들어간 뒤로는
             //  선이 카드 사이에 떠 있는 군더더기가 된다).
-            _MenuCard(children: [
+            MenuCard(children: [
               _MenuItem(
                 icon: Icons.logout,
                 label: '로그아웃',
@@ -176,63 +190,6 @@ class MyScreen extends ConsumerWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-/// 메뉴 그룹을 **흰 카드 하나**로 묶는다.
-///
-/// 예전엔 줄들이 `canvas`(연회색) 위에 면도 그림자도 없이 그려져 있었다.
-/// 리뉴얼 테마에서 `canvas` 는 **바탕 전용**이고 내용은 흰 카드에 얹는 규칙이라,
-/// 마이페이지만 테마가 안 걸린 화면처럼 보였다 — 색은 맞았고 **면이 없었던 것**이다.
-///
-/// - ⛔ 카드 안쪽을 `canvas` 로 칠하지 말 것 (카드·시트에 금지된 색).
-/// - 줄 사이는 `line` 1px, 아이콘 폭만큼 들여 긋는다 — 끝까지 그으면 카드가
-///   잘린 것처럼 읽히고, 아예 없으면 긴 그룹에서 줄 수를 못 센다.
-/// - `clipBehavior` 가 필요하다: 안 주면 `InkWell` 물결이 카드 모서리를 넘는다.
-class _MenuCard extends StatelessWidget {
-  final List<Widget> children;
-
-  const _MenuCard({required this.children});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(
-          AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.xl),
-      decoration: AppDecor.cardRaised,
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          for (var i = 0; i < children.length; i++) ...[
-            if (i > 0)
-              const Divider(
-                height: 1,
-                thickness: 1,
-                indent: 52, // 아이콘(20) + 간격(16) + 좌패딩(16)
-                color: AppColors.line,
-              ),
-            children[i],
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-/// 메뉴 그룹 제목. [SectionHeader] 를 쓰지만 좌우 여백은 카드 안 메뉴 줄의
-/// 글자 시작점(16+16)에 맞춘다 — 제목이 항목보다 안쪽에 있으면 어디까지가
-/// 그 그룹인지 흐려진다.
-class _GroupTitle extends StatelessWidget {
-  final String title;
-
-  const _GroupTitle(this.title);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, 0),
-      child: SectionHeader(title: title),
     );
   }
 }
@@ -329,9 +286,11 @@ class _ProfileAvatarState extends ConsumerState<_ProfileAvatar> {
             child: Container(
               padding: const EdgeInsets.all(4),
               // 둥근 아바타 위에 각진 배지가 얹혀 있었다. 같은 형태를 따라간다.
-              decoration: const BoxDecoration(
+              // 히어로 바탕이 brandAction 이라 흰 테두리가 없으면 배지가 묻힌다.
+              decoration: BoxDecoration(
                 color: AppColors.brandAction,
                 shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 1.5),
               ),
               child: _uploading
                   // 카메라 배지 자리를 대신 차지하므로 아이콘과 같은 크기여야 한다.
