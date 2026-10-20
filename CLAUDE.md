@@ -939,6 +939,36 @@ JWT Access 30분 + Refresh 14일 (Redis 저장, Rotation).
 OAuth 토큰 AES-256-GCM 암호화 (`BITPET_TOKEN_ENC_KEY` 환경변수).
 비밀번호 최소 10자 + 2종류 이상 조합.
 
+### 소셜 로그인 — 카카오·네이버·Google (2026-10-20 배선)
+
+앱(`flutter_web_auth_2`)이 브라우저로 `https://tailog.me/oauth2/authorization/{kakao|naver|google}?app_challenge=`
+를 연다 → Spring `oauth2Login` 이 제공자와 왕복 → `tailog://oauth/callback?code=` 로 복귀 →
+앱이 `POST /api/v1/auth/oauth/exchange {code, verifier}` 로 토큰을 받는다.
+
+- ⛔ **리다이렉트 URL 에 토큰을 싣지 말 것.** 커스텀 스킴은 다른 앱이 같은 스킴을 등록해 가로챌 수 있다.
+  그래서 서버는 **1회용 교환 코드**(Redis 2분, `getAndDelete` — `OAuthLoginCodeStore`)만 주고,
+  코드는 앱이 처음에 **해시만 보낸 verifier 원문**과 맞아야 토큰이 된다(PKCE 와 같은 구조).
+  challenge 는 `AppChallengeAuthorizationRequestResolver` 가 세션에 담는다. 없으면 `error=missing_challenge`.
+  틀린 verifier 한 번이면 코드는 사라진다
+- 스킴 `tailog` 는 세 곳이 같아야 한다: 앱 `kOAuthCallbackScheme` · AndroidManifest `CallbackActivity` ·
+  서버 `bitpet.oauth2.success/failure-redirect-uri`(기본값이 코드·compose 에 있어 `.env.prod` 에 안 넣어도 된다)
+- 키는 `.env.prod` 의 `BITPET_OAUTH_{KAKAO|NAVER|GOOGLE}_CLIENT_{ID|SECRET}`. 제공자 콘솔의 Redirect URI 는
+  `https://tailog.me/login/oauth2/code/{kakao|naver|google}`
+- **카카오 scope 는 `profile_nickname` 하나뿐.** 콘솔 동의항목에 설정 안 된 scope 를 요청하면 KOE205 로
+  로그인 자체가 막힌다. `profile_image`·`account_email` 은 콘솔에서 동의항목을 켠 **뒤에** 추가할 것
+- **제공자가 확인한 이메일만 기존 계정에 자동 연결한다** (`OAuth2UserInfo.emailVerified` — 카카오
+  `is_email_verified && is_email_valid`, Google `email_verified`, 네이버는 본인확인 주소라 true).
+  확인 안 된 주소는 합성 이메일로 새 계정 — 안 그러면 남의 이메일로 그 사람 계정에 들어간다
+- **탈퇴 시 `user_oauth_rls` 를 지운다.** 소프트 삭제된 계정에 연결이 남으면 연관 로딩엔
+  `@SQLRestriction` 이 안 걸려 탈퇴 계정으로 다시 로그인됐다. 예전에 남은 연결은 로그인 시점에 끊는다
+- **약관 동의는 로그인 뒤 따로 받는다.** 소셜 가입은 약관 화면 없이 계정이 생기고, 서버는 거짓 동의 기록을
+  남기지 않으려 아무것도 쓰지 않는다. 앱이 로그인·앱 시작마다 `GET /auth/me/agreements` 의
+  `needsReagreement` 를 보고(`needsAgreementProvider`) 라우터가 `/agreements`(`AgreementScreen`)에 묶어 둔다.
+  약관 개정 재동의도 같은 길. **자녀 계정은 건너뛴다**(항목 집합이 다르다 — 보호자 동의)
+  - 동의 판정은 프로필을 받은 뒤 **상태를 내보내기 전에** 한다 (`AuthNotifier._checkAgreement`). 반대면 홈이 한 번 번쩍인다
+  - 약관 행 위젯은 `features/auth/presentation/widgets/terms_item.dart` 를 가입 3단계와 같이 쓴다
+- 브라우저 왕복 동안은 `authStateProvider` 를 loading 으로 두지 않는다 — 라우터가 스플래시로 보내 버린다
+
 ### Soft Delete
 `@SQLRestriction("deleted_at IS NULL")` 전 도메인 적용.
 

@@ -5,26 +5,19 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/toast_message.dart';
+import '../data/auth_repository.dart';
 import '../providers/auth_provider.dart';
 import '../../../core/theme/app_dimens.dart';
 
-/// 소셜 로그인 **버튼** 노출 여부.
+/// 소셜 로그인 버튼 노출 여부.
 ///
-/// 요즘 가입은 대부분 소셜이라 이 화면의 기본 동선도 소셜 먼저다. 그래서 버튼은
-/// 먼저 내보낸다 — 다만 OAuth 클라이언트 키(카카오·네이버·Google 콘솔)가 아직
-/// 없고 앱 쪽 플로우(SDK 또는 웹 인증 + 딥링크)도 배선되지 않았다.
+/// 요즘 가입은 대부분 소셜이라 이 화면의 기본 동선도 소셜 먼저다.
 ///
-/// 그동안 **먹통 버튼**으로 두지는 않는다. 누르면 준비 중이라고 알려주고 이메일
-/// 로그인으로 유도한다([_LoginScreenState._socialNotReady]). 기능이 없는 것보다
-/// 나쁜 건 눌러도 아무 일이 없는 버튼이다.
-///
-/// 배선 순서: ① 각 콘솔에서 키 발급 + 리다이렉트 URI(`tailog.me`) 등록
-/// → ② 앱에서 인증 코드 받기 → ③ 서버 `auth/oauth/`(이미 구현됨)로 교환
-/// → ④ [kSocialLoginWired] 를 `true` 로. 이 플래그는 그때도 `true` 그대로다.
+/// 흐름(2026-10-20 배선): 브라우저로 `tailog.me/oauth2/authorization/{provider}` 를 열고
+/// → 서버가 제공자와 왕복한 뒤 `tailog://oauth/callback?code=` 로 돌려보내면
+/// → `POST /auth/oauth/exchange` 로 토큰을 받는다 ([AuthRepository.authorizeSocial]).
+/// 처음 들어온 소셜 계정은 약관 동의 화면(`/agreements`)을 거친다.
 const bool kSocialLoginEnabled = true;
-
-/// OAuth 배선이 끝났는지. 키가 들어오면 `true` 로 바꾸고 `_onSocial` 의 TODO 를 채운다.
-const bool kSocialLoginWired = false;
 
 // ─── 상단 로고 ──────────────────────────────────────────────────────────────
 //
@@ -88,6 +81,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _obscure = true;
   bool _keepLoggedIn = false;
 
+  /// 소셜 로그인 브라우저가 떠 있는 동안. 연타로 창이 여러 개 뜨지 않게 막는다.
+  bool _socialBusy = false;
+
   /// 이메일 폼을 펼쳤는지. 소셜 버튼이 없으면 접어 둘 이유가 없다.
   bool _emailOpen = !kSocialLoginEnabled;
 
@@ -116,21 +112,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  /// 소셜 버튼 탭.
-  ///
-  /// TODO(oauth): [kSocialLoginWired] 가 `true` 가 되면 여기서 provider 별 인증을
-  /// 띄운다 — 인증 코드 → 서버 `auth/oauth/` 교환 → `authStateProvider` 갱신.
-  /// 그때 아래 호출을 그 플로우로 바꾸고 [_socialNotReady] 를 지운다.
-  void _onSocial(String provider) => _socialNotReady(provider);
+  /// 소셜 버튼 탭. 버튼 라벨을 서버 registrationId 로 바꿔 넘긴다.
+  Future<void> _onSocial(String label) async {
+    if (_socialBusy) return;
+    const providers = {'카카오': 'kakao', '네이버': 'naver', 'Google': 'google'};
+    setState(() => _socialBusy = true);
+    try {
+      await ref.read(authStateProvider.notifier).socialLogin(providers[label]!);
+      if (!mounted) return;
+      // 교환 이후 실패는 상태에 남는다 (브라우저 단계 실패는 아래 catch)
+      if (ref.read(authStateProvider).hasError) _socialFailed(label);
+    } on SocialLoginException catch (e) {
+      if (mounted) _socialFailed(label, reason: e.reason);
+    } catch (_) {
+      if (mounted) _socialFailed(label);
+    } finally {
+      if (mounted) setState(() => _socialBusy = false);
+    }
+  }
 
-  /// 배선이 끝나기 전까지는 왜 안 되는지 말해 주고 이메일 폼을 열어 준다.
-  void _socialNotReady(String provider) {
-    ToastMessage.show(
-      context,
-      '$provider 로그인은 준비 중이에요. 지금은 이메일로 로그인해 주세요.',
-      type: ToastType.info,
-    );
-    if (!_emailOpen) setState(() => _emailOpen = true);
+  void _socialFailed(String label, {String? reason}) {
+    // 서버가 돌려준 error 코드는 사용자에게 보여줄 말이 아니라 그대로 두지 않는다
+    final msg = reason == 'access_denied'
+        ? '$label 로그인을 취소했어요.'
+        : '$label 로그인에 실패했어요. 잠시 후 다시 시도해 주세요.';
+    ToastMessage.show(context, msg, type: ToastType.error);
   }
 
   @override

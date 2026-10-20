@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/signup_screen.dart';
+import '../../features/auth/presentation/agreement_screen.dart';
 import '../../features/auth/presentation/password_reset/password_reset_request_screen.dart';
 import '../../features/auth/presentation/password_reset/password_reset_verify_screen.dart';
 import '../../features/auth/presentation/password_reset/password_reset_confirm_screen.dart';
@@ -77,6 +78,16 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       if (!isLoggedIn && !isAuthRoute) return '/login';
+
+      // 소셜 가입 직후·약관 개정 후에는 동의 전까지 다른 화면으로 못 간다.
+      // 태그 딥링크도 기다리게 둔다 — PendingTagLink 는 아래 줄에서 꺼낸다.
+      final needsAgreement = ref.read(needsAgreementProvider);
+      if (isLoggedIn && needsAgreement) {
+        return loc == '/agreements' ? null : '/agreements';
+      }
+      if (isLoggedIn && loc == '/agreements') {
+        return PendingTagLink.take() ?? '/home';
+      }
       if (isLoggedIn && isAuthRoute) return PendingTagLink.take() ?? '/home';
       return null;
     },
@@ -94,6 +105,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/intro', builder: (_, __) => const IntroScreen()),
       GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
       GoRoute(path: '/signup', builder: (_, __) => const SignupScreen()),
+      GoRoute(path: '/agreements', builder: (_, __) => const AgreementScreen()),
       GoRoute(
         path: '/password-reset/request',
         builder: (_, __) => const PasswordResetRequestScreen(),
@@ -249,6 +261,7 @@ class _AuthListenable implements Listenable {
 
   _AuthListenable(Ref ref) {
     ref.listen(authStateProvider, (_, __) => _notify());
+    ref.listen(needsAgreementProvider, (_, __) => _notify());
   }
 
   void _notify() {

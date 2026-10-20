@@ -13,6 +13,8 @@ import io.bitpet.auth.dto.UserResponse;
 import io.bitpet.auth.dto.WithdrawPreviewResponse;
 import io.bitpet.auth.jwt.JwtTokenProvider;
 import io.bitpet.auth.jwt.RefreshTokenStore;
+import io.bitpet.auth.oauth.OAuthLoginCodeStore;
+import io.bitpet.auth.repository.UserOAuthRlsRepository;
 import io.bitpet.auth.repository.UserMstRepository;
 import io.bitpet.common.dto.PresignResponse;
 import io.bitpet.common.exception.BusinessException;
@@ -26,6 +28,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -44,6 +50,8 @@ public class AuthService {
     private final PetWithdrawalService petWithdrawalService;
     private final AgreementService agreementService;
     private final AdminGuard adminGuard;
+    private final OAuthLoginCodeStore oAuthLoginCodeStore;
+    private final UserOAuthRlsRepository userOAuthRlsRepository;
 
     public EmailCheckResponse checkEmail(String email) {
         return new EmailCheckResponse(!userRepository.existsByEmail(email));
@@ -106,6 +114,39 @@ public class AuthService {
 
         user.markLoggedIn();
         return issueTokens(user);
+    }
+
+    /**
+     * 소셜 로그인 교환 코드 → 토큰.
+     *
+     * <p>verifier 의 SHA-256 이 로그인 시작 때 맡겨둔 challenge 와 같아야 한다.
+     * 코드는 꺼내는 순간 지워지므로 틀려도 다시 시도할 수 없다 — 앱은 로그인부터 다시 한다.
+     */
+    @Transactional
+    public TokenResponse exchangeOAuthCode(String code, String verifier) {
+        OAuthLoginCodeStore.Entry entry = oAuthLoginCodeStore.consume(code)
+                .orElseThrow(() -> new BusinessException(
+                        ErrorCode.AUTH_INVALID_TOKEN, "만료되었거나 이미 사용한 코드입니다"));
+
+        byte[] expected = entry.challenge().getBytes(StandardCharsets.US_ASCII);
+        byte[] actual = s256(verifier).getBytes(StandardCharsets.US_ASCII);
+        if (!MessageDigest.isEqual(expected, actual)) {
+            throw new BusinessException(ErrorCode.AUTH_INVALID_TOKEN, "코드 검증에 실패했습니다");
+        }
+
+        UserMst user = userRepository.findById(entry.userId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.AUTH_USER_NOT_FOUND));
+        return issueTokens(user);
+    }
+
+    private static String s256(String verifier) {
+        try {
+            byte[] hash = MessageDigest.getInstance("SHA-256")
+                    .digest(verifier.getBytes(StandardCharsets.US_ASCII));
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     public TokenResponse refresh(String refreshToken) {
@@ -261,6 +302,9 @@ public class AuthService {
                 petWithdrawalService.process(userId, handOverSharedPets);
 
         user.softDelete();
+        // 소셜 연결을 남겨두면 같은 카카오·구글 계정으로 다시 들어왔을 때 탈퇴한 계정에
+        // 붙는다. 끊어두면 다음 로그인은 새 가입이 된다.
+        userOAuthRlsRepository.deleteAll(userOAuthRlsRepository.findAllByUserId(userId));
         refreshTokenStore.delete(userId);
         log.info("User withdrew: id={}, deletedAt={}, pets={}", userId, user.getDeletedAt(), petResult);
     }

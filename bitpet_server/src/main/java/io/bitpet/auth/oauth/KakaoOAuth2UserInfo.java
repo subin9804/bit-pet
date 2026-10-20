@@ -26,6 +26,14 @@ public record KakaoOAuth2UserInfo(Map<String, Object> rawAttributes) implements 
     }
 
     @Override
+    public boolean emailVerified() {
+        Map<String, Object> kakaoAccount = kakaoAccount();
+        if (kakaoAccount == null) return false;
+        return Boolean.TRUE.equals(kakaoAccount.get("is_email_verified"))
+                && Boolean.TRUE.equals(kakaoAccount.get("is_email_valid"));
+    }
+
+    @Override
     public String name() {
         Map<String, Object> profile = profile();
         if (profile == null) return null;

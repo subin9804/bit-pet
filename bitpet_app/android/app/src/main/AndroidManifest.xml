@@ -74,6 +74,21 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <!-- 소셜 로그인 복귀 — 서버가 tailog://oauth/... 로 돌려보내면 여기서 받아
+             flutter_web_auth_2 에 넘긴다. 스킴은 앱 kOAuthCallbackScheme ·
+             서버 bitpet.oauth2.*-redirect-uri 와 같아야 한다. -->
+        <activity
+            android:name="com.linusu.flutter_web_auth_2.CallbackActivity"
+            android:exported="true"
+            android:taskAffinity="">
+            <intent-filter android:label="flutter_web_auth_2">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="tailog" />
+            </intent-filter>
+        </activity>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

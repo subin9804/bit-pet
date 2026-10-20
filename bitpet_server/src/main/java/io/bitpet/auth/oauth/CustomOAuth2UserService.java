@@ -52,6 +52,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         String encryptedAccessToken = tokenEncryptor.encrypt(rawAccessToken);
         UserMst user = userOAuthRlsRepository
                 .findByProviderAndProviderUserId(info.provider(), info.providerUserId())
+                .filter(this::linkedToActiveUser)
                 .map(rls -> updateOnLogin(rls, info, encryptedAccessToken))
                 .orElseGet(() -> linkOrCreate(info, encryptedAccessToken));
 
@@ -61,6 +62,18 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         return new OAuth2UserPrincipal(user, attributes, nameAttributeKey);
     }
 
+    /**
+     * 탈퇴한 계정에 걸린 연결이면 끊고 새 가입으로 보낸다. 지금은 탈퇴할 때 연결을
+     * 지우지만, 그 전에 탈퇴한 계정의 연결은 남아 있다 — 연관 엔티티 로딩에는
+     * {@code @SQLRestriction} 이 걸리지 않아서 그대로 두면 탈퇴 계정으로 로그인된다.
+     */
+    private boolean linkedToActiveUser(UserOAuthRls rls) {
+        if (userMstRepository.existsById(rls.getUser().getId())) return true;
+        userOAuthRlsRepository.delete(rls);
+        userOAuthRlsRepository.flush();
+        return false;
+    }
+
     private UserMst updateOnLogin(UserOAuthRls rls, OAuth2UserInfo info, String encryptedAccessToken) {
         rls.updateTokens(encryptedAccessToken, rls.getRefreshToken(), rls.getTokenExpiresAt());
         return rls.getUser();
@@ -68,7 +81,10 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
 
     private UserMst linkOrCreate(OAuth2UserInfo info, String encryptedAccessToken) {
         OAuthProvider provider = info.provider();
-        String email = info.email() != null && !info.email().isBlank()
+        // 같은 이메일의 기존 계정에 자동으로 붙이므로, 제공자가 확인한 이메일만 믿는다.
+        // 확인 안 된 주소를 받아주면 남의 이메일로 소셜 계정을 만들어 그 사람 계정에
+        // 들어갈 수 있다.
+        String email = info.email() != null && !info.email().isBlank() && info.emailVerified()
                 ? info.email()
                 : syntheticEmail(provider, info.providerUserId());
 

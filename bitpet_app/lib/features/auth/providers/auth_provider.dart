@@ -14,6 +14,10 @@ final authStateProvider =
   return AuthNotifier(ref.watch(authRepositoryProvider), ref);
 });
 
+/// 약관 동의를 받아야 하는 로그인 상태인지. 소셜로 막 가입했거나 약관이 개정된 경우다.
+/// 라우터가 이 값이 true 인 동안 `/agreements` 밖으로 못 나가게 한다.
+final needsAgreementProvider = StateProvider<bool>((ref) => false);
+
 class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
   final AuthRepository _repo;
   final Ref _ref;
@@ -42,13 +46,32 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
       state = const AsyncValue.data(null);
       return;
     }
-    state = await AsyncValue.guard(() => _repo.getMe());
+    state = await AsyncValue.guard(() => _checkAgreement(_repo.getMe()));
     if (state.hasError) {
       await _repo.logout();
       state = const AsyncValue.data(null);
       return;
     }
     await _setUpPush();
+  }
+
+  /// 프로필을 받은 뒤, 상태를 내보내기 **전에** 약관 동의 여부를 정한다.
+  /// 순서가 반대면 라우터가 홈으로 한 번 보냈다가 동의 화면으로 튕긴다.
+  ///
+  /// 자녀 계정은 항목이 달라(보호자 동의) 이 화면으로 받을 수 없다 — 건너뛴다.
+  /// 조회가 실패해도 로그인은 막지 않는다. 다음 실행에서 다시 묻는다.
+  Future<UserProfile> _checkAgreement(Future<UserProfile> load) async {
+    final user = await load;
+    var needs = false;
+    if (!user.isChild) {
+      try {
+        needs = await _repo.needsAgreement();
+      } catch (e) {
+        debugPrint('[Auth] 약관 동의 상태 조회 실패: $e');
+      }
+    }
+    _ref.read(needsAgreementProvider.notifier).state = needs;
+    return user;
   }
 
   /// FCM 초기화 + 디바이스 토큰 등록. 실패해도 로그인 흐름은 막지 않는다.
@@ -63,14 +86,35 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
   Future<void> login(String email, String password, {bool keepLoggedIn = true}) async {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(
-      () => _repo.login(
+      () => _checkAgreement(_repo.login(
         LoginRequest(email: email, password: password),
         keepLoggedIn: keepLoggedIn,
-      ),
+      )),
     );
     if (state.hasValue && state.value != null) {
       await _setUpPush();
     }
+  }
+
+  /// 소셜 로그인. 브라우저 왕복은 상태를 건드리지 않고 한다 — 그동안 loading 이면
+  /// 라우터가 스플래시로 보내 버린다. 사용자가 창을 닫으면 아무 일도 없다.
+  /// 브라우저 단계 실패는 예외로 던지고, 교환 이후 실패는 state 의 에러로 남긴다.
+  Future<void> socialLogin(String provider) async {
+    final grant = await _repo.authorizeSocial(provider);
+    if (grant == null) return;
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(
+      () => _checkAgreement(_repo.exchangeSocial(grant)),
+    );
+    if (state.hasValue && state.value != null) {
+      await _setUpPush();
+    }
+  }
+
+  /// 동의 화면에서 '동의' — 기록이 남으면 라우터가 원래 가던 곳으로 보낸다.
+  Future<void> acceptAgreements({required bool agreeMarketing}) async {
+    await _repo.acceptAgreements(agreeMarketing: agreeMarketing);
+    _ref.read(needsAgreementProvider.notifier).state = false;
   }
 
   Future<void> signup(
@@ -135,6 +179,7 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
         debugPrint('[Auth] 로컬 토큰 정리 실패: $e2');
       }
     }
+    _ref.read(needsAgreementProvider.notifier).state = false;
     state = const AsyncValue.data(null);
   }
 

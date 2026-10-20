@@ -56,10 +56,11 @@ spring:
             client-secret: ${BITPET_OAUTH_KAKAO_CLIENT_SECRET:not-configured}
             authorization-grant-type: authorization_code
             redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            # 카카오는 콘솔 [동의항목] 에 설정하지 않은 scope 를 요청하면 로그인 자체를
+            # 막는다(KOE205). 지금 설정된 건 닉네임뿐이다. account_email 은 비즈 앱
+            # 전환 후, profile_image 는 동의항목을 켠 뒤에 여기 추가할 것.
             scope:
               - profile_nickname
-              - profile_image
-              - account_email
             client-authentication-method: client_secret_post
             client-name: Kakao
           naver:
@@ -156,6 +157,7 @@ bitpet:
       - /api/v1/auth/signup
       - /api/v1/auth/login
       - /api/v1/auth/refresh
+      - /api/v1/auth/oauth/exchange
       - /api/v1/auth/password-reset/**
       - /api/v1/species
       - /api/v1/species/*/morphs
@@ -169,9 +171,11 @@ bitpet:
       - /brand/**
       - /favicon.ico
   oauth2:
-    # 로그인 성공 시 클라이언트로 리다이렉트할 URL (deep link 가능)
-    success-redirect-uri: ${BITPET_OAUTH_SUCCESS_REDIRECT:http://localhost:3000/oauth/callback}
-    failure-redirect-uri: ${BITPET_OAUTH_FAILURE_REDIRECT:http://localhost:3000/oauth/error}
+    # 로그인 성공·실패 시 앱으로 돌아갈 주소. 앱(flutter_web_auth_2)은 `tailog` 스킴으로
+    # 돌아오는 걸 기다린다 — 스킴을 바꾸면 앱의 kOAuthCallbackScheme 도 같이 바꿀 것.
+    # 성공에는 ?code= (교환 코드), 실패에는 ?error= 가 붙는다.
+    success-redirect-uri: ${BITPET_OAUTH_SUCCESS_REDIRECT:tailog://oauth/callback}
+    failure-redirect-uri: ${BITPET_OAUTH_FAILURE_REDIRECT:tailog://oauth/error}
   fcm:
     # 서비스 계정 키(JSON) 경로. 파일이 없으면 푸시 발송만 꺼지고 알림은 DB에 계속 기록된다.
     # Firebase Console > 프로젝트 설정 > 서비스 계정 > 새 비공개 키 생성 으로 발급

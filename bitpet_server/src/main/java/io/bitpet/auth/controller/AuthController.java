@@ -6,6 +6,7 @@ import io.bitpet.auth.dto.AgreementStatusResponse;
 import io.bitpet.auth.dto.EmailCheckResponse;
 import io.bitpet.auth.dto.LoginRequest;
 import io.bitpet.auth.dto.NicknameCheckResponse;
+import io.bitpet.auth.dto.OAuthExchangeRequest;
 import io.bitpet.auth.dto.RefreshRequest;
 import io.bitpet.auth.dto.SignupRequest;
 import io.bitpet.auth.dto.TokenResponse;
@@ -67,6 +68,12 @@ public class AuthController {
     @PostMapping("/login")
     public ApiResponse<TokenResponse> login(@Valid @RequestBody LoginRequest request) {
         return ApiResponse.ok(authService.login(request));
+    }
+
+    @Operation(summary = "소셜 로그인 교환 코드 + verifier → access + refresh 발급")
+    @PostMapping("/oauth/exchange")
+    public ApiResponse<TokenResponse> exchangeOAuthCode(@Valid @RequestBody OAuthExchangeRequest request) {
+        return ApiResponse.ok(authService.exchangeOAuthCode(request.code(), request.verifier()));
     }
 
     @Operation(summary = "Refresh 토큰으로 access 재발급 (rotation)")

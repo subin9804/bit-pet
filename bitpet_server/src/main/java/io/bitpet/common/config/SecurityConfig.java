@@ -2,6 +2,7 @@ package io.bitpet.common.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.bitpet.auth.jwt.JwtAuthenticationFilter;
+import io.bitpet.auth.oauth.AppChallengeAuthorizationRequestResolver;
 import io.bitpet.auth.oauth.CustomOAuth2UserService;
 import io.bitpet.auth.oauth.OAuth2FailureHandler;
 import io.bitpet.auth.oauth.OAuth2SuccessHandler;
@@ -58,8 +59,11 @@ public class SecurityConfig {
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         // OAuth2 클라이언트 등록이 있을 때만 oauth2Login 활성화
-        if (clientRegistrationRepositoryProvider.getIfAvailable() != null) {
+        ClientRegistrationRepository registrations = clientRegistrationRepositoryProvider.getIfAvailable();
+        if (registrations != null) {
             http.oauth2Login(oauth2 -> oauth2
+                    .authorizationEndpoint(ae -> ae.authorizationRequestResolver(
+                            new AppChallengeAuthorizationRequestResolver(registrations)))
                     .userInfoEndpoint(ui -> ui.userService(customOAuth2UserService))
                     .successHandler(oAuth2SuccessHandler)
                     .failureHandler(oAuth2FailureHandler));

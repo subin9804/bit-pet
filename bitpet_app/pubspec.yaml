@@ -87,6 +87,8 @@ dependencies:
   # pubspec 의 version 을 빌드 시점에 읽어온다. 화면에 상수로 박아두면 배포할 때마다
   # 손으로 고쳐야 하고, 한 번 까먹으면 화면에 거짓 버전이 뜬 채로 나간다.
   package_info_plus: ^8.0.0
+  flutter_web_auth_2: ^5.1.0
+  crypto: ^3.0.7
 
 dev_dependencies:
   flutter_test:

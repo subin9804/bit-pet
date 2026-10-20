@@ -22,6 +22,11 @@ public record GoogleOAuth2UserInfo(Map<String, Object> rawAttributes) implements
     }
 
     @Override
+    public boolean emailVerified() {
+        return Boolean.parseBoolean(asString("email_verified"));
+    }
+
+    @Override
     public String name() {
         String name = asString("name");
         return name != null ? name : asString("given_name");

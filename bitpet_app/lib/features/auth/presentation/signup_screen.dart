@@ -11,7 +11,7 @@ import '../../../core/widgets/toast_message.dart';
 import '../../../core/widgets/user_avatar.dart';
 import '../data/auth_repository.dart';
 import '../providers/auth_provider.dart';
-import '../../../core/theme/app_icons.dart';
+import 'widgets/terms_item.dart';
 import '../../../core/theme/app_dimens.dart';
 
 // ════════════════════════════════════════════════════════════════
@@ -596,7 +596,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         ),
         child: Column(
           children: [
-            _TermsItem(
+            TermsItem(
               label: '전체 동의',
               checked: _agreeAll,
               isBold: true,
@@ -606,28 +606,28 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 if (!_agreeAll && _reqAgreed) ctx.advance();
               },
             ),
-            _TermsItem(
+            TermsItem(
               label: '서비스 이용약관',
               checked: _agreeTos,
               badge: '필수',
               onTap: () => _toggleOne('tos'),
               onView: () => _showTerms('tos'),
             ),
-            _TermsItem(
+            TermsItem(
               label: '개인정보 처리방침',
               checked: _agreePrivacy,
               badge: '필수',
               onTap: () => _toggleOne('privacy'),
               onView: () => _showTerms('privacy'),
             ),
-            _TermsItem(
+            TermsItem(
               label: '만 14세 이상입니다',
               checked: _agreeAge,
               badge: '필수',
               onTap: () => _toggleOne('age'),
               onView: () => _showTerms('age'),
             ),
-            _TermsItem(
+            TermsItem(
               label: '마케팅 정보 수신',
               checked: _agreeMarketing,
               badge: '선택',
@@ -739,137 +739,3 @@ class _PalettePicker extends StatelessWidget {
   }
 }
 
-// ── 약관 항목 행 ────────────────────────────────────────────────────────────────
-
-class _TermsItem extends StatelessWidget {
-  final String label;
-  final bool checked;
-  final String? badge;
-  final bool isBold;
-  final bool hasBorder;
-  final bool isLast;
-  final VoidCallback onTap;
-
-  /// 전문 보기. null 이면 화살표를 아예 그리지 않는다 ('전체 동의'가 그렇다).
-  final VoidCallback? onView;
-
-  const _TermsItem({
-    required this.label,
-    required this.checked,
-    required this.onTap,
-    this.onView,
-    this.badge,
-    this.isBold = false,
-    this.hasBorder = false,
-    this.isLast = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: AppRadius.brMd,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          // 전엔 두 갈래가 `paleLine`/`paleLineSoft` 로 나뉘어 있었는데 두 별칭이
-          // 같은 값(`line`)이라 결과가 똑같았다. 조건만 남겼다 — 마지막 줄만 선이 없다.
-          border: (hasBorder || !isLast)
-              ? const Border(bottom: BorderSide(color: AppColors.line))
-              : null,
-        ),
-        child: Row(
-          children: [
-            _PaleCheckbox(checked: checked, large: isBold),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Row(
-                children: [
-                  if (badge != null) ...[
-                    Text(
-                      '[$badge]',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
-                        color: badge == '필수'
-                            ? AppColors.error
-                            : AppColors.ink3,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                  ],
-                  Expanded(
-                    child: Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
-                        color: AppColors.ink,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // 화살표는 행과 별개의 탭 타겟이다 — 여기를 누르면 체크가 아니라 전문이 열린다.
-            // 손가락으로 닿을 만한 크기를 주려고 아이콘 주변에 패딩을 깐다.
-            if (onView != null)
-              InkWell(
-                onTap: onView,
-                borderRadius: AppRadius.brMd,
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '보기',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.ink2,
-                          decoration: TextDecoration.underline,
-                          decorationColor: AppColors.ink3,
-                        ),
-                      ),
-                      SizedBox(width: 4),
-                      AppIcon(AppIcons.chevronRight,
-                          size: 16, color: AppColors.ink3),
-                    ],
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PaleCheckbox extends StatelessWidget {
-  final bool checked;
-  final bool large;
-  const _PaleCheckbox({required this.checked, this.large = false});
-
-  @override
-  Widget build(BuildContext context) {
-    final size = large ? 22.0 : 18.0;
-    final radius = large ? 6.0 : 9.0;
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 150),
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: checked ? AppColors.brandAction : AppColors.card,
-        borderRadius: BorderRadius.circular(radius),
-        border: Border.all(
-          color: checked ? AppColors.brandAction : AppColors.line,
-          width: 1.5,
-        ),
-      ),
-      child: checked
-          ? Icon(Icons.check, size: size * 0.65, color: Colors.white)
-          : null,
-    );
-  }
-}

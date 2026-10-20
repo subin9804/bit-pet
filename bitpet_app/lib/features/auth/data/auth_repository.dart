@@ -1,4 +1,10 @@
+import 'dart:convert';
+import 'dart:math';
+
+import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_response.dart';
@@ -47,6 +53,97 @@ class AuthRepository {
       persist: keepLoggedIn,
     );
     return getMe();
+  }
+
+
+  // ── 소셜 로그인 ───────────────────────────────────────────
+  // 서버가 제공자와 왕복을 끝낸 뒤 토큰이 아니라 1회용 교환 코드를
+  // `tailog://oauth/callback?code=` 로 돌려준다. 커스텀 스킴은 다른 앱이 가로챌 수
+  // 있어서, 코드만으로는 못 쓰고 처음에 해시만 보낸 verifier 원문이 있어야 토큰이 된다.
+
+  /// 브라우저로 제공자 로그인을 띄우고 교환 코드를 받아 온다.
+  /// 사용자가 창을 닫으면 null. 서버가 실패로 돌려보내면 [SocialLoginException].
+  Future<SocialGrant?> authorizeSocial(String provider) async {
+    final verifier = _randomUrlSafe(48);
+    final challenge = _s256(verifier);
+    final url = Uri.parse(_serverOrigin).replace(
+      path: '/oauth2/authorization/$provider',
+      queryParameters: {'app_challenge': challenge},
+    );
+
+    final String result;
+    try {
+      result = await FlutterWebAuth2.authenticate(
+        url: url.toString(),
+        callbackUrlScheme: kOAuthCallbackScheme,
+      );
+    } on PlatformException catch (e) {
+      if (e.code == 'CANCELED') return null;
+      rethrow;
+    }
+
+    final uri = Uri.parse(result);
+    final code = uri.queryParameters['code'];
+    if (uri.host == 'oauth' && uri.path == '/callback' && code != null && code.isNotEmpty) {
+      return SocialGrant(code: code, verifier: verifier);
+    }
+    throw SocialLoginException(uri.queryParameters['error'] ?? 'unknown');
+  }
+
+  /// 교환 코드 + verifier → 토큰. 소셜 로그인은 '로그인 유지'를 묻지 않는다(늘 유지).
+  Future<UserProfile> exchangeSocial(SocialGrant grant) async {
+    final res = await _dio.post('/auth/oauth/exchange',
+        data: {'code': grant.code, 'verifier': grant.verifier});
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => d as Map<String, dynamic>,
+    );
+    if (!apiRes.success || apiRes.data == null) {
+      throw ApiException(
+          statusCode: res.statusCode ?? 0,
+          message: apiRes.message ?? '로그인에 실패했습니다.');
+    }
+    final data = apiRes.data!;
+    await _tokenStorage.saveTokens(
+      accessToken: data['accessToken'] as String,
+      refreshToken: data['refreshToken'] as String,
+      persist: true,
+    );
+    return getMe();
+  }
+
+  /// `kBaseUrl` 에서 `/api/v1` 을 뗀 서버 주소. OAuth 시작점은 API 경로 밖에 있다.
+  static String get _serverOrigin => Uri.parse(kBaseUrl).origin;
+
+  static String _randomUrlSafe(int bytes) {
+    final rnd = Random.secure();
+    final data = List<int>.generate(bytes, (_) => rnd.nextInt(256));
+    return base64UrlEncode(data).replaceAll('=', '');
+  }
+
+  static String _s256(String verifier) =>
+      base64UrlEncode(sha256.convert(ascii.encode(verifier)).bytes).replaceAll('=', '');
+
+  // ── 약관 동의 상태 ────────────────────────────────────────
+  // 소셜 가입은 약관 화면 없이 계정이 생긴다. 서버는 그 자리에서 동의를 기록하지
+  // 않으므로(본 적 없는 약관에 동의했다는 거짓 기록이 된다) 앱이 로그인 직후 물어본다.
+  // 약관 개정 후 재동의도 같은 값으로 걸린다.
+  Future<bool> needsAgreement() async {
+    final res = await _dio.get('/auth/me/agreements');
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => d as Map<String, dynamic>,
+    );
+    return apiRes.data?['needsReagreement'] as bool? ?? false;
+  }
+
+  Future<void> acceptAgreements({required bool agreeMarketing}) async {
+    await _dio.post('/auth/me/agreements', data: {
+      'agreeTos': true,
+      'agreePrivacy': true,
+      'agreeAge': true,
+      'agreeMarketing': agreeMarketing,
+    });
   }
 
   // ── 내 정보 조회 (앱 재시작 시 프로필 복원) ──────────────
@@ -264,4 +361,23 @@ class AuthRepository {
   }
 
   Future<bool> get isLoggedIn => _tokenStorage.hasToken;
+}
+
+/// 소셜 로그인이 돌아올 커스텀 스킴. AndroidManifest 의 CallbackActivity 와
+/// 서버 `bitpet.oauth2.success/failure-redirect-uri` 가 이 값과 같아야 한다.
+const String kOAuthCallbackScheme = 'tailog';
+
+/// 브라우저 왕복에서 받은 교환 코드와, 처음에 해시만 보낸 verifier 원문.
+class SocialGrant {
+  final String code;
+  final String verifier;
+  const SocialGrant({required this.code, required this.verifier});
+}
+
+/// 서버가 실패로 돌려보낸 경우. [reason] 은 `?error=` 값 그대로.
+class SocialLoginException implements Exception {
+  final String reason;
+  const SocialLoginException(this.reason);
+  @override
+  String toString() => 'SocialLoginException($reason)';
 }
