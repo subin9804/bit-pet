@@ -969,6 +969,13 @@ OAuth 토큰 AES-256-GCM 암호화 (`BITPET_TOKEN_ENC_KEY` 환경변수).
   - 약관 행 위젯은 `features/auth/presentation/widgets/terms_item.dart` 를 가입 3단계와 같이 쓴다
 - 브라우저 왕복 동안은 `authStateProvider` 를 loading 으로 두지 않는다 — 라우터가 스플래시로 보내 버린다
 
+### 약관 공개 페이지 — tailog.me/legal (2026-10-26)
+- 스토어 심사용 **앱 밖 URL**. `GET /legal`(목록) · `/legal/{tos|privacy|age|guardian|marketing}` — `common/legal/LegalPageController`, 공개 경로
+- Play 콘솔에 낼 개인정보처리방침 URL: `https://tailog.me/legal/privacy`
+- **정본은 앱 `lib/core/legal/legal_documents.dart`**, 서버 `resources/legal/{id}.txt` 는 사본. 시행일은 `AgreementType` 버전을 그대로 쓴다
+- `LegalDocumentsSyncTest` 가 본문·제목·시행일을 앱 원문과 대조한다 (앱 소스가 없는 체크아웃이면 건너뜀).
+  약관을 고치면 세 곳(dart · txt · AgreementType 버전)을 같이 바꿀 것
+
 ### Soft Delete
 `@SQLRestriction("deleted_at IS NULL")` 전 도메인 적용.
 
