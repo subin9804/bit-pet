@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
@@ -7,6 +8,7 @@ import '../../../../core/theme/pale_palette.dart';
 import '../../../../core/widgets/app_buttons.dart';
 import '../../../record/data/models/record_models.dart';
 import '../../../record/providers/record_provider.dart';
+import '../../../record/record_detail_path.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_dimens.dart';
 import '../../../../core/species/breeding_terms.dart';
@@ -411,14 +413,23 @@ class _PetCalendarTabState extends ConsumerState<PetCalendarTab> {
         return Column(
           children: filtered.asMap().entries.map((e) {
             final i = e.key;
-            return Container(
-              decoration: BoxDecoration(
-                border: i < filtered.length - 1
-                    ? const Border(bottom: BorderSide(color: AppColors.line))
-                    : null,
+            // 행을 누르면 그 종류의 기록 상세로 간다 (급여 → 급여 상세)
+            final path = recordDetailPath(widget.petId, e.value.category);
+            return GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: path == null ? null : () => context.push(path),
+              child: Container(
+                decoration: BoxDecoration(
+                  border: i < filtered.length - 1
+                      ? const Border(bottom: BorderSide(color: AppColors.line))
+                      : null,
+                ),
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                child: _DayRecordRow(
+                    item: e.value,
+                    speciesCategory: widget.speciesCategory,
+                    showChevron: path != null),
               ),
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-              child: _DayRecordRow(item: e.value, speciesCategory: widget.speciesCategory),
             );
           }).toList(),
         );
@@ -433,7 +444,11 @@ class _DayRecordRow extends StatelessWidget {
 
   final String? speciesCategory;
 
-  const _DayRecordRow({required this.item, this.speciesCategory});
+  /// 상세 화면으로 갈 수 있는 행 — 오른쪽 화살표로 누를 수 있음을 알린다
+  final bool showChevron;
+
+  const _DayRecordRow(
+      {required this.item, this.speciesCategory, this.showChevron = false});
 
   @override
   Widget build(BuildContext context) {
@@ -473,6 +488,9 @@ class _DayRecordRow extends StatelessWidget {
         // ⚠️ 오른쪽에 기록 시각(11pt)을 적고 있었다. 저장은 계속 하지만
         // **화면에는 보여주지 않는다** (2026-10-15 사용자 결정) — 이 행은
         // 이미 '그날' 기록 묶음 안이라 시각까지 적을 자리가 아니다.
+        if (showChevron)
+          const Icon(Icons.chevron_right_rounded,
+              size: AppIconSize.md, color: AppColors.ink3),
       ],
     );
   }

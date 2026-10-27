@@ -294,6 +294,9 @@ class SessionCard extends StatelessWidget {
   /// 카드 머리말이 이미 날짜를 말하는 자리 — 시각만 남긴다
   final bool timeOnly;
 
+  /// 바로 위 행과 같은 날 — 날짜 칸은 비워 두되 **폭은 남긴다**(본문 정렬 유지)
+  final bool sameDayAsPrev;
+
   const SessionCard({
     super.key,
     required this.session,
@@ -301,6 +304,7 @@ class SessionCard extends StatelessWidget {
     this.showDate = true,
     this.bare = false,
     this.timeOnly = false,
+    this.sameDayAsPrev = false,
   });
 
   @override
@@ -324,7 +328,7 @@ class SessionCard extends StatelessWidget {
               child: FittedBox(
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
-                child: Text(session.date.substring(8), // dd
+                child: Text(sameDayAsPrev ? '' : session.date.substring(8), // dd
                     maxLines: 1, softWrap: false,
                     style: AppTextStyles.monoBody),
               ),
@@ -674,21 +678,29 @@ class _ListViewState extends State<_ListView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    // 같은 날 급여는 한 덩어리 — 날짜는 첫 행에만, 칸막이 선은
+                    // 날이 바뀔 때만 긋는다. 같은 dd 가 줄줄이 반복되면 안 읽힌다.
                     for (var k = 0; k < rows.length; k++)
-                      Container(
-                        decoration: k == 0
-                            ? null
-                            : const BoxDecoration(
-                                border: Border(
-                                    top: BorderSide(color: AppColors.bgAlt)),
-                              ),
-                        padding: const EdgeInsets.symmetric(vertical: 9),
-                        child: SessionCard(
-                          session: rows[k],
-                          onEdit: () => widget.onEdit(rows[k]),
-                          bare: true,
-                        ),
-                      ),
+                      Builder(builder: (_) {
+                        final sameDay =
+                            k > 0 && rows[k - 1].date == rows[k].date;
+                        return Container(
+                          decoration: k == 0 || sameDay
+                              ? null
+                              : const BoxDecoration(
+                                  border: Border(
+                                      top: BorderSide(color: AppColors.bgAlt)),
+                                ),
+                          padding: EdgeInsets.only(
+                              top: sameDay ? 0 : 9, bottom: 9),
+                          child: SessionCard(
+                            session: rows[k],
+                            onEdit: () => widget.onEdit(rows[k]),
+                            bare: true,
+                            sameDayAsPrev: sameDay,
+                          ),
+                        );
+                      }),
                   ],
                 ),
               ),

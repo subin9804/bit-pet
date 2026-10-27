@@ -28,6 +28,7 @@ import '../../routine/presentation/bulk_confirm_sheet.dart';
 import '../../routine/presentation/per_pet_confirm_sheet.dart';
 import '../../routine/presentation/routine_postpone_sheet.dart';
 import '../../../core/widgets/user_avatar.dart';
+import '../../record/record_detail_path.dart';
 import 'widgets/home_banner.dart';
 
 // ignore_for_file: prefer_const_constructors_in_immutables
@@ -1181,24 +1182,6 @@ class _CategoryDetailSheetState extends ConsumerState<_CategoryDetailSheet> {
     }
   }
 
-  Future<void> _openMenu(RecentRecord r) async {
-    final path = r.petId == null ? null : _SheetPetRow._detailPath(r.petId!, r.recordType);
-    final action = await showAppSheet<_RecordAction>(
-      context: context,
-      builder: (_) => _RecordMenuSheet(record: r, canOpenDetail: path != null),
-    );
-    if (!mounted || action == null) return;
-    switch (action) {
-      case _RecordAction.move:
-        await _move([r]);
-      case _RecordAction.delete:
-        await _delete([r]);
-      case _RecordAction.detail:
-        Navigator.of(context).pop();
-        if (path != null) context.push(path);
-    }
-  }
-
   void _toggle(RecentRecord r) => setState(() {
         if (!_selected.remove(r.id)) _selected.add(r.id);
       });
@@ -1294,7 +1277,6 @@ class _CategoryDetailSheetState extends ConsumerState<_CategoryDetailSheet> {
                     selected: _selected,
                     onToggle: _toggle,
                     onTogglePet: () => _togglePet(petGroups[petKeys[i]]!),
-                    onMenu: _busy ? null : _openMenu,
                   ),
                 ],
               ],
@@ -1364,49 +1346,6 @@ class _SelectToolbar extends StatelessWidget {
   }
 }
 
-enum _RecordAction { move, detail, delete }
-
-/// 기록 한 건의 동작 고르기.
-class _RecordMenuSheet extends StatelessWidget {
-  final RecentRecord record;
-  final bool canOpenDetail;
-
-  const _RecordMenuSheet({required this.record, required this.canOpenDetail});
-
-  @override
-  Widget build(BuildContext context) {
-    // 체중은 값 수정이 없다(서버에 수정 API 가 없다) — 상세에서는 보거나 지우는 것만
-    // 된다. '내용 수정'이라 적으면 눌러서 못 고치는 버튼이 된다.
-    final detailLabel = record.recordType == 'WEIGHT' ? '상세 보기' : '내용 수정';
-
-    Widget item(IconData icon, String label, _RecordAction a,
-            {Color color = AppColors.ink}) =>
-        ListTile(
-          leading: Icon(icon, size: AppIconSize.md, color: color),
-          title: Text(label,
-              style: AppTextStyles.bodyBold.copyWith(color: color)),
-          onTap: () => Navigator.of(context).pop(a),
-        );
-
-    return AppSheet(
-      title: record.petName,
-      subtitle: record.summary.isNotEmpty ? record.summary : null,
-      child: SheetCard.list(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            item(Icons.event_outlined, '날짜 변경', _RecordAction.move),
-            if (canOpenDetail)
-              item(Icons.edit_outlined, detailLabel, _RecordAction.detail),
-            item(Icons.delete_outline, '삭제', _RecordAction.delete,
-                color: AppColors.error),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 /// 카테고리 시트의 개체 한 줄.
 ///
 /// **행 전체가 그 개체의 해당 기록 상세로 가는 버튼이다** — 개체 상세가 아니다
@@ -1424,7 +1363,6 @@ class _SheetPetRow extends StatelessWidget {
   final Set<int> selected;
   final ValueChanged<RecentRecord> onToggle;
   final VoidCallback onTogglePet;
-  final ValueChanged<RecentRecord>? onMenu;
 
   const _SheetPetRow({
     required this.type,
@@ -1435,24 +1373,11 @@ class _SheetPetRow extends StatelessWidget {
     required this.selected,
     required this.onToggle,
     required this.onTogglePet,
-    required this.onMenu,
   });
-
-  /// 기록 종류 → 그 종류의 기록 상세 화면.
-  /// 급여·체중만 전용 화면이고 나머지는 `/records/:type` 한 화면이 받는다.
-  static String? _detailPath(int petId, String type) => switch (type) {
-        'FEEDING' => '/pets/$petId/feeding',
-        'WEIGHT' => '/pets/$petId/weight',
-        'CLEANING' => '/pets/$petId/records/cleaning',
-        'MEMO' => '/pets/$petId/records/memo',
-        'MATING' => '/pets/$petId/records/mating',
-        'LAYING' => '/pets/$petId/records/laying',
-        _ => null,
-      };
 
   @override
   Widget build(BuildContext context) {
-    final path = petId == null ? null : _detailPath(petId!, type);
+    final path = petId == null ? null : recordDetailPath(petId!, type);
     final petAllSelected = records.every((r) => selected.contains(r.id));
 
     return GestureDetector(
@@ -1557,21 +1482,12 @@ class _SheetPetRow extends StatelessWidget {
         ),
       );
     }
-    return Row(children: [
-      Expanded(child: text),
-      // 기록 한 건의 날짜 변경·수정·삭제. 줄 탭(상세로 이동)과 따로 잡힌다.
-      SizedBox(
-        width: 32,
-        height: 28,
-        child: IconButton(
-          padding: EdgeInsets.zero,
-          tooltip: '기록 메뉴',
-          onPressed: onMenu == null ? null : () => onMenu!(r),
-          icon: const Icon(Icons.more_horiz,
-              size: AppIconSize.sm, color: AppColors.ink3),
-        ),
-      ),
-    ]);
+    // 기록 한 건의 날짜 변경·삭제는 '선택' 모드에서 한다 — 줄마다 ⋯ 메뉴를 두면
+    // 시트가 지저분해진다(2026-10-28 사용자 요청으로 제거).
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: text,
+    );
   }
 }
 

@@ -575,9 +575,12 @@ class _RecordCard extends StatelessWidget {
   /// 카드 머리말이 이미 날짜를 말하는 자리 — 시각만 남긴다
   final bool timeOnly;
 
+  /// 바로 위 행과 같은 날 — 날짜 칸은 비워 두되 **폭은 남긴다**(본문 정렬 유지)
+  final bool sameDayAsPrev;
+
   const _RecordCard({required this.entry, required this.accentColor,
       required this.onEdit,
-      this.bare = false, this.timeOnly = false});
+      this.bare = false, this.timeOnly = false, this.sameDayAsPrev = false});
 
   @override
   Widget build(BuildContext context) {
@@ -602,7 +605,7 @@ class _RecordCard extends StatelessWidget {
               child: FittedBox(
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
-                child: Text(entry.dateStr.substring(8), // dd
+                child: Text(sameDayAsPrev ? '' : entry.dateStr.substring(8), // dd
                     maxLines: 1, softWrap: false,
                     style: AppTextStyles.monoBody),
               ),
@@ -922,22 +925,30 @@ class _RecordListViewState extends State<_RecordListView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    // 같은 날 기록은 한 덩어리 — 날짜는 첫 행에만, 칸막이 선은
+                    // 날이 바뀔 때만 긋는다. 같은 dd 가 줄줄이 반복되면 안 읽힌다.
                     for (var k = 0; k < rows.length; k++)
-                      Container(
-                        decoration: k == 0
-                            ? null
-                            : const BoxDecoration(
-                                border: Border(
-                                    top: BorderSide(color: AppColors.bgAlt)),
-                              ),
-                        padding: const EdgeInsets.symmetric(vertical: 9),
-                        child: _RecordCard(
-                          entry: rows[k],
-                          accentColor: widget.accentColor,
-                          onEdit: () => widget.onEdit(rows[k]),
-                          bare: true,
-                        ),
-                      ),
+                      Builder(builder: (_) {
+                        final sameDay = k > 0 &&
+                            rows[k - 1].dateStr == rows[k].dateStr;
+                        return Container(
+                          decoration: k == 0 || sameDay
+                              ? null
+                              : const BoxDecoration(
+                                  border: Border(
+                                      top: BorderSide(color: AppColors.bgAlt)),
+                                ),
+                          padding: EdgeInsets.only(
+                              top: sameDay ? 0 : 9, bottom: 9),
+                          child: _RecordCard(
+                            entry: rows[k],
+                            accentColor: widget.accentColor,
+                            onEdit: () => widget.onEdit(rows[k]),
+                            bare: true,
+                            sameDayAsPrev: sameDay,
+                          ),
+                        );
+                      }),
                   ],
                 ),
               ),

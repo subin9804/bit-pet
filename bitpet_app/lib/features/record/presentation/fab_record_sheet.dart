@@ -2200,70 +2200,61 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
 
     final allSelected  = filtered.isNotEmpty && filtered.every((p) => _selected.contains(p.id));
 
+    final rt = _recordTypes.firstWhere((r) => r.id == widget.typeId,
+        orElse: () => _recordTypes.first);
+
+    // 왜 안 보이는지 말해준다 — 그냥 빼버리면 "내 개체가 없어졌다"가 된다.
+    // 제외 사유가 둘(수컷 / 다른 카테고리)이라 각각 적는다.
+    final excludedNote = [
+      if (excludedMale > 0) '수컷 $excludedMale마리',
+      if (excludedOther > 0)
+        '${locked == true ? '포유류 외' : '포유류'} $excludedOther마리',
+    ].join(' · ');
+
+    // 2026-10-28 정리: 영문 라벨·설명·'n / N' 배지·테두리 친 전체선택 바·버튼 두 개가
+    // 한 화면에 겹쳐 복잡했다. 다음 단계(어떻게 입력할까요?)와 같은 헤더 형식에
+    // 개수는 푸터 배지 하나로, 전체선택/해제는 토글 하나로 줄였다.
+    // 검색창은 개체가 한 화면(3열 3줄)을 넘을 때만 띄운다.
+    final showSearch = eligible.length > 9;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // 헤더
+        // 헤더 — 06c 와 같은 형식
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.xl, AppSpacing.xs, AppSpacing.xl, AppSpacing.sm),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('SELECT TARGET',
-                        style: AppTextStyles.mono(11, FontWeight.w700,
-                            color: AppColors.ink2)),
-                    const SizedBox(height: 4),
-                    const Text('대상 개체 선택',
-                        style: TextStyle(
-                            fontSize: 20, fontWeight: FontWeight.w700,
-                            color: AppColors.ink, letterSpacing: -0.4)),
-                    const SizedBox(height: 4),
-                    Text('여러 개체에 같은 기록을 한 번에 남길 수 있어요',
-                        style: TextStyle(
-                            fontSize: 12, color: AppColors.ink2)),
-                  ],
-                ),
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: _selected.isNotEmpty
-                      ? AppColors.brandTint
-                      : AppColors.card,
-                  border: _selected.isNotEmpty
-                      ? null
-                      : Border.all(color: AppColors.line),
-                  borderRadius: AppRadius.brMd,
-                ),
-                child: Text(
-                  '${_selected.length} / ${allPets.length}',
-                  style: AppTextStyles.mono(11, FontWeight.w700,
-                      color: _selected.isNotEmpty
-                          ? AppColors.brandTintInk
-                          : AppColors.ink3),
-                ),
-              ),
+              Row(children: [
+                Text('NEW ${rt.en}',
+                    style: AppTextStyles.mono(11, FontWeight.w700,
+                        color: AppColors.ink2)),
+                const SizedBox(width: AppSpacing.sm),
+                const StepDots(step: 1),
+              ]),
+              const SizedBox(height: AppSpacing.sm),
+              const Text('누구에게 기록할까요?',
+                  style: TextStyle(
+                      fontSize: 20, fontWeight: FontWeight.w700,
+                      color: AppColors.ink, letterSpacing: -0.4)),
             ],
           ),
         ),
 
-        // 검색창 + 종 필터 칩
+        // 검색창 + 종 필터 칩 (칩은 종이 2개 이상일 때만 스스로 뜬다)
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
           child: Column(
             children: [
-              AppSearchField(
-                value: _query,
-                onChanged: (v) => setState(() => _query = v),
-              ),
+              if (showSearch)
+                AppSearchField(
+                  value: _query,
+                  onChanged: (v) => setState(() => _query = v),
+                ),
               // 칩은 **고를 수 있는 개체**에서 만든다. 산란 폼에서 수컷을 걸러낸
-              // 뒤라면 수컷만 있는 종의 칩은 애초에 뜨지 않는다 — 눌러서 빈
-              // 목록을 보게 하지 않는다.
+              // 뒤라면 수컷만 있는 종의 칩은 애초에 뜨지 않는다.
               SpeciesFilterChips(
                 pets: eligible,
                 selectedSpeciesId: _speciesId,
@@ -2272,50 +2263,36 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
             ],
           ),
         ),
-        const SizedBox(height: 8),
 
-        // 전체선택/해제 바
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-          decoration: BoxDecoration(
-            color: AppColors.card,
-            border: Border(
-              top:    BorderSide(color: AppColors.line),
-              bottom: BorderSide(color: AppColors.line),
-            ),
-          ),
+        // 제외 안내 + 전체선택 토글 (테두리·배경 없이 한 줄)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.xl, AppSpacing.xs, AppSpacing.md, 0),
           child: Row(
             children: [
-              Text(
-                // 왜 안 보이는지 말해준다 — 그냥 빼버리면 "내 개체가 없어졌다"가 된다.
-                // 제외 사유가 둘(수컷 / 다른 카테고리)이라 각각 적는다 —
-                // 합쳐서 'N마리 제외'로 두면 왜 빠졌는지 알 수 없다.
-                (excludedMale == 0 && excludedOther == 0)
-                    ? '${filtered.length}마리 표시 중'
-                    : [
-                        '${filtered.length}마리',
-                        if (excludedMale > 0) '수컷 $excludedMale마리 제외',
-                        if (excludedOther > 0)
-                          '${locked == true ? '포유류 외' : '포유류'} $excludedOther마리 제외',
-                      ].join(' · '),
-                style: AppTextStyles.mono(11, FontWeight.w700,
-                    color: AppColors.ink2),
+              Expanded(
+                child: Text(
+                  excludedNote.isEmpty ? '' : '$excludedNote 제외',
+                  style: AppTextStyles.caption.copyWith(color: AppColors.ink3),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              const Spacer(),
-              _SelectBarBtn(
-                icon: Icons.check,
-                label: '전체선택',
-                disabled: allSelected,
-                onTap: () => setState(() {
-                  for (final p in filtered) _selected.add(p.id);
-                }),
-              ),
-              const SizedBox(width: 8),
-              _SelectBarBtn(
-                icon: Icons.close,
-                label: '전체해제',
-                disabled: _selected.isEmpty,
-                onTap: () => setState(() => _selected.clear()),
+              TextButton(
+                onPressed: filtered.isEmpty
+                    ? null
+                    : () => setState(() {
+                          if (allSelected) {
+                            for (final p in filtered) {
+                              _selected.remove(p.id);
+                            }
+                          } else {
+                            for (final p in filtered) {
+                              _selected.add(p.id);
+                            }
+                          }
+                        }),
+                child: Text(allSelected ? '전체해제' : '전체선택'),
               ),
             ],
           ),
@@ -2357,17 +2334,40 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
                               color: isOn ? pInk : AppColors.line,
                               width: isOn ? 1.5 : 1),
                           borderRadius: AppRadius.brMd,
-                          boxShadow: isOn ? AppShadows.elev0 : AppShadows.elev1,
+                          // 그림자는 뺐다 — 테두리·면색만으로 선택이 갈리는데 칸마다
+                          // 그림자까지 있으면 격자가 들떠 보인다.
                         ),
                         padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
                         child: Column(
                           children: [
-                            PetAvatar(
-                              imageUrl: p.profileImageUrl,
-                              size: 52,
-                              background: isOn ? AppColors.bg : AppColors.bgAlt,
-                              iconColor: AppColors.ink2,
-                              subcategory: p.speciesSubcategory,
+                            Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                PetAvatar(
+                                  imageUrl: p.profileImageUrl,
+                                  size: 52,
+                                  background:
+                                      isOn ? AppColors.bg : AppColors.bgAlt,
+                                  iconColor: AppColors.ink2,
+                                  subcategory: p.speciesSubcategory,
+                                ),
+                                if (isOn)
+                                  Positioned(
+                                    right: -2,
+                                    bottom: -2,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: pInk,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                            color: AppColors.card, width: 1.5),
+                                      ),
+                                      padding: const EdgeInsets.all(2),
+                                      child: const Icon(Icons.check,
+                                          size: 12, color: Colors.white),
+                                    ),
+                                  ),
+                              ],
                             ),
                             const SizedBox(height: 8),
                             Text(p.name,
@@ -2786,47 +2786,6 @@ class _TypeToggle extends StatelessWidget {
 }
 
 // ── 전체선택/해제 버튼 ─────────────────────────────────────────
-class _SelectBarBtn extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool disabled;
-  final VoidCallback onTap;
-
-  const _SelectBarBtn({
-    required this.icon,
-    required this.label,
-    required this.disabled,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: disabled ? null : onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          border: Border.all(color: AppColors.line),
-          borderRadius: AppRadius.brPill,
-        ),
-        child: Row(
-          children: [
-            Icon(icon,
-                size: 16,
-                color: disabled ? AppColors.ink3 : AppColors.ink),
-            const SizedBox(width: 4),
-            Text(label,
-                style: TextStyle(
-                    fontSize: 12, fontWeight: FontWeight.w700,
-                    color: disabled ? AppColors.ink3 : AppColors.ink)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _PartnerResultCard extends StatelessWidget {
   final Pet pet;
   final VoidCallback onClear;
