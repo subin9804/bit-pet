@@ -7,6 +7,7 @@ import io.bitpet.common.exception.ErrorCode;
 import io.bitpet.community.domain.UserBlockRls;
 import io.bitpet.community.dto.BlockedUserResponse;
 import io.bitpet.community.repository.UserBlockRlsRepository;
+import io.bitpet.storage.S3Service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +34,7 @@ public class BlockService {
 
     private final UserBlockRlsRepository blockRepository;
     private final UserMstRepository userRepository;
+    private final S3Service s3Service;
 
     /** 차단. 이미 차단한 상대면 조용히 통과한다 (연타·재시도가 409 를 뱉을 이유가 없다) */
     @Transactional
@@ -80,7 +82,7 @@ public class BlockService {
             return new BlockedUserResponse(
                     b.getBlockedUserId(),
                     u != null ? u.getName() : "알 수 없음",
-                    u != null ? u.getProfileImageUrl() : null,
+                    u != null ? s3Service.resolveUrl(u.getProfileImageUrl()) : null,
                     b.getCreatedAt());
         }).toList();
     }

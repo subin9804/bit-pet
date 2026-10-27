@@ -447,7 +447,8 @@ public class PostService {
 
     private static String nameOf(UserMst u) { return u != null ? u.getName() : "알 수 없음"; }
 
-    private static String imageOf(UserMst u) { return u != null ? u.getProfileImageUrl() : null; }
+    /** user_mst.profile_image_url 은 S3 key 이거나(앱 업로드) 외부 URL 이다(OAuth) — 그대로 내리면 key 는 안 뜬다 */
+    private String imageOf(UserMst u) { return u != null ? s3Service.resolveUrl(u.getProfileImageUrl()) : null; }
 
     private PostMst findPost(Long postId) {
         return postRepository.findById(postId)
