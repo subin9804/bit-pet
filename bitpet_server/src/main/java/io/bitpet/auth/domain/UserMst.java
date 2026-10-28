@@ -217,7 +217,26 @@ public class UserMst extends BaseTimeEntity {
         return this.guardianUserId != null && this.guardianUserId.equals(guardianUserId);
     }
 
+    /**
+     * 탈퇴 — 행은 남기되(개체·게시글이 FK 로 물고 있다) 사람을 알아볼 수 있는 값은 지운다.
+     *
+     * <p>처리방침은 "탈퇴하면 지체 없이 삭제"라고 약속한다. {@code deletedAt} 만 찍으면
+     * 이메일·닉네임·비밀번호 해시가 DB 에 영구히 남는다.
+     *
+     * <p>NOT NULL 컬럼은 비울 수 없어 자리표시자를 넣는다. 이메일·닉네임 유일 인덱스는
+     * {@code deleted_at IS NULL} 부분 인덱스라 자리표시자끼리 부딪히지 않지만, id 를 붙여
+     * 그래도 겹치지 않게 둔다. {@code .invalid} 는 메일이 절대 나갈 수 없는 예약 도메인이다.
+     *
+     * <p>{@code guardianUserId} 는 남긴다 — 법정대리인 동의 기록이 누구의 동의였는지
+     * 따라가는 유일한 경로다 ({@link AgreementType#GUARDIAN}).
+     */
     public void softDelete() {
         this.deletedAt = Instant.now();
+        this.email = "deleted-" + id + "@deleted.invalid";
+        this.name = "deleted-" + id;
+        this.passwordHash = "";
+        this.profileImageUrl = null;
+        this.birthDate = null;
+        this.shareCode = null;
     }
 }

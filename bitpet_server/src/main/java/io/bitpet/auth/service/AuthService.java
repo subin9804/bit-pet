@@ -19,6 +19,7 @@ import io.bitpet.auth.repository.UserMstRepository;
 import io.bitpet.common.dto.PresignResponse;
 import io.bitpet.common.exception.BusinessException;
 import io.bitpet.common.exception.ErrorCode;
+import io.bitpet.notification.repository.DeviceTokenRlsRepository;
 import io.bitpet.pet.service.PetWithdrawalService;
 import io.bitpet.storage.S3Service;
 import io.jsonwebtoken.JwtException;
@@ -52,6 +53,7 @@ public class AuthService {
     private final AdminGuard adminGuard;
     private final OAuthLoginCodeStore oAuthLoginCodeStore;
     private final UserOAuthRlsRepository userOAuthRlsRepository;
+    private final DeviceTokenRlsRepository deviceTokenRepository;
 
     public EmailCheckResponse checkEmail(String email) {
         return new EmailCheckResponse(!userRepository.existsByEmail(email));
@@ -301,10 +303,18 @@ public class AuthService {
         PetWithdrawalService.Result petResult =
                 petWithdrawalService.process(userId, handOverSharedPets);
 
+        // ⛔ 위에서 받은 user 를 그대로 쓰지 말 것. 개체 처리 중 clearAutomatically 쿼리
+        //    (PetRelationRlsRepository)가 영속성 컨텍스트를 비워 user 가 준영속이 된다 —
+        //    거기에 softDelete 를 걸면 아무것도 저장되지 않는다. 실제로 탈퇴가 기록되지 않아
+        //    탈퇴한 계정으로 다시 로그인되던 원인이다.
+        user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.AUTH_USER_NOT_FOUND));
         user.softDelete();
         // 소셜 연결을 남겨두면 같은 카카오·구글 계정으로 다시 들어왔을 때 탈퇴한 계정에
         // 붙는다. 끊어두면 다음 로그인은 새 가입이 된다.
         userOAuthRlsRepository.deleteAll(userOAuthRlsRepository.findAllByUserId(userId));
+        // 푸시 토큰도 개인정보다(처리방침 1조). 남겨두면 탈퇴한 기기로 알림이 계속 나갈 수도 있다.
+        deviceTokenRepository.deleteAll(deviceTokenRepository.findByUserId(userId));
         refreshTokenStore.delete(userId);
         log.info("User withdrew: id={}, deletedAt={}, pets={}", userId, user.getDeletedAt(), petResult);
     }
