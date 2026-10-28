@@ -212,7 +212,7 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
 
   // ── 완료 안 한 개체 저장 = 루틴 로그 없이 보통 기록만 ──────────────────
   // 루틴 상태(완료)는 '완료'를 눌렀을 때만 남긴다 (2026-10-28 사용자 결정).
-  //  · 급여 루틴: 급여 항목이 있으면 급여 기록(메모는 그 기록에), 없으면 메모 기록
+  //  · 급여 루틴: 급여 기록(메모는 그 기록에). 먹이 없이 메모만 있으면 '급여' 기록 + 메모
   //  · 체중 루틴: 체중이 있으면 체중 기록(메모 포함), 없으면 메모 기록
   //  · 청소·커스텀: 메모 기록 (청소를 안 했으니 청소 기록은 만들지 않는다)
   // 예전 버전이 남긴 미완료(REFUSED) 로그가 있으면 먼저 지운다 — 짝 기록(메모 포함)도
@@ -239,6 +239,18 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
         final withMemo = memo.isNotEmpty ? item.copyWith(memo: memo) : item;
         final saved =
             await records.addFeeding(pet.petId, withMemo.toApiMap(fedAt: now));
+        rec.savedFeedingIds.add(saved.id);
+        memoHeld = true;
+      }
+      // 먹이 없이 메모만 적었어도 급여 루틴의 메모는 '급여' 기록에 붙인다
+      // (2026-10-28 사용자 결정 — 별도 메모 기록으로 갈라지면 안 된다)
+      if (!memoHeld && memo.isNotEmpty) {
+        final saved = await records.addFeeding(pet.petId, {
+          'refused': false,
+          'foodType': '',
+          'fedAt': now.toUtc().toIso8601String(),
+          'memo': memo,
+        });
         rec.savedFeedingIds.add(saved.id);
         memoHeld = true;
       }
