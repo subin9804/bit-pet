@@ -21,6 +21,16 @@ class LegalPageIntegrationTest extends IntegrationTestBase {
                 .andExpect(content().string(containsString("privacy@tailog.me")));
     }
 
+    /** Play 데이터 보안 '계정 삭제 URL' — 로그인 없이 열려야 하고 {id} 404 로 빠지면 안 된다. */
+    @Test
+    void account_deletion_page_is_public_html() throws Exception {
+        mockMvc.perform(get("/legal/account-deletion"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith("text/html"))
+                .andExpect(content().string(containsString("계정 삭제 안내")))
+                .andExpect(content().string(containsString("회원 탈퇴")));
+    }
+
     @Test
     void index_lists_documents() throws Exception {
         mockMvc.perform(get("/legal"))

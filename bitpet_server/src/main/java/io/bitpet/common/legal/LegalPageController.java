@@ -52,7 +52,27 @@ public class LegalPageController {
         StringBuilder list = new StringBuilder();
         DOCS.forEach((id, doc) -> list.append("<li><a href=\"/legal/").append(id).append("\">")
                 .append(escape(doc.title())).append("</a></li>"));
+        list.append("<li><a href=\"/legal/account-deletion\">계정 삭제 안내</a></li>");
         return page("약관 및 정책", "<h1>약관 및 정책</h1><ul class=\"docs\">" + list + "</ul>");
+    }
+
+    /**
+     * 계정 삭제 안내 — Play 콘솔 '데이터 보안 > 데이터 삭제'가 요구하는 <b>앱 밖에서 열리는</b>
+     * 삭제 방법 URL. 앱을 지운 사람도 계정을 지울 길이 있어야 한다.
+     *
+     * <p>동의를 받는 약관이 아니라서 {@link #DOCS} 에 넣지 않는다 — 넣으면 AgreementType 과
+     * 앱 원문이 있어야 하는 {@code LegalDocumentsSyncTest} 에 걸린다. 원문은 서버에만 있다.
+     * 리터럴 경로라 {@code /legal/{id}} 보다 먼저 매칭된다.
+     */
+    @Operation(summary = "계정 삭제 안내 (공개 HTML)")
+    @GetMapping(value = "/legal/account-deletion", produces = HTML)
+    public String accountDeletion() {
+        String body = """
+                <h1>계정 삭제 안내</h1>
+                <div class="body">%s</div>
+                <p class="back"><a href="/legal">약관 목록</a></p>
+                """.formatted(escape(read("legal-info/account-deletion.txt")));
+        return page("계정 삭제 안내", body);
     }
 
     @Operation(summary = "약관 원문 (공개 HTML)")
@@ -75,9 +95,12 @@ public class LegalPageController {
     }
 
     static String text(String id) {
+        return read("legal/" + id + ".txt");
+    }
+
+    private static String read(String path) {
         try {
-            return new ClassPathResource("legal/" + id + ".txt")
-                    .getContentAsString(StandardCharsets.UTF_8);
+            return new ClassPathResource(path).getContentAsString(StandardCharsets.UTF_8);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
