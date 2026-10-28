@@ -173,6 +173,10 @@ bitpet:
       # 약관 공개 페이지 — 스토어 심사용 개인정보처리방침 URL (LegalPageController)
       - /legal
       - /legal/**
+      # tailog.me 홈 (static/index.html) — "/" 는 index.html 로 forward 되고
+      # Security 는 FORWARD 도 거르므로 둘 다 열어야 한다
+      - /
+      - /index.html
   oauth2:
     # 로그인 성공·실패 시 앱으로 돌아갈 주소. 앱(flutter_web_auth_2)은 `tailog` 스킴으로
     # 돌아오는 걸 기다린다 — 스킴을 바꾸면 앱의 kOAuthCallbackScheme 도 같이 바꿀 것.

@@ -983,6 +983,13 @@ OAuth 토큰 AES-256-GCM 암호화 (`BITPET_TOKEN_ENC_KEY` 환경변수).
 - `LegalDocumentsSyncTest` 가 본문·제목·시행일을 앱 원문과 대조한다 (앱 소스가 없는 체크아웃이면 건너뜀).
   약관을 고치면 세 곳(dart · txt · AgreementType 버전)을 같이 바꿀 것
 
+### tailog.me 홈 — 앱 설치 유도 페이지 (2026-10-28)
+- `resources/static/index.html` 단일 파일(인라인 CSS, Pretendard CDN). Spring 웰컴 페이지라 `GET /` → `index.html` forward.
+  Security 는 FORWARD 도 거르므로 public-paths 에 `/` 와 `/index.html` **둘 다** 있어야 한다 (`HomePageIntegrationTest`)
+- 색·반경은 앱 토큰(`app_colors.dart`) 그대로 — 주 행동 brand700, 기능 카드는 펫 파스텔(peach 기록 · sky 루틴 · lilac 개체)
+- **스토어 링크·QR 은 자리만 있다** — 파일 상단 주석의 TODO ①②③ (href 두 곳씩 + QR 이미지, 출시 후 `data-soon` 속성 제거)
+- '웹에서도 곧' 섹션 = 이후 공개 개체 검색 · 내 개체 확인 · 엑셀 내보내기가 들어올 자리
+
 ### Soft Delete
 `@SQLRestriction("deleted_at IS NULL")` 전 도메인 적용.
 
