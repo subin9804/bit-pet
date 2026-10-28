@@ -1,9 +1,14 @@
 // 01d · 루틴 개별 완료 — peek 캐러셀 (2026-10-28 저장 방식 개편)
 // · 카드의 '○○ 완료' = **누르는 즉시 서버에 완료(COMPLETED)** 를 쓴다 (그때까지 적은 내용 포함)
 // · 급여·체중·메모 입력은 **푸터 'n마리 저장' 에서 한꺼번에** 저장한다
-//   완료한 개체는 완료로, 완료 안 한 개체는 적은 게 있으면 미완료(REFUSED)로
+//   완료한 개체는 완료 로그로, 완료 안 한 개체는 **루틴 로그 없이 보통 기록**으로
+//   (급여 항목 → 급여 기록, 체중 → 체중 기록, 그 밖의 메모 → 메모 기록)
+// · ⛔ 미완료(REFUSED) 로그는 더 쓰지 않는다 — 루틴 상태는 '완료'를 눌렀을 때만 남는다
+//   (2026-10-28 사용자 결정). 예전엔 적기만 한 개체를 REFUSED 로 저장했는데, 급여
+//   항목 없이 메모만 있으면 서버가 메모를 담을 급여 행이 없어 **별도 메모 기록**으로
+//   흩어졌다("급여 메모가 따로 메모로 저장된다").
 // · 이전/다음/슬라이드는 저장하지 않는다 — 자유롭게 오가며 적는다
-// · 완료 취소: 로그 삭제 후 미완료로 복귀 (적어 둔 내용은 남아 다음 저장 때 미완료로 간다)
+// · 완료 취소: 로그 삭제 후 미완료로 복귀 (적어 둔 내용은 남아 다음 저장 때 보통 기록으로 간다)
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
@@ -17,6 +22,7 @@ import '../data/models/routine_models.dart';
 import '../data/routine_repository.dart';
 import '../providers/routine_provider.dart';
 import 'widgets/confirm_accordion.dart';
+import '../../record/data/record_repository.dart';
 import '../../record/providers/record_invalidation.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/widgets/app_network_image.dart';
@@ -31,6 +37,11 @@ class _PerPetRec {
   bool feedOpen;
   bool memoOpen;
   int? savedLogId;
+  // 완료 안 한 개체를 보통 기록으로 저장한 id — 다시 저장할 때 지우고 새로 쓴다
+  // (저장이 일부 실패해 시트가 열린 채 다시 누르는 경우 중복 방지)
+  final List<int> savedFeedingIds = [];
+  int? savedWeightId;
+  int? savedMemoId;
   final TextEditingController memoCtrl;
   final TextEditingController weightCtrl;
 
@@ -46,6 +57,9 @@ class _PerPetRec {
         weightCtrl = TextEditingController();
 
   double? get weightG => double.tryParse(weight.trim());
+
+  bool get hasSavedRecords =>
+      savedFeedingIds.isNotEmpty || savedWeightId != null || savedMemoId != null;
 }
 
 class PerPetConfirmSheet extends ConsumerStatefulWidget {
@@ -123,8 +137,11 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
           rec.memoCtrl.text = log.memo!;
           rec.memoOpen = true;
         }
-        if (_isFeed && log.feedItems.isNotEmpty) {
-          rec.feedItems = log.feedItems;
+        // 먹이 없이 완료한 로그의 빈 급여 행(food_type '')은 항목으로 띄우지 않는다 —
+        // 이름 없는 '직접입력' 칸이 생기고, 완료 취소 뒤 저장하면 '급여' 기록이 된다
+        final fed = log.feedItems.where((f) => !_isBlankFeedItem(f)).toList();
+        if (_isFeed && fed.isNotEmpty) {
+          rec.feedItems = fed;
           rec.feedOpen = true;
         }
         if (_isWeight && log.weightG != null) {
@@ -146,7 +163,7 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
     }
     setState(() => _saving = true);
     try {
-      await _persist(pet, completed: true);
+      await _persistCompleted(pet);
       if (mounted) {
         setState(() {});
         showToast(context, '${pet.petName} 완료', type: ToastType.success);
@@ -158,12 +175,12 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
     }
   }
 
-  // ── 실제 저장 (신규 생성 또는 기존 로그 갈아끼우기) ─────────────────
-  // completed=true  → 완료(COMPLETED), false → 미완료(REFUSED).
-  // 완료 여부와 무관하게 유저가 입력한 내용(급여·체중·메모)은 모두 저장한다.
-  // 기존 로그가 있으면 삭제 후 재생성 → 완료↔미완료 전환·수정 반영.
+  // ── 완료 저장 (신규 생성 또는 기존 로그 갈아끼우기) ─────────────────
+  // 기존 로그가 있으면 삭제 후 재생성 → 완료 뒤 고친 내용 반영.
   // (백엔드 deleteLog가 짝 급여·체중·청소·메모 기록까지 함께 정리)
-  Future<void> _persist(TodayPetStatus pet, {required bool completed}) async {
+  // 급여 루틴은 먹이를 안 적어도 서버가 빈 급여 행(food_type '')을 만들어 메모를
+  // 거기 담는다 — 메모가 따로 떨어지지 않는다.
+  Future<void> _persistCompleted(TodayPetStatus pet) async {
     final rec  = _rec[pet.petId]!;
     final repo = ref.read(routineRepositoryProvider);
     final memo = rec.memo.trim().isEmpty ? null : rec.memo.trim();
@@ -172,30 +189,103 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
       await repo.deleteLog(prevLogId);
       rec.savedLogId = null;
     }
+    // 이 시트에서 미완료로 먼저 저장해 둔 보통 기록이 있으면 완료 기록과 겹친다
+    await _deleteSavedRecords(rec);
     final log = await repo.completeIndividual(
       widget.routine.id,
       RoutineCompleteIndividualRequest(
         petId:     pet.petId,
-        status:    completed ? RoutineLogStatus.COMPLETED : RoutineLogStatus.REFUSED,
+        status:    RoutineLogStatus.COMPLETED,
         feedItems: _isFeed ? rec.feedItems : const [],
         weightG:   _isWeight ? rec.weightG : null,
         memo:      memo,
       ),
     );
     rec.savedLogId = log?.id;
-    rec.done  = completed;
+    rec.done  = true;
     rec.dirty = false;
     ref.read(todayRoutinesProvider.notifier)
-        .updatePetStatus(widget.routine.id, pet.petId, completed);
+        .updatePetStatus(widget.routine.id, pet.petId, true);
     // 종료 버튼으로 나가야만 갱신되면, X 로 닫은 사람은 캘린더가 옛 값인 채로 남는다
     invalidatePetRecords(ref, pet.petId);
+  }
+
+  // ── 완료 안 한 개체 저장 = 루틴 로그 없이 보통 기록만 ──────────────────
+  // 루틴 상태(완료)는 '완료'를 눌렀을 때만 남긴다 (2026-10-28 사용자 결정).
+  //  · 급여 루틴: 급여 항목이 있으면 급여 기록(메모는 그 기록에), 없으면 메모 기록
+  //  · 체중 루틴: 체중이 있으면 체중 기록(메모 포함), 없으면 메모 기록
+  //  · 청소·커스텀: 메모 기록 (청소를 안 했으니 청소 기록은 만들지 않는다)
+  // 예전 버전이 남긴 미완료(REFUSED) 로그가 있으면 먼저 지운다 — 짝 기록(메모 포함)도
+  // 서버가 같이 정리하므로 화면에 복원된 내용이 그대로 새 기록으로 옮겨진다.
+  Future<void> _persistRecords(TodayPetStatus pet) async {
+    final rec     = _rec[pet.petId]!;
+    final records = ref.read(recordRepositoryProvider);
+    final memo    = rec.memo.trim();
+    final now     = DateTime.now();
+
+    final prevLogId = rec.savedLogId;
+    if (prevLogId != null) {
+      await ref.read(routineRepositoryProvider).deleteLog(prevLogId);
+      rec.savedLogId = null;
+      ref.read(todayRoutinesProvider.notifier)
+          .updatePetStatus(widget.routine.id, pet.petId, false);
+    }
+    await _deleteSavedRecords(rec);
+
+    var memoHeld = false; // 메모를 담은 기록이 생겼는지
+    if (_isFeed) {
+      for (final item in rec.feedItems) {
+        if (_isBlankFeedItem(item)) continue; // 종류를 안 고른 빈 항목
+        final withMemo = memo.isNotEmpty ? item.copyWith(memo: memo) : item;
+        final saved =
+            await records.addFeeding(pet.petId, withMemo.toApiMap(fedAt: now));
+        rec.savedFeedingIds.add(saved.id);
+        memoHeld = true;
+      }
+    } else if (_isWeight && rec.weightG != null) {
+      final saved = await records.addWeight(
+          pet.petId, rec.weightG!, now, memo.isEmpty ? null : memo);
+      rec.savedWeightId = saved.id;
+      memoHeld = true;
+    }
+    if (memo.isNotEmpty && !memoHeld) {
+      final saved = await records.addMemo(pet.petId, {
+        'content': memo,
+        'loggedAt': now.toUtc().toIso8601String(),
+      });
+      rec.savedMemoId = saved.id;
+    }
+    rec.dirty = false;
+    invalidatePetRecords(ref, pet.petId);
+  }
+
+  static bool _isBlankFeedItem(FeedFormData f) =>
+      !f.isRefused &&
+      (f.foodType == null ||
+          (f.foodType!.isCustom && (f.customText ?? '').trim().isEmpty));
+
+  Future<void> _deleteSavedRecords(_PerPetRec rec) async {
+    if (!rec.hasSavedRecords) return;
+    final records = ref.read(recordRepositoryProvider);
+    for (final id in List.of(rec.savedFeedingIds)) {
+      await records.deleteFeeding(id);
+      rec.savedFeedingIds.remove(id);
+    }
+    if (rec.savedWeightId != null) {
+      await records.deleteWeight(rec.savedWeightId!);
+      rec.savedWeightId = null;
+    }
+    if (rec.savedMemoId != null) {
+      await records.deleteMemo(rec.savedMemoId!);
+      rec.savedMemoId = null;
+    }
   }
 
   // ── 완료 취소 (완료됨 버튼 → 로그 삭제) ───────────────────────────
   Future<void> _undoPet(TodayPetStatus pet) async {
     final rec   = _rec[pet.petId]!;
     final logId = rec.savedLogId;
-    // 적어 둔 내용은 화면에 남는다 — 'n마리 저장' 때 미완료로 보존되게 dirty 로 둔다
+    // 적어 둔 내용은 화면에 남는다 — 'n마리 저장' 때 보통 기록으로 보존되게 dirty 로 둔다
     if (logId == null) {
       // 로그 ID 없이 로컬에서만 done=true인 경우 (드문 케이스)
       setState(() {
@@ -229,18 +319,19 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
   // ── 입력한 내용 존재 여부 (메모·급여 항목·체중) ─────────────────────
   bool _hasEnteredData(_PerPetRec rec) =>
       rec.memo.trim().isNotEmpty ||
-      (_isFeed && rec.feedItems.isNotEmpty) ||
+      (_isFeed && rec.feedItems.any((f) => !_isBlankFeedItem(f))) ||
       (_isWeight && rec.weightG != null);
 
   // ── 'n마리 저장' 대상 ─────────────────────────────────────────────
   //  · 완료한 개체: 완료 뒤에 고친 게 있으면(dirty) 완료 상태로 다시 쓴다
   //    (체중 루틴에서 체중을 지웠으면 서버가 거부하므로 대상에서 뺀다)
-  //  · 완료 안 한 개체: 적은 게 있으면 미완료(REFUSED)로 남긴다 — 완료를 안 눌렀어도
-  //    적은 내용은 보존되고 나중에 다시 열면 복원된다(`_loadSavedLogs`)
+  //  · 완료 안 한 개체: 적은 게 있으면 보통 기록으로 남긴다(`_persistRecords`).
+  //    루틴 로그가 아니라서 다시 열어도 이 시트에는 복원되지 않는다 — 기록 화면에 있다.
+  //    다 지웠더라도 예전 미완료 로그나 이번에 저장한 기록이 있으면 지우러 간다
   bool _needsSave(_PerPetRec rec) {
     if (!rec.dirty) return false;
     if (rec.done) return !_isWeight || rec.weightG != null;
-    return _hasEnteredData(rec);
+    return _hasEnteredData(rec) || rec.savedLogId != null || rec.hasSavedRecords;
   }
 
   List<TodayPetStatus> get _pendingPets =>
@@ -265,7 +356,12 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
     Object? lastError;
     for (final pet in targets) {
       try {
-        await _persist(pet, completed: _rec[pet.petId]!.done);
+        final rec = _rec[pet.petId]!;
+        if (rec.done) {
+          await _persistCompleted(pet);
+        } else {
+          await _persistRecords(pet);
+        }
       } catch (e) {
         failed.add(pet);
         lastError = e;
@@ -631,7 +727,7 @@ class _PetPage extends StatelessWidget {
                         ? '고친 내용은 아래 저장 버튼으로 반영돼요'
                         : isWeight
                             ? '몸무게를 적고 완료를 눌러주세요'
-                            : '완료 없이 적기만 하면 미완료로 저장돼요',
+                            : '완료를 안 누르면 적은 내용만 기록으로 저장돼요',
                     textAlign: TextAlign.center,
                     style: AppTextStyles.caption,
                   ),

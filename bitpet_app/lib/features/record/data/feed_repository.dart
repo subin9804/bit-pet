@@ -144,14 +144,20 @@ class DioFeedRepository implements FeedRepository {
   Future<FeedSession> addSession(int petId, FeedSession session) async {
     // feeding_dtl 은 1행 = 1먹이 → 먹이마다 POST (FAB 시트와 같은 방식).
     // 예전엔 첫 먹이만 저장돼 나머지가 조용히 사라졌다.
-    final items = session.items.isNotEmpty
-        ? session.items
-        : const [FeedItem(food: '귀뚜라미', amt: 1)];
+    // 먹이가 없으면 '급여'(food_type '') 한 행 — 예전엔 '귀뚜라미 1마리'를 지어내 보냈다.
     final fedAt = DateTime.parse(
         '${session.date}T${session.time.length == 5 ? "${session.time}:00" : session.time}');
+    final payloads = session.items.isNotEmpty
+        ? [for (final item in session.items) item.toForm().toApiMap(fedAt: fedAt)]
+        : [
+            <String, dynamic>{
+              'refused': false,
+              'foodType': '',
+              'fedAt': fedAt.toUtc().toIso8601String(),
+            }
+          ];
     FeedSession? first;
-    for (final item in items) {
-      final data = item.toForm().toApiMap(fedAt: fedAt);
+    for (final data in payloads) {
       if (session.memo.isNotEmpty) data['memo'] = session.memo;
       final res = await _dio.post('/pets/$petId/feedings', data: data);
       final apiRes = ApiResponse.fromJson(

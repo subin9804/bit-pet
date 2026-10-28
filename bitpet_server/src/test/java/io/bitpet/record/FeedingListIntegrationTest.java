@@ -2,7 +2,12 @@ package io.bitpet.record;
 
 import io.bitpet.auth.dto.SignupRequest;
 import io.bitpet.auth.service.AuthService;
-import io.bitpet.common.exception.BusinessException;
+import io.bitpet.record.dto.FeedingUpdateRequest;
+import io.bitpet.routine.domain.RoutineLogStatus;
+import io.bitpet.routine.domain.RoutineType;
+import io.bitpet.routine.dto.RoutineCompleteIndividualRequest;
+import io.bitpet.routine.dto.RoutineCreateRequest;
+import io.bitpet.routine.service.RoutineService;
 import io.bitpet.pet.domain.PetGender;
 import io.bitpet.pet.dto.PetCreateRequest;
 import io.bitpet.pet.dto.PetResponse;
@@ -13,12 +18,13 @@ import io.bitpet.record.service.RecordService;
 import io.bitpet.support.IntegrationTestBase;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * 급여 목록 조회 고정.
@@ -38,6 +44,8 @@ class FeedingListIntegrationTest extends IntegrationTestBase {
     @Autowired private AuthService authService;
     @Autowired private PetService petService;
     @Autowired private RecordService recordService;
+    @Autowired private RoutineService routineService;
+    @Autowired private JdbcTemplate jdbc;
 
     @Test
     void 직접_적은_급여만_있어도_목록이_조회된다() {
@@ -61,19 +69,67 @@ class FeedingListIntegrationTest extends IntegrationTestBase {
     }
 
     /**
-     * {@code food_type = ""}(먹이 미입력) 은 <b>루틴 완료 경로에서만</b> 생기는 상태다.
-     * REST 로는 만들 수 없다 — 폼에서 종류를 비워 보낸 것은 입력 실수이고, 그걸
-     * "아직 안 적음" 으로 받아주면 둘을 구별할 수 없게 된다. 거식은 별도 플래그다.
+     * 먹이 종류 없이 보낸 급여는 {@code food_type = ""} — "급여는 했고 뭘 줬는지 안 적음" 이다
+     * (2026-10-28). FAB 에서 급여 사실만 빠르게 남길 수 있어야 한다. 거식(NULL)과는 다른 상태다.
+     * 예전엔 400 이었다.
      */
     @Test
-    void REST_로는_먹이_종류를_비워_보낼_수_없다() {
+    void 먹이_종류_없이_보내면_빈_급여_기록이_생긴다() {
         Long user = signup();
         Long pet  = createPet(user, "모모");
 
-        assertThatThrownBy(() -> recordService.addFeeding(
-                user, pet, feeding("", Instant.parse("2026-10-12T09:00:00Z"))))
-                .isInstanceOf(BusinessException.class);
+        FeedingResponse saved = recordService.addFeeding(
+                user, pet, feeding(null, Instant.parse("2026-10-12T09:00:00Z")));
+
+        assertThat(saved.foodType()).isEmpty();
+        assertThat(saved.refused()).isFalse();
     }
+
+    /**
+     * 먹이 없이 남긴 급여의 메모·날짜를 고치면 앱이 {@code refused=false, foodType=""} 를 보낸다.
+     * 예전엔 서버가 400 으로 막아 수정이 통째로 실패했다.
+     */
+    @Test
+    void 빈_급여_기록의_메모를_고칠_수_있다() {
+        Long user = signup();
+        Long pet  = createPet(user, "보리");
+        FeedingResponse saved = recordService.addFeeding(
+                user, pet, feeding("", Instant.parse("2026-10-12T09:00:00Z")));
+
+        FeedingResponse updated = recordService.updateFeeding(user, saved.id(), new FeedingUpdateRequest(
+                "", null, null, null, null, null, "잘 먹음", false));
+
+        assertThat(updated.foodType()).isEmpty();
+        assertThat(updated.memo()).isEqualTo("잘 먹음");
+    }
+
+    /**
+     * 급여 루틴을 먹이 없이 메모만 적고 완료하면 메모는 <b>급여 기록에</b> 붙어야 한다.
+     * 별도 메모 기록({@code memo_dtl})으로 새면 같은 급여가 두 줄로 갈라진다 (2026-10-28 사용자 제보).
+     */
+    @Test
+    void 급여_루틴을_메모만_적고_완료하면_메모가_급여_기록에_붙는다() {
+        Long user = signup();
+        Long pet  = createPet(user, "콩이");
+        Long routine = routineService.createRoutine(user, new RoutineCreateRequest(
+                RoutineType.FEEDING, "급여", 3, null, false, List.of(pet), null, null,
+                null, null, null)).id();
+
+        routineService.completeIndividual(user, routine, new RoutineCompleteIndividualRequest(
+                pet, RoutineLogStatus.COMPLETED, Instant.parse("2026-10-12T09:00:00Z"),
+                null, null, null, "반만 먹음"));
+
+        assertThat(recordService.listFeedings(user, pet))
+                .singleElement()
+                .satisfies(f -> {
+                    assertThat(f.foodType()).isEmpty();
+                    assertThat(f.memo()).isEqualTo("반만 먹음");
+                });
+        assertThat(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM memo_dtl WHERE pet_id = ? AND deleted_at IS NULL",
+                Integer.class, pet)).isZero();
+    }
+
 
     private Long signup() {
         int n = SEQ.incrementAndGet();

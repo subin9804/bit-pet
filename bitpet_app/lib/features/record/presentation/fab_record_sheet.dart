@@ -385,7 +385,9 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
   bool _petPending(Pet p, List<Pet> pets) {
     if (_typeId == 'feed') {
       final e = _perPetForms[p.id];
-      return e != null && !e.saved && e.items.isNotEmpty;
+      // 먹이 없이 메모만 적은 개체도 저장한다 — '급여' 기록에 메모가 붙는다.
+      // 아무것도 안 적은 개체는 건드리지 않는다 (탭을 넘겨 본 것만으로 기록이 생기면 안 된다)
+      return e != null && !e.saved && (e.items.isNotEmpty || e.memo.trim().isNotEmpty);
     }
     if (_simpleSaved.contains(p.id)) return false;
     final active = pets[_activePerPetIdx.clamp(0, pets.length - 1)];
@@ -442,6 +444,9 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         if (isFeed) {
           final entry   = _perPetForms[pet.id]!;
           final petMemo = entry.memo.trim();
+          if (entry.items.isEmpty) {
+            await repo.addFeeding(pet.id, _foodlessFeeding(now, petMemo));
+          }
           for (final item in entry.items) {
             final apiItem = petMemo.isNotEmpty ? item.copyWith(memo: petMemo) : item;
             await repo.addFeeding(pet.id, apiItem.toApiMap(fedAt: now));
@@ -489,13 +494,21 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
   }
 
   // ── 저장 ─────────────────────────────────────────────────────
+
+  /// 먹이를 안 고르고 저장한 급여 — "급여는 했고 뭘 줬는지는 안 적음".
+  /// 서버가 `food_type = ''` 로 남기고 화면엔 '급여' 로 보인다. 거식(`refused`)과는
+  /// 다른 상태다. 급여 사실만 빠르게 남기고 싶을 때를 위한 것 (2026-10-28 사용자 요청 —
+  /// 전엔 먹이를 하나도 안 담으면 저장 버튼이 아예 안 눌렸다).
+  static Map<String, dynamic> _foodlessFeeding(DateTime fedAt, String memo) => {
+        'refused': false,
+        'foodType': '',
+        'fedAt': fedAt.toUtc().toIso8601String(),
+        if (memo.isNotEmpty) 'memo': memo,
+      };
+
   Future<void> _saveBulk(List<Pet> pets) async {
     if (pets.isEmpty) {
       showToast(context, '개체 정보를 불러오는 중이에요', type: ToastType.warning);
-      return;
-    }
-    if (_bulkItems.isEmpty) {
-      showToast(context, '급여를 목록에 추가해 주세요', type: ToastType.warning);
       return;
     }
     setState(() => _saving = true);
@@ -504,6 +517,9 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
       final now      = _recordAt;
       final bulkMemo = _bulkMemoCtrl.text.trim();
       for (final pet in pets) {
+        if (_bulkItems.isEmpty) {
+          await repo.addFeeding(pet.id, _foodlessFeeding(now, bulkMemo));
+        }
         for (final item in _bulkItems) {
           final apiItem = bulkMemo.isNotEmpty ? item.copyWith(memo: bulkMemo) : item;
           await repo.addFeeding(pet.id, apiItem.toApiMap(fedAt: now));
@@ -970,7 +986,8 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
           onBack: _goBack,
           nextLabel: '완료',
           nextIcon: Icons.check,
-          nextEnabled: _bulkItems.isNotEmpty && !_saving,
+          // 먹이를 안 담아도 저장된다 — '급여' 로 남는다 ([_foodlessFeeding])
+          nextEnabled: !_saving,
           nextBadge: _bulkItems.isNotEmpty ? '${_bulkItems.length}종 저장' : null,
           loading: _saving,
           onNext: () => _saveBulk(pets),

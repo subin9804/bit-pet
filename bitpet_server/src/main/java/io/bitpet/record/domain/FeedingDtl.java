@@ -126,7 +126,9 @@ public class FeedingDtl extends BaseSyncEntity {
     private void applyRefused(boolean refused, String foodType, BigDecimal amount,
                               String unit, String sizeLabel, FeedingSupplement supplement) {
         this.refusedYn = refused ? "Y" : "N";
-        this.foodType   = refused ? null : foodType;
+        // 거식이 아니면 NOT NULL (CHECK ck_feeding_dtl_food_type_by_refused). 종류가 없으면
+        // '' = "급여는 했고 뭘 줬는지 안 적음" — 거식(NULL)과 다른 상태다
+        this.foodType   = refused ? null : (foodType == null || foodType.isBlank() ? "" : foodType);
         this.amount     = refused ? null : amount;
         this.unit       = refused ? null : unit;
         this.sizeLabel  = refused ? null : sizeLabel;

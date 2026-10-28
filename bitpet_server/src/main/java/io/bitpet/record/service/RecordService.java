@@ -1,3 +1,9 @@
+        // 급여로 되돌리는/먹이를 지우는 수정에 종류가 없으면 food_type = '' (먹이 미입력).
+        // 예전엔 400 이었다 — 먹이 없이 완료한 급여 기록의 메모·날짜를 고치면 앱이
+        // foodType '' 를 보내서 **수정이 통째로 실패**했다
+        // 거식이면 먹이 정보 없이 메모만 남는다 (엔티티가 나머지를 비운다).
+        // 먹이 종류 없이 보내면 "급여함, 뭘 줬는지는 안 적음" (food_type = '') 이다 —
+        // 빠르게 급여 사실만 남기는 FAB 저장 (2026-10-28). 빈 값 정규화는 엔티티가 한다
 package io.bitpet.record.service;
 
 import io.bitpet.common.exception.BusinessException;
@@ -129,10 +135,9 @@ public class RecordService {
     @Transactional
     public FeedingResponse addFeeding(Long userId, Long petId, FeedingCreateRequest req) {
         verifyPetOwnership(userId, petId);
-        // 거식이면 먹이 정보 없이 메모만 남는다 (엔티티가 나머지를 비운다)
-        if (!req.isRefused() && (req.foodType() == null || req.foodType().isBlank())) {
-            throw new BusinessException(ErrorCode.FEEDING_FOOD_TYPE_REQUIRED);
-        }
+        // 거식이면 먹이 정보 없이 메모만 남는다 (엔티티가 나머지를 비운다).
+        // 먹이 종류 없이 오면 "급여는 했고 뭘 줬는지 안 적음"(food_type = '') 이다 —
+        // FAB 에서 급여 사실만 빠르게 남기는 저장 (2026-10-28). 빈 값 정규화는 엔티티가 한다
         FeedingDtl saved = feedingRepository.save(FeedingDtl.builder()
                 .petId(petId)
                 .createdByUserId(userId)
@@ -153,10 +158,9 @@ public class RecordService {
         FeedingDtl feeding = feedingRepository.findById(feedingId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.FEEDING_NOT_FOUND));
         verifyPetOwnership(userId, feeding.getPetId());
-        // 급여로 되돌리는 수정이면 먹이 종류가 반드시 함께 와야 한다
-        if (Boolean.FALSE.equals(req.refused()) && (req.foodType() == null || req.foodType().isBlank())) {
-            throw new BusinessException(ErrorCode.FEEDING_FOOD_TYPE_REQUIRED);
-        }
+        // 급여 모드 수정에 먹이 종류가 없으면 food_type = '' (먹이 미입력) 로 저장된다.
+        // 예전엔 400 이었다 — 먹이 없이 완료한 급여 기록의 메모·날짜를 고치면 앱이
+        // foodType '' 를 보내서 수정이 통째로 실패했다
         feeding.update(req.foodType(), req.amount(), req.unit(), req.sizeLabel(),
                 req.supplement(), req.fedAt(), req.memo(), req.refused());
         return FeedingResponse.from(feeding);
