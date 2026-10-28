@@ -27,7 +27,8 @@ logging:
     io.bitpet: INFO
     org.hibernate.SQL: WARN
 
-# AWS SES 전환 시 아래 값만 교체하면 됨 (환경변수로 주입)
+# 메일 제공자는 환경변수로 바꾼다 (운영: Resend — MAIL_HOST=smtp.resend.com, deploy/.env.prod.example 참고)
+# AWS SES 로 갈 경우의 예:
 # spring.mail.host: email-smtp.ap-northeast-2.amazonaws.com
 # spring.mail.username: SES SMTP 자격증명 사용자
 # spring.mail.password: SES SMTP 자격증명 비밀번호

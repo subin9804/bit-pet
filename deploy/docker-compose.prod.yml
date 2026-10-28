@@ -99,6 +99,9 @@ services:
       BITPET_OAUTH_SUCCESS_REDIRECT: ${BITPET_OAUTH_SUCCESS_REDIRECT:-tailog://oauth/callback}
       BITPET_OAUTH_FAILURE_REDIRECT: ${BITPET_OAUTH_FAILURE_REDIRECT:-tailog://oauth/error}
 
+      # 기본값은 Gmail. Resend 로 바꿀 땐 .env.prod 에 MAIL_HOST=smtp.resend.com 만 넣으면 된다
+      MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
+      MAIL_PORT: ${MAIL_PORT:-587}
       MAIL_FROM: ${MAIL_FROM}
       MAIL_USERNAME: ${MAIL_USERNAME}
       MAIL_PASSWORD: ${MAIL_PASSWORD}
