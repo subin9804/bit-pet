@@ -149,6 +149,9 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
       if (mounted) {
         setState(() {});
         showToast(context, '${pet.petName} 완료', type: ToastType.success);
+        // 완료하면 다음 개체로 넘긴다 — 푸터 주 버튼이 곧 다음 개체의 '완료'가 된다.
+        // 넘어가며 부르는 `_saveIfNeeded` 는 방금 저장해 dirty 가 없어 아무것도 안 한다.
+        if (!_isLast) _go(_idx + 1);
       }
     } catch (e) {
       if (mounted) showToast(context, '저장 실패: $e', type: ToastType.error);
@@ -403,7 +406,6 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
                     isWeight: _isWeight,
                     accent: _accent,
                     saving: _saving,
-                    onComplete: () => _completePet(_pets[i]),
                     onUndo: () => _undoPet(_pets[i]),
                     onChanged: () => setState(() {}),
                   ),
@@ -415,9 +417,14 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
             _Footer(
               isLast: _isLast,
               canPrev: _idx > 0,
+              saving: _saving,
+              completeLabel: _rec[_pets[_idx].petId]!.done
+                  ? null
+                  : '${_pets[_idx].petName} 완료',
               onPrev: () => _go(_idx - 1),
               onNext: _handleNext,
               onFinish: _handleFinish,
+              onComplete: () => _completePet(_pets[_idx]),
             ),
           ],
         ),
@@ -434,7 +441,6 @@ class _PetPage extends StatelessWidget {
   final bool isWeight;
   final Color accent;
   final bool saving;
-  final VoidCallback onComplete;
   final VoidCallback onUndo;
   final VoidCallback onChanged;
 
@@ -445,7 +451,6 @@ class _PetPage extends StatelessWidget {
     required this.isWeight,
     required this.accent,
     required this.saving,
-    required this.onComplete,
     required this.onUndo,
     required this.onChanged,
   });
@@ -541,31 +546,26 @@ class _PetPage extends StatelessWidget {
                   ),
                   const SizedBox(height: AppSpacing.lg),
 
-                  // 주 동작. 손으로 그린 `GestureDetector` + `Container` 였고
-                  // 채움색이 먹색이라 브랜드색 버튼이 쓰이는 다른 시트들과
-                  // 혼자 달랐다. 테마 버튼을 그대로 쓴다(폭이 유한한 자리라
-                  // `minimumSize` 의 무한 minWidth 가 문제되지 않는다).
-                  SizedBox(
-                    height: 48,
-                    child: rec.done
-                        ? OutlinedButton.icon(
-                            onPressed: saving ? null : onUndo,
-                            icon: const Icon(Icons.check_circle_outline,
-                                size: AppIconSize.md),
-                            label: const Text('완료 취소'),
-                          )
-                        : ElevatedButton.icon(
-                            onPressed: saving ? null : onComplete,
-                            icon: const Icon(Icons.check, size: AppIconSize.md),
-                            label: const Text('이 개체 완료'),
-                          ),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
+                  // '완료'는 푸터 주 버튼으로 옮겼다(2026-10-28) — 카드 맨 위에
+                  // 있으면 아래 칸을 채운 뒤 다시 올라와야 했다. 여기엔 되돌리기만 남는다.
+                  // (폭이 유한한 자리라 테마 `minimumSize` 의 무한 minWidth 가 문제되지 않는다)
+                  if (rec.done) ...[
+                    SizedBox(
+                      height: 48,
+                      child: OutlinedButton.icon(
+                        onPressed: saving ? null : onUndo,
+                        icon: const Icon(Icons.check_circle_outline,
+                            size: AppIconSize.md),
+                        label: const Text('완료 취소'),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                  ],
                   Text(
                     rec.done
-                        ? '다시 누르면 완료가 취소돼요'
+                        ? '누르면 완료가 취소돼요'
                         : isWeight
-                            ? '몸무게를 적고 완료를 눌러주세요'
+                            ? '몸무게를 적고 아래 완료를 눌러주세요'
                             : '입력만 하고 넘기면 미완료로 저장돼요',
                     textAlign: TextAlign.center,
                     style: AppTextStyles.caption,
@@ -660,25 +660,40 @@ class _PetPage extends StatelessWidget {
 }
 
 // ── 푸터 ─────────────────────────────────────────────────────────
+//
+// 보고 있는 개체가 **완료 전이면 주 버튼이 '○○ 완료'** 다 (2026-10-28 사용자 요청).
+// 전에는 '이 개체 완료'가 카드 맨 위에 있고 급여·메모 칸이 그 아래라, 입력하고
+// 나면 위로 다시 올라가 눌러야 했다. 완료하면 다음 개체로 넘어간다
+// ([_PerPetConfirmSheetState._completePet]). 완료 안 하고 넘길 수도 있어야 해서
+// (입력만 하면 미완료로 저장) 그때는 '다음'/'종료'가 작은 버튼으로 옆에 남는다.
 class _Footer extends StatelessWidget {
   final bool isLast;
   final bool canPrev;
+  final bool saving;
+
+  /// 지금 개체를 완료하는 버튼의 라벨. null 이면 이미 완료된 개체다.
+  final String? completeLabel;
   final VoidCallback onPrev;
   final VoidCallback onNext;
   final VoidCallback onFinish;
+  final VoidCallback onComplete;
 
   const _Footer({
     required this.isLast,
     required this.canPrev,
+    required this.saving,
+    required this.completeLabel,
     required this.onPrev,
     required this.onNext,
     required this.onFinish,
+    required this.onComplete,
   });
 
   @override
   Widget build(BuildContext context) {
     // ⛔ 주 버튼 옆에 '취소'를 두지 않는다 — 시트는 핸들을 내리거나 바깥을 눌러
     //    닫는다. 여기 있던 '취소'는 '이전'과 뜻이 겹쳐 셋 중 뭘 누를지 멈칫했다.
+    final complete = completeLabel;
     return Container(
       decoration: const BoxDecoration(
         // 바탕색은 시트와 같게 둔다 — 위쪽 선 하나로 이미 구분되고, 흰 띠를
@@ -696,31 +711,49 @@ class _Footer extends StatelessWidget {
         children: [
           _FooterBtn(label: '이전', onTap: canPrev ? onPrev : null),
           const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: SizedBox(
-              // 7슬롯 주 버튼과 같은 52px — 시트마다 버튼 높이가 다르면
-              // 같은 동작인데 다른 화면처럼 보인다.
-              height: 52,
-              child: isLast
-                  ? ElevatedButton.icon(
-                      onPressed: onFinish,
-                      icon: const Icon(Icons.check, size: AppIconSize.sm),
-                      label: const Text('종료'),
-                    )
-                  : OutlinedButton(
-                      onPressed: onNext,
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text('다음'),
-                          SizedBox(width: AppSpacing.xs),
-                          AppIcon(AppIcons.chevronRight,
-                              size: AppIconSize.sm, color: AppColors.ink2),
-                        ],
-                      ),
-                    ),
+          if (complete != null) ...[
+            // 완료 전: [이전] [다음/종료] [○○ 완료]
+            _FooterBtn(
+                label: isLast ? '종료' : '다음',
+                onTap: saving ? null : (isLast ? onFinish : onNext)),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: SizedBox(
+                // 7슬롯 주 버튼과 같은 52px — 시트마다 버튼 높이가 다르면
+                // 같은 동작인데 다른 화면처럼 보인다.
+                height: 52,
+                child: ElevatedButton.icon(
+                  onPressed: saving ? null : onComplete,
+                  icon: const Icon(Icons.check, size: AppIconSize.sm),
+                  label: Text(complete,
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                ),
+              ),
             ),
-          ),
+          ] else
+            Expanded(
+              child: SizedBox(
+                height: 52,
+                child: isLast
+                    ? ElevatedButton.icon(
+                        onPressed: saving ? null : onFinish,
+                        icon: const Icon(Icons.check, size: AppIconSize.sm),
+                        label: const Text('종료'),
+                      )
+                    : OutlinedButton(
+                        onPressed: saving ? null : onNext,
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text('다음'),
+                            SizedBox(width: AppSpacing.xs),
+                            AppIcon(AppIcons.chevronRight,
+                                size: AppIconSize.sm, color: AppColors.ink2),
+                          ],
+                        ),
+                      ),
+              ),
+            ),
         ],
       ),
     );

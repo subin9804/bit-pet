@@ -1161,59 +1161,16 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                   const SizedBox(height: 16),
                 ],
 
-                // 기록 / 저장됨 액션
-                //
-                // ⚠️ 라벨은 **'기록'** 이다 — '완료'가 아니다. 이 버튼이
-                // 실제로 하는 일이 그 개체의 기록을 **서버에 쓰는 것**이고,
-                // '완료'는 "폼을 다 채웠다"로 읽혀서 아직 저장 전인 것처럼
-                // 보였다 (2026-10-15 사용자 결정).
-                if (saved)
+                // 저장 버튼은 **푸터로 옮겼다**(2026-10-28 사용자 요청) — 본문 맨 아래에
+                // 있어서 급여 항목이 길면 스크롤해서 찾아야 했다. 여기엔 저장 결과만 남는다.
+                if (saved) ...[
                   _SavedBanner(
                     petName: activePet.name,
                     pale: pale,
                     accent: accent,
-                  )
-                else
-                  GestureDetector(
-                    onTap: canSave && !_saving
-                        ? () => isFeed
-                            ? _saveOnePet(activePet, pets)
-                            : _saveOneSimple(activePet, pets)
-                        : null,
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: canSave
-                            ? AppColors.brandAction
-                            : AppColors.brandTint,
-                        borderRadius: AppRadius.brLg,
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.check,
-                              color: canSave
-                                  ? AppColors.bg
-                                  : AppColors.brandTintInk,
-                              size: 16),
-                          const SizedBox(width: 8),
-                          Text(
-                            !isFeed || entry.items.isEmpty
-                                ? '${activePet.name} 기록'
-                                : '${activePet.name} 기록 (${entry.items.length}종)',
-                            style: TextStyle(
-                                fontSize: 14, fontWeight: FontWeight.w700,
-                                color: canSave
-                                    ? AppColors.bg
-                                    : AppColors.brandTintInk),
-                          ),
-                        ],
-                      ),
-                    ),
                   ),
-                const SizedBox(height: 8),
+                  const SizedBox(height: 8),
+                ],
 
                 // 이전/다음 개체 네비게이션
                 if (pets.length > 1)
@@ -1298,16 +1255,37 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
           ),
         ),
 
-        // 푸터
-        _Footer(
-          onBack: _goBack,
-          nextLabel: '닫기',
-          // ⛔ 푸터는 **저장 버튼이 아니다.** 저장은 개체마다 끝나 있고
-          // (2026-10-15), 여기는 "몇 건 저장됐는지" 를 알려주며 닫는 자리다.
-          nextBadge: _perPetSavedTotal > 0 ? '$_perPetSavedTotal건 저장됨' : null,
-          onNext: _finishPerPet,
-          loading: _saving,
-        ),
+        // 푸터 — 보고 있는 개체가 **저장 전이면 그 개체의 '기록' 버튼**이다
+        // (2026-10-28, 본문 맨 아래에 있던 버튼을 옮겼다. 스크롤 없이 늘 보인다).
+        // 저장하면 다음 미저장 개체로 넘어가고([_saveOnePet]·[_saveOneSimple]),
+        // 다 저장했거나 저장된 탭을 보고 있으면 "몇 건 저장됐는지" 를 알려주며
+        // 닫는 버튼이 된다.
+        //
+        // ⚠️ 라벨은 **'기록'** 이다 — '완료'가 아니다. 이 버튼이 실제로 하는 일이
+        // 그 개체의 기록을 **서버에 쓰는 것**이다 (2026-10-15 사용자 결정).
+        // ⛔ 닫기 상태의 [_finishPerPet] 은 저장하지 않는다 — 다시 보내면 두 벌 생긴다.
+        if (saved)
+          _Footer(
+            onBack: _goBack,
+            nextLabel: '닫기',
+            nextBadge: _perPetSavedTotal > 0 ? '$_perPetSavedTotal건 저장됨' : null,
+            onNext: _finishPerPet,
+            loading: _saving,
+          )
+        else
+          _Footer(
+            onBack: _goBack,
+            nextLabel: '${activePet.name} 기록',
+            nextIcon: Icons.check,
+            nextBadge: isFeed && entry.items.isNotEmpty
+                ? '${entry.items.length}종'
+                : null,
+            nextEnabled: canSave,
+            onNext: () => isFeed
+                ? _saveOnePet(activePet, pets)
+                : _saveOneSimple(activePet, pets),
+            loading: _saving,
+          ),
       ],
     );
   }
