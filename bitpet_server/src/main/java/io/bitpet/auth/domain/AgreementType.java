@@ -16,7 +16,7 @@ public enum AgreementType {
     TOS("2026-08-19", true, Scope.ALL),
 
     /** 개인정보 처리방침 (필수) */
-    PRIVACY("2026-08-19", true, Scope.ALL),
+    PRIVACY("2026-10-28", true, Scope.ALL),
 
     /**
      * 만 14세 이상 확인 (필수).

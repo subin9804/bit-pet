@@ -17,7 +17,7 @@ class LegalPageIntegrationTest extends IntegrationTestBase {
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith("text/html"))
                 .andExpect(content().string(containsString("개인정보 처리방침")))
-                .andExpect(content().string(containsString("시행일 2026-08-19")))
+                .andExpect(content().string(containsString("시행일 2026-10-28")))
                 .andExpect(content().string(containsString("privacy@tailog.me")));
     }
 
