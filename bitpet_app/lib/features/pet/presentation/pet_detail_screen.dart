@@ -53,6 +53,7 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
       if (!mounted) return;
       showAppSheet<void>(
         context: context,
+        enableDrag: false, // 개별 입력은 한꺼번에 저장 — 시트가 확인을 받는다
         builder: (_) => FabRecordSheet(
           initialTypeId: type,
           initialPetId: widget.petId,

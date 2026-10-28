@@ -1,15 +1,16 @@
-// 01d · 루틴 개별 완료 — peek 캐러셀
-// 저장 트리거: 1) 이 개체 완료 버튼  2) 다음 버튼/슬라이드  3) 종료 버튼
-//   단, 2·3번은 추가 데이터(급여 항목 또는 메모)가 있을 때만 저장
-//   마지막 개체에서 종료 버튼은 루틴 완료를 의미하지 않음 (메모 있으면 저장만)
-// 이전 버튼: 저장 없이 이동, 입력 상태 유지
-// 완료됨 버튼: 클릭 시 로그 삭제 후 미완료 상태로 복귀
+// 01d · 루틴 개별 완료 — peek 캐러셀 (2026-10-28 저장 방식 개편)
+// · 카드의 '○○ 완료' = **누르는 즉시 서버에 완료(COMPLETED)** 를 쓴다 (그때까지 적은 내용 포함)
+// · 급여·체중·메모 입력은 **푸터 'n마리 저장' 에서 한꺼번에** 저장한다
+//   완료한 개체는 완료로, 완료 안 한 개체는 적은 게 있으면 미완료(REFUSED)로
+// · 이전/다음/슬라이드는 저장하지 않는다 — 자유롭게 오가며 적는다
+// · 완료 취소: 로그 삭제 후 미완료로 복귀 (적어 둔 내용은 남아 다음 저장 때 미완료로 간다)
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_input_styles.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/confirm_modal.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../../record/presentation/widgets/feed_items_editor.dart';
 import '../data/models/routine_models.dart';
@@ -26,7 +27,7 @@ class _PerPetRec {
   String memo;
   String weight; // WEIGHT 루틴 전용 — 완료 시 필수
   bool done;
-  bool dirty; // 마지막 저장 이후 입력이 바뀌었는지 — 완료 상태에서 재저장 판단용
+  bool dirty; // 마지막 저장 이후 입력이 바뀌었는지 — 'n마리 저장' 대상 판단용
   bool feedOpen;
   bool memoOpen;
   int? savedLogId;
@@ -149,9 +150,6 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
       if (mounted) {
         setState(() {});
         showToast(context, '${pet.petName} 완료', type: ToastType.success);
-        // 완료하면 다음 개체로 넘긴다 — 푸터 주 버튼이 곧 다음 개체의 '완료'가 된다.
-        // 넘어가며 부르는 `_saveIfNeeded` 는 방금 저장해 dirty 가 없어 아무것도 안 한다.
-        if (!_isLast) _go(_idx + 1);
       }
     } catch (e) {
       if (mounted) showToast(context, '저장 실패: $e', type: ToastType.error);
@@ -197,9 +195,13 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
   Future<void> _undoPet(TodayPetStatus pet) async {
     final rec   = _rec[pet.petId]!;
     final logId = rec.savedLogId;
+    // 적어 둔 내용은 화면에 남는다 — 'n마리 저장' 때 미완료로 보존되게 dirty 로 둔다
     if (logId == null) {
       // 로그 ID 없이 로컬에서만 done=true인 경우 (드문 케이스)
-      setState(() => rec.done = false);
+      setState(() {
+        rec.done = false;
+        rec.dirty = true;
+      });
       ref.read(todayRoutinesProvider.notifier)
           .updatePetStatus(widget.routine.id, pet.petId, false);
       return;
@@ -211,7 +213,12 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
       ref.read(todayRoutinesProvider.notifier)
           .updatePetStatus(widget.routine.id, pet.petId, false);
       invalidatePetRecords(ref, pet.petId);
-      if (mounted) setState(() => rec.done = false);
+      if (mounted) {
+        setState(() {
+          rec.done = false;
+          rec.dirty = true;
+        });
+      }
     } catch (e) {
       if (mounted) showToast(context, '취소 실패: $e', type: ToastType.error);
     } finally {
@@ -225,53 +232,74 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
       (_isFeed && rec.feedItems.isNotEmpty) ||
       (_isWeight && rec.weightG != null);
 
-  // ── 저장이 필요할 때만 저장 (다음/종료/슬라이드 트리거) ──────────
-  //  · 완료됨(버튼 누름): 이후 수정(dirty)이 있으면 완료 상태로 재저장
-  //  · 미완료: '이 개체 완료'를 안 눌렀어도, 입력한 내용(급여·체중·메모)이
-  //           있으면 미완료(REFUSED)로 저장해 내용을 보존하고 나중에 다시 볼 수 있게 함.
-  Future<void> _saveIfNeeded(TodayPetStatus pet) async {
-    final rec = _rec[pet.petId]!;
-    if (rec.done) {
-      if (!rec.dirty) return;
-      // 완료 상태 유지한 채 수정분 반영 (체중 미입력이면 서버 거부 → 스킵)
-      if (_isWeight && rec.weightG == null) return;
-      try {
-        await _persist(pet, completed: true);
-        if (mounted) setState(() {});
-      } catch (_) {}
+  // ── 'n마리 저장' 대상 ─────────────────────────────────────────────
+  //  · 완료한 개체: 완료 뒤에 고친 게 있으면(dirty) 완료 상태로 다시 쓴다
+  //    (체중 루틴에서 체중을 지웠으면 서버가 거부하므로 대상에서 뺀다)
+  //  · 완료 안 한 개체: 적은 게 있으면 미완료(REFUSED)로 남긴다 — 완료를 안 눌렀어도
+  //    적은 내용은 보존되고 나중에 다시 열면 복원된다(`_loadSavedLogs`)
+  bool _needsSave(_PerPetRec rec) {
+    if (!rec.dirty) return false;
+    if (rec.done) return !_isWeight || rec.weightG != null;
+    return _hasEnteredData(rec);
+  }
+
+  List<TodayPetStatus> get _pendingPets =>
+      _pets.where((p) => _needsSave(_rec[p.petId]!)).toList();
+
+  /// 푸터 'n마리 저장' — 적은 내용을 한꺼번에 저장하고 닫는다.
+  ///
+  /// 전에는 '다음'·슬라이드·'종료' 때 지나온 개체를 그때그때 저장했고, 10-28 오전엔
+  /// 완료 버튼을 푸터로 옮겼다. 사용자가 "버튼을 눌러야만 저장되는 건 불편하다" 며
+  /// 완료는 즉시, 내용은 마지막에 한 번에 저장하자고 정했다 (2026-10-28).
+  ///
+  /// ⚠️ 하나가 실패해도 나머지는 계속 보낸다. 성공한 개체는 dirty 가 꺼져 다시
+  /// 누를 때 빠지고, 실패한 개체 장으로 옮겨 시트를 열어 둔다.
+  Future<void> _saveAll() async {
+    final targets = _pendingPets;
+    if (targets.isEmpty) {
+      _close();
       return;
     }
-    // 완료 버튼을 안 눌렀어도 입력한 내용이 있으면 '미완료'로 저장
-    if (!_hasEnteredData(rec)) return;
-    try {
-      await _persist(pet, completed: false);
-      if (mounted) setState(() {});
-    } catch (_) {}
+    setState(() => _saving = true);
+    final failed = <TodayPetStatus>[];
+    Object? lastError;
+    for (final pet in targets) {
+      try {
+        await _persist(pet, completed: _rec[pet.petId]!.done);
+      } catch (e) {
+        failed.add(pet);
+        lastError = e;
+      }
+    }
+    if (!mounted) return;
+    setState(() => _saving = false);
+    if (failed.isEmpty) {
+      _close(savedCount: targets.length);
+      return;
+    }
+    final i = _pets.indexOf(failed.first);
+    if (i >= 0 && i != _idx) _go(i);
+    final who = failed.length == 1
+        ? failed.first.petName
+        : '${failed.first.petName} 외 ${failed.length - 1}마리';
+    showToast(context, '$who 저장 실패: $lastError', type: ToastType.error);
   }
 
-  void _handleNext() {
-    _saveIfNeeded(_pets[_idx]).then((_) {
-      if (mounted) _go(_idx + 1);
-    });
-  }
-
-  void _handleFinish() {
+  void _close({int savedCount = 0}) {
     final routine = widget.routine;
-    // 종료 시 현재 개체의 입력·수정도 반드시 저장하고 닫는다
-    _saveIfNeeded(_pets[_idx]).then((_) {
-      if (!mounted) return;
-      // ⚠️ 무효화를 pop 보다 먼저 한다. 닫고 나서 부르면 이 시트의 ref 가 이미
-      // 버려진 뒤라, 던지는 순간 뒤따르는 무효화가 통째로 건너뛰어진다.
-      ref.invalidate(routineTodayStatusProvider(routine.id));
-      for (final p in _pets) {
-        invalidatePetRecords(ref, p.petId);
-      }
-      Navigator.of(context).pop();
-      if (_completedCount > 0) {
-        showToast(context, '$_completedCount마리 완료 처리됐어요',
-            type: ToastType.success);
-      }
-    });
+    // ⚠️ 무효화를 pop 보다 먼저 한다. 닫고 나서 부르면 이 시트의 ref 가 이미
+    // 버려진 뒤라, 던지는 순간 뒤따르는 무효화가 통째로 건너뛰어진다.
+    ref.invalidate(routineTodayStatusProvider(routine.id));
+    for (final p in _pets) {
+      invalidatePetRecords(ref, p.petId);
+    }
+    Navigator.of(context).pop();
+    if (savedCount > 0) {
+      showToast(context, '$savedCount마리 저장했어요', type: ToastType.success);
+    } else if (_completedCount > 0) {
+      showToast(context, '$_completedCount마리 완료 처리됐어요',
+          type: ToastType.success);
+    }
   }
 
   void _go(int target) {
@@ -294,7 +322,25 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
     //
     // ⛔ 헤더 eyebrow 의 `개별 완료 · 09:00` 중 시각은 지웠다 — 루틴에 수행
     //    시각은 없다. 그 자리는 '몇 마리 끝났나'가 쓴다.
-    return Padding(
+    final pending = _pendingPets;
+    // 저장 안 한 입력이 있으면 닫기 전에 묻는다. 끌어 내리기는 PopScope 를
+    // 안 거치므로 여는 쪽(`dashboard_tab`)이 `enableDrag: false` 로 열고,
+    // 핸들 튕기기는 아래에서 `maybePop` 으로 돌린다 — FabRecordSheet 와 같은 방식.
+    return PopScope(
+      canPop: pending.isEmpty,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final discard = await ConfirmModal.show(
+          context,
+          title: '입력한 내용을 버릴까요?',
+          message: '아직 저장하지 않은 입력이 있어요. 닫으면 사라져요.',
+          confirmLabel: '버리고 닫기',
+          cancelLabel: '계속 작성',
+          isDangerous: true,
+        );
+        if (discard && context.mounted) Navigator.of(context).pop();
+      },
+      child: Padding(
       padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
       child: Container(
         // ⚠️ `height: 0.9` 고정이었다 — 개체가 1마리여도 시트가 화면 끝까지
@@ -314,14 +360,29 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // 그랩 핸들 — AppSheet 의 것과 같은 치수·색·여백
-            Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.only(top: AppSpacing.md, bottom: AppSpacing.lg),
-              decoration: const BoxDecoration(
-                color: AppColors.border,
-                borderRadius: AppRadius.brPill,
+            // 그랩 핸들 — AppSheet 의 것과 같은 치수·색·여백.
+            // 시트 끌기를 껐으므로 아래로 튕기면 `maybePop` 으로 닫는다(확인을 거친다)
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onVerticalDragEnd: (d) {
+                if ((d.primaryVelocity ?? 0) > 200) {
+                  Navigator.of(context).maybePop();
+                }
+              },
+              child: SizedBox(
+                width: double.infinity,
+                child: Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(
+                        top: AppSpacing.md, bottom: AppSpacing.lg),
+                    decoration: const BoxDecoration(
+                      color: AppColors.border,
+                      borderRadius: AppRadius.brPill,
+                    ),
+                  ),
+                ),
               ),
             ),
 
@@ -392,12 +453,8 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
                 height: (media.size.height * 0.46).clamp(280.0, 460.0),
                 child: PageView.builder(
                   controller: _page,
-                  onPageChanged: (i) {
-                    final prev = _idx;
-                    setState(() => _idx = i);
-                    // 앞으로 슬라이드할 때 이전 개체 조건부 저장
-                    if (i > prev) _saveIfNeeded(_pets[prev]);
-                  },
+                  // 넘기기만 한다 — 저장은 푸터 'n마리 저장' 에서 한 번에
+                  onPageChanged: (i) => setState(() => _idx = i),
                   itemCount: _pets.length,
                   itemBuilder: (_, i) => _PetPage(
                     pet: _pets[i],
@@ -406,6 +463,7 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
                     isWeight: _isWeight,
                     accent: _accent,
                     saving: _saving,
+                    onComplete: () => _completePet(_pets[i]),
                     onUndo: () => _undoPet(_pets[i]),
                     onChanged: () => setState(() {}),
                   ),
@@ -415,19 +473,17 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
 
             // ── 푸터 ───────────────────────────────────────────
             _Footer(
-              isLast: _isLast,
               canPrev: _idx > 0,
+              canNext: !_isLast,
               saving: _saving,
-              completeLabel: _rec[_pets[_idx].petId]!.done
-                  ? null
-                  : '${_pets[_idx].petName} 완료',
+              pendingCount: pending.length,
               onPrev: () => _go(_idx - 1),
-              onNext: _handleNext,
-              onFinish: _handleFinish,
-              onComplete: () => _completePet(_pets[_idx]),
+              onNext: () => _go(_idx + 1),
+              onSave: _saveAll,
             ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -441,6 +497,7 @@ class _PetPage extends StatelessWidget {
   final bool isWeight;
   final Color accent;
   final bool saving;
+  final VoidCallback onComplete;
   final VoidCallback onUndo;
   final VoidCallback onChanged;
 
@@ -451,6 +508,7 @@ class _PetPage extends StatelessWidget {
     required this.isWeight,
     required this.accent,
     required this.saving,
+    required this.onComplete,
     required this.onUndo,
     required this.onChanged,
   });
@@ -546,27 +604,34 @@ class _PetPage extends StatelessWidget {
                   ),
                   const SizedBox(height: AppSpacing.lg),
 
-                  // '완료'는 푸터 주 버튼으로 옮겼다(2026-10-28) — 카드 맨 위에
-                  // 있으면 아래 칸을 채운 뒤 다시 올라와야 했다. 여기엔 되돌리기만 남는다.
+                  // '○○ 완료'는 누르는 즉시 서버에 완료를 쓴다(그때까지 적은 내용 포함).
+                  // 급여·메모는 그 뒤에 고쳐도 되고, 고친 건 푸터 'n마리 저장' 이 반영한다.
                   // (폭이 유한한 자리라 테마 `minimumSize` 의 무한 minWidth 가 문제되지 않는다)
-                  if (rec.done) ...[
-                    SizedBox(
-                      height: 48,
-                      child: OutlinedButton.icon(
-                        onPressed: saving ? null : onUndo,
-                        icon: const Icon(Icons.check_circle_outline,
-                            size: AppIconSize.md),
-                        label: const Text('완료 취소'),
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                  ],
+                  SizedBox(
+                    height: 48,
+                    child: rec.done
+                        ? OutlinedButton.icon(
+                            onPressed: saving ? null : onUndo,
+                            icon: const Icon(Icons.check_circle_outline,
+                                size: AppIconSize.md),
+                            label: const Text('완료 취소'),
+                          )
+                        : ElevatedButton.icon(
+                            onPressed: saving ? null : onComplete,
+                            icon: const Icon(Icons.check,
+                                size: AppIconSize.md),
+                            label: Text('${pet.petName} 완료',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis),
+                          ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
                   Text(
                     rec.done
-                        ? '누르면 완료가 취소돼요'
+                        ? '고친 내용은 아래 저장 버튼으로 반영돼요'
                         : isWeight
-                            ? '몸무게를 적고 아래 완료를 눌러주세요'
-                            : '입력만 하고 넘기면 미완료로 저장돼요',
+                            ? '몸무게를 적고 완료를 눌러주세요'
+                            : '완료 없이 적기만 하면 미완료로 저장돼요',
                     textAlign: TextAlign.center,
                     style: AppTextStyles.caption,
                   ),
@@ -645,6 +710,7 @@ class _PetPage extends StatelessWidget {
                 onChanged: (v) {
                   rec.memo = v;
                   rec.dirty = true;
+                  onChanged(); // 푸터 'n마리 저장' 개수가 따라 바뀐다
                 },
                 maxLines: 2,
                 style: AppTextStyles.sub,
@@ -661,39 +727,35 @@ class _PetPage extends StatelessWidget {
 
 // ── 푸터 ─────────────────────────────────────────────────────────
 //
-// 보고 있는 개체가 **완료 전이면 주 버튼이 '○○ 완료'** 다 (2026-10-28 사용자 요청).
-// 전에는 '이 개체 완료'가 카드 맨 위에 있고 급여·메모 칸이 그 아래라, 입력하고
-// 나면 위로 다시 올라가 눌러야 했다. 완료하면 다음 개체로 넘어간다
-// ([_PerPetConfirmSheetState._completePet]). 완료 안 하고 넘길 수도 있어야 해서
-// (입력만 하면 미완료로 저장) 그때는 '다음'/'종료'가 작은 버튼으로 옆에 남는다.
+// [이전] [다음] [n마리 저장] (2026-10-28 사용자 요청).
+// '완료'는 카드 안 버튼이 즉시 저장하고, 급여·체중·메모 입력은 여기서 한꺼번에
+// 저장한다 — 개체마다 버튼을 눌러야만 저장되는 건 불편하다는 이유. 이전/다음은
+// 저장하지 않는다. 저장할 게 없으면 주 버튼은 '닫기'다.
 class _Footer extends StatelessWidget {
-  final bool isLast;
   final bool canPrev;
+  final bool canNext;
   final bool saving;
 
-  /// 지금 개체를 완료하는 버튼의 라벨. null 이면 이미 완료된 개체다.
-  final String? completeLabel;
+  /// 'n마리 저장' 의 n — 0 이면 주 버튼이 '닫기'가 된다
+  final int pendingCount;
   final VoidCallback onPrev;
   final VoidCallback onNext;
-  final VoidCallback onFinish;
-  final VoidCallback onComplete;
+  final VoidCallback onSave;
 
   const _Footer({
-    required this.isLast,
     required this.canPrev,
+    required this.canNext,
     required this.saving,
-    required this.completeLabel,
+    required this.pendingCount,
     required this.onPrev,
     required this.onNext,
-    required this.onFinish,
-    required this.onComplete,
+    required this.onSave,
   });
 
   @override
   Widget build(BuildContext context) {
     // ⛔ 주 버튼 옆에 '취소'를 두지 않는다 — 시트는 핸들을 내리거나 바깥을 눌러
     //    닫는다. 여기 있던 '취소'는 '이전'과 뜻이 겹쳐 셋 중 뭘 누를지 멈칫했다.
-    final complete = completeLabel;
     return Container(
       decoration: const BoxDecoration(
         // 바탕색은 시트와 같게 둔다 — 위쪽 선 하나로 이미 구분되고, 흰 띠를
@@ -711,49 +773,22 @@ class _Footer extends StatelessWidget {
         children: [
           _FooterBtn(label: '이전', onTap: canPrev ? onPrev : null),
           const SizedBox(width: AppSpacing.sm),
-          if (complete != null) ...[
-            // 완료 전: [이전] [다음/종료] [○○ 완료]
-            _FooterBtn(
-                label: isLast ? '종료' : '다음',
-                onTap: saving ? null : (isLast ? onFinish : onNext)),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: SizedBox(
-                // 7슬롯 주 버튼과 같은 52px — 시트마다 버튼 높이가 다르면
-                // 같은 동작인데 다른 화면처럼 보인다.
-                height: 52,
-                child: ElevatedButton.icon(
-                  onPressed: saving ? null : onComplete,
-                  icon: const Icon(Icons.check, size: AppIconSize.sm),
-                  label: Text(complete,
-                      maxLines: 1, overflow: TextOverflow.ellipsis),
-                ),
+          _FooterBtn(label: '다음', onTap: canNext ? onNext : null),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: SizedBox(
+              // 7슬롯 주 버튼과 같은 52px — 시트마다 버튼 높이가 다르면
+              // 같은 동작인데 다른 화면처럼 보인다.
+              height: 52,
+              child: ElevatedButton.icon(
+                onPressed: saving ? null : onSave,
+                icon: Icon(pendingCount > 0 ? Icons.check : Icons.close,
+                    size: AppIconSize.sm),
+                label: Text(pendingCount > 0 ? '$pendingCount마리 저장' : '닫기',
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
             ),
-          ] else
-            Expanded(
-              child: SizedBox(
-                height: 52,
-                child: isLast
-                    ? ElevatedButton.icon(
-                        onPressed: saving ? null : onFinish,
-                        icon: const Icon(Icons.check, size: AppIconSize.sm),
-                        label: const Text('종료'),
-                      )
-                    : OutlinedButton(
-                        onPressed: saving ? null : onNext,
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text('다음'),
-                            SizedBox(width: AppSpacing.xs),
-                            AppIcon(AppIcons.chevronRight,
-                                size: AppIconSize.sm, color: AppColors.ink2),
-                          ],
-                        ),
-                      ),
-              ),
-            ),
+          ),
         ],
       ),
     );

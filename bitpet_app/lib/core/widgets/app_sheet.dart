@@ -254,6 +254,9 @@ Future<T?> showAppSheet<T>({
   required BuildContext context,
   required WidgetBuilder builder,
   bool isDismissible = true,
+  // 따로 주지 않으면 isDismissible 을 따른다. 입력이 쌓이는 시트는 끄고 PopScope 로
+  // 확인을 받는다 — 끌어 닫기는 `Navigator.pop` 이라 PopScope 를 거치지 않는다.
+  bool? enableDrag,
 }) {
   return showModalBottomSheet<T>(
     context: context,
@@ -261,7 +264,7 @@ Future<T?> showAppSheet<T>({
     // 키보드·긴 본문을 위해 높이를 시트가 직접 정하게 둔다.
     isScrollControlled: true,
     isDismissible: isDismissible,
-    enableDrag: isDismissible,
+    enableDrag: enableDrag ?? isDismissible,
     backgroundColor: Colors.transparent,
     barrierColor: AppColors.scrim,
     // 하단 인셋은 AppSheet 가 직접 다룬다 (useSafeArea 를 켜면 이중으로 띄워진다).

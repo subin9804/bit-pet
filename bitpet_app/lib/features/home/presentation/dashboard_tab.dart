@@ -432,6 +432,7 @@ class _RoutineRow extends StatelessWidget {
   void _openPerPet(BuildContext context) {
     showAppSheet<void>(
       context: context,
+      enableDrag: false, // 내용은 한꺼번에 저장 — 시트가 확인을 받는다
       builder: (_) => PerPetConfirmSheet(routine: routine),
     );
   }

@@ -56,6 +56,7 @@ class HomeScreen extends ConsumerWidget {
   void _onRecordPressed(BuildContext context) {
     showAppSheet<void>(
       context: context,
+      enableDrag: false, // 개별 입력은 한꺼번에 저장 — 시트가 확인을 받는다
       // 개체 상세에서 열면 그 개체로 고정 — 종류만 고르면 바로 입력 폼
       builder: (_) => FabRecordSheet(initialPetId: _detailPetId),
     );
