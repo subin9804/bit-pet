@@ -218,14 +218,24 @@ public class RoutineMst extends BaseTimeEntity {
      * 취소했는데 오히려 더 미뤄지는 정반대 결과가 된다. 되돌리기의 뜻은 "다시 내 할 일로 돌려놔라"이므로
      * 오늘 할 일로 띄우는 쪽이 맞다.
      *
+     * <p>⛔ <b>미룬 날짜가 되면 되돌릴 수 없다</b> (2026-10-30 사용자 결정, {@link #isPostponeExpired}).
+     * 루틴은 알림 도구라 이미 지나간 날짜로 돌려봐야 의미가 없다.
+     *
      * @return 되돌릴 게 있어서 실제로 되돌렸으면 true
      */
     public boolean cancelPostpone() {
         if (postponedAt == null || postponedFrom == null) return false;
+        if (isPostponeExpired()) return false;
         LocalDate today = LocalDate.now(SEOUL);
         this.nextDueAt = postponedFrom.isBefore(today) ? today : postponedFrom;
         clearPostponed();
         return true;
+    }
+
+    /** 미룬 날짜(지금 예정일)가 오늘이 됐거나 지났다 — 더는 되돌릴 수 없다. 미룬 적 없으면 false. */
+    public boolean isPostponeExpired() {
+        if (postponedAt == null || nextDueAt == null) return false;
+        return !nextDueAt.isAfter(LocalDate.now(SEOUL));
     }
 
     private void clearPostponed() {
@@ -253,6 +263,8 @@ public class RoutineMst extends BaseTimeEntity {
         if (nextDueAt == null) return;
         LocalDate today = LocalDate.now(SEOUL);
         if (!nextDueAt.isBefore(today)) return;
+        // 미룬 날짜까지 놓치고 넘어갔다 — 미룸 표시는 옛 일정 기준이라 지운다
+        clearPostponed();
         if (cycleMode != RoutineCycleMode.INTERVAL) {
             // 요일·날짜는 달력에 고정된 일정이라 놓친 날은 건너뛰고 오늘 이후 첫 해당일로 간다
             nextDueAt = nextOccurrenceOnOrAfter(today);

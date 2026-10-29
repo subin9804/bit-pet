@@ -282,6 +282,16 @@ class Routine {
 
   bool get isPostponed => postponedAt != null;
 
+  /// 되돌리기는 **미룬 날짜 전까지만** — 그날이 되면 막힌다 (서버 `ROUTINE_POSTPONE_EXPIRED`).
+  /// 알림 도구라 이미 지난 날짜로 돌려봐야 의미가 없다 (2026-10-30 사용자 결정).
+  bool get canUndoPostpone {
+    if (!isPostponed || nextDueAt == null) return false;
+    final now = DateTime.now();
+    final d = nextDueAt!.toLocal();
+    return DateTime(d.year, d.month, d.day)
+        .isAfter(DateTime(now.year, now.month, now.day));
+  }
+
   const Routine({
     required this.id,
     required this.userId,

@@ -90,19 +90,6 @@ class _RoutinePostponeSheetState extends ConsumerState<RoutinePostponeSheet> {
   String _label(DateTime d) =>
       '${d.month}/${d.day} (${_weekdays[d.weekday - 1]})';
 
-  Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _selected,
-      firstDate: _today.add(const Duration(days: 1)),
-      lastDate: _today.add(const Duration(days: 365)),
-      helpText: '다음 알림 날짜',
-    );
-    if (picked != null) {
-      setState(() => _selected = DateTime(picked.year, picked.month, picked.day));
-    }
-  }
-
   Future<void> _submit() async {
     setState(() => _saving = true);
     try {
@@ -189,24 +176,19 @@ class _RoutinePostponeSheetState extends ConsumerState<RoutinePostponeSheet> {
                 subtitle: '${p.hint} · 다음 알림 ${_label(p.date)}',
                 onTap: () => setState(() => _selected = p.date),
               )),
-          _OptionTile(
-            selected: !_presets.any((p) => _isSame(_selected, p.date)),
-            title: '날짜 직접 고르기',
-            subtitle: !_presets.any((p) => _isSame(_selected, p.date))
-                ? '다음 알림 ${_label(_selected)}'
-                : '원하는 날짜로 미뤄요',
-            onTap: _pickDate,
-          ),
+          // ⛔ '날짜 직접 고르기'는 없앴다 (2026-10-30) — 고른 날짜 다음 주기가 어떻게 되는지
+          //    기준이 애매해 사용자가 이해하기 어려웠다. 프리셋만 둔다.
           const SizedBox(height: 8),
           // 되돌릴 수 있다는 걸 미루기 '전에' 알려준다 — 되돌리기 진입점은
           // 루틴 탭 카드에 있어서, 여기서 말해주지 않으면 못 찾는다.
+          // 미룬 날짜가 되면 되돌릴 수 없다 (Routine.canUndoPostpone).
           Row(
             children: [
               const Icon(Icons.undo, size: 13, color: AppColors.textDisabled),
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
-                  '미룬 뒤에도 루틴 탭에서 되돌릴 수 있어요',
+                  '미룬 날짜 전까지는 루틴 탭에서 되돌릴 수 있어요',
                   style: AppTextStyles.caption
                       .copyWith(color: AppColors.textDisabled),
                 ),

@@ -504,30 +504,33 @@ class _PostponedBannerState extends ConsumerState<_PostponedBanner> {
             ),
           ),
         ),
-        const SizedBox(width: 4),
-        // 되돌리기는 '취소' 성격이라 버튼으로 키우지 않는다. 다만 탭 타겟은
-        // 손가락에 맞춰 세로로 넉넉히 준다.
-        InkWell(
-          onTap: _busy ? null : _cancel,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-            child: _busy
-                ? const SizedBox(
-                    width: 11,
-                    height: 11,
-                    child: CircularProgressIndicator(strokeWidth: 1.5),
-                  )
-                : const Text(
-                    '되돌리기',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
-                      decoration: TextDecoration.underline,
+        // 미룬 날짜가 되면 '○/○에서 미룸' 안내만 남기고 되돌리기는 없앤다
+        if (widget.routine.canUndoPostpone) ...[
+          const SizedBox(width: 4),
+          // 되돌리기는 '취소' 성격이라 버튼으로 키우지 않는다. 다만 탭 타겟은
+          // 손가락에 맞춰 세로로 넉넉히 준다.
+          InkWell(
+            onTap: _busy ? null : _cancel,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              child: _busy
+                  ? const SizedBox(
+                      width: 11,
+                      height: 11,
+                      child: CircularProgressIndicator(strokeWidth: 1.5),
+                    )
+                  : const Text(
+                      '되돌리기',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary,
+                        decoration: TextDecoration.underline,
+                      ),
                     ),
-                  ),
+            ),
           ),
-        ),
+        ],
       ],
     );
   }
@@ -597,10 +600,33 @@ class _CalendarSheetState extends ConsumerState<_CalendarSheet> {
   static const _wk = ['일', '월', '화', '수', '목', '금', '토'];
 
   void _prevMonth() => setState(() { _month = DateTime(_month.year, _month.month - 1); _selDay = null; });
-  void _nextMonth() {
+
+  /// 앞으로는 다가올 일정을 볼 만큼만 연다 — 이번 달 + 2개월, 미룬 예정일이 더 멀면 그 달까지.
+  DateTime get _lastMonth {
     final now = DateTime.now();
+    final limit = DateTime(now.year, now.month + 2);
+    final due = widget.routine.nextDueAt?.toLocal();
+    if (due == null) return limit;
+    final dueMonth = DateTime(due.year, due.month);
+    return dueMonth.isAfter(limit) ? dueMonth : limit;
+  }
+
+  /// 선택한 날 위에 붙일 한 줄. 미룬 날·다가올 날은 완료/미완료 목록 대신 이걸 보여준다.
+  String? _dayNote(DateTime cell,
+      {required DateTime today, DateTime? postponedDay, required bool scheduled}) {
+    if (postponedDay != null && cell == postponedDay) {
+      final due = widget.routine.nextDueAt?.toLocal();
+      return due != null
+          ? '이 날 일정을 ${due.month}/${due.day}로 미뤘어요'
+          : '이 날 일정을 미뤘어요';
+    }
+    if (cell.isAfter(today)) return scheduled ? '예정일이에요' : '예정된 일정이 없어요';
+    return null;
+  }
+
+  void _nextMonth() {
     final next = DateTime(_month.year, _month.month + 1);
-    if (!next.isAfter(DateTime(now.year, now.month))) {
+    if (!next.isAfter(_lastMonth)) {
       setState(() { _month = next; _selDay = null; });
     }
   }
@@ -612,6 +638,8 @@ class _CalendarSheetState extends ConsumerState<_CalendarSheet> {
     final ink       = _rtypeInk(widget.routine.routineType);
     final now       = DateTime.now();
     final isCurMonth = _month.year == now.year && _month.month == now.month;
+    final atLastMonth = !DateTime(_month.year, _month.month + 1).isBefore(
+        DateTime(_lastMonth.year, _lastMonth.month + 1));
 
     return AppSheet(
       title: '수행 캘린더',
@@ -654,16 +682,33 @@ class _CalendarSheetState extends ConsumerState<_CalendarSheet> {
                       ? DateTime(start.year, start.month, start.day)
                       : null;
 
-                  bool isScheduled(int d) {
+                  // 미루기 반영 (2026-10-30) — 서버는 직전 1회(postponedFrom)만 들고 있어서
+                  // 지금 걸려 있는 미루기 하나만 그린다. 완료하거나 미룬 날도 놓쳐 넘어가면 표시가 사라진다.
+                  //   · 원래 예정일 = '미룸'   · 그 사이 날짜 = 일정 없음   · 미룬 날짜 = 예정
+                  final pf = widget.routine.isPostponed
+                      ? widget.routine.postponedFrom?.toLocal()
+                      : null;
+                  final postponedDay =
+                      pf != null ? DateTime(pf.year, pf.month, pf.day) : null;
+
+                  bool isScheduled(DateTime cell) {
                     if (anchorDate == null || cycleDays <= 0) return false;
-                    final cell = DateTime(_month.year, _month.month, d);
-                    if (cell.isAfter(today)) return false;
                     if (startDay != null && cell.isBefore(startDay)) return false;
+                    if (cell == anchorDate) return true;
+                    if (postponedDay != null &&
+                        !cell.isBefore(postponedDay) &&
+                        cell.isBefore(anchorDate)) {
+                      return false;
+                    }
                     // 요일·날짜 모드는 달력에 고정된 일정이라 간격 계산이 아니라 해당일 여부로 본다
                     if (!widget.routine.cycle.isInterval) {
                       return widget.routine.cycle.occursOn(cell);
                     }
-                    final diff = anchorDate.difference(cell).inDays.abs();
+                    // 간격 모드: 미루기 전 구간은 원래 예정일을, 나머지는 지금 예정일을 기준으로 센다
+                    final anchor = postponedDay != null && cell.isBefore(postponedDay)
+                        ? postponedDay
+                        : anchorDate;
+                    final diff = anchor.difference(cell).inDays.abs();
                     return diff % cycleDays == 0;
                   }
 
@@ -690,9 +735,9 @@ class _CalendarSheetState extends ConsumerState<_CalendarSheet> {
                           ),
                         ),
                         GestureDetector(
-                          onTap: isCurMonth ? null : _nextMonth,
+                          onTap: atLastMonth ? null : _nextMonth,
                           child: AppIcon(AppIcons.chevronRight, size: 20,
-                              color: isCurMonth ? AppColors.paleLine : AppColors.paleInk2),
+                              color: atLastMonth ? AppColors.paleLine : AppColors.paleInk2),
                         ),
                       ]),
                       const SizedBox(height: 8),
@@ -716,15 +761,20 @@ class _CalendarSheetState extends ConsumerState<_CalendarSheet> {
                           ...List.generate(daysInMonth, (i) {
                             final d         = i + 1;
                             final sel       = _selDay == d;
+                            final cell      = DateTime(_month.year, _month.month, d);
                             final isToday   = isCurMonth && d == now.day;
-                            final scheduled = isScheduled(d);
+                            final isFuture  = cell.isAfter(today);
+                            final postponed = postponedDay != null && cell == postponedDay;
+                            final scheduled = !postponed && isScheduled(cell);
                             final doneCount = completedByDay[d]?.length ?? 0;
-                            final allDone   = scheduled && totalPets > 0 && doneCount >= totalPets;
-                            final missed    = scheduled && !allDone;
+                            final allDone   = scheduled && !isFuture && totalPets > 0 && doneCount >= totalPets;
+                            final missed    = scheduled && !isFuture && !allDone;
+                            final upcoming  = scheduled && isFuture;
 
                             Color? bgColor;
                             BoxBorder? border;
                             Color textColor = AppColors.primary;
+                            TextDecoration? deco;
 
                             if (sel) {
                               bgColor   = AppColors.paleInk2;
@@ -735,6 +785,12 @@ class _CalendarSheetState extends ConsumerState<_CalendarSheet> {
                             } else if (missed) {
                               bgColor = Colors.transparent;
                               border  = Border.all(color: ink, width: 1.5);
+                            } else if (upcoming) {
+                              bgColor = ink.withValues(alpha: 0.14);
+                            } else if (postponed) {
+                              border    = Border.all(color: AppColors.paleLine, width: 1.5);
+                              textColor = AppColors.paleInk3;
+                              deco      = TextDecoration.lineThrough;
                             } else if (isToday) {
                               bgColor = AppColors.paleBgAlt;
                             }
@@ -753,6 +809,8 @@ class _CalendarSheetState extends ConsumerState<_CalendarSheet> {
                                         fontFamily: 'monospace',
                                         fontSize: 12, fontWeight: FontWeight.w700,
                                         color: textColor,
+                                        decoration: deco,
+                                        decorationColor: textColor,
                                       )),
                                 ),
                               ),
@@ -762,16 +820,31 @@ class _CalendarSheetState extends ConsumerState<_CalendarSheet> {
                       ),
                       const SizedBox(height: 8),
                       // 범례
-                      Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                        _Leg(color: ink, label: '전체 완료'),
-                        const SizedBox(width: 16),
-                        _Leg(color: ink, label: '예정/부분완료', outlined: true),
-                      ]),
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: 16, runSpacing: 6,
+                        children: [
+                          _Leg(color: ink, label: '전체 완료'),
+                          _Leg(color: ink, label: '예정/부분완료', outlined: true),
+                          _Leg(color: ink.withValues(alpha: 0.14), label: '다가올 일정'),
+                          if (postponedDay != null)
+                            const _Leg(color: AppColors.paleLine, label: '미룸', outlined: true),
+                        ],
+                      ),
 
                       // ── 선택일 개체 리스트 ──
                       if (_selDay != null) ...[
                         const SizedBox(height: 32),
                         _PetStatusSection(
+                          note: _dayNote(
+                            DateTime(_month.year, _month.month, _selDay!),
+                            today: today,
+                            postponedDay: postponedDay,
+                            scheduled: isScheduled(
+                                DateTime(_month.year, _month.month, _selDay!)),
+                          ),
+                          futureDay: DateTime(_month.year, _month.month, _selDay!)
+                              .isAfter(today),
                           selDay: _selDay!,
                           month: _month,
                           completedIds: completedByDay[_selDay!] ?? {},
@@ -796,8 +869,14 @@ class _PetStatusSection extends StatelessWidget {
   final List<int> allPetIds;
   final AsyncValue<List<Pet>> petsAsync;
   final Color ink;
+  /// 미룬 날·다가올 날 안내 한 줄 (없으면 null)
+  final String? note;
+  /// 미래 날짜 — 아직 안 온 날이라 완료/미완료를 따지지 않는다
+  final bool futureDay;
 
   const _PetStatusSection({
+    this.note,
+    this.futureDay = false,
     required this.selDay,
     required this.month,
     required this.completedIds,
@@ -830,7 +909,19 @@ class _PetStatusSection extends StatelessWidget {
                     color: AppColors.primary, letterSpacing: -0.3)),
             const SizedBox(height: 16),
 
-            if (completedPets.isNotEmpty || notCompletedPets.isNotEmpty) ...[
+            if (note != null) ...[
+              Text(note!,
+                  style: const TextStyle(fontSize: 13, color: AppColors.paleInk2,
+                      fontWeight: FontWeight.w600)),
+              if (!futureDay && completedPets.isNotEmpty) const SizedBox(height: 16),
+            ],
+
+            if (futureDay)
+              const SizedBox.shrink()
+            else if (note != null && completedPets.isEmpty)
+              // 미룬 날: 그날 완료한 개체가 없으면 '미완료' 목록을 늘어놓지 않는다
+              const SizedBox.shrink()
+            else if (completedPets.isNotEmpty || notCompletedPets.isNotEmpty) ...[
               _StatusLabel(label: '완료', color: AppColors.primary, count: completedPets.length),
               const SizedBox(height: 8),
               completedPets.isNotEmpty
@@ -944,7 +1035,7 @@ class _Leg extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(children: [
+    return Row(mainAxisSize: MainAxisSize.min, children: [
       Container(
         width: 12, height: 12,
         decoration: BoxDecoration(

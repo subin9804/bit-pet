@@ -108,6 +108,33 @@ class RoutinePostponeTest {
     }
 
     @Test
+    @DisplayName("미룬 날짜가 오늘이 되면 되돌릴 수 없다 — 알림 도구라 지난 날짜로 돌릴 이유가 없다")
+    void cannotCancelOnceThePostponedDateArrives() {
+        LocalDate due = today().minusDays(2);
+        RoutineMst r = routine(due);
+        r.postpone(today().plusDays(1), Instant.now());
+        assertThat(r.isPostponeExpired()).isFalse();   // 내일로 미뤄둔 동안은 되돌릴 수 있다
+
+        r.postpone(today(), Instant.now());   // 미룬 날짜 = 오늘 (도메인 직접 호출로 시간 경과를 흉내)
+
+        assertThat(r.isPostponeExpired()).isTrue();
+        assertThat(r.cancelPostpone()).isFalse();
+        assertThat(r.getNextDueAt()).isEqualTo(today());
+    }
+
+    @Test
+    @DisplayName("미룬 날짜도 놓쳐서 롤오버되면 미룸 표시가 지워진다")
+    void rolloverPastPostponedDateClearsMark() {
+        RoutineMst r = routine(today().minusDays(10));
+        r.postpone(today().minusDays(1), Instant.now());   // 어제로 미뤄뒀는데 그날도 지나감
+
+        r.advanceDueDate();
+
+        assertThat(r.getPostponedAt()).isNull();
+        assertThat(r.getPostponedFrom()).isNull();
+    }
+
+    @Test
     @DisplayName("루틴을 실제로 완료하면 미룸 표시가 해제된다")
     void completingClearsPostponedMark() {
         LocalDate due = today();

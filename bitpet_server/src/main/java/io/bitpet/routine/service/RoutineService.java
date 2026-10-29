@@ -243,6 +243,9 @@ public class RoutineService {
     @Transactional
     public RoutineResponse cancelPostpone(Long userId, Long routineId) {
         RoutineMst routine = findAccessibleRoutine(userId, routineId);
+        if (routine.isPostponeExpired()) {
+            throw new BusinessException(ErrorCode.ROUTINE_POSTPONE_EXPIRED);
+        }
         if (!routine.cancelPostpone()) {
             throw new BusinessException(ErrorCode.ROUTINE_NOT_POSTPONED);
         }

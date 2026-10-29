@@ -306,6 +306,14 @@ PostgreSQL이 재정규화하는데 의미는 같다.)
   - 수정 요청의 `cycleMode` 가 null 이면 **기존 방식 유지** (활성 토글이 방식 없이 보낸다)
   - 방식·요일·날짜가 **실제로 바뀔 때만** 예정일 재계산 + 미룸 해제 (`RoutineMst.changeCycle`)
   - 다음 해당일 계산은 서버 `RoutineMst.nextOccurrenceOnOrAfter` / 앱 `RoutineCycle.nextOnOrAfter` 가 같은 규칙
+- **미루기** (V9): `postpone` 은 `postponed_from` 에 직전 예정일을 남긴다 — **마지막 1회만** 되돌릴 수 있다.
+  선택지는 프리셋뿐(내일 / 이번만 건너뛰기 / 오늘 기준으로 다시). ⛔ '날짜 직접 고르기'는 2026-10-30 제거 — 기준이 애매했다
+  - ⛔ **미룬 날짜가 오늘이 되면 되돌릴 수 없다** (2026-10-30 사용자 결정 — 알림 도구라 지난 날로 돌릴 이유가 없다).
+    서버 `RoutineMst.isPostponeExpired` → 409 `ROUTINE_POSTPONE_EXPIRED`, 앱 `Routine.canUndoPostpone` 이 false 면 되돌리기 버튼을 숨긴다
+  - 미룸 표시는 완료(`markExecuted`)·방식 변경·**미룬 날짜까지 놓쳐 롤오버**(`advanceDueDate`)될 때 지워진다
+  - 수행 캘린더(`_CalendarSheet`)는 **지금 걸려 있는 미루기 하나만** 그린다: 원래 예정일 = '미룸'(취소선), 그 사이 = 일정 없음,
+    미룬 날짜 = 예정. 미래 예정일은 '다가올 일정'으로 표시(앞으로 2개월 또는 미룬 달까지 이동 가능).
+    과거 미루기 이력은 서버에 없어 표시되지 않는다
 - `routine_pet_rls`: 루틴-개체 다대다 연결
 - `routine_log_dtl`: 개체별 수행 기록, status = COMPLETED / REFUSED
 - REFUSED + 메모 없음 → INSERT 안 함
