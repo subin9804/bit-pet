@@ -167,6 +167,9 @@ class _PetCalendarTabState extends ConsumerState<PetCalendarTab> {
                 headerVisible: false,
                 daysOfWeekHeight: 26,
                 rowHeight: 48,
+                // ⚠️ 기본값(all)은 세로 드래그를 주/월 전환용으로 잡아먹어서
+                // 캘린더 위에서 화면 스크롤이 안 됐다. 월 넘기기(가로)만 남긴다.
+                availableGestures: AvailableGestures.horizontalSwipe,
                 selectedDayPredicate: (day) => isSameDay(day, _selectedDay),
                 eventLoader: (day) => events[_dateKey(day)] ?? const [],
                 onDaySelected: (selected, focused) {
