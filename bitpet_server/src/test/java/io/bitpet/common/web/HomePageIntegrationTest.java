@@ -32,4 +32,15 @@ class HomePageIntegrationTest extends IntegrationTestBase {
         assertThat(html).contains("<meta charset=\"utf-8\">",
                 "쉽고 편한 기록", "케어 루틴 알림", "개체별 기록 관리");
     }
+
+    @Test
+    void favicon_is_served() throws Exception {
+        // 브라우저가 알아서 요청하는 경로다. 파일이 없을 땐 500 이 나 오류 로그를 채웠다
+        mockMvc.perform(get("/favicon.ico")).andExpect(status().isOk());
+    }
+
+    @Test
+    void missing_static_file_is_404_not_500() throws Exception {
+        mockMvc.perform(get("/brand/does-not-exist.png")).andExpect(status().isNotFound());
+    }
 }

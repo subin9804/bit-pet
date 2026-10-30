@@ -131,9 +131,9 @@ public class PetService {
 
     public PetResponse get(Long userId, Long petId) {
         PetMst pet = petKeeper.assertKeeper(userId, petId);
-        Double latestWeight = weightRepository.findAllByPetIdOrderByMeasuredAtDesc(pet.getId())
+        Double latestWeight = weightRepository.findLatestByPetIds(List.of(pet.getId()))
                 .stream().findFirst()
-                .map(w -> w.getWeightG().doubleValue())
+                .map(r -> r.getWeightG().doubleValue())
                 .orElse(null);
         List<PetRelationRls> parentRelations = relationRepository.findAllByChildPetId(petId);
         return PetResponse.from(pet, latestWeight, parentRelations,
@@ -149,19 +149,26 @@ public class PetService {
         Set<Long> ownedIds = petKeeper.ownedPetIds(userId);
         java.util.Map<Long, PetMst> byId = new java.util.HashMap<>();
         petRepository.findAllById(petIds).forEach(p -> byId.put(p.getId(), p));
+
+        // ⚠️ 개체마다 조회하지 말 것 — 최신 체중·대표 사진은 목록 전체를 한 번씩만 묻는다.
+        //    (종·모프 지연 로딩은 hibernate.default_batch_fetch_size 가 IN 으로 묶는다)
+        java.util.Map<Long, Double> latestWeights = new java.util.HashMap<>();
+        weightRepository.findLatestByPetIds(byId.keySet())
+                .forEach(r -> latestWeights.put(r.getPetId(), r.getWeightG().doubleValue()));
+        List<Long> photoIds = byId.values().stream()
+                .map(PetMst::getProfilePhotoId).filter(java.util.Objects::nonNull).toList();
+        java.util.Map<Long, String> photoUrls = new java.util.HashMap<>();
+        photoRepository.findAllById(photoIds)
+                .forEach(p -> photoUrls.put(p.getId(), s3Service.resolveUrl(p.displayKey())));
+
         return petIds.stream()
                 .map(byId::get)
                 .filter(java.util.Objects::nonNull) // 지운 개체(@SQLRestriction)는 빠진다
                 // 폐사(이별) 개체는 순서값과 무관하게 목록 마지막으로 (stable sort — 정한 순서 유지)
                 .sorted(java.util.Comparator.comparing(p -> p.getDeceasedAt() != null))
-                .map(pet -> {
-                    Double latestWeight = weightRepository.findAllByPetIdOrderByMeasuredAtDesc(pet.getId())
-                            .stream().findFirst()
-                            .map(w -> w.getWeightG().doubleValue())
-                            .orElse(null);
-                    return PetResponse.from(pet, latestWeight, List.of(),
-                            resolveProfileImageUrl(pet), ownedIds.contains(pet.getId()));
-                })
+                .map(pet -> PetResponse.from(pet, latestWeights.get(pet.getId()), List.of(),
+                        pet.getProfilePhotoId() == null ? null : photoUrls.get(pet.getProfilePhotoId()),
+                        ownedIds.contains(pet.getId())))
                 .toList();
     }
 

@@ -5,8 +5,13 @@ import io.bitpet.auth.service.AuthService;
 import io.bitpet.common.exception.BusinessException;
 import io.bitpet.pet.domain.SpeciesCd;
 import io.bitpet.pet.dto.MorphCdResponse;
+import io.bitpet.pet.domain.PetGender;
+import io.bitpet.pet.dto.PetCreateRequest;
+import io.bitpet.pet.repository.MorphCdRepository;
 import io.bitpet.pet.repository.SpeciesCdRepository;
 import io.bitpet.pet.service.MorphService;
+import io.bitpet.pet.service.PetService;
+import org.springframework.jdbc.core.JdbcTemplate;
 import io.bitpet.support.IntegrationTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,6 +41,9 @@ class MorphCustomIntegrationTest extends IntegrationTestBase {
     @Autowired private MorphService morphService;
     @Autowired private SpeciesCdRepository speciesRepository;
     @Autowired private AuthService authService;
+    @Autowired private PetService petService;
+    @Autowired private MorphCdRepository morphRepository;
+    @Autowired private JdbcTemplate jdbc;
 
     private Long speciesId;
 
@@ -173,6 +181,32 @@ class MorphCustomIntegrationTest extends IntegrationTestBase {
         assertThat(morphService.autocomplete(withAlias.speciesId(), alias, alice))
                 .extracting(MorphCdResponse::id)
                 .contains(withAlias.id());
+    }
+
+    /**
+     * 안 쓰는 사용자 정의 모프 정리 (MorphCleanupScheduler).
+     * 지워지는 건 "하루 지났고 + 어떤 개체도 안 쓰는" 것뿐이어야 한다.
+     */
+    @Test
+    void cleanup_deletes_only_old_unused_user_defined_morphs() {
+        Long alice = signup();
+        Long unusedOld = morphService.createCustom(speciesId, "정리대상모프" + SEQ.incrementAndGet(), alice).id();
+        Long usedOld = morphService.createCustom(speciesId, "사용중모프" + SEQ.incrementAndGet(), alice).id();
+        Long unusedFresh = morphService.createCustom(speciesId, "방금만든모프" + SEQ.incrementAndGet(), alice).id();
+        Long official = morphService.listBySpecies(speciesId, null).get(0).id();
+
+        petService.create(alice, new PetCreateRequest(
+                "모프개체", speciesId, List.of(usedOld), PetGender.MALE, null, null, null, null,
+                null, null, null, null, null, null, null, null));
+        jdbc.update("UPDATE morph_cd SET updated_at = now() - interval '2 days' WHERE id IN (?, ?)",
+                unusedOld, usedOld);
+
+        morphRepository.deleteUnusedUserDefined();
+
+        assertThat(morphRepository.existsById(unusedOld)).as("하루 지난 미사용 → 삭제").isFalse();
+        assertThat(morphRepository.existsById(usedOld)).as("개체가 쓰는 중 → 유지").isTrue();
+        assertThat(morphRepository.existsById(unusedFresh)).as("방금 만든 것 → 유지 (저장 전일 수 있다)").isTrue();
+        assertThat(morphRepository.existsById(official)).as("공식 모프 → 유지").isTrue();
     }
 
     // -------------------------------------------------------------------------

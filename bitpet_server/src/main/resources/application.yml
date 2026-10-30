@@ -12,6 +12,8 @@ spring:
     properties:
       hibernate:
         format_sql: true
+        # 지연 로딩(종·모프 등)을 행마다 따로 묻지 않고 IN (...) 으로 묶는다 — 목록 N+1 방지
+        default_batch_fetch_size: 100
         jdbc:
           time_zone: Asia/Seoul
   flyway:

@@ -11,6 +11,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.stream.Collectors;
 
@@ -53,8 +54,10 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.fail(ErrorCode.FORBIDDEN, ex.getMessage()));
     }
 
-    @ExceptionHandler(NoHandlerFoundException.class)
-    public ResponseEntity<ApiResponse<Void>> handleNoHandler(NoHandlerFoundException ex) {
+    // ⚠️ 없는 정적 파일(/favicon.ico, /robots.txt 등)은 Spring 6.1+ 에서 NoResourceFoundException 으로 온다.
+    //    여기서 안 잡으면 아래 Exception 핸들러로 떨어져 500 + 스택트레이스 로그가 남았다.
+    @ExceptionHandler({NoHandlerFoundException.class, NoResourceFoundException.class})
+    public ResponseEntity<ApiResponse<Void>> handleNoHandler(Exception ex) {
         return ResponseEntity.status(ErrorCode.NOT_FOUND.getStatus())
                 .body(ApiResponse.fail(ErrorCode.NOT_FOUND, ex.getMessage()));
     }
