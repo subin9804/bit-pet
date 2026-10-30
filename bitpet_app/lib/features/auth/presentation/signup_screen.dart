@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/legal/legal_document_sheet.dart';
 import '../../../core/legal/legal_documents.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/upload/image_source_sheet.dart';
 import '../../../core/upload/image_upload.dart';
 import '../../../core/widgets/step_shell.dart';
 import '../../../core/widgets/toast_message.dart';
@@ -203,7 +204,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   /// 프로필 사진 고르기. 여기서는 **고르기만** 한다 — 업로드는 가입 후다(위 _profileImage 주석).
   Future<void> _pickProfileImage() async {
     try {
-      final picked = await ref.read(imageUploadServiceProvider).pickFromGallery();
+      final picked = await pickImageWithSource(context, ref);
       if (picked == null || !mounted) return;
       setState(() => _profileImage = picked);
     } catch (_) {

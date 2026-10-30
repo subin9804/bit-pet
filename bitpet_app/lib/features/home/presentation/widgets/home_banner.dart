@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimens.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/widgets/app_network_image.dart';
 
 /// 배너 한 장. 서버 연동 시 이 모양 그대로 DTO 에서 만들면 된다.
 class HomeBannerItem {
@@ -148,10 +149,14 @@ class _Card extends StatelessWidget {
         child: item.imageUrl != null
             // 이미지 배너는 글자를 얹지 않는다 — 어떤 그림이 올지 모르는데
             // 위에 텍스트를 깔면 대비가 깨져 둘 다 안 읽힌다.
-            ? Image.network(
-                item.imageUrl!,
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => _text(),
+            ? AppNetworkImage(
+                item.imageUrl,
+                // 화면 폭만큼만 디코딩한다 — 원본 해상도 그대로 올리면 홈에 들를 때마다
+                // 메모리를 크게 잡고, 서명 URL 이라 캐시도 안 먹었다 (AppNetworkImage 주석)
+                memWidth: (MediaQuery.sizeOf(context).width *
+                        MediaQuery.devicePixelRatioOf(context))
+                    .round(),
+                placeholder: _text(),
               )
             : _text(),
       ),

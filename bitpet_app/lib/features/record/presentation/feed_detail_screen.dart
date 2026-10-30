@@ -5,6 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_input_styles.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_buttons.dart';
+import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/confirm_modal.dart';
 import '../../../core/widgets/month_grid_calendar.dart';
 import '../../../core/widgets/selected_day_card.dart';
@@ -764,254 +765,129 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
     final e   = widget.editor;
     final dt  = DateTime.parse(e.date);
 
+    // 화면 위 오버레이로 띄운다 — 편집 상태(_editor)를 부모가 들고 있어서
+    // 라우트 시트로 옮기면 입력할 때마다 부모 setState 가 시트에 닿지 않는다.
+    // 대신 겉모양은 공용 [AppSheet] 그대로 쓴다: 제목 위치·주 버튼 하나·날짜는 맨 아래
+    // (2026-10-30 — 이 시트만 X·'취소'·큰 제목이 따로 놀았다).
     return Material(
       color: Colors.transparent,
       child: Stack(
         children: [
           GestureDetector(
             onTap: widget.onClose,
-            child: Container(color: Colors.black.withValues(alpha: 0.45)),
+            child: Container(color: AppColors.scrim),
           ),
-          Positioned(
-            left: 0, right: 0, bottom: 0,
-            top: 70,
+          Align(
+            alignment: Alignment.bottomCenter,
             child: TweenAnimationBuilder<double>(
               tween: Tween<double>(begin: 1, end: 0),
               duration: const Duration(milliseconds: 260),
               curve: Curves.easeOutCubic,
               builder: (context, t, child) =>
                   FractionalTranslation(translation: Offset(0, t), child: child),
-              child: ClipRRect(
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(20)),
-              child: Container(
-              decoration: const BoxDecoration(
-                color: AppColors.paleBg,
-                border: Border(top: BorderSide(color: AppColors.paleLine)),
-              ),
-              child: Column(
-                children: [
-                  // drag handle
-                  Container(
-                    width: 44, height: 4, margin: const EdgeInsets.only(top: 8, bottom: 8),
-                    decoration: BoxDecoration(
-                      color: AppColors.paleLine,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  // 헤더 + 날짜 스테퍼
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: AppSheet(
+                title: e.isEdit ? '급여 기록 수정' : '급여 기록 추가',
+                primaryLabel: e.isEdit ? '수정 완료' : '저장',
+                onPrimary: e.items.isEmpty ? null : widget.onSave,
+                dateField: Row(
+                  children: [
+                    AppNavButton(onTap: () => _shiftDate(-1)),
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.card,
+                          border: Border.all(color: AppColors.line),
+                          borderRadius: AppRadius.brMd,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              e.isEdit ? '급여 기록 수정' : '급여 기록 추가',
+                              e.date.replaceAll('-', '.'),
+                              style: AppTextStyles.mono(14, FontWeight.w700),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '(${_weekKo[dt.weekday % 7]})',
                               style: const TextStyle(
-                                  fontSize: 20, fontWeight: FontWeight.w700,
-                                  color: AppColors.primary, letterSpacing: -0.4),
-                            ),
-                            GestureDetector(
-                              onTap: widget.onClose,
-                              child: Container(
-                                width: 32, height: 32,
-                                decoration: BoxDecoration(
-                                  color: AppColors.card,
-                                  border: Border.all(color: AppColors.paleLine),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(Icons.close,
-                                    size: 16, color: AppColors.paleInk2),
-                              ),
+                                  fontSize: 12, fontWeight: FontWeight.w600,
+                                  color: AppColors.ink2),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 8),
-                        // 날짜 스테퍼
-                        Row(
-                          children: [
-                            AppNavButton(onTap: () => _shiftDate(-1)),
-                            Expanded(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: AppColors.card,
-                                  border: Border.all(color: AppColors.paleLine),
-                                  borderRadius: AppRadius.brMd,
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      e.date.replaceAll('-', '.'),
-                                      style: AppTextStyles.mono(14, FontWeight.w700),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      '(${_weekKo[dt.weekday % 7]})',
-                                      style: TextStyle(
-                                          fontSize: 12, fontWeight: FontWeight.w600,
-                                          color: AppColors.paleInk2),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            AppNavButton(forward: true, onTap: () => _shiftDate(1)),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  // 스크롤 본문
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: EdgeInsets.fromLTRB(
-                          20, 4, 20,
-                          MediaQuery.of(context).viewInsets.bottom + 16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // 공용 리치 컴포저 (FAB·루틴 완료와 동일 폼)
-                          FeedItemsEditor(
-                            items: e.items.map((i) => i.toForm()).toList(),
-                            petId: widget.petId,
-                            bandColor: _chipColor('귀뚜라미'),
-                            onChanged: (forms) => widget.onChanged(
-                              e.copyWith(
-                                items: forms.map(FeedItem.fromForm).toList(),
-                              ),
-                            ),
-                          ),
-
-                          const SizedBox(height: 16),
-                          // 메모
-                          Row(
-                            children: [
-                              const Text('메모',
-                                  style: TextStyle(
-                                      fontSize: 12, fontWeight: FontWeight.w700,
-                                      color: AppColors.primary)),
-                              const SizedBox(width: 8),
-                              Text('OPTIONAL',
-                                  style: AppTextStyles.monoXxs),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          TextField(
-                            controller: _memoCtrl,
-                            onChanged: (v) => widget.onChanged(
-                                e.copyWith(memo: v)),
-                            maxLines: 2,
-                            decoration: AppInputStyles.textarea(
-                              hintText: '예: 1마리 남김 · 식욕 좋음 · 더스팅',
-                            ),
-                          ),
-
-                          // 삭제 버튼 (수정 모드)
-                          if (e.isEdit && e.editId != null) ...[
-                            const SizedBox(height: 16),
-                            GestureDetector(
-                              onTap: () => widget.onDelete(e.editId!),
-                              child: Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                decoration: BoxDecoration(
-                                  border: Border.all(
-                                      color: AppColors.errorLine),
-                                  borderRadius: AppRadius.brMd,
-                                ),
-                                child: const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.delete_outline,
-                                        size: 16, color: AppColors.error),
-                                    SizedBox(width: 8),
-                                    Text('이 기록 삭제',
-                                        style: TextStyle(
-                                            fontSize: 13, fontWeight: FontWeight.w700,
-                                            color: AppColors.error)),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
                       ),
                     ),
-                  ),
-                  // 푸터
-                  Container(
-                    padding: EdgeInsets.fromLTRB(
-                        20, 12, 20,
-                        MediaQuery.of(context).padding.bottom + 12),
-                    decoration: const BoxDecoration(
-                      color: AppColors.paleBg,
-                      border: Border(
-                          top: BorderSide(color: AppColors.paleLineSoft)),
+                    AppNavButton(forward: true, onTap: () => _shiftDate(1)),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 공용 리치 컴포저 (FAB·루틴 완료와 동일 폼)
+                    FeedItemsEditor(
+                      items: e.items.map((i) => i.toForm()).toList(),
+                      petId: widget.petId,
+                      bandColor: _chipColor('귀뚜라미'),
+                      onChanged: (forms) => widget.onChanged(
+                        e.copyWith(
+                          items: forms.map(FeedItem.fromForm).toList(),
+                        ),
+                      ),
                     ),
-                    child: Row(
+
+                    const SizedBox(height: 16),
+                    // 메모
+                    Row(
                       children: [
-                        GestureDetector(
-                          onTap: widget.onClose,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 20, vertical: 16),
-                            decoration: BoxDecoration(
-                              color: AppColors.card,
-                              border: Border.all(color: AppColors.paleLine),
-                              borderRadius: AppRadius.brLg,
-                            ),
-                            child: const Text('취소',
-                                style: TextStyle(
-                                    fontSize: 14, fontWeight: FontWeight.w700,
-                                    color: AppColors.primary)),
-                          ),
-                        ),
+                        const Text('메모',
+                            style: TextStyle(
+                                fontSize: 12, fontWeight: FontWeight.w700,
+                                color: AppColors.primary)),
                         const SizedBox(width: 8),
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: e.items.isEmpty ? null : widget.onSave,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: e.items.isEmpty
-                                    ? AppColors.paleLine
-                                    : AppColors.primary,
-                                borderRadius: AppRadius.brLg,
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.check,
-                                      size: 16,
-                                      color: e.items.isEmpty
-                                          ? AppColors.paleInk3
-                                          : AppColors.paleBg),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    e.isEdit ? '수정 완료' : '저장',
-                                    style: TextStyle(
-                                        fontSize: 14, fontWeight: FontWeight.w700,
-                                        color: e.items.isEmpty
-                                            ? AppColors.paleInk3
-                                            : AppColors.paleBg),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
+                        Text('OPTIONAL', style: AppTextStyles.monoXxs),
                       ],
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _memoCtrl,
+                      onChanged: (v) => widget.onChanged(e.copyWith(memo: v)),
+                      maxLines: 2,
+                      decoration: AppInputStyles.textarea(
+                        hintText: '예: 1마리 남김 · 식욕 좋음 · 더스팅',
+                      ),
+                    ),
+
+                    // 삭제 버튼 (수정 모드)
+                    if (e.isEdit && e.editId != null) ...[
+                      const SizedBox(height: 16),
+                      GestureDetector(
+                        onTap: () => widget.onDelete(e.editId!),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: AppColors.errorLine),
+                            borderRadius: AppRadius.brMd,
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.delete_outline,
+                                  size: 16, color: AppColors.error),
+                              SizedBox(width: 8),
+                              Text('이 기록 삭제',
+                                  style: TextStyle(
+                                      fontSize: 13, fontWeight: FontWeight.w700,
+                                      color: AppColors.error)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
-            ),
-            ),
             ),
           ),
         ],

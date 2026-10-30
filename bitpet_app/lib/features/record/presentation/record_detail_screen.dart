@@ -7,6 +7,7 @@ import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_input_styles.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_buttons.dart';
+import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/app_chip.dart';
 import '../../../core/widgets/confirm_modal.dart';
 import '../../../core/widgets/month_grid_calendar.dart';
@@ -1073,96 +1074,53 @@ class _EditorSheetState extends State<_EditorSheet> {
     final dt = DateTime.parse(e.dateStr);
     final title = e.isEdit ? '기록 수정' : '기록 추가';
 
+    // 급여 편집 시트(feed_detail_screen)와 같은 이유로 오버레이로 띄우되 겉모양은
+    // 공용 [AppSheet] — X·'취소' 없이 주 버튼 하나, 날짜는 맨 아래 (2026-10-30).
     return Material(
       color: Colors.transparent,
       child: Stack(children: [
         GestureDetector(
           onTap: widget.onClose,
-          child: Container(color: Colors.black.withValues(alpha: 0.45)),
+          child: Container(color: AppColors.scrim),
         ),
-        Positioned(
-          left: 0, right: 0, bottom: 0, top: 70,
+        Align(
+          alignment: Alignment.bottomCenter,
           child: TweenAnimationBuilder<double>(
             tween: Tween<double>(begin: 1, end: 0),
             duration: const Duration(milliseconds: 260),
             curve: Curves.easeOutCubic,
             builder: (context, t, child) =>
                 FractionalTranslation(translation: Offset(0, t), child: child),
-            child: Container(
-              clipBehavior: Clip.antiAlias,
-              decoration: const BoxDecoration(
-                color: AppColors.paleBg,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-              ),
-              child: Column(children: [
-              // drag handle
-              Container(
-                width: 44, height: 4,
-                margin: const EdgeInsets.only(top: 8, bottom: 8),
-                decoration: BoxDecoration(
-                    color: AppColors.paleLine,
-                    borderRadius: BorderRadius.circular(2)),
-              ),
-              // 헤더 + 날짜 스테퍼
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
-                child: Column(children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(title,
-                          style: const TextStyle(
-                              fontSize: 20, fontWeight: FontWeight.w700,
-                              color: AppColors.primary, letterSpacing: -0.4)),
-                      GestureDetector(
-                        onTap: widget.onClose,
-                        child: Container(
-                          width: 32, height: 32,
-                          decoration: BoxDecoration(
-                            color: AppColors.card,
-                            border: Border.all(color: AppColors.paleLine),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.close,
-                              size: 16, color: AppColors.paleInk2),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  // 날짜 스테퍼
-                  Row(children: [
-                    AppNavButton(onTap: () => _shiftDate(-1)),
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        decoration: BoxDecoration(
-                          color: AppColors.card,
-                          border: Border.all(color: AppColors.paleLine),
-                          borderRadius: AppRadius.brMd,
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(e.dateStr.replaceAll('-', '.'),
-                                style: AppTextStyles.mono(14, FontWeight.w700)),
-                            const SizedBox(width: 8),
-                            Text('(${_weekKo[dt.weekday % 7]})',
-                                style: TextStyle(fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.paleInk2)),
-                          ],
-                        ),
-                      ),
+            child: AppSheet(
+              title: title,
+              primaryLabel: e.isEdit ? '수정 완료' : '저장',
+              onPrimary: _canSave ? widget.onSave : null,
+              dateField: Row(children: [
+                AppNavButton(onTap: () => _shiftDate(-1)),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.card,
+                      border: Border.all(color: AppColors.line),
+                      borderRadius: AppRadius.brMd,
                     ),
-                    AppNavButton(forward: true, onTap: () => _shiftDate(1)),
-                  ]),
-                ]),
-              ),
-              // 폼 본문
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(e.dateStr.replaceAll('-', '.'),
+                            style: AppTextStyles.mono(14, FontWeight.w700)),
+                        const SizedBox(width: 8),
+                        Text('(${_weekKo[dt.weekday % 7]})',
+                            style: const TextStyle(fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.ink2)),
+                      ],
+                    ),
+                  ),
+                ),
+                AppNavButton(forward: true, onTap: () => _shiftDate(1)),
+              ]),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -1468,62 +1426,6 @@ class _EditorSheetState extends State<_EditorSheet> {
                       ],
                     ],
                   ),
-                ),
-              ),
-              // 푸터
-              Container(
-                padding: EdgeInsets.fromLTRB(
-                    20, 12, 20, MediaQuery.of(context).padding.bottom + 12),
-                decoration: const BoxDecoration(
-                  color: AppColors.paleBg,
-                  border: Border(top: BorderSide(color: AppColors.paleLineSoft)),
-                ),
-                child: Row(children: [
-                  GestureDetector(
-                    onTap: widget.onClose,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 16),
-                      decoration: BoxDecoration(
-                        color: AppColors.card,
-                        border: Border.all(color: AppColors.paleLine),
-                        borderRadius: AppRadius.brLg,
-                      ),
-                      child: const Text('취소',
-                          style: TextStyle(fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.primary)),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: _canSave ? widget.onSave : null,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: _canSave ? AppColors.primary : AppColors.paleLine,
-                          borderRadius: AppRadius.brLg,
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.check, size: 16,
-                                color: _canSave ? AppColors.paleBg : AppColors.paleInk3),
-                            const SizedBox(width: 8),
-                            Text(e.isEdit ? '수정 완료' : '저장',
-                                style: TextStyle(fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                    color: _canSave ? AppColors.paleBg : AppColors.paleInk3)),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ]),
-              ),
-            ]),
             ),
           ),
         ),

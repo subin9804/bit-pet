@@ -7,6 +7,7 @@ import '../../../core/constants/feature_flags.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/api_response.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/upload/image_source_sheet.dart';
 import '../../../core/upload/image_upload.dart';
 import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/app_toggle.dart';
@@ -443,7 +444,7 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
   }
 
   Future<void> _pickProfileImage() async {
-    final picked = await ref.read(imageUploadServiceProvider).pickFromGallery();
+    final picked = await pickImageWithSource(context, ref);
     if (picked != null && mounted) {
       // 새로 골랐으면 '내리기'는 없던 일이 된다
       setState(() {

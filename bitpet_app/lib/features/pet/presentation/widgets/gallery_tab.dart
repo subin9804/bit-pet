@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_dimens.dart';
 import '../../../../core/theme/app_text_styles.dart';
-import '../../../../core/upload/image_upload.dart';
+import '../../../../core/upload/image_source_sheet.dart';
 import '../../../../core/widgets/app_sheet.dart';
 import '../../../../core/widgets/confirm_modal.dart';
 import '../../../../core/widgets/empty_state.dart';
@@ -38,7 +38,7 @@ class _GalleryTabState extends ConsumerState<GalleryTab> {
     if (_uploading) return;
     try {
       final picked =
-          await ref.read(imageUploadServiceProvider).pickFromGallery();
+          await pickImageWithSource(context, ref);
       if (picked == null) return;
       setState(() => _uploading = true);
       await ref.read(photoRepositoryProvider).upload(

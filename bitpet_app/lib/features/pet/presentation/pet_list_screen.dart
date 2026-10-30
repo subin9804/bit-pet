@@ -464,25 +464,40 @@ class _PetTabState extends ConsumerState<_PetTab> {
                         // "비었으니 채워보라"로 읽힌다.
                         tone: EmptyTone.neutral,
                       )
-                    : EmptyState(
-                        message: _query.isEmpty && _selectedSpeciesId == null
-                            ? '아직 등록한 개체가 없어요'
-                            : '조건에 맞는 개체가 없어요',
-                        subMessage: _query.isEmpty && _selectedSpeciesId == null
-                            ? '첫 개체를 등록하면 기록을 쌓을 수 있어요.'
-                            : '검색어나 종 필터를 바꿔보세요.',
-                        icon: _query.isEmpty && _selectedSpeciesId == null
-                            ? Icons.pets
-                            : Icons.search_off,
-                        tone: _query.isEmpty && _selectedSpeciesId == null
-                            ? EmptyTone.brand
-                            : EmptyTone.neutral,
-                        actionLabel: _query.isEmpty && _selectedSpeciesId == null
-                            ? '개체 등록'
-                            : null,
-                        onAction: _query.isEmpty && _selectedSpeciesId == null
-                            ? () => context.push('/pets/new')
-                            : null,
+                    // 비어 있어도 개수 줄(보기 전환 토글 포함)은 남긴다 — 필터로 0마리가 된
+                    // 순간 토글이 사라졌다 생기면 화면이 들썩인다 (2026-10-30 사용자 결정)
+                    : Column(
+                        children: [
+                          _PetCountLine(
+                            shown: 0,
+                            total: allPets.length,
+                            isGrid: isGridView,
+                            onViewChanged: (v) =>
+                                ref.read(petListGridProvider.notifier).set(v),
+                          ),
+                          Expanded(
+                            child: EmptyState(
+                              message: _query.isEmpty && _selectedSpeciesId == null
+                                  ? '아직 등록한 개체가 없어요'
+                                  : '조건에 맞는 개체가 없어요',
+                              subMessage: _query.isEmpty && _selectedSpeciesId == null
+                                  ? '첫 개체를 등록하면 기록을 쌓을 수 있어요.'
+                                  : '검색어나 종 필터를 바꿔보세요.',
+                              icon: _query.isEmpty && _selectedSpeciesId == null
+                                  ? Icons.pets
+                                  : Icons.search_off,
+                              tone: _query.isEmpty && _selectedSpeciesId == null
+                                  ? EmptyTone.brand
+                                  : EmptyTone.neutral,
+                              actionLabel: _query.isEmpty && _selectedSpeciesId == null
+                                  ? '개체 등록'
+                                  : null,
+                              onAction: _query.isEmpty && _selectedSpeciesId == null
+                                  ? () => context.push('/pets/new')
+                                  : null,
+                            ),
+                          ),
+                        ],
                       );
               }
               return RefreshIndicator(
@@ -599,8 +614,7 @@ class _PetCountLine extends StatelessWidget {
   final int total;
 
   /// 보기 방식 토글을 이 줄의 오른쪽 끝에 함께 그린다.
-  /// ℹ️ 개체가 하나도 없으면 이 줄 자체가 안 그려지므로 토글도 사라진다 —
-  ///    보여줄 게 없는 자리에서 보기 방식을 고르게 할 이유가 없다.
+  /// 목록이 비어도 이 줄은 남는다 (빈 상태 위에 그대로 그린다).
   final bool isGrid;
   final ValueChanged<bool> onViewChanged;
 

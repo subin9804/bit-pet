@@ -6,7 +6,7 @@ import '../../../core/api/api_response.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_input_styles.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../../core/upload/image_upload.dart';
+import '../../../core/upload/image_source_sheet.dart';
 import '../../../core/widgets/app_chip.dart';
 import '../../../core/widgets/app_network_image.dart';
 import '../../../core/widgets/toast_message.dart';
@@ -263,10 +263,9 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
                           GestureDetector(
                             onTap: () async {
                               // 남은 칸만큼만 고르게 한다 (한 칸이면 단일 선택기가 뜬다).
-                              final picked = await ref
-                                  .read(imageUploadServiceProvider)
-                                  .pickMultiFromGallery(
-                                      limit: state.remainingSlots);
+                              final picked = await pickImagesWithSource(
+                                  context, ref,
+                                  limit: state.remainingSlots);
                               ref
                                   .read(composeProvider.notifier)
                                   .addImages(picked);

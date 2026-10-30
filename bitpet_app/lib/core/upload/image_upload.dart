@@ -35,9 +35,18 @@ class ImageUploadService {
   final ImagePicker _picker = ImagePicker();
 
   /// 갤러리에서 이미지 1장 선택. 취소 시 null.
-  Future<PickedImage?> pickFromGallery() async {
+  Future<PickedImage?> pickFromGallery() => _pickOne(ImageSource.gallery);
+
+  /// 카메라로 1장 촬영. 취소 시 null.
+  ///
+  /// 매니페스트에 CAMERA 권한을 선언하지 않았다 — image_picker 는 시스템 카메라 앱에
+  /// 촬영을 맡기는 인텐트라 권한이 필요 없다. ⚠️ 선언하는 순간 런타임 권한 요청까지
+  /// 직접 해야 하고, 안 하면 촬영이 SecurityException 으로 죽는다.
+  Future<PickedImage?> pickFromCamera() => _pickOne(ImageSource.camera);
+
+  Future<PickedImage?> _pickOne(ImageSource source) async {
     final x = await _picker.pickImage(
-      source: ImageSource.gallery,
+      source: source,
       imageQuality: 85,
       maxWidth: 2000,
     );

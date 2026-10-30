@@ -394,6 +394,8 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
       message:
           '$name와(과) 이별할까요?\n함께한 기록은 그대로 남고, 내 개체 목록 맨 아래로 이동해요.',
       confirmLabel: '이별하기',
+      // 되돌릴 수는 있지만(이별 취소) 무게가 큰 동작이라 경고색으로 (2026-10-30 사용자 결정)
+      isDangerous: true,
     );
     if (ok && mounted) {
       await ref.read(petListProvider.notifier).markDeceased(widget.petId);
