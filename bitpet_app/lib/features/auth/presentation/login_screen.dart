@@ -74,8 +74,12 @@ class LoginScreen extends ConsumerStatefulWidget {
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends ConsumerState<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen>
+    with WidgetsBindingObserver {
   final _formKey = GlobalKey<FormState>();
+
+  /// 이메일 폼 카드. 키보드가 올라올 때 이 카드 **아래 끝**(로그인 버튼)까지 보이게 민다.
+  final _emailCardKey = GlobalKey();
   final _emailCtrl = TextEditingController();
   final _pwCtrl = TextEditingController();
   bool _obscure = true;
@@ -88,7 +92,36 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _emailOpen = !kSocialLoginEnabled;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  /// 키보드가 올라오는 동안 프레임마다 불린다 — 화면이 줄어든 뒤에 카드를 맞춘다.
+  @override
+  void didChangeMetrics() {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _revealEmailForm());
+  }
+
+  /// 이메일 폼 카드를 로그인 버튼까지 키보드 위로 올린다.
+  ///
+  /// 입력칸이 포커스를 받으면 Flutter 가 **커서 자리만** 보이게 스크롤한다. 그래서
+  /// 이메일 칸은 보여도 비밀번호·로그인 버튼은 키보드 밑에 깔렸다 (2026-10-30 사용자 지적).
+  /// `keepVisibleAtEnd` 는 카드 아래 끝이 가려졌을 때만 민다 — 이미 다 보이면 그대로다.
+  void _revealEmailForm() {
+    if (!mounted || !_emailOpen) return;
+    if (MediaQuery.viewInsetsOf(context).bottom == 0) return;
+    final card = _emailCardKey.currentContext;
+    if (card == null) return;
+    Scrollable.ensureVisible(
+      card,
+      alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+    );
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _emailCtrl.dispose();
     _pwCtrl.dispose();
     super.dispose();
@@ -267,6 +300,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         duration: const Duration(milliseconds: 180),
                         curve: Curves.easeOut,
                         alignment: Alignment.topCenter,
+                        // 키보드가 펼침 애니메이션보다 먼저 다 올라오면 그때 맞춘
+                        // 카드는 덜 자란 크기다. 다 펼친 뒤 한 번 더 맞춘다.
+                        onEnd: _revealEmailForm,
                         child: _emailOpen
                             ? _emailForm(isLoading)
                             : _EmailTriggerButton(
@@ -331,6 +367,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Form(
       key: _formKey,
       child: Container(
+        key: _emailCardKey,
         decoration: AppDecor.cardRaised,
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
