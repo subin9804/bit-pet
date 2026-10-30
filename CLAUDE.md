@@ -234,6 +234,11 @@ PostgreSQL이 재정규화하는데 의미는 같다.)
 - ⚠️ **`R__02` 는 파일에 없는 공식 모프를 매 실행마다 지운다** (개체가 물고 있으면 FK RESTRICT 라
   지우지 않고 **사용자 정의 모프로 전환** — `created_by` = 그 개체의 OWNER).
   공식 모프를 DB 에 직접 INSERT 하지 말고 반드시 `R__02` 에 추가할 것. 사용자 정의 모프는 대상 아님.
+- **안 쓰는 사용자 정의 모프는 매일 03:20 지워진다** (`MorphCleanupScheduler`, 2026-10-30 사용자 결정).
+  조건: `is_user_defined` + `updated_at` 이 하루 지남 + `pet_morph_rls` 참조 0. 하루 유예는 앱이 모프를
+  **먼저 만들고 개체 저장 때 붙이기** 때문 — 유예가 없으면 저장 직전 모프가 지워진다. 전환된 공식 모프도 같이 정리된다
+- **개체 목록은 개체 수와 무관하게 쿼리 수가 고정이다** — 최신 체중은 `WeightDtlRepository.findLatestByPetIds`
+  (DISTINCT ON 한 번), 대표사진은 `findAllById` 한 번. ⛔ `listByOwner` 안에서 개체마다 조회하지 말 것
 - 새 subcategory 를 추가하면 앱 `species_bottom_sheet.dart` 의 라벨·순서 목록에도 넣어야 레일에 뜬다.
 - 어떤 컬럼이 왜 생겼는지 추적할 땐 git 이력을 본다:
   `git log --diff-filter=D --name-only -- 'bitpet_server/src/main/resources/db/migration/V*'`
