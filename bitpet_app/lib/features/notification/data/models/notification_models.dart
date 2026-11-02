@@ -44,6 +44,10 @@ class NotificationLog {
   final int? petId;
   final int? routineId;
   final int? referenceId;
+
+  /// 알림함 '바로가기'가 열 게시글. 댓글 알림은 referenceId 가 댓글 id 라 서버가 글 id 로 풀어 준다.
+  /// 커뮤니티 알림이 아니거나 글·댓글이 지워졌으면 null.
+  final int? postId;
   final String title;
   final String body;
   final DateTime sentAt;
@@ -55,6 +59,7 @@ class NotificationLog {
     this.petId,
     this.routineId,
     this.referenceId,
+    this.postId,
     required this.title,
     required this.body,
     required this.sentAt,
@@ -62,6 +67,19 @@ class NotificationLog {
   });
 
   bool get isRead => status == NotificationStatus.READ;
+
+  NotificationLog copyAsRead() => NotificationLog(
+        id: id,
+        notificationType: notificationType,
+        petId: petId,
+        routineId: routineId,
+        referenceId: referenceId,
+        postId: postId,
+        title: title,
+        body: body,
+        sentAt: sentAt,
+        status: NotificationStatus.READ,
+      );
 
   factory NotificationLog.fromJson(Map<String, dynamic> json) => NotificationLog(
         id: json['id'] as int,
@@ -72,6 +90,7 @@ class NotificationLog {
         petId: json['petId'] as int?,
         routineId: json['routineId'] as int?,
         referenceId: json['referenceId'] as int?,
+        postId: json['postId'] as int?,
         title: json['title'] as String,
         body: json['body'] as String? ?? '',
         sentAt: DateTime.parse(json['sentAt'] as String),

@@ -35,6 +35,13 @@ class NotificationRepository {
     return apiRes.data!;
   }
 
+  Future<void> markAllRead() => _dio.patch('/notifications/read-all');
+
+  Future<void> delete(int notificationId) =>
+      _dio.delete('/notifications/$notificationId');
+
+  Future<void> deleteAll() => _dio.delete('/notifications');
+
   Future<NotificationPref> getPref() async {
     final res = await _dio.get('/notifications/settings');
     final apiRes = ApiResponse.fromJson(

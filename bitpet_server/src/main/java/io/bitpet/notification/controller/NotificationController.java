@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -39,6 +40,29 @@ public class NotificationController {
             @AuthenticationPrincipal AuthPrincipal principal,
             @PathVariable Long id) {
         return ApiResponse.ok(notificationService.markRead(principal.userId(), id));
+    }
+
+    @Operation(summary = "알림 모두 읽음")
+    @PatchMapping("/read-all")
+    public ApiResponse<Void> markAllRead(@AuthenticationPrincipal AuthPrincipal principal) {
+        notificationService.markAllRead(principal.userId());
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "알림 하나 삭제")
+    @DeleteMapping("/{id}")
+    public ApiResponse<Void> delete(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @PathVariable Long id) {
+        notificationService.delete(principal.userId(), id);
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "알림 전체 삭제")
+    @DeleteMapping
+    public ApiResponse<Void> deleteAll(@AuthenticationPrincipal AuthPrincipal principal) {
+        notificationService.deleteAll(principal.userId());
+        return ApiResponse.ok();
     }
 
     // -------------------------------------------------------------------------

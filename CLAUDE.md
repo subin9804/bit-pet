@@ -574,6 +574,18 @@ private Map<String, Object> extraData;
 - 앱: `/my/notifications` → `NotificationSettingsScreen`. 낙관적 갱신 + 실패 시 롤백.
   OS 알림 권한이 꺼져 있으면 상단 경고 배너(권한 없으면 앱 안 토글이 다 켜져 있어도 알림이 안 와 앱 버그로 보인다)
 
+### 알림함 — 바로가기·삭제 (2026-11-02)
+
+- 앱: `features/notification/presentation/notification_list_screen.dart` (전엔 라우터 안 `ListTile` 목록).
+  캔버스 헤더 + 흰 카드 + 종류별 원형 아이콘(토큰 색), 안 읽음은 `brandTintSoft` 바탕 + 점
+- 카드마다 **'바로가기'**(갈 곳 있을 때만) + **✕ 삭제**, 왼쪽으로 밀어도 삭제. ⋮ = 모두 읽음 · 전체 삭제(확인 모달) · 알림 설정.
+  삭제·읽음은 낙관적 — `Dismissible` 은 사라진 뒤 같은 키로 다시 그려지면 예외라 서버 응답을 못 기다린다
+- 이동: 루틴 `/routines` · 댓글/좋아요 `/community/{postId}` · AI `/pets/{petId}` · 공지 없음
+- 서버: `PATCH /notifications/read-all`, `DELETE /notifications/{id}`, `DELETE /notifications`(하드 삭제 — 이력일 뿐).
+  응답에 **`postId`** — 좋아요는 referenceId 그대로, 댓글은 referenceId 가 comment_id 라 목록 조회 때 한 번에 풀어 준다
+  (지운 댓글은 `@SQLRestriction` 으로 빠져 null → 바로가기 숨김)
+- ⚠️ 사용자가 지운 알림은 아래 '장애 조사용 90일 보존'에서도 사라진다. 알고 감수한 것
+
 ### 알림 로그 수명 (V6, 2026-09-09)
 
 `notification_log_dtl` 은 원래 **지워지는 경로가 하나도 없었다.** 루틴 알람은 유저당 하루 몇 건씩

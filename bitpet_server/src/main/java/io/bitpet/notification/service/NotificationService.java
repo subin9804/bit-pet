@@ -2,6 +2,8 @@ package io.bitpet.notification.service;
 
 import io.bitpet.common.exception.BusinessException;
 import io.bitpet.common.exception.ErrorCode;
+import io.bitpet.community.domain.PostCommentDtl;
+import io.bitpet.community.repository.PostCommentDtlRepository;
 import io.bitpet.notification.domain.NotificationLogDtl;
 import io.bitpet.notification.domain.NotificationStatus;
 import io.bitpet.notification.domain.NotificationType;
@@ -15,6 +17,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -26,21 +31,58 @@ public class NotificationService {
     private final FcmSender fcmSender;
     private final NotificationPrefService notificationPrefService;
     private final DeviceTokenService deviceTokenService;
+    private final PostCommentDtlRepository commentRepository;
 
     public List<NotificationLogResponse> listNotifications(Long userId) {
-        return notificationLogRepository.findTop50ByUserIdOrderBySentAtDesc(userId)
-                .stream().map(NotificationLogResponse::from).toList();
+        List<NotificationLogDtl> logs = notificationLogRepository.findTop50ByUserIdOrderBySentAtDesc(userId);
+
+        // 댓글 알림은 comment_id 만 들고 있다 — '바로가기'가 글을 열 수 있게 한 번에 풀어 둔다.
+        // 지운 댓글은 엔티티의 @SQLRestriction 으로 빠져 postId 가 null — 앱은 바로가기를 숨긴다.
+        List<Long> commentIds = logs.stream()
+                .filter(l -> l.getNotificationType() == NotificationType.COMMUNITY_COMMENT)
+                .map(NotificationLogDtl::getReferenceId)
+                .filter(Objects::nonNull)
+                .toList();
+        Map<Long, Long> postIdByComment = commentIds.isEmpty() ? Map.of()
+                : commentRepository.findAllById(commentIds).stream()
+                        .collect(Collectors.toMap(PostCommentDtl::getId, PostCommentDtl::getPostId));
+
+        return logs.stream()
+                .map(l -> l.getNotificationType() == NotificationType.COMMUNITY_COMMENT
+                        ? NotificationLogResponse.of(l, postIdByComment.get(l.getReferenceId()))
+                        : NotificationLogResponse.from(l))
+                .toList();
     }
 
     @Transactional
     public NotificationLogResponse markRead(Long userId, Long notificationId) {
+        NotificationLogDtl log = findOwned(userId, notificationId);
+        log.markRead();
+        return NotificationLogResponse.from(log);
+    }
+
+    @Transactional
+    public int markAllRead(Long userId) {
+        return notificationLogRepository.markAllRead(userId);
+    }
+
+    @Transactional
+    public void delete(Long userId, Long notificationId) {
+        notificationLogRepository.delete(findOwned(userId, notificationId));
+    }
+
+    @Transactional
+    public int deleteAll(Long userId) {
+        return notificationLogRepository.deleteAllByUser(userId);
+    }
+
+    private NotificationLogDtl findOwned(Long userId, Long notificationId) {
         NotificationLogDtl log = notificationLogRepository.findById(notificationId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOTIFICATION_NOT_FOUND));
         if (!log.getUserId().equals(userId)) {
             throw new BusinessException(ErrorCode.FORBIDDEN);
         }
-        log.markRead();
-        return NotificationLogResponse.from(log);
+        return log;
     }
 
     // -------------------------------------------------------------------------

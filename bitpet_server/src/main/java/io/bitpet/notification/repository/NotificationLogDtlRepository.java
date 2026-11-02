@@ -13,6 +13,17 @@ public interface NotificationLogDtlRepository extends JpaRepository<Notification
 
     List<NotificationLogDtl> findTop50ByUserIdOrderBySentAtDesc(Long userId);
 
+    /** 알림함 '모두 읽음'. 목록에 안 보이는 50개 밖의 행까지 같이 읽음 처리한다. */
+    @Modifying
+    @Query("UPDATE NotificationLogDtl n SET n.status = io.bitpet.notification.domain.NotificationStatus.READ "
+            + "WHERE n.userId = :userId AND n.status <> io.bitpet.notification.domain.NotificationStatus.READ")
+    int markAllRead(@Param("userId") Long userId);
+
+    /** 알림함 '전체 삭제'. 알림은 이력일 뿐이라 소프트 삭제 없이 지운다 (보존기간 배치도 하드 삭제다). */
+    @Modifying
+    @Query("DELETE FROM NotificationLogDtl n WHERE n.userId = :userId")
+    int deleteAllByUser(@Param("userId") Long userId);
+
     /**
      * 보존기간이 지난 알림 로그를 <b>한 묶음씩</b> 삭제한다.
      *
