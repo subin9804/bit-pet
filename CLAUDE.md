@@ -379,6 +379,13 @@ PostgreSQL이 재정규화하는데 의미는 같다.)
   - **날짜만 바꾸고 시각(한국시간)은 유지** — `RecordDates.onDate`. 메이팅 `season_label` 은 기본값(연도)일 때만 따라간다
 - 시트는 넘겨받은 리스트가 아니라 `homeDayRecordsProvider` 를 **직접 본다** — 옮긴 기록이 그 날에서 빠져야 해서
 
+**하루치 조회는 반열린 구간 [00:00, 다음날 00:00)** (2026-11-03). 개체 상세(`record_detail_screen`)는 날짜만 골라
+기록을 **그날 00:00 KST** 로 저장하는데, `getRecordsByDate` 가 파생 쿼리 `...Between`(양끝 포함)을 써서
+11/2 00:00 메모가 11/1 시트에도 떴다. 급여·체중·청소·메모 repo 의 `findDay`(JPQL `>= :from AND < :to`)로 교체.
+⛔ 날짜 경계 조회에 `Between` 파생 쿼리 쓰지 말 것. 캘린더 점(`CalendarService`)은 `DATE(... AT TIME ZONE)` 이라 원래 맞았다.
+- 응답 `RecentRecordResponse.tags` = 메모 분류 코드(VET/SHED/POOP/…). 카테고리 행 칩에 분류 아이콘, 시트 메모 줄 앞에 분류 알약
+- 카테고리 행 칩은 **개체당 하나** (petId 기준 묶음 — 메모 2건이면 이름이 두 번 서던 버그)
+
 **FAB 여러 마리 = 모든 종류에서 일괄/개별 선택** (같은 날 요청). 전엔 급여만 물었다.
 개별 탭 화면은 급여의 것(`_buildFeedPerPet`)을 같이 쓰고, 폼 칸은 일괄과 같은 `_buildSimpleFields` 다 —
 탭을 옮길 때 `_SimpleDraft` 로 값만 갈아끼운다. 저장은 **푸터 'n마리 저장' 에서 입력한 개체를 한꺼번에** (2026-10-28 — 개체마다 버튼을 눌러야 저장되는 건 불편하다는 사용자 결정). 루틴 개별 완료(`PerPetConfirmSheet`)도 같다: 카드의 '○○ 완료'만 즉시 저장, 나머지 입력은 'n마리 저장'.
@@ -578,9 +585,9 @@ private Map<String, Object> extraData;
 
 - 앱: `features/notification/presentation/notification_list_screen.dart` (전엔 라우터 안 `ListTile` 목록).
   캔버스 헤더 + 흰 카드 + 종류별 원형 아이콘(토큰 색), 안 읽음은 `brandTintSoft` 바탕 + 점
-- 카드마다 **'바로가기'**(갈 곳 있을 때만) + **✕ 삭제**, 왼쪽으로 밀어도 삭제. ⋮ = 모두 읽음 · 전체 삭제(확인 모달) · 알림 설정.
+- 카드 탭 = **읽음 처리만**, **✕ 삭제**, 왼쪽으로 밀어도 삭제. ⋮ = 모두 읽음 · 전체 삭제(**확인 모달 없음**) · 알림 설정.
   삭제·읽음은 낙관적 — `Dismissible` 은 사라진 뒤 같은 키로 다시 그려지면 예외라 서버 응답을 못 기다린다
-- 이동: 루틴 `/routines` · 댓글/좋아요 `/community/{postId}` · AI `/pets/{petId}` · 공지 없음
+- 2026-11-03: **'바로가기' 버튼·탭 이동 제거** (사용자: "그냥 읽음처리나 삭제처리만"). 서버 `postId` 는 남겨 둠
 - 서버: `PATCH /notifications/read-all`, `DELETE /notifications/{id}`, `DELETE /notifications`(하드 삭제 — 이력일 뿐).
   응답에 **`postId`** — 좋아요는 referenceId 그대로, 댓글은 referenceId 가 comment_id 라 목록 조회 때 한 번에 풀어 준다
   (지운 댓글은 `@SQLRestriction` 으로 빠져 null → 바로가기 숨김)
