@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../../core/widgets/confirm_modal.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../data/models/notification_models.dart';
@@ -20,9 +19,11 @@ import '../providers/notification_provider.dart';
 /// 눌러도 읽음 처리만 되고 아무 데도 안 갔다. 사용자 지적: "디자인 가이드랑 안 맞고, 너무 알림만 한다".
 ///
 /// - 다른 하위 화면과 같은 골격: 캔버스 헤더(`titleSpacing: 0`) · 흰 카드 · 토큰 색 · [EmptyState]
-/// - 카드마다 **'바로가기'**(갈 곳이 있을 때만)와 **삭제(✕)**. 옆으로 밀어도 지워진다
-/// - 카드를 눌러도 바로가기와 같다 — 버튼은 '눌러서 어디로 간다'는 걸 보여주는 역할
-/// - ⋮ 메뉴: 모두 읽음 · 전체 삭제 · 알림 설정
+/// - 카드를 누르면 **읽음 처리만** 한다. 카드마다 **삭제(✕)**, 옆으로 밀어도 지워진다
+/// - ⋮ 메뉴: 모두 읽음 · 전체 삭제(확인 모달 없음) · 알림 설정
+///
+/// 2026-11-03: '바로가기' 버튼·카드 탭 이동은 뺐다(사용자: "그냥 읽음처리나 삭제처리만").
+/// 서버 응답의 `postId` 는 남아 있다 — 다시 이동을 붙일 때 쓴다.
 ///
 /// 지우기·읽음은 **화면부터 바꾸고** 서버에 보낸다. 특히 밀어서 지우기는 [Dismissible] 이
 /// 사라진 뒤에도 같은 키로 다시 그려지면 예외가 나서, 서버 응답을 기다릴 수 없다.
@@ -82,12 +83,6 @@ class _NotificationListScreenState
         .catchError((_) {});
   }
 
-  void _open(NotificationLog n) {
-    _markRead(n);
-    final path = _targetPath(n);
-    if (path != null) context.push(path);
-  }
-
   Future<void> _onMenu(_MenuAction action, List<NotificationLog> visible) async {
     switch (action) {
       case _MenuAction.readAll:
@@ -101,14 +96,7 @@ class _NotificationListScreenState
           showToast(context, '읽음 처리하지 못했어요', type: ToastType.error);
         }
       case _MenuAction.deleteAll:
-        final ok = await ConfirmModal.show(
-          context,
-          title: '알림 전체 삭제',
-          message: '알림 ${visible.length}개를 모두 지울까요?\n지운 알림은 되돌릴 수 없어요.',
-          confirmLabel: '삭제',
-          isDangerous: true,
-        );
-        if (!ok || !mounted) return;
+        // 확인 모달 없이 바로 지운다 — 알림은 지워도 아쉬울 게 없다(2026-11-03 사용자 요청)
         final ids = visible.map((n) => n.id).toList();
         setState(() => _hidden.addAll(ids));
         try {
@@ -204,8 +192,7 @@ class _NotificationListScreenState
                   background: const _DeleteBackground(),
                   child: _NotificationCard(
                     item: n,
-                    hasTarget: _targetPath(n) != null,
-                    onTap: () => _open(n),
+                    onTap: () => _markRead(n),
                     onDelete: () => _delete(n),
                   ),
                 );
@@ -215,24 +202,6 @@ class _NotificationListScreenState
         },
       ),
     );
-  }
-}
-
-/// 알림이 가리키는 화면. 없으면 null — 바로가기 버튼을 숨긴다.
-///
-/// 푸시를 눌렀을 때의 이동([PushService])과 같은 곳으로 보낸다. 댓글은 푸시엔 글 id 가
-/// 없어 알림함으로 오지만, 알림함 목록은 서버가 `postId` 를 풀어 줘서 글로 갈 수 있다.
-String? _targetPath(NotificationLog n) {
-  switch (n.notificationType) {
-    case NotificationType.ROUTINE_ALARM:
-      return '/routines';
-    case NotificationType.COMMUNITY_COMMENT:
-    case NotificationType.COMMUNITY_LIKE:
-      return n.postId != null ? '/community/${n.postId}' : null;
-    case NotificationType.AI_CONSULTING:
-      return n.petId != null ? '/pets/${n.petId}' : null;
-    case NotificationType.SYSTEM:
-      return null;
   }
 }
 
@@ -290,13 +259,11 @@ String _ago(DateTime dt) {
 
 class _NotificationCard extends StatelessWidget {
   final NotificationLog item;
-  final bool hasTarget;
   final VoidCallback onTap;
   final VoidCallback onDelete;
 
   const _NotificationCard({
     required this.item,
-    required this.hasTarget,
     required this.onTap,
     required this.onDelete,
   });
@@ -367,10 +334,6 @@ class _NotificationCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
-                    if (hasTarget) ...[
-                      const SizedBox(height: AppSpacing.sm),
-                      _ShortcutButton(onTap: onTap),
-                    ],
                   ],
                 ),
               ),
@@ -383,42 +346,6 @@ class _NotificationCard extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// '바로가기 >' — 브랜드색 글자 버튼. 채운 버튼으로 하면 카드마다 큰 버튼이 생겨 목록이 무거워진다.
-class _ShortcutButton extends StatelessWidget {
-  final VoidCallback onTap;
-  const _ShortcutButton({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return TextButton(
-      onPressed: onTap,
-      style: TextButton.styleFrom(
-        foregroundColor: AppColors.brandAction,
-        backgroundColor: AppColors.bg,
-        padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md, vertical: 6),
-        minimumSize: Size.zero,
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        shape: const RoundedRectangleBorder(
-          borderRadius: AppRadius.brPill,
-          side: BorderSide(color: AppColors.line),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text('바로가기',
-              style: AppTextStyles.caption.copyWith(
-                color: AppColors.brandAction,
-                fontWeight: FontWeight.w600,
-              )),
-          const Icon(Icons.chevron_right, size: 16),
-        ],
       ),
     );
   }

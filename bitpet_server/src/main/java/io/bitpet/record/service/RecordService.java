@@ -63,7 +63,28 @@ public class RecordService {
     private final MemoDtlRepository memoRepository;
     private final MatingDtlRepository matingRepository;
     private final LayingDtlRepository layingRepository;
+    private final io.bitpet.record.memo.repository.MemoTagRlsRepository memoTagRlsRepository;
+    private final io.bitpet.record.memo.repository.MemoTagCdRepository memoTagCdRepository;
     private final JdbcTemplate jdbc;
+
+    /** 메모 id → 분류 코드 목록. 하루치 메모를 두 번의 쿼리로 한꺼번에 푼다. */
+    private Map<Long, List<String>> loadMemoTagCodes(List<MemoDtl> memos) {
+        if (memos.isEmpty()) return Map.of();
+        List<io.bitpet.record.memo.domain.MemoTagRls> links = memoTagRlsRepository
+                .findByMemoIdIn(memos.stream().map(MemoDtl::getId).toList());
+        if (links.isEmpty()) return Map.of();
+        Map<Long, io.bitpet.record.memo.domain.MemoTagCd> tagById = memoTagCdRepository
+                .findAllById(links.stream().map(io.bitpet.record.memo.domain.MemoTagRls::getTagId)
+                        .distinct().toList())
+                .stream().collect(Collectors.toMap(io.bitpet.record.memo.domain.MemoTagCd::getId,
+                        t -> t));
+        return links.stream()
+                .filter(l -> tagById.containsKey(l.getTagId()))
+                .sorted(Comparator.comparingInt(l -> tagById.get(l.getTagId()).getDisplayOrder()))
+                .collect(Collectors.groupingBy(io.bitpet.record.memo.domain.MemoTagRls::getMemoId,
+                        Collectors.mapping(l -> tagById.get(l.getTagId()).getCode(),
+                                Collectors.toList())));
+    }
 
 
     // -------------------------------------------------------------------------
@@ -312,7 +333,7 @@ public class RecordService {
         List<RecentRecordResponse> all = new ArrayList<>();
 
         // FEEDING: feeding_dtl (루틴 완료 + 단독 모두 포함)
-        feedingRepository.findAllByPetIdInAndFedAtBetweenOrderByFedAtDesc(petIds, from, to)
+        feedingRepository.findDay(petIds, from, to)
                 .forEach(f -> all.add(RecentRecordResponse.of(
                         "FEEDING", f.getId(), f.getPetId(),
                         petNameMap.getOrDefault(f.getPetId(), ""),
@@ -320,7 +341,7 @@ public class RecordService {
                         f.getFedAt(), buildFeedingSummary(f), f.getMemo())));
 
         // WEIGHT: weight_dtl (루틴 완료 + 단독 모두 포함)
-        weightRepository.findAllByPetIdInAndMeasuredAtBetweenOrderByMeasuredAtDesc(petIds, from, to)
+        weightRepository.findDay(petIds, from, to)
                 .forEach(w -> all.add(RecentRecordResponse.of(
                         "WEIGHT", w.getId(), w.getPetId(),
                         petNameMap.getOrDefault(w.getPetId(), ""),
@@ -328,7 +349,7 @@ public class RecordService {
                         w.getMeasuredAt(), w.getWeightG() + "g", w.getMemo())));
 
         // CLEANING: cleaning_dtl (루틴 완료 + 단독 모두 포함 — routine_id 유무로 구분 가능)
-        cleaningRepository.findAllByPetIdInAndCleanedAtBetweenOrderByCleanedAtDesc(petIds, from, to)
+        cleaningRepository.findDay(petIds, from, to)
                 .forEach(c -> all.add(RecentRecordResponse.of(
                         "CLEANING", c.getId(), c.getPetId(),
                         petNameMap.getOrDefault(c.getPetId(), ""),
@@ -338,15 +359,17 @@ public class RecordService {
                         c.getMemo())));
 
         // MEMO: memo_dtl (루틴 CUSTOM 완료 메모 + 단독 메모 모두 포함 — routine_id 유무로 구분 가능)
-        memoRepository.findAllByPetIdInAndLoggedAtBetweenOrderByLoggedAtDesc(petIds, from, to)
-                .forEach(m -> all.add(RecentRecordResponse.of(
+        List<MemoDtl> memos = memoRepository.findDay(petIds, from, to);
+        Map<Long, List<String>> memoTags = loadMemoTagCodes(memos);
+        memos.forEach(m -> all.add(RecentRecordResponse.of(
                         "MEMO", m.getId(), m.getPetId(),
                         petNameMap.getOrDefault(m.getPetId(), ""),
                         petColorMap.get(m.getPetId()),
                         m.getLoggedAt(),
                         // 빈 content 는 memo 칸이 비므로 요약 쪽에 라벨을 둔다
                         m.getContent() == null || m.getContent().isBlank() ? "메모 미입력" : "",
-                        m.getContent())));
+                        m.getContent(),
+                        memoTags.getOrDefault(m.getId(), List.of()))));
 
         // MATING: 교배 양쪽 개체 모두 표시 (한 교배당 최대 2개 칩)
         matingRepository.findByPetIdsAndDateRange(petIds, from, to).forEach(m -> {

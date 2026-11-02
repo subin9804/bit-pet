@@ -35,8 +35,16 @@ public interface WeightDtlRepository extends JpaRepository<WeightDtl, Long> {
 
     List<WeightDtl> findAllByPetIdInOrderByMeasuredAtDesc(Collection<Long> petIds, Pageable pageable);
 
-    List<WeightDtl> findAllByPetIdInAndMeasuredAtBetweenOrderByMeasuredAtDesc(
-            Collection<Long> petIds, java.time.Instant from, java.time.Instant to);
+    /** 하루치 조회 — 반열린 구간 [from, to). 양끝 포함 `Between` 은 다음날 00:00 기록을 전날에도 잡는다. */
+    @org.springframework.data.jpa.repository.Query("""
+            SELECT x FROM WeightDtl x
+            WHERE x.petId IN :petIds AND x.measuredAt >= :from AND x.measuredAt < :to
+            ORDER BY x.measuredAt DESC
+            """)
+    List<WeightDtl> findDay(
+            @org.springframework.data.repository.query.Param("petIds") Collection<Long> petIds,
+            @org.springframework.data.repository.query.Param("from") java.time.Instant from,
+            @org.springframework.data.repository.query.Param("to") java.time.Instant to);
 
     /** 루틴 완료 로그에 연결된 체중 기록 (짝 정리·재로딩용) */
     List<WeightDtl> findByRoutineLogId(Long routineLogId);

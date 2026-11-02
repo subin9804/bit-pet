@@ -10,5 +10,7 @@ public interface MemoTagRlsRepository extends JpaRepository<MemoTagRls, MemoTagR
 
     List<MemoTagRls> findByMemoId(Long memoId);
 
+    List<MemoTagRls> findByMemoIdIn(java.util.Collection<Long> memoIds);
+
     void deleteByMemoId(Long memoId);
 }

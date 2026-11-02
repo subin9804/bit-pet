@@ -19,8 +19,18 @@ public interface MemoDtlRepository extends JpaRepository<MemoDtl, Long> {
 
     List<MemoDtl> findAllByPetIdInOrderByLoggedAtDesc(List<Long> petIds, Pageable pageable);
 
-    List<MemoDtl> findAllByPetIdInAndLoggedAtBetweenOrderByLoggedAtDesc(
-            List<Long> petIds, Instant from, Instant to);
+    /**
+     * 하루치 조회 — **반열린 구간** [from, to). 파생 쿼리 `Between` 은 양끝을 포함해서
+     * 다음날 00:00 정각 기록(날짜만 고르는 화면이 그 시각으로 저장한다)이 전날에도 잡혔다.
+     */
+    @Query("""
+            SELECT m FROM MemoDtl m
+            WHERE m.petId IN :petIds
+              AND m.loggedAt >= :from AND m.loggedAt < :to
+            ORDER BY m.loggedAt DESC
+            """)
+    List<MemoDtl> findDay(@Param("petIds") List<Long> petIds,
+                          @Param("from") Instant from, @Param("to") Instant to);
 
     /** 루틴 로그에 연결된 메모 기록 (짝 정리·재로딩용) */
     List<MemoDtl> findByRoutineLogId(Long routineLogId);

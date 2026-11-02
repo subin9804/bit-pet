@@ -495,6 +495,9 @@ class RecentRecord {
   final String? memo;
   final DateTime createdAt;
 
+  /// 메모 분류 코드(VET/SHED/POOP/…). 메모가 아니거나 분류가 없으면 빈 목록.
+  final List<String> tags;
+
   const RecentRecord({
     required this.id,
     this.petId,
@@ -504,6 +507,7 @@ class RecentRecord {
     required this.summary,
     this.memo,
     required this.createdAt,
+    this.tags = const [],
   });
 
   factory RecentRecord.fromJson(Map<String, dynamic> json) => RecentRecord(
@@ -515,5 +519,6 @@ class RecentRecord {
         summary: json['summary'] as String? ?? '',
         memo: json['memo'] as String?,
         createdAt: DateTime.parse(json['createdAt'] as String),
+        tags: (json['tags'] as List?)?.cast<String>() ?? const [],
       );
 }

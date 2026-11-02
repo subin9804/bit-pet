@@ -965,10 +965,19 @@ class _CategoryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final names = records.map((r) => r.petName).toList();
+    // 칩은 **개체당 하나**. 기록 건수대로 칩을 만들던 때는 한 개체가 메모를 두 번
+    // 적으면 같은 이름이 두 번 섰다(2026-11-03 사용자 지적). 상세 시트와 같은
+    // 기준(petId, 없으면 이름)으로 묶고, 메모 분류는 그 개체 것을 합쳐 칩에 얹는다.
+    final pets = <String, ({String name, Set<String> tags})>{};
+    for (final r in records) {
+      final key = r.petId?.toString() ?? r.petName;
+      pets.putIfAbsent(key, () => (name: r.petName, tags: <String>{}))
+          .tags
+          .addAll(r.tags);
+    }
     const showMax = 2;
-    final overflow = names.length > showMax ? names.length - showMax : 0;
-    final visible = names.take(showMax).toList();
+    final overflow = pets.length > showMax ? pets.length - showMax : 0;
+    final visible = pets.values.take(showMax).toList();
     final chipBg = _catBg(type);
 
     return GestureDetector(
@@ -1010,7 +1019,7 @@ class _CategoryRow extends StatelessWidget {
           // 개체 칩들 — 직각
           // 개체 이름 칩 — 알약. 기록 종류색을 그대로 입어 어느 카테고리의
           // 개체인지 왼쪽 타일과 색으로 묶인다.
-          ...visible.map((n) => Padding(
+          ...visible.map((p) => Padding(
             padding: const EdgeInsets.only(left: AppSpacing.xs),
             child: Container(
               padding: const EdgeInsets.symmetric(
@@ -1019,10 +1028,19 @@ class _CategoryRow extends StatelessWidget {
                 color: chipBg,
                 borderRadius: AppRadius.brPill,
               ),
-              child: Text(n,
-                  style: AppTextStyles.label
-                      .copyWith(color: _catIconInk(type)),
-                  overflow: TextOverflow.ellipsis),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                // Flexible 금지 — 바깥 Row 가 칩에 폭 제한을 안 줘서 flex 가 터진다
+                Text(p.name,
+                    style: AppTextStyles.label
+                        .copyWith(color: _catIconInk(type)),
+                    overflow: TextOverflow.ellipsis),
+                // 메모 분류(병원·탈피·…) 그림 — 시트를 안 열어도 무슨 메모인지 보인다
+                for (final t in p.tags.take(2)) ...[
+                  const SizedBox(width: 3),
+                  AppIcon(AppIcons.memoTag(t),
+                      size: 13, color: _catIconInk(type)),
+                ],
+              ]),
             ),
           )),
           if (overflow > 0) Padding(
@@ -1210,6 +1228,11 @@ class _CategoryDetailSheetState extends ConsumerState<_CategoryDetailSheet> {
     final petKeys = petGroups.keys.toList();
     final allSelected =
         records.isNotEmpty && chosen.length == records.length;
+    final tagLabels = {
+      for (final t in ref.watch(memoTagsProvider).valueOrNull ??
+          const <MemoTag>[])
+        t.code: t.labelKo,
+    };
 
     return AppSheet(
       title: widget.label,
@@ -1278,6 +1301,7 @@ class _CategoryDetailSheetState extends ConsumerState<_CategoryDetailSheet> {
                     selected: _selected,
                     onToggle: _toggle,
                     onTogglePet: () => _togglePet(petGroups[petKeys[i]]!),
+                    tagLabels: tagLabels,
                   ),
                 ],
               ],
@@ -1365,6 +1389,9 @@ class _SheetPetRow extends StatelessWidget {
   final ValueChanged<RecentRecord> onToggle;
   final VoidCallback onTogglePet;
 
+  /// 메모 분류 코드 → 한글 이름(서버 `memo_tag_cd`). 못 받았으면 코드 그대로 쓴다.
+  final Map<String, String> tagLabels;
+
   const _SheetPetRow({
     required this.type,
     required this.records,
@@ -1374,6 +1401,7 @@ class _SheetPetRow extends StatelessWidget {
     required this.selected,
     required this.onToggle,
     required this.onTogglePet,
+    this.tagLabels = const {},
   });
 
   @override
@@ -1457,7 +1485,7 @@ class _SheetPetRow extends StatelessWidget {
     ].join('  ·  ');
     final isSel = selected.contains(r.id);
 
-    final text = Text(
+    final body = Text(
       display,
       style: AppTextStyles.label.copyWith(
           letterSpacing: 0,
@@ -1465,6 +1493,17 @@ class _SheetPetRow extends StatelessWidget {
       overflow: TextOverflow.ellipsis,
       maxLines: 2,
     );
+    // 메모 분류는 글 앞에 알약으로 — 분류를 고른 보람이 목록에서 보여야 한다
+    // (2026-11-03 사용자 요청). 분류 없는 메모는 전과 같다.
+    final Widget text = r.tags.isEmpty
+        ? body
+        : Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            for (final t in r.tags) ...[
+              _MemoTagPill(code: t, label: tagLabels[t] ?? t),
+              const SizedBox(width: AppSpacing.xs),
+            ],
+            Expanded(child: body),
+          ]);
 
     if (selecting) {
       // 한 개체에 같은 종류가 여러 건이면 그중 일부만 고를 수 있어야 한다
@@ -1488,6 +1527,32 @@ class _SheetPetRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: text,
+    );
+  }
+}
+
+/// 메모 분류 알약 — 그림 + 이름(병원·탈피·배변…). 메모 카테고리 색을 입는다.
+class _MemoTagPill extends StatelessWidget {
+  final String code;
+  final String label;
+
+  const _MemoTagPill({required this.code, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: const BoxDecoration(
+        color: AppColors.catMemo,
+        borderRadius: AppRadius.brPill,
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        AppIcon(AppIcons.memoTag(code), size: 12, color: AppColors.catMemoInk),
+        const SizedBox(width: 3),
+        Text(label,
+            style: AppTextStyles.mono(11, FontWeight.w700,
+                color: AppColors.catMemoInk)),
+      ]),
     );
   }
 }
