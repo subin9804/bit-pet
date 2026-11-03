@@ -127,6 +127,20 @@ class UserProfile {
   /// (서버 `verifyNoticePermission` 이 SUPER_ADMIN·MODERATOR 둘 다 허용한다).
   bool get isAdmin => adminRoles.isNotEmpty;
 
+  /// 화면에 보여 줄 이메일. 소셜 제공자가 이메일을 안 주면 서버가
+  /// `kakao_123@oauth.bitpet.local` 같은 **자리표시 주소**로 계정을 만든다 —
+  /// 그대로 보이면 이상한 주소로 읽혀서 '카카오 계정' 처럼 바꿔 보여 준다 (2026-11-03).
+  String get displayEmail {
+    if (!email.endsWith('@oauth.bitpet.local')) return email;
+    final provider = email.split('_').first.toLowerCase();
+    return switch (provider) {
+      'kakao' => '카카오 계정',
+      'naver' => '네이버 계정',
+      'google' => '구글 계정',
+      _ => '소셜 계정',
+    };
+  }
+
   // 서버 UserResponse: id, email, nickname, userType, profileImageUrl,
   //                    showNicknameInPedigree, adminRoles, isChild
   factory UserProfile.fromJson(Map<String, dynamic> json) => UserProfile(

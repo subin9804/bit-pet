@@ -10,7 +10,20 @@ public interface UserMstRepository extends JpaRepository<UserMst, Long> {
 
     Optional<UserMst> findByEmail(String email);
 
-    boolean existsByEmail(String email);
+    Optional<UserMst> findFirstByEmailIgnoreCaseOrderByIdAsc(String email);
+
+    /**
+     * 이메일로 계정 찾기 — 대소문자 무시. 정확히 같은 주소가 있으면 그게 먼저다:
+     * 정규화 전에 대소문자만 다른 두 계정이 생겼을 수 있어서, 원래 붙던 계정을 바꾸지 않는다.
+     */
+    default Optional<UserMst> findByEmailLoose(String email) {
+        if (email == null) return Optional.empty();
+        return findByEmail(email.trim())
+                .or(() -> findFirstByEmailIgnoreCaseOrderByIdAsc(email.trim()));
+    }
+
+    /** 가입 중복 확인 — 대소문자 무시 ({@code EmailPolicy}). */
+    boolean existsByEmailIgnoreCase(String email);
 
     /**
      * 닉네임 중복 확인. 대소문자를 구분하지 않는다 — DB 의

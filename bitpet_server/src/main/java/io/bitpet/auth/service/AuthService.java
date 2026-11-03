@@ -56,7 +56,7 @@ public class AuthService {
     private final DeviceTokenRlsRepository deviceTokenRepository;
 
     public EmailCheckResponse checkEmail(String email) {
-        return new EmailCheckResponse(!userRepository.existsByEmail(email));
+        return new EmailCheckResponse(!userRepository.existsByEmailIgnoreCase(email));
     }
 
     /**
@@ -79,7 +79,7 @@ public class AuthService {
 
     @Transactional
     public UserResponse signup(SignupRequest request) {
-        if (userRepository.existsByEmail(request.email())) {
+        if (userRepository.existsByEmailIgnoreCase(request.email())) {
             throw new BusinessException(ErrorCode.AUTH_EMAIL_ALREADY_EXISTS);
         }
         // 앱이 중복확인을 거쳤더라도 여기서 다시 본다. 확인 시점과 가입 시점 사이에
@@ -106,7 +106,7 @@ public class AuthService {
 
     @Transactional
     public TokenResponse login(LoginRequest request) {
-        UserMst user = userRepository.findByEmail(request.email())
+        UserMst user = userRepository.findByEmailLoose(request.email())
                 .orElseThrow(() -> new BusinessException(ErrorCode.AUTH_INVALID_CREDENTIALS));
 
         if (user.getPasswordHash() == null

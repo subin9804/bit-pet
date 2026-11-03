@@ -88,7 +88,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
                 ? info.email()
                 : syntheticEmail(provider, info.providerUserId());
 
-        UserMst user = userMstRepository.findByEmail(email)
+        UserMst user = userMstRepository.findByEmailLoose(email)
                 .orElseGet(() -> {
                     String randomHash = passwordEncoder.encode(UUID.randomUUID().toString());
                     // 제공자 이름을 그대로 쓰면 안 된다. 닉네임에는 유니크 제약

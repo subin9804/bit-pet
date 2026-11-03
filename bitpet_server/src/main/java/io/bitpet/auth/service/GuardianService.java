@@ -69,7 +69,7 @@ public class GuardianService {
                     "자녀 계정은 최대 " + MAX_CHILDREN + "개까지 만들 수 있어요.");
         }
 
-        if (userRepository.existsByEmail(request.email())) {
+        if (userRepository.existsByEmailIgnoreCase(request.email())) {
             throw new BusinessException(ErrorCode.AUTH_EMAIL_ALREADY_EXISTS);
         }
         String nickname = authService.requireAvailableNickname(request.nickname(), null);

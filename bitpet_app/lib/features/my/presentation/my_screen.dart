@@ -72,7 +72,7 @@ class MyScreen extends ConsumerWidget {
                                 .copyWith(color: Colors.white),
                             overflow: TextOverflow.ellipsis),
                         const SizedBox(height: AppSpacing.xs),
-                        Text(user?.email ?? '',
+                        Text(user?.displayEmail ?? '',
                             style: AppTextStyles.caption
                                 .copyWith(color: AppColors.brand100),
                             overflow: TextOverflow.ellipsis),

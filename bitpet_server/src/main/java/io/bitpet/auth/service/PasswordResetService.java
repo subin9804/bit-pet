@@ -34,7 +34,9 @@ public class PasswordResetService {
      * 가입되지 않은 이메일이어도 정상 응답한다 (이메일 존재 여부 노출 방지).
      */
     public void requestReset(String email) {
-        if (!userRepository.existsByEmail(email)) {
+        // 코드 저장소 키 — 요청과 검증에서 대소문자를 다르게 쳐도 같은 키여야 한다
+        email = EmailPolicy.normalize(email);
+        if (!userRepository.existsByEmailIgnoreCase(email)) {
             log.info("Password reset requested for unknown email: {}", email);
             return;
         }
@@ -49,6 +51,7 @@ public class PasswordResetService {
      * 2단계 — 코드 검증. 성공 시 비밀번호 변경용 검증 토큰을 발급한다.
      */
     public String verifyCode(String email, String code) {
+        email = EmailPolicy.normalize(email);
         String savedCode = passwordResetStore.getCode(email);
         if (savedCode == null) {
             throw new BusinessException(ErrorCode.PASSWORD_RESET_CODE_NOT_FOUND);
@@ -74,7 +77,7 @@ public class PasswordResetService {
             throw new BusinessException(ErrorCode.PASSWORD_RESET_TOKEN_INVALID);
         }
 
-        UserMst user = userRepository.findByEmail(email)
+        UserMst user = userRepository.findByEmailLoose(email)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AUTH_USER_NOT_FOUND));
 
         user.changePassword(passwordEncoder.encode(newPassword));

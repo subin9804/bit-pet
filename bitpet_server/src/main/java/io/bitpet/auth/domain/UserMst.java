@@ -124,7 +124,7 @@ public class UserMst extends BaseTimeEntity {
 
     public static UserMst createLocal(String email, String passwordHash, String name, String profileColor) {
         return UserMst.builder()
-                .email(email)
+                .email(io.bitpet.auth.service.EmailPolicy.normalize(email))
                 .passwordHash(passwordHash)
                 .name(name)
                 .profileColor(profileColor)
@@ -142,7 +142,7 @@ public class UserMst extends BaseTimeEntity {
                                       String profileColor, LocalDate birthDate,
                                       Long guardianUserId) {
         return UserMst.builder()
-                .email(email)
+                .email(io.bitpet.auth.service.EmailPolicy.normalize(email))
                 .passwordHash(passwordHash)
                 .name(name)
                 .profileColor(profileColor)
@@ -154,7 +154,7 @@ public class UserMst extends BaseTimeEntity {
 
     public static UserMst createOAuth(String email, String name, String profileImageUrl, String randomPasswordHash) {
         return UserMst.builder()
-                .email(email)
+                .email(io.bitpet.auth.service.EmailPolicy.normalize(email))
                 .passwordHash(randomPasswordHash)
                 .name(name)
                 .profileImageUrl(profileImageUrl)

@@ -998,6 +998,14 @@ OAuth 토큰 AES-256-GCM 암호화 (`BITPET_TOKEN_ENC_KEY` 환경변수).
 - **제공자가 확인한 이메일만 기존 계정에 자동 연결한다** (`OAuth2UserInfo.emailVerified` — 카카오
   `is_email_verified && is_email_valid`, Google `email_verified`, 네이버는 본인확인 주소라 true).
   확인 안 된 주소는 합성 이메일로 새 계정 — 안 그러면 남의 이메일로 그 사람 계정에 들어간다
+- **이메일은 대소문자를 가리지 않는다** (2026-11-03, `EmailPolicy`). 저장은 trim + 소문자, 조회는
+  `findByEmailLoose`(정확 일치 우선 → IgnoreCase 중 가장 오래된 계정), 가입 중복은 `existsByEmailIgnoreCase`.
+  전엔 `Su@Gmail.com` 가입자가 구글 로그인(`su@gmail.com`)하면 새 계정이 생겼다.
+  ⛔ 새 조회 코드에서 `findByEmail` 을 직접 쓰지 말 것. ⚠️ DB 유니크 인덱스는 아직 대소문자 구분 — 정규화 전 데이터 때문
+- **카카오는 이메일을 안 받는다** → 항상 합성 주소 `kakao_{id}@oauth.bitpet.local` 로 새 계정. 비즈앱 전환 후
+  `account_email` 동의항목을 켜고 scope 에 추가해야 기존 이메일 계정에 붙는다 (사용자 진행 중, 2026-11-03).
+  앱은 합성 주소를 `UserProfile.displayEmail` 로 '카카오 계정' 처럼 바꿔 보여 준다. ⛔ 서버가 email 을 null 로
+  내리지 말 것 — 구버전 앱 `UserProfile.fromJson` 이 non-null 캐스트라 깨진다
 - **탈퇴 시 `user_oauth_rls` 를 지운다.** 소프트 삭제된 계정에 연결이 남으면 연관 로딩엔
   `@SQLRestriction` 이 안 걸려 탈퇴 계정으로 다시 로그인됐다. 예전에 남은 연결은 로그인 시점에 끊는다
 - **약관 동의는 로그인 뒤 따로 받는다.** 소셜 가입은 약관 화면 없이 계정이 생기고, 서버는 거짓 동의 기록을
