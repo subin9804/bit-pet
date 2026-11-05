@@ -175,7 +175,7 @@
     .f-ic svg { width:26px; height:26px; }
     .feature h3 { font-size:21px; letter-spacing:-.03em; margin:0 0 8px; }
     .feature p { color:var(--ink2); margin:0 0 20px; font-size:15px; }
-    .feature ul { list-style:none; padding:0; margin:auto 0 0; display:flex; flex-direction:column; gap:8px; }
+    .feature ul { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:8px; }
     .feature li { display:flex; gap:8px; align-items:flex-start; font-size:14px; color:var(--ink); }
     .feature li::before { content:""; flex:none; width:18px; height:18px; margin-top:2px; border-radius:50%;
              background:var(--brand100) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230B7A4B' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 12.5l4 4L18 8'/%3E%3C/svg%3E") center/11px no-repeat; }
@@ -345,35 +345,6 @@
     </div>
   </div>
 
-  <!-- ── 만든 이야기 (2026-11-05, 문구는 사용자와 함께 다듬음) ── -->
-  <section id="story">
-    <div class="wrap">
-      <article class="story-card">
-        <div class="sec-head">
-          <div class="kicker">OUR STORY</div>
-          <h2>하루를 건너뛴 날,<br>테일로그가 시작됐어요</h2>
-        </div>
-        <div class="story-body">
-          <p class="intro">도마뱀 15마리, 뱀 4마리, 피그미다람쥐 2마리와 함께 살고 있어요.</p>
-          <p>한 마리일 땐 손이 많이 가지 않는다고 생각했어요. 그런데 식구가 늘수록 챙길 일도 늘어나더라고요. 밥은 매일 주는 게 아니라서 아이마다 컨디션과 주기를 기억해야 하고, 크는 단계마다 먹이량도 달라져요. 청소는 조금만 미뤄도 금방 티가 나고요.</p>
-          <p>기록도 마음에 걸렸어요. 남겨 두지 않으면 '언제 이렇게 컸지?' 싶고, 어디가 아파 보이면 '언제부터 이랬을까?' 하고 거슬러 올라갈 방법이 없었어요. 간식을 준 날, 탈피한 날, 배변 상태처럼 사소하지만 중요한 일들은 적어 둘 곳조차 애매했고요.</p>
-          <p>그러다 가끔 한 아이를 깜빡하고 하루를 건너뛰는 날이 생겼어요. 그게 너무너무 미안했어요.</p>
-          <p class="story-quote">때가 되면 알려 주는 무언가가 있다면<br>잊지 않고 챙겨 줄 수 있겠다.</p>
-          <p>테일로그는 거기서 출발했어요.</p>
-
-          <h3>테일로그가 바라는 것</h3>
-          <p><strong>한 사람에게는</strong>, 매일의 돌봄을 잊지 않게 곁에서 알려 주는 앱이고 싶어요.</p>
-          <p><strong>테일로그의 모든 사용자들에게는</strong>, 더 정확한 케어시트를 함께 만들어 가는 곳이고 싶어요. 몇 개월 차에 밀웜이나 귀뚜라미를 몇 마리 줘야 하는지, 그때 몸무게는 얼마쯤이 적당한지, 아직도 이런 정보가 제대로 공유되지 않아요. 기록이 모이면 처음 키우는 분들에게 훨씬 믿을 만한 기준이 될 수 있다고 생각해요.</p>
-          <p>그리고 <strong>이 아이들이 정말 소중한 반려동물로 대해졌으면 좋겠어요.</strong></p>
-          <p>파충류는 생명력이 강하고 손이 덜 가는 편이라 쉽게 여겨지곤 해요. 하지만 작아서 잃어버리면 다시 찾기 어렵고, 애초에 바깥에서는 살아갈 수 없는 아이들이에요.</p>
-          <p>그런데도 준비 없이 번식이 이뤄지고, 생명이 쉽게 주고받아지는 모습을 자주 마주해요. 이게 정말 이 문화가 커 가는 방향이 맞을까 생각하게 돼요. 한 생명을 들이는 일, 새 생명을 태어나게 하는 일 모두 조금 더 무겁게 여겨졌으면 해요.</p>
-          <p>테일로그를 통해 한 마리 한 마리의 소중함을 계속 떠올리고, 사육 문화가 조금씩 나아지는 데 보탬이 되고 싶어요.</p>
-          <p class="story-sign">— 테일로그를 만든 사육자</p>
-        </div>
-      </article>
-    </div>
-  </section>
-
   <!-- ── 주요 기능 ── -->
   <section class="white" id="features">
     <div class="wrap">
@@ -410,6 +381,12 @@
           </div>
           <h3>케어 루틴 알림</h3>
           <p>급여·청소·체중은 물론, 내 사육 방식에 맞는 할 일을 직접 만들어 두면 정한 시간에 알려드려요.</p>
+          <div class="chips">
+            <span class="chip" style="background:var(--sky);color:var(--skyInk)">매일</span>
+            <span class="chip" style="background:var(--sky);color:var(--skyInk)">3일마다</span>
+            <span class="chip" style="background:var(--sky);color:var(--skyInk)">매주 화·금</span>
+            <span class="chip" style="background:var(--sky);color:var(--skyInk)">매달 1일</span>
+          </div>
           <ul>
             <li>며칠마다 · 요일마다 · 매달 날짜마다 반복</li>
             <li>홈에서 완료 체크 한 번이면 기록까지 함께</li>
@@ -463,6 +440,34 @@
         <div><b>내 개체 확인 <span>준비 중</span></b><p>PC 큰 화면에서 내 개체와 기록을 한눈에.</p></div>
         <div><b>엑셀로 내보내기 <span>준비 중</span></b><p>기록 데이터를 엑셀 파일로 받아 보관·분석할 수 있어요.</p></div>
       </div>
+    </div>
+  </section>
+
+  <!-- ── 만든 이야기 (2026-11-05, 문구는 사용자와 함께 다듬음) ── -->
+  <section id="story">
+    <div class="wrap">
+      <article class="story-card">
+        <div class="sec-head">
+          <h2>하루를 건너뛴 날,<br>테일로그가 시작됐어요</h2>
+        </div>
+        <div class="story-body">
+          <p class="intro">도마뱀 15마리, 뱀 4마리, 피그미다람쥐 2마리와 함께 살고 있어요.</p>
+          <p>한 마리일 땐 손이 많이 가지 않는다고 생각했어요. 그런데 식구가 늘수록 챙길 일도 늘어나더라고요. 밥은 매일 주는 게 아니라서 아이마다 컨디션과 주기를 기억해야 하고, 크는 단계마다 먹이량도 달라져요. 청소는 조금만 미뤄도 금방 티가 나고요.</p>
+          <p>기록도 마음에 걸렸어요. 남겨 두지 않으면 '언제 이렇게 컸지?' 싶고, 어디가 아파 보이면 '언제부터 이랬을까?' 하고 거슬러 올라갈 방법이 없었어요. 간식을 준 날, 탈피한 날, 배변 상태처럼 사소하지만 중요한 일들은 적어 둘 곳조차 애매했고요.</p>
+          <p>그러다 가끔 한 아이를 깜빡하고 하루를 건너뛰는 날이 생겼어요. 그게 너무너무 미안했어요.</p>
+          <p class="story-quote">때가 되면 알려 주는 무언가가 있다면<br>잊지 않고 챙겨 줄 수 있겠다.</p>
+          <p>테일로그는 거기서 출발했어요.</p>
+
+          <h3>테일로그가 바라는 것</h3>
+          <p><strong>한 사람에게는</strong>, 매일의 돌봄을 잊지 않게 곁에서 알려 주는 앱이고 싶어요.</p>
+          <p><strong>테일로그의 모든 사용자들에게는</strong>, 더 정확한 케어시트를 함께 만들어 가는 곳이고 싶어요. 몇 개월 차에 밀웜이나 귀뚜라미를 몇 마리 줘야 하는지, 그때 몸무게는 얼마쯤이 적당한지, 아직도 이런 정보가 제대로 공유되지 않아요. 기록이 모이면 처음 키우는 분들에게 훨씬 믿을 만한 기준이 될 수 있다고 생각해요.</p>
+          <p>그리고 <strong>이 아이들이 정말 소중한 반려동물로 대해졌으면 좋겠어요.</strong></p>
+          <p>파충류는 생명력이 강하고 손이 덜 가는 편이라 쉽게 여겨지곤 해요. 하지만 작아서 잃어버리면 다시 찾기 어렵고, 애초에 바깥에서는 살아갈 수 없는 아이들이에요.</p>
+          <p>그런데도 준비 없이 번식이 이뤄지고, 생명이 쉽게 주고받아지는 모습을 자주 마주해요. 이게 정말 이 문화가 커 가는 방향이 맞을까 생각하게 돼요. 한 생명을 들이는 일, 새 생명을 태어나게 하는 일 모두 조금 더 무겁게 여겨졌으면 해요.</p>
+          <p>테일로그를 통해 한 마리 한 마리의 소중함을 계속 떠올리고, 사육 문화가 조금씩 나아지는 데 보탬이 되고 싶어요.</p>
+          <p class="story-sign">— 테일로그를 만든 사육자</p>
+        </div>
+      </article>
     </div>
   </section>
 
