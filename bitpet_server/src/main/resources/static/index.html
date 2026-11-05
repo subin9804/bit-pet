@@ -136,7 +136,8 @@
     .weight { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px; }
     .weight b { font-size:20px; letter-spacing:-.02em; font-variant-numeric:tabular-nums; }
     .weight small { font-size:11px; color:var(--brand700); font-weight:700; }
-    .toast { position:absolute; left:-36px; top:120px; background:var(--bg); border-radius:var(--r-lg);
+    /* z-index: 뒤에 오는 .phone(relative)이 위에 그려져 토스트를 덮던 문제 (2026-11-05) */
+    .toast { position:absolute; z-index:2; left:-36px; top:120px; max-width:280px; background:var(--bg); border-radius:var(--r-lg);
              box-shadow:var(--shadow2); padding:10px 14px 10px 10px; display:flex; gap:10px; align-items:center;
              animation:float 5s ease-in-out infinite; }
     .toast .r-ic { width:32px; height:32px; }
@@ -367,7 +368,6 @@
             <li>며칠마다 · 요일마다 · 매달 날짜마다 반복</li>
             <li>홈에서 완료 체크 한 번이면 기록까지 함께</li>
             <li>바쁜 날엔 이번만 미루기, 쉬는 기간엔 잠시 꺼 두기</li>
-            <li>가족과 함께 키우면 같은 루틴을 같이 챙겨요</li>
           </ul>
         </article>
 
@@ -381,6 +381,7 @@
             <li>개체별 캘린더 · 타임라인 · 체중 변화</li>
             <li>사진 갤러리와 부모를 잇는 가계도</li>
             <li>메이팅부터 산란·부화, 새 개체 등록까지 이어지는 번식 기록</li>
+            <li>가족과 개체를 공유하면 기록이 한곳에 함께 쌓여요</li>
             <li>NFC 이름표를 찍으면 바로 그 개체로</li>
           </ul>
         </article>
