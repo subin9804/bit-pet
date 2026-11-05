@@ -1420,6 +1420,9 @@ class _SheetPetRow extends StatelessWidget {
               ? null
               : () {
                   Navigator.of(context).pop();
+                  // 개체 상세를 밑에 깔고 기록 상세를 올린다 — 뒤로가기가 홈이 아니라
+                  // 그 개체 상세로 가야 한다 (2026-11-05 사용자 요청). 한 번 더 뒤로면 홈.
+                  context.push('/pets/$petId');
                   context.push(path);
                 },
       child: Padding(

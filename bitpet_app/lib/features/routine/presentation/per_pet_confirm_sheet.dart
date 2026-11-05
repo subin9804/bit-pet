@@ -582,7 +582,7 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
             // ── 푸터 ───────────────────────────────────────────
             _Footer(
               canPrev: _idx > 0,
-              canNext: !_isLast,
+              nextName: _isLast ? null : _pets[_idx + 1].petName,
               saving: _saving,
               pendingCount: pending.length,
               onPrev: () => _go(_idx - 1),
@@ -835,14 +835,18 @@ class _PetPage extends StatelessWidget {
 
 // ── 푸터 ─────────────────────────────────────────────────────────
 //
-// [이전] [다음] [n마리 저장] (2026-10-28 사용자 요청).
-// '완료'는 카드 안 버튼이 즉시 저장하고, 급여·체중·메모 입력은 여기서 한꺼번에
-// 저장한다 — 개체마다 버튼을 눌러야만 저장되는 건 불편하다는 이유. 이전/다음은
-// 저장하지 않는다. 저장할 게 없으면 주 버튼은 '닫기'다.
+// 마지막 개체 전까지 **주 버튼은 '다음 · 이름'** 이다 (2026-11-05 사용자 결정).
+// 예전엔 [이전][다음][n마리 저장] 이라 큰 '저장'에 눈이 먼저 가서, 한 마리 적고
+// 바로 저장해 버리게 됐다 — 의도한 흐름은 개체를 차례로 넘기며 적는 것이다.
+//  · 중간 개체: [저장 n](작게, 적은 게 있을 때만) [다음 · 코코 →](크게)
+//  · 마지막 개체: [이전] [n마리 저장](크게) — 저장할 게 없으면 '닫기'
+// '완료'는 카드 안 버튼이 즉시 저장하고, 급여·체중·메모 입력은 여기서 한꺼번에 저장한다.
 class _Footer extends StatelessWidget {
   final bool canPrev;
-  final bool canNext;
   final bool saving;
+
+  /// 다음 개체 이름 — null 이면 마지막 개체다
+  final String? nextName;
 
   /// 'n마리 저장' 의 n — 0 이면 주 버튼이 '닫기'가 된다
   final int pendingCount;
@@ -852,8 +856,8 @@ class _Footer extends StatelessWidget {
 
   const _Footer({
     required this.canPrev,
-    required this.canNext,
     required this.saving,
+    required this.nextName,
     required this.pendingCount,
     required this.onPrev,
     required this.onNext,
@@ -862,8 +866,15 @@ class _Footer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ⛔ 주 버튼 옆에 '취소'를 두지 않는다 — 시트는 핸들을 내리거나 바깥을 눌러
-    //    닫는다. 여기 있던 '취소'는 '이전'과 뜻이 겹쳐 셋 중 뭘 누를지 멈칫했다.
+    final isLast = nextName == null;
+    // 왼쪽 작은 버튼: 중간 개체에선 '저장 n'(적은 게 있을 때), 아니면 '이전'
+    final Widget? side = !isLast && pendingCount > 0
+        ? _FooterBtn(label: '저장 $pendingCount', onTap: saving ? null : onSave)
+        : canPrev
+            ? _FooterBtn(label: '이전', onTap: onPrev)
+            : null;
+
+    // ⛔ 주 버튼 옆에 '취소'를 두지 않는다 — 시트는 핸들을 내리거나 바깥을 눌러 닫는다.
     return Container(
       decoration: const BoxDecoration(
         // 바탕색은 시트와 같게 둔다 — 위쪽 선 하나로 이미 구분되고, 흰 띠를
@@ -879,22 +890,37 @@ class _Footer extends StatelessWidget {
       ),
       child: Row(
         children: [
-          _FooterBtn(label: '이전', onTap: canPrev ? onPrev : null),
-          const SizedBox(width: AppSpacing.sm),
-          _FooterBtn(label: '다음', onTap: canNext ? onNext : null),
-          const SizedBox(width: AppSpacing.sm),
+          if (side != null) ...[side, const SizedBox(width: AppSpacing.sm)],
           Expanded(
             child: SizedBox(
               // 7슬롯 주 버튼과 같은 52px — 시트마다 버튼 높이가 다르면
               // 같은 동작인데 다른 화면처럼 보인다.
               height: 52,
-              child: ElevatedButton.icon(
-                onPressed: saving ? null : onSave,
-                icon: Icon(pendingCount > 0 ? Icons.check : Icons.close,
-                    size: AppIconSize.sm),
-                label: Text(pendingCount > 0 ? '$pendingCount마리 저장' : '닫기',
-                    maxLines: 1, overflow: TextOverflow.ellipsis),
-              ),
+              child: !isLast
+                  ? ElevatedButton(
+                      onPressed: onNext,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Flexible(
+                            child: Text('다음 · $nextName',
+                                maxLines: 1, overflow: TextOverflow.ellipsis),
+                          ),
+                          const SizedBox(width: 4),
+                          const AppIcon(AppIcons.chevronRight,
+                              size: AppIconSize.sm, color: AppColors.bg),
+                        ],
+                      ),
+                    )
+                  : ElevatedButton.icon(
+                      onPressed: saving ? null : onSave,
+                      icon: Icon(pendingCount > 0 ? Icons.check : Icons.close,
+                          size: AppIconSize.sm),
+                      label: Text(
+                          pendingCount > 0 ? '$pendingCount마리 저장' : '닫기',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                    ),
             ),
           ),
         ],

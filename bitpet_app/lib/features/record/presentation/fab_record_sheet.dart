@@ -1267,85 +1267,6 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                   ),
                   const SizedBox(height: 8),
                 ],
-
-                // 이전/다음 개체 네비게이션
-                if (pets.length > 1)
-                  Row(
-                    children: [
-                      if (_activePerPetIdx > 0) ...[
-                        Expanded(
-                          flex: 0,
-                          child: GestureDetector(
-                            onTap: () => _goToPet(_activePerPetIdx - 1, pets),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 12),
-                              decoration: const BoxDecoration(
-                                color: AppColors.card,
-                                border: Border.fromBorderSide(
-                                    BorderSide(color: AppColors.line)),
-                                borderRadius: AppRadius.brLg,
-                                boxShadow: AppShadows.elev1,
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.chevron_left,
-                                      size: 16, color: AppColors.ink),
-                                  const SizedBox(width: 4),
-                                  Text('이전',
-                                      style: const TextStyle(
-                                          fontSize: 13, fontWeight: FontWeight.w700,
-                                          color: AppColors.ink)),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                      ],
-                      if (_activePerPetIdx < pets.length - 1) ...[
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () => _goToPet(_activePerPetIdx + 1, pets),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 12),
-                              alignment: Alignment.center,
-                              decoration: const BoxDecoration(
-                                color: AppColors.card,
-                                border: Border.fromBorderSide(BorderSide(
-                                    color: AppColors.line, width: 1.5)),
-                                borderRadius: AppRadius.brLg,
-                                boxShadow: AppShadows.elev1,
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  PetAvatar(
-                                    imageUrl: pets[_activePerPetIdx + 1].profileImageUrl,
-                                    size: 22,
-                                    background: AppColors.bgAlt,
-                                    iconColor: AppColors.ink2,
-                                    subcategory: pets[_activePerPetIdx + 1]
-                                        .speciesSubcategory,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    '다음 · ${pets[_activePerPetIdx + 1].name}',
-                                    style: const TextStyle(
-                                        fontSize: 13, fontWeight: FontWeight.w700,
-                                        color: AppColors.ink),
-                                  ),
-                                  const AppIcon(AppIcons.chevronRight,
-                                      size: 16, color: AppColors.ink),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
               ],
             ),
           ),
@@ -1355,7 +1276,21 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         // 탭을 자유롭게 오가며 적고 마지막에 한 번 누른다([_savePerPetAll]).
         // 몇 마리만 실패한 뒤 남은 입력을 지워 보낼 게 없어지면 '닫기'가 된다.
         // ⛔ 닫기 상태의 [_finishPerPet] 은 저장하지 않는다 — 다시 보내면 두 벌 생긴다.
-        if (pending.isEmpty && _perPetSavedTotal > 0)
+        //
+        // 마지막 개체 전까지는 **주 버튼이 '다음 · 이름'** 이다 (2026-11-05 사용자 결정).
+        // '다음'이 본문 맨 아래에 있었는데, 급여 항목을 추가하면 본문이 길어져 화면
+        // 밖으로 밀렸고 — 보이는 건 푸터의 '저장'뿐이라 한 마리 적고 바로 저장하게 됐다.
+        // 저장은 왼쪽 작은 버튼으로 남긴다(적은 게 있을 때만, 없으면 '뒤로').
+        if (_activePerPetIdx < pets.length - 1)
+          _Footer(
+            onBack: pending.isEmpty || _saving
+                ? _goBack
+                : () => _savePerPetAll(pets),
+            backLabel: pending.isEmpty ? '뒤로' : '저장 ${pending.length}',
+            nextLabel: '다음 · ${pets[_activePerPetIdx + 1].name}  ›',
+            onNext: () => _goToPet(_activePerPetIdx + 1, pets),
+          )
+        else if (pending.isEmpty && _perPetSavedTotal > 0)
           _Footer(
             onBack: _goBack,
             nextLabel: '닫기',
@@ -2719,8 +2654,12 @@ class _Footer extends StatelessWidget {
   final bool loading;
   final VoidCallback? onNext;
 
+  /// 왼쪽 작은 버튼 라벨. 개별 입력 중간 개체에선 '저장 n' 이 된다
+  final String backLabel;
+
   const _Footer({
     this.onBack,
+    this.backLabel = '뒤로',
     required this.nextLabel,
     this.nextIcon,
     this.nextBadge,
@@ -2750,7 +2689,7 @@ class _Footer extends StatelessWidget {
             SizedBox(
               width: 92,
               child: AppActionButton(
-                '뒤로',
+                backLabel,
                 tone: AppButtonTone.neutral,
                 onPressed: onBack,
               ),
