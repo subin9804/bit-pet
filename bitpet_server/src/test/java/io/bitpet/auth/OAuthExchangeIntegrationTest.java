@@ -49,6 +49,19 @@ class OAuthExchangeIntegrationTest extends IntegrationTestBase {
     }
 
     @Test
+    void exchange_carries_linked_provider_only_when_account_was_just_linked() throws Exception {
+        Long userId = signupUserId("oauth-link@example.com", "OauthLink");
+
+        exchange(codeStore.issue(userId, s256(VERIFIER), "KAKAO"), VERIFIER)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.linkedProvider").value("KAKAO"));
+
+        exchange(codeStore.issue(userId, s256(VERIFIER)), VERIFIER)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.linkedProvider").doesNotExist());
+    }
+
+    @Test
     void exchange_with_unknown_code_is_rejected() throws Exception {
         exchange("no-such-code", VERIFIER).andExpect(status().isUnauthorized());
     }

@@ -17,7 +17,10 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -103,12 +106,44 @@ public class TimelineService {
         // 옮겨도 루틴 로그는 따라가지 않고, 둘을 같이 보여주면 어긋난다.
 
         // 전체 시간 역순 정렬 후 limit 적용
-        List<RecordTimelineItem> sorted = items.stream()
+        List<RecordTimelineItem> sorted = withMemoTags(items.stream()
                 .sorted((a, b) -> b.loggedAt().compareTo(a.loggedAt()))
                 .limit(effectiveLimit)
-                .toList();
+                .toList());
 
         return new TimelineResponse(sorted, sorted.size());
+    }
+
+    /**
+     * 메모에 분류 코드(VET/SHED/POOP…)를 채운다. 홈 날짜 시트만 분류가 보이고 개체 상세
+     * 캘린더엔 안 보이던 문제 (2026-11-05 사용자 지적) — 여기서 늘 null 을 내려보냈다.
+     * 한 번의 IN 쿼리로 푼다.
+     */
+    private List<RecordTimelineItem> withMemoTags(List<RecordTimelineItem> items) {
+        List<Long> memoIds = items.stream()
+                .filter(i -> i.category() == RecordCategory.MEMO)
+                .map(RecordTimelineItem::recordId)
+                .toList();
+        if (memoIds.isEmpty()) return items;
+
+        String in = String.join(",", Collections.nCopies(memoIds.size(), "?"));
+        Map<Long, List<String>> tagsByMemo = new HashMap<>();
+        jdbc.query("SELECT r.memo_id, c.code FROM memo_tag_rls r "
+                        + "JOIN memo_tag_cd c ON c.id = r.tag_id "
+                        + "WHERE r.memo_id IN (" + in + ") ORDER BY c.display_order",
+                rs -> {
+                    tagsByMemo.computeIfAbsent(rs.getLong("memo_id"), k -> new ArrayList<>())
+                            .add(rs.getString("code"));
+                },
+                memoIds.toArray());
+        if (tagsByMemo.isEmpty()) return items;
+
+        return items.stream()
+                .map(i -> i.category() != RecordCategory.MEMO ? i
+                        : new RecordTimelineItem(i.category(), i.recordId(), i.loggedAt(), i.summary(),
+                                i.routineTitle(), tagsByMemo.getOrDefault(i.recordId(), List.of()),
+                                i.detailUrl()))
+                .toList();
     }
 
     private String buildSql(RecordCategory cat, Instant from, Instant to, int limit) {

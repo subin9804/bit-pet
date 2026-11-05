@@ -18,8 +18,9 @@ import java.util.Optional;
  * 로그인 시작 때 숨겨둔 verifier 를 함께 보내야 토큰이 나온다
  * ({@code POST /auth/oauth/exchange}). 코드만 훔쳐서는 쓸 수 없다.
  *
- * <p>값은 {@code userId:challenge}. 조회와 삭제를 한 번에 해서 같은 코드로 두 번
- * 교환하지 못하게 한다.
+ * <p>값은 {@code userId:challenge} — 기존 계정에 소셜이 방금 새로 붙었으면 뒤에
+ * {@code :KAKAO} 처럼 제공자를 덧붙인다 (challenge 는 base64url 이라 콜론이 없다).
+ * 조회와 삭제를 한 번에 해서 같은 코드로 두 번 교환하지 못하게 한다.
  */
 @Component
 @RequiredArgsConstructor
@@ -35,10 +36,16 @@ public class OAuthLoginCodeStore {
     private final RedisTemplate<String, Object> redisTemplate;
 
     public String issue(Long userId, String challenge) {
+        return issue(userId, challenge, null);
+    }
+
+    /** @param linkedProvider 이번 로그인에서 기존 계정에 새로 연결된 제공자. 없으면 null */
+    public String issue(Long userId, String challenge, String linkedProvider) {
         byte[] bytes = new byte[32];
         RANDOM.nextBytes(bytes);
         String code = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
-        redisTemplate.opsForValue().set(KEY_PREFIX + code, userId + ":" + challenge, TTL);
+        redisTemplate.opsForValue().set(KEY_PREFIX + code,
+                userId + ":" + challenge + (linkedProvider == null ? "" : ":" + linkedProvider), TTL);
         return code;
     }
 
@@ -46,11 +53,10 @@ public class OAuthLoginCodeStore {
     public Optional<Entry> consume(String code) {
         Object value = redisTemplate.opsForValue().getAndDelete(KEY_PREFIX + code);
         if (value == null) return Optional.empty();
-        String raw = value.toString();
-        int sep = raw.indexOf(':');
-        if (sep < 0) return Optional.empty();
-        return Optional.of(new Entry(Long.valueOf(raw.substring(0, sep)), raw.substring(sep + 1)));
+        String[] parts = value.toString().split(":");
+        if (parts.length < 2) return Optional.empty();
+        return Optional.of(new Entry(Long.valueOf(parts[0]), parts[1], parts.length > 2 ? parts[2] : null));
     }
 
-    public record Entry(Long userId, String challenge) {}
+    public record Entry(Long userId, String challenge, String linkedProvider) {}
 }

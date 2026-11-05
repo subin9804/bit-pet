@@ -17,6 +17,14 @@ class ToastMessage {
     BuildContext context,
     String message, {
     ToastType type = ToastType.info,
+  }) =>
+      showOn(ScaffoldMessenger.of(context), message, type: type);
+
+  /// 화면이 곧 사라지는 상황(로그인 직후 등)용 — 미리 잡아 둔 메신저에 띄운다.
+  static void showOn(
+    ScaffoldMessengerState messenger,
+    String message, {
+    ToastType type = ToastType.info,
   }) {
     final color = switch (type) {
       ToastType.success => AppColors.success,
@@ -31,7 +39,7 @@ class ToastMessage {
       ToastType.info => Icons.info_outline,
     };
 
-    ScaffoldMessenger.of(context)
+    messenger
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(

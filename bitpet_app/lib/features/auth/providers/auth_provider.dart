@@ -99,16 +99,23 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
   /// 소셜 로그인. 브라우저 왕복은 상태를 건드리지 않고 한다 — 그동안 loading 이면
   /// 라우터가 스플래시로 보내 버린다. 사용자가 창을 닫으면 아무 일도 없다.
   /// 브라우저 단계 실패는 예외로 던지고, 교환 이후 실패는 state 의 에러로 남긴다.
-  Future<void> socialLogin(String provider) async {
+  ///
+  /// 기존 이메일 계정에 이 소셜이 **처음 연결됐으면** 제공자(KAKAO 등)를 돌려준다 —
+  /// 화면이 "카카오 계정이 연결됐어요" 를 띄운다. 그 외엔 null.
+  Future<String?> socialLogin(String provider) async {
     final grant = await _repo.authorizeSocial(provider);
-    if (grant == null) return;
+    if (grant == null) return null;
+    String? linked;
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(
-      () => _checkAgreement(_repo.exchangeSocial(grant)),
+      () => _checkAgreement(
+          _repo.exchangeSocial(grant, onLinked: (p) => linked = p)),
     );
     if (state.hasValue && state.value != null) {
       await _setUpPush();
+      return linked;
     }
+    return null;
   }
 
   /// 동의 화면에서 '동의' — 기록이 남으면 라우터가 원래 가던 곳으로 보낸다.

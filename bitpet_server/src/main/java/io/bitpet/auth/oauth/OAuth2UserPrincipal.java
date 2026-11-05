@@ -1,5 +1,6 @@
 package io.bitpet.auth.oauth;
 
+import io.bitpet.auth.domain.OAuthProvider;
 import io.bitpet.auth.domain.UserMst;
 import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
@@ -17,10 +18,18 @@ public class OAuth2UserPrincipal implements OAuth2User {
     private final Map<String, Object> attributes;
     private final String nameAttributeKey;
 
-    public OAuth2UserPrincipal(UserMst user, Map<String, Object> attributes, String nameAttributeKey) {
+    /**
+     * 이번 로그인에서 <b>기존 계정에 새로 붙은</b> 제공자. 처음 연결된 순간에만 값이 있고
+     * (새 가입·이미 연결된 계정은 null) 앱이 "카카오 계정이 연결됐어요" 를 띄우는 데 쓴다.
+     */
+    private final OAuthProvider linkedProvider;
+
+    public OAuth2UserPrincipal(UserMst user, Map<String, Object> attributes, String nameAttributeKey,
+                               OAuthProvider linkedProvider) {
         this.user = user;
         this.attributes = attributes;
         this.nameAttributeKey = nameAttributeKey;
+        this.linkedProvider = linkedProvider;
     }
 
     @Override

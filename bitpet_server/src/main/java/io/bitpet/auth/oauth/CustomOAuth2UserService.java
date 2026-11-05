@@ -50,16 +50,18 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         }
 
         String encryptedAccessToken = tokenEncryptor.encrypt(rawAccessToken);
-        UserMst user = userOAuthRlsRepository
+        Resolved resolved = userOAuthRlsRepository
                 .findByProviderAndProviderUserId(info.provider(), info.providerUserId())
                 .filter(this::linkedToActiveUser)
-                .map(rls -> updateOnLogin(rls, info, encryptedAccessToken))
+                .map(rls -> new Resolved(updateOnLogin(rls, info, encryptedAccessToken), false))
                 .orElseGet(() -> linkOrCreate(info, encryptedAccessToken));
 
+        UserMst user = resolved.user();
         user.markLoggedIn();
         String nameAttributeKey = userRequest.getClientRegistration()
                 .getProviderDetails().getUserInfoEndpoint().getUserNameAttributeName();
-        return new OAuth2UserPrincipal(user, attributes, nameAttributeKey);
+        return new OAuth2UserPrincipal(user, attributes, nameAttributeKey,
+                resolved.linkedExisting() ? info.provider() : null);
     }
 
     /**
@@ -79,7 +81,10 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         return rls.getUser();
     }
 
-    private UserMst linkOrCreate(OAuth2UserInfo info, String encryptedAccessToken) {
+    /** @param linkedExisting 이메일이 같은 <b>기존 계정</b>에 이번에 새로 붙었는가 (새 가입이면 false) */
+    private record Resolved(UserMst user, boolean linkedExisting) {}
+
+    private Resolved linkOrCreate(OAuth2UserInfo info, String encryptedAccessToken) {
         OAuthProvider provider = info.provider();
         // 같은 이메일의 기존 계정에 자동으로 붙이므로, 제공자가 확인한 이메일만 믿는다.
         // 확인 안 된 주소를 받아주면 남의 이메일로 소셜 계정을 만들어 그 사람 계정에
@@ -88,23 +93,8 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
                 ? info.email()
                 : syntheticEmail(provider, info.providerUserId());
 
-        UserMst user = userMstRepository.findByEmailLoose(email)
-                .orElseGet(() -> {
-                    String randomHash = passwordEncoder.encode(UUID.randomUUID().toString());
-                    // 제공자 이름을 그대로 쓰면 안 된다. 닉네임에는 유니크 제약
-                    // (idx_user_mst_name_unique)이 걸려 있어서 동명이인이 로그인하는 순간
-                    // 제약 위반으로 로그인 자체가 실패한다. 공백·괄호가 섞인 이름도 마찬가지로
-                    // 형식 규칙에 어긋나 나중에 프로필 저장이 막힌다.
-                    String nickname = NicknamePolicy.makeUnique(
-                            NicknamePolicy.sanitizeForOAuth(info.name(), provider.name()),
-                            userMstRepository::existsByNameIgnoreCase);
-                    UserMst newUser = UserMst.createOAuth(
-                            email,
-                            nickname,
-                            info.profileImageUrl(),
-                            randomHash);
-                    return userMstRepository.save(newUser);
-                });
+        UserMst existing = userMstRepository.findByEmailLoose(email).orElse(null);
+        UserMst user = existing != null ? existing : createUser(info, provider, email);
 
         UserOAuthRls rls = UserOAuthRls.builder()
                 .user(user)
@@ -116,7 +106,24 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         userOAuthRlsRepository.save(rls);
         log.info("OAuth linked: provider={}, providerUserId={}, userId={}",
                 provider, info.providerUserId(), user.getId());
-        return user;
+        return new Resolved(user, existing != null);
+    }
+
+    private UserMst createUser(OAuth2UserInfo info, OAuthProvider provider, String email) {
+        String randomHash = passwordEncoder.encode(UUID.randomUUID().toString());
+        // 제공자 이름을 그대로 쓰면 안 된다. 닉네임에는 유니크 제약
+        // (idx_user_mst_name_unique)이 걸려 있어서 동명이인이 로그인하는 순간
+        // 제약 위반으로 로그인 자체가 실패한다. 공백·괄호가 섞인 이름도 마찬가지로
+        // 형식 규칙에 어긋나 나중에 프로필 저장이 막힌다.
+        String nickname = NicknamePolicy.makeUnique(
+                NicknamePolicy.sanitizeForOAuth(info.name(), provider.name()),
+                userMstRepository::existsByNameIgnoreCase);
+        UserMst newUser = UserMst.createOAuth(
+                email,
+                nickname,
+                info.profileImageUrl(),
+                randomHash);
+        return userMstRepository.save(newUser);
     }
 
     private String syntheticEmail(OAuthProvider provider, String providerUserId) {

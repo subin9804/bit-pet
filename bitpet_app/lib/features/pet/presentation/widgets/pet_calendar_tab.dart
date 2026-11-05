@@ -9,6 +9,7 @@ import '../../../../core/widgets/app_buttons.dart';
 import '../../../record/data/models/record_models.dart';
 import '../../../record/providers/record_provider.dart';
 import '../../../record/record_detail_path.dart';
+import '../../../record/presentation/widgets/memo_tag_pill.dart';
 import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_dimens.dart';
 import '../../../../core/species/breeding_terms.dart';
@@ -481,10 +482,14 @@ class _DayRecordRow extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0,
                       color: AppColors.ink2)),
-              Text(item.displayText,
-                  style: AppTextStyles.caption.copyWith(
-                      fontWeight: FontWeight.w600, color: AppColors.ink),
-                  overflow: TextOverflow.ellipsis),
+              // 메모는 분류(병원·탈피…)를 글 앞 알약으로 — 홈 날짜 시트와 같다
+              MemoTagLine(
+                tags: item.tags,
+                child: Text(item.displayText,
+                    style: AppTextStyles.caption.copyWith(
+                        fontWeight: FontWeight.w600, color: AppColors.ink),
+                    overflow: TextOverflow.ellipsis),
+              ),
             ],
           ),
         ),

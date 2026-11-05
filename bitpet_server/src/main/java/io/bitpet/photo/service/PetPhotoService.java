@@ -76,7 +76,7 @@ public class PetPhotoService {
 
     public List<PetPhotoResponse> listPhotos(Long userId, Long petId) {
         verifyPetOwnership(userId, petId);
-        return photoRepository.findAllByEntityTypeAndEntityIdOrderByDisplayOrderAscTakenAtDesc(
+        return photoRepository.findAllByEntityTypeAndEntityIdOrderByDisplayOrderAscCreatedAtDescIdDesc(
                         EntityType.PET, petId)
                 .stream()
                 .map(p -> PetPhotoResponse.of(p, s3Service.presignGet(p.getS3Key()).url().toString()))

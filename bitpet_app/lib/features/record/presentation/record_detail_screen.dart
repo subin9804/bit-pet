@@ -19,6 +19,7 @@ import '../data/models/record_models.dart';
 import '../data/record_repository.dart';
 import '../providers/record_invalidation.dart';
 import '../providers/record_provider.dart';
+import 'widgets/memo_tag_pill.dart';
 import '../../pet/providers/pet_provider.dart';
 import '../../pet/data/pet_repository.dart';
 import '../../pet/data/models/pet_models.dart';
@@ -627,13 +628,19 @@ class _RecordCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text(
-                    entry.summary,
-                    style: const TextStyle(fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.ink),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                  // 메모는 분류(병원·탈피…)를 글 앞 알약으로 — 홈 날짜 시트와 같다
+                  child: MemoTagLine(
+                    tags: entry.raw is Memo
+                        ? (entry.raw as Memo).tags
+                        : const <String>[],
+                    child: Text(
+                      entry.summary,
+                      style: const TextStyle(fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.ink),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ),
               ]),

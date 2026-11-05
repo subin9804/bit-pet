@@ -22,6 +22,7 @@ import '../../record/providers/record_invalidation.dart';
 import '../../record/data/record_repository.dart';
 import '../../record/data/models/record_models.dart';
 import '../../record/data/food_catalog.dart';
+import '../../record/presentation/widgets/memo_tag_pill.dart';
 import '../../routine/data/models/routine_models.dart';
 import '../../routine/providers/routine_provider.dart';
 import '../../routine/presentation/bulk_confirm_sheet.dart';
@@ -1499,7 +1500,7 @@ class _SheetPetRow extends StatelessWidget {
         ? body
         : Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             for (final t in r.tags) ...[
-              _MemoTagPill(code: t, label: tagLabels[t] ?? t),
+              MemoTagPill(code: t, label: tagLabels[t] ?? t),
               const SizedBox(width: AppSpacing.xs),
             ],
             Expanded(child: body),
@@ -1527,32 +1528,6 @@ class _SheetPetRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: text,
-    );
-  }
-}
-
-/// 메모 분류 알약 — 그림 + 이름(병원·탈피·배변…). 메모 카테고리 색을 입는다.
-class _MemoTagPill extends StatelessWidget {
-  final String code;
-  final String label;
-
-  const _MemoTagPill({required this.code, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: const BoxDecoration(
-        color: AppColors.catMemo,
-        borderRadius: AppRadius.brPill,
-      ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        AppIcon(AppIcons.memoTag(code), size: 12, color: AppColors.catMemoInk),
-        const SizedBox(width: 3),
-        Text(label,
-            style: AppTextStyles.mono(11, FontWeight.w700,
-                color: AppColors.catMemoInk)),
-      ]),
     );
   }
 }

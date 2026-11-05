@@ -91,7 +91,10 @@ class AuthRepository {
   }
 
   /// 교환 코드 + verifier → 토큰. 소셜 로그인은 '로그인 유지'를 묻지 않는다(늘 유지).
-  Future<UserProfile> exchangeSocial(SocialGrant grant) async {
+  /// [onLinked] — 이번 로그인으로 기존(이메일) 계정에 소셜이 **처음 연결됐을 때만** 불린다
+  /// (서버 `linkedProvider`, 값은 KAKAO / NAVER / GOOGLE).
+  Future<UserProfile> exchangeSocial(SocialGrant grant,
+      {void Function(String provider)? onLinked}) async {
     final res = await _dio.post('/auth/oauth/exchange',
         data: {'code': grant.code, 'verifier': grant.verifier});
     final apiRes = ApiResponse.fromJson(
@@ -109,6 +112,8 @@ class AuthRepository {
       refreshToken: data['refreshToken'] as String,
       persist: true,
     );
+    final linked = data['linkedProvider'] as String?;
+    if (linked != null) onLinked?.call(linked);
     return getMe();
   }
 

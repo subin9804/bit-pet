@@ -48,7 +48,8 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                     .build().toUriString();
         } else {
             redirect = UriComponentsBuilder.fromUriString(oAuth2Properties.successRedirectUri())
-                    .queryParam("code", codeStore.issue(user.getId(), challenge))
+                    .queryParam("code", codeStore.issue(user.getId(), challenge,
+                            principal.getLinkedProvider() == null ? null : principal.getLinkedProvider().name()))
                     .build().toUriString();
             log.info("OAuth login success: userId={}", user.getId());
         }

@@ -89,7 +89,7 @@ public class PhotoService {
 
     public List<PhotoResponse> listPhotos(Long userId, EntityType entityType, Long entityId) {
         validateEntityAccess(userId, entityType, entityId);
-        return photoRepo.findAllByEntityTypeAndEntityIdOrderByDisplayOrderAscTakenAtDesc(entityType, entityId)
+        return photoRepo.findAllByEntityTypeAndEntityIdOrderByDisplayOrderAscCreatedAtDescIdDesc(entityType, entityId)
                 .stream()
                 .map(this::toResponse)
                 .toList();

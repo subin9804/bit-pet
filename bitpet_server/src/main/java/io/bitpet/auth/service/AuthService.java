@@ -138,7 +138,7 @@ public class AuthService {
 
         UserMst user = userRepository.findById(entry.userId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.AUTH_USER_NOT_FOUND));
-        return issueTokens(user);
+        return issueTokens(user).withLinkedProvider(entry.linkedProvider());
     }
 
     private static String s256(String verifier) {

@@ -13,6 +13,8 @@ import io.bitpet.record.dto.WeightCreateRequest;
 import io.bitpet.record.memo.dto.MemoCreateRequest;
 import io.bitpet.record.memo.service.MemoService;
 import io.bitpet.record.service.RecordService;
+import io.bitpet.record.timeline.dto.RecordTimelineItem;
+import io.bitpet.record.timeline.service.TimelineService;
 import io.bitpet.support.IntegrationTestBase;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,6 +43,7 @@ class RecordsByDateBoundaryIntegrationTest extends IntegrationTestBase {
     @Autowired private PetService petService;
     @Autowired private RecordService recordService;
     @Autowired private MemoService memoService;
+    @Autowired private TimelineService timelineService;
 
     private static final LocalDate NOV1 = LocalDate.of(2026, 11, 1);
     private static final LocalDate NOV2 = LocalDate.of(2026, 11, 2);
@@ -80,6 +83,23 @@ class RecordsByDateBoundaryIntegrationTest extends IntegrationTestBase {
                 .singleElement().satisfies(r -> assertThat(r.tags()).containsExactly("SHED"));
         assertThat(day).filteredOn(r -> "그냥 메모".equals(r.memo()))
                 .singleElement().satisfies(r -> assertThat(r.tags()).isEmpty());
+    }
+
+    @Test
+    void 개체_상세_캘린더_타임라인에도_메모_분류가_실린다() {
+        Long user = signup();
+        Long pet = createPet(user);
+        memoService.createMemo(pet, user,
+                new MemoCreateRequest("허물 벗음", MIDNIGHT.plusHours(10), List.of("SHED"), null));
+        memoService.createMemo(pet, user,
+                new MemoCreateRequest("그냥 메모", MIDNIGHT.plusHours(11), null, null));
+
+        List<RecordTimelineItem> items = timelineService
+                .getTimeline(pet, user, NOV2, null, null, null, 50).items();
+        assertThat(items).filteredOn(i -> "허물 벗음".equals(i.summary()))
+                .singleElement().satisfies(i -> assertThat(i.tags()).containsExactly("SHED"));
+        assertThat(items).filteredOn(i -> "그냥 메모".equals(i.summary()))
+                .singleElement().satisfies(i -> assertThat(i.tags()).isNullOrEmpty());
     }
 
     // -------------------------------------------------------------------------

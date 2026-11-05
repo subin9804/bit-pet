@@ -460,12 +460,16 @@ class TimelineItem {
   final String? routineTitle; // 루틴 완료로 생성된 기록이면 해당 루틴 제목
   final DateTime recordedAt;
 
+  /// 메모 분류 코드(VET/SHED/POOP/…). 메모가 아니거나 분류가 없으면 빈 목록.
+  final List<String> tags;
+
   const TimelineItem({
     required this.id,
     required this.category,
     required this.summary,
     this.routineTitle,
     required this.recordedAt,
+    this.tags = const [],
   });
 
   factory TimelineItem.fromJson(Map<String, dynamic> json) => TimelineItem(
@@ -475,6 +479,7 @@ class TimelineItem {
         routineTitle: json['routineTitle'] as String?,
         recordedAt: DateTime.parse(
             (json['loggedAt'] ?? json['recordedAt']) as String),
+        tags: (json['tags'] as List?)?.cast<String>() ?? const [],
       );
 
   /// 기록 표시 텍스트.

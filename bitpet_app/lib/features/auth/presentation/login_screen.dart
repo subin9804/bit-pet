@@ -150,8 +150,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     if (_socialBusy) return;
     const providers = {'카카오': 'kakao', '네이버': 'naver', 'Google': 'google'};
     setState(() => _socialBusy = true);
+    // 로그인되면 라우터가 이 화면을 치운다 — 앱 전체 메신저를 미리 잡아 둬야
+    // 홈으로 넘어간 뒤에도 연결 안내를 띄울 수 있다
+    final messenger = ScaffoldMessenger.of(context);
     try {
-      await ref.read(authStateProvider.notifier).socialLogin(providers[label]!);
+      final linked =
+          await ref.read(authStateProvider.notifier).socialLogin(providers[label]!);
+      if (linked != null) {
+        // 이메일로 가입했던 계정에 소셜이 붙었다 — 말없이 붙이면 '새 계정이 생겼나?' 싶다
+        ToastMessage.showOn(messenger, '기존 계정에 $label 로그인이 연결됐어요',
+            type: ToastType.success);
+      }
       if (!mounted) return;
       // 교환 이후 실패는 상태에 남는다 (브라우저 단계 실패는 아래 catch)
       if (ref.read(authStateProvider).hasError) _socialFailed(label);

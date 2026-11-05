@@ -998,6 +998,9 @@ OAuth 토큰 AES-256-GCM 암호화 (`BITPET_TOKEN_ENC_KEY` 환경변수).
 - **제공자가 확인한 이메일만 기존 계정에 자동 연결한다** (`OAuth2UserInfo.emailVerified` — 카카오
   `is_email_verified && is_email_valid`, Google `email_verified`, 네이버는 본인확인 주소라 true).
   확인 안 된 주소는 합성 이메일로 새 계정 — 안 그러면 남의 이메일로 그 사람 계정에 들어간다
+- **기존 계정에 처음 붙은 순간만** 알린다 (2026-11-05): `OAuth2UserPrincipal.linkedProvider` → 교환 코드 값
+  `userId:challenge:KAKAO` → `/auth/oauth/exchange` 응답 `linkedProvider` → 앱 토스트 "기존 계정에 카카오 로그인이 연결됐어요".
+  로그인 화면은 곧 사라지므로 `ToastMessage.showOn` 에 **미리 잡아 둔 메신저**로 띄운다
 - **이메일은 대소문자를 가리지 않는다** (2026-11-03, `EmailPolicy`). 저장은 trim + 소문자, 조회는
   `findByEmailLoose`(정확 일치 우선 → IgnoreCase 중 가장 오래된 계정), 가입 중복은 `existsByEmailIgnoreCase`.
   전엔 `Su@Gmail.com` 가입자가 구글 로그인(`su@gmail.com`)하면 새 계정이 생겼다.
