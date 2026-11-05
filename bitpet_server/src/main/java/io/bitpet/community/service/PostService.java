@@ -186,10 +186,17 @@ public class PostService {
         Set<Long> liked = likedPostIds(userId,
                 posts.stream().map(PostMst::getId).collect(Collectors.toSet()));
 
+        // 썸네일은 게시글별 첫 사진. 게시글마다 조회하면 N+1 이라 한 번에 읽어 첫 장만 남긴다.
+        Map<Long, PostPhotoDtl> firstPhotos = posts.isEmpty() ? Map.of()
+                : photoRepository.findAllByPostIdInOrderByPostIdAscDisplayOrderAsc(
+                                posts.stream().map(PostMst::getId).toList())
+                        .stream()
+                        .collect(Collectors.toMap(PostPhotoDtl::getPostId, ph -> ph, (a, b) -> a));
+
         List<PostSummaryResponse> content = posts.stream().map(p -> {
-            List<PostPhotoDtl> photos = photoRepository.findAllByPostIdOrderByDisplayOrderAsc(p.getId());
-            String thumbnail = photos.isEmpty() ? null
-                    : s3Service.presignGet(photos.get(0).getS3Key()).url().toString();
+            PostPhotoDtl first = firstPhotos.get(p.getId());
+            String thumbnail = first == null ? null
+                    : s3Service.presignGet(first.getS3Key()).url().toString();
             UserMst author = authors.get(p.getUserId());
             return PostSummaryResponse.of(p, thumbnail,
                     nameOf(author), imageOf(author), liked.contains(p.getId()));
