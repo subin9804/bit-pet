@@ -153,6 +153,20 @@
     h2 { font-size:clamp(26px,3.6vw,38px); line-height:1.3; letter-spacing:-.03em; margin:8px 0 12px; font-weight:800; }
     .sec-head p { color:var(--ink2); margin:0; }
 
+    /* ── 만든 이야기 — 읽는 글이라 폭을 좁히고 행간을 넓힌다 ── */
+    .story-card { max-width:760px; margin:0 auto; background:var(--bg); border-radius:32px;
+                  box-shadow:var(--shadow1); padding:56px 64px; }
+    .story-card .sec-head { margin-bottom:36px; }
+    .story-body p { font-size:17px; line-height:1.85; color:var(--ink2); margin:0 0 20px; }
+    .story-body strong { color:var(--ink); font-weight:700; }
+    .story-body .intro { font-size:19px; color:var(--ink); font-weight:600; }
+    .story-body .story-quote { margin:32px 0; padding:22px 24px; border-radius:var(--r-lg); background:var(--brand50);
+                   border-left:4px solid var(--brand700); font-size:19px; line-height:1.6; font-weight:700;
+                   color:var(--brand900); letter-spacing:-.02em; }
+    .story-body h3 { font-size:22px; letter-spacing:-.03em; margin:48px 0 20px; padding-top:40px;
+                     border-top:1px solid var(--line); color:var(--ink); }
+    .story-body .story-sign { margin:36px 0 0; text-align:right; font-size:15px; color:var(--ink3); font-weight:600; }
+
     /* ── 주요 기능 3장 ───────────────────────── */
     .features { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
     .feature { background:var(--bg); border-radius:var(--r-xl); padding:28px 24px 24px; box-shadow:var(--shadow1);
@@ -222,6 +236,9 @@
       .phone { width:272px; }
       .screen { min-height:520px; }
       .toast { display:none; }
+      .story-card { padding:36px 20px; border-radius:24px; }
+      .story-body p { font-size:16px; }
+      .story-body .intro, .story-body .story-quote { font-size:17px; }
       .store { width:100%; max-width:280px; }
       .stores { align-items:center; width:100%; }
       .nav .btn { padding:0 14px; font-size:14px; }
@@ -327,6 +344,35 @@
       </div>
     </div>
   </div>
+
+  <!-- ── 만든 이야기 (2026-11-05, 문구는 사용자와 함께 다듬음) ── -->
+  <section id="story">
+    <div class="wrap">
+      <article class="story-card">
+        <div class="sec-head">
+          <div class="kicker">OUR STORY</div>
+          <h2>하루를 건너뛴 날,<br>테일로그가 시작됐어요</h2>
+        </div>
+        <div class="story-body">
+          <p class="intro">도마뱀 15마리, 뱀 4마리, 피그미다람쥐 2마리와 함께 살고 있어요.</p>
+          <p>한 마리일 땐 손이 많이 가지 않는다고 생각했어요. 그런데 식구가 늘수록 챙길 일도 늘어나더라고요. 밥은 매일 주는 게 아니라서 아이마다 컨디션과 주기를 기억해야 하고, 크는 단계마다 먹이량도 달라져요. 청소는 조금만 미뤄도 금방 티가 나고요.</p>
+          <p>기록도 마음에 걸렸어요. 남겨 두지 않으면 '언제 이렇게 컸지?' 싶고, 어디가 아파 보이면 '언제부터 이랬을까?' 하고 거슬러 올라갈 방법이 없었어요. 간식을 준 날, 탈피한 날, 배변 상태처럼 사소하지만 중요한 일들은 적어 둘 곳조차 애매했고요.</p>
+          <p>그러다 가끔 한 아이를 깜빡하고 하루를 건너뛰는 날이 생겼어요. 그게 너무너무 미안했어요.</p>
+          <p class="story-quote">때가 되면 알려 주는 무언가가 있다면<br>잊지 않고 챙겨 줄 수 있겠다.</p>
+          <p>테일로그는 거기서 출발했어요.</p>
+
+          <h3>테일로그가 바라는 것</h3>
+          <p><strong>한 사람에게는</strong>, 매일의 돌봄을 잊지 않게 곁에서 알려 주는 앱이고 싶어요.</p>
+          <p><strong>테일로그의 모든 사용자들에게는</strong>, 더 정확한 케어시트를 함께 만들어 가는 곳이고 싶어요. 몇 개월 차에 밀웜이나 귀뚜라미를 몇 마리 줘야 하는지, 그때 몸무게는 얼마쯤이 적당한지, 아직도 이런 정보가 제대로 공유되지 않아요. 기록이 모이면 처음 키우는 분들에게 훨씬 믿을 만한 기준이 될 수 있다고 생각해요.</p>
+          <p>그리고 <strong>이 아이들이 정말 소중한 반려동물로 대해졌으면 좋겠어요.</strong></p>
+          <p>파충류는 생명력이 강하고 손이 덜 가는 편이라 쉽게 여겨지곤 해요. 하지만 작아서 잃어버리면 다시 찾기 어렵고, 애초에 바깥에서는 살아갈 수 없는 아이들이에요.</p>
+          <p>그런데도 준비 없이 번식이 이뤄지고, 생명이 쉽게 주고받아지는 모습을 자주 마주해요. 이게 정말 이 문화가 커 가는 방향이 맞을까 생각하게 돼요. 한 생명을 들이는 일, 새 생명을 태어나게 하는 일 모두 조금 더 무겁게 여겨졌으면 해요.</p>
+          <p>테일로그를 통해 한 마리 한 마리의 소중함을 계속 떠올리고, 사육 문화가 조금씩 나아지는 데 보탬이 되고 싶어요.</p>
+          <p class="story-sign">— 테일로그를 만든 사육자</p>
+        </div>
+      </article>
+    </div>
+  </section>
 
   <!-- ── 주요 기능 ── -->
   <section class="white" id="features">
