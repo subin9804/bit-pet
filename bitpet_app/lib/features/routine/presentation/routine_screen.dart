@@ -344,6 +344,11 @@ class _RoutineCard extends ConsumerWidget {
                               ),
                             ),
                           ),
+                          // 몇 마리에 걸린 루틴인지 — 예전엔 '개체' 시트를 열어야만
+                          // 알 수 있었다 (2026-11-05 사용자 요청). 0마리면 알림이
+                          // 아무에게도 안 가는 루틴이라 눈에 띄게 둔다.
+                          const SizedBox(width: 8),
+                          _PetCountTag(count: r.petIds.length, on: routineOn),
                         ],
                       ),
                       // 미뤄둔 루틴이라는 걸 알려주고, 그 자리에서 되돌릴 수 있게 한다.
@@ -436,6 +441,31 @@ class _RoutineCard extends ConsumerWidget {
       context: context,
       builder: (_) => _CalendarSheet(routine: routine),
     );
+  }
+}
+
+// ── 대상 마릿수 ─────────────────────────────────────────────────
+
+class _PetCountTag extends StatelessWidget {
+  final int count;
+  final bool on;
+  const _PetCountTag({required this.count, required this.on});
+
+  @override
+  Widget build(BuildContext context) {
+    final empty = count == 0;
+    final c = !on
+        ? AppColors.textDisabled
+        : empty
+            ? AppColors.warning
+            : AppColors.textSecondary;
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(Icons.pets, size: 14, color: c),
+      const SizedBox(width: 3),
+      Text(empty ? '개체 없음' : '$count마리',
+          style: TextStyle(
+              fontSize: 12, fontWeight: FontWeight.w700, color: c)),
+    ]);
   }
 }
 
