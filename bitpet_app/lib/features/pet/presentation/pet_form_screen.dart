@@ -7,6 +7,7 @@ import '../../../core/constants/feature_flags.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/api/api_response.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/upload/image_crop_screen.dart';
 import '../../../core/upload/image_source_sheet.dart';
 import '../../../core/upload/image_upload.dart';
 import '../../../core/widgets/app_sheet.dart';
@@ -444,7 +445,10 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
   }
 
   Future<void> _pickProfileImage() async {
-    final picked = await pickImageWithSource(context, ref);
+    final raw = await pickImageWithSource(context, ref);
+    if (raw == null || !mounted) return;
+    // 프로필 자리에 맞게 정사각형으로 자른다. 자르기에서 취소하면 고른 것도 없던 일이다.
+    final picked = await cropProfileImage(context, raw);
     if (picked != null && mounted) {
       // 새로 골랐으면 '내리기'는 없던 일이 된다
       setState(() {

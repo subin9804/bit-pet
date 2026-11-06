@@ -23,6 +23,11 @@ dependencies:
   # 이미지 선택 (갤러리) — 프로필·갤러리·커뮤니티 사진 업로드
   image_picker: ^1.1.2
 
+  # 개체 프로필 사진 정사각형 자르기 (core/upload/image_crop_screen.dart).
+  # 네이티브 크로퍼(image_cropper) 대신 순수 Flutter 위젯을 쓴다 — 화면을 앱 디자인대로
+  # 그릴 수 있고 AndroidManifest 등 네이티브 설정이 필요 없다.
+  crop_your_image: ^2.0.1
+
   # 썸네일 생성 — 업로드할 때 짧은 변 512px 기준 JPEG 축소본을 만들어 원본과 같이 올린다.
   # 서버가 만들 수 없어서 앱이 만든다: 업로드가 presign → 앱이 S3 로 직접 PUT → register
   # 3단계라 **이미지 바이트가 서버를 지나가지 않는다** (서버는 s3Key 문자열만 받는다).
