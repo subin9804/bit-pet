@@ -3,6 +3,7 @@ package io.bitpet.auth.controller;
 import io.bitpet.auth.domain.AgreementType;
 import io.bitpet.auth.dto.AgreementAcceptRequest;
 import io.bitpet.auth.dto.AgreementStatusResponse;
+import io.bitpet.auth.dto.AppleLoginRequest;
 import io.bitpet.auth.dto.EmailCheckResponse;
 import io.bitpet.auth.dto.LoginRequest;
 import io.bitpet.auth.dto.NicknameCheckResponse;
@@ -74,6 +75,12 @@ public class AuthController {
     @PostMapping("/oauth/exchange")
     public ApiResponse<TokenResponse> exchangeOAuthCode(@Valid @RequestBody OAuthExchangeRequest request) {
         return ApiResponse.ok(authService.exchangeOAuthCode(request.code(), request.verifier()));
+    }
+
+    @Operation(summary = "Apple 로그인 (iOS 네이티브) — 신원 토큰 + nonce → access + refresh 발급")
+    @PostMapping("/oauth/apple")
+    public ApiResponse<TokenResponse> loginWithApple(@Valid @RequestBody AppleLoginRequest request) {
+        return ApiResponse.ok(authService.loginWithApple(request));
     }
 
     @Operation(summary = "Refresh 토큰으로 access 재발급 (rotation)")

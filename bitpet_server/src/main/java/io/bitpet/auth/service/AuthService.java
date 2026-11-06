@@ -1,7 +1,13 @@
 package io.bitpet.auth.service;
 
+import io.bitpet.auth.apple.AppleIdTokenVerifier;
+import io.bitpet.auth.apple.AppleTokenClient;
+import io.bitpet.auth.apple.AppleUserInfo;
 import io.bitpet.auth.domain.AgreementSource;
 import io.bitpet.auth.domain.AgreementType;
+import io.bitpet.auth.domain.OAuthProvider;
+import io.bitpet.auth.domain.UserOAuthRls;
+import io.bitpet.auth.dto.AppleLoginRequest;
 import io.bitpet.auth.domain.UserMst;
 import io.bitpet.auth.dto.EmailCheckResponse;
 import io.bitpet.auth.dto.LoginRequest;
@@ -13,6 +19,7 @@ import io.bitpet.auth.dto.UserResponse;
 import io.bitpet.auth.dto.WithdrawPreviewResponse;
 import io.bitpet.auth.jwt.JwtTokenProvider;
 import io.bitpet.auth.jwt.RefreshTokenStore;
+import io.bitpet.auth.oauth.OAuthAccountService;
 import io.bitpet.auth.oauth.OAuthLoginCodeStore;
 import io.bitpet.auth.repository.UserOAuthRlsRepository;
 import io.bitpet.auth.repository.UserMstRepository;
@@ -28,6 +35,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -54,6 +63,10 @@ public class AuthService {
     private final OAuthLoginCodeStore oAuthLoginCodeStore;
     private final UserOAuthRlsRepository userOAuthRlsRepository;
     private final DeviceTokenRlsRepository deviceTokenRepository;
+    private final OAuthAccountService oAuthAccountService;
+    private final AppleIdTokenVerifier appleIdTokenVerifier;
+    private final AppleTokenClient appleTokenClient;
+    private final TokenEncryptor tokenEncryptor;
 
     public EmailCheckResponse checkEmail(String email) {
         return new EmailCheckResponse(!userRepository.existsByEmailIgnoreCase(email));
@@ -139,6 +152,33 @@ public class AuthService {
         UserMst user = userRepository.findById(entry.userId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.AUTH_USER_NOT_FOUND));
         return issueTokens(user).withLinkedProvider(entry.linkedProvider());
+    }
+
+    /**
+     * 앱 네이티브 Apple 로그인. 브라우저 왕복이 없어 교환 코드 단계도 없다 —
+     * Apple 이 서명한 신원 토큰 자체가 증명이고, 재전송은 nonce 로 막는다.
+     */
+    @Transactional
+    public TokenResponse loginWithApple(AppleLoginRequest request) {
+        var jwt = appleIdTokenVerifier.verify(request.identityToken(), request.nonce());
+        AppleUserInfo info = new AppleUserInfo(jwt.getClaims(),
+                joinName(request.familyName(), request.givenName()));
+        if (info.providerUserId() == null) {
+            throw new BusinessException(ErrorCode.AUTH_OAUTH_USER_INFO_MISSING);
+        }
+        // 탈퇴 때 Apple 연결을 끊으려면 refresh 토큰이 있어야 한다. 받을 수 있는 건 지금뿐이다
+        // (authorization code 는 5분짜리 1회용). 실패해도 로그인은 계속한다.
+        String refresh = appleTokenClient.exchangeForRefreshToken(request.authorizationCode());
+        OAuthAccountService.Resolved resolved = oAuthAccountService.resolve(info, null,
+                refresh == null ? null : tokenEncryptor.encrypt(refresh));
+        return issueTokens(resolved.user())
+                .withLinkedProvider(resolved.linkedExisting() ? OAuthProvider.APPLE.name() : null);
+    }
+
+    /** 한국식으로 성+이름을 붙인다 ('김' + '수빈'). 영문 이름도 공백 없이 붙지만 닉네임 규칙상 어차피 공백은 빠진다 */
+    private static String joinName(String family, String given) {
+        String joined = (family == null ? "" : family.trim()) + (given == null ? "" : given.trim());
+        return joined.isEmpty() ? null : joined;
     }
 
     private static String s256(String verifier) {
@@ -307,16 +347,39 @@ public class AuthService {
         //    (PetRelationRlsRepository)가 영속성 컨텍스트를 비워 user 가 준영속이 된다 —
         //    거기에 softDelete 를 걸면 아무것도 저장되지 않는다. 실제로 탈퇴가 기록되지 않아
         //    탈퇴한 계정으로 다시 로그인되던 원인이다.
+        // 소셜 연결을 남겨두면 같은 카카오·구글 계정으로 다시 들어왔을 때 탈퇴한 계정에
+        // 붙는다. 끊어두면 다음 로그인은 새 가입이 된다.
+        // ⚠️ 반드시 softDelete <b>전에</b> 조회할 것. 이 조회는 user_mst 를 조인하는데 그 전에
+        //    자동 flush 가 돌아 탈퇴가 먼저 반영되면 @SQLRestriction 때문에 결과가 비어
+        //    아무것도 안 지워진다 (실제로 그랬다 — 2026-11-06 발견).
+        List<UserOAuthRls> links = userOAuthRlsRepository.findAllByUserId(userId);
+        revokeAppleAfterCommit(links);
+        userOAuthRlsRepository.deleteAll(links);
         user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AUTH_USER_NOT_FOUND));
         user.softDelete();
-        // 소셜 연결을 남겨두면 같은 카카오·구글 계정으로 다시 들어왔을 때 탈퇴한 계정에
-        // 붙는다. 끊어두면 다음 로그인은 새 가입이 된다.
-        userOAuthRlsRepository.deleteAll(userOAuthRlsRepository.findAllByUserId(userId));
         // 푸시 토큰도 개인정보다(처리방침 1조). 남겨두면 탈퇴한 기기로 알림이 계속 나갈 수도 있다.
         deviceTokenRepository.deleteAll(deviceTokenRepository.findByUserId(userId));
         refreshTokenStore.delete(userId);
         log.info("User withdrew: id={}, deletedAt={}, pets={}", userId, user.getDeletedAt(), petResult);
+    }
+
+    /**
+     * Apple 연결 해제(심사 5.1.1(v)). 외부 호출이라 <b>커밋된 뒤에</b> 한다 — 안에서 부르면
+     * 이후 롤백돼도 Apple 쪽은 이미 끊겨 있고, Apple 장애가 탈퇴를 막게 된다.
+     */
+    private void revokeAppleAfterCommit(List<UserOAuthRls> links) {
+        List<String> tokens = links.stream()
+                .filter(l -> l.getProvider() == OAuthProvider.APPLE && l.getRefreshToken() != null)
+                .map(l -> tokenEncryptor.decrypt(l.getRefreshToken()))
+                .toList();
+        if (tokens.isEmpty()) return;
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                tokens.forEach(appleTokenClient::revokeQuietly);
+            }
+        });
     }
 
     private TokenResponse issueTokens(UserMst user) {

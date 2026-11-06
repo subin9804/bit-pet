@@ -23,6 +23,9 @@ public final class OAuth2UserInfoFactory {
             case GOOGLE -> new GoogleOAuth2UserInfo(attributes);
             case KAKAO  -> new KakaoOAuth2UserInfo(attributes);
             case NAVER  -> new NaverOAuth2UserInfo(attributes);
+            // Apple 은 oauth2Login 으로 들어오지 않는다 (AppleLoginService)
+            case APPLE  -> throw new BusinessException(ErrorCode.AUTH_OAUTH_PROVIDER_NOT_SUPPORTED,
+                    "Apple uses native sign-in");
         };
     }
 }
