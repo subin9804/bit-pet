@@ -95,6 +95,15 @@ public class UserMst extends BaseTimeEntity {
     @Column(name = "guardian_user_id")
     private Long guardianUserId;
 
+    /**
+     * 보호자 연결 해제 시각 (V23). 만 14세가 되면 배치가 찍는다.
+     *
+     * <p>{@code guardianUserId} 는 지우지 않는다 — 동의 기록의 근거라서. 대신 이 값이 있으면
+     * 더 이상 그 보호자의 자녀로 취급하지 않는다 ({@link #isUnderGuardian()}).
+     */
+    @Column(name = "guardian_released_at")
+    private Instant guardianReleasedAt;
+
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
@@ -212,9 +221,24 @@ public class UserMst extends BaseTimeEntity {
         return Period.between(birthDate, baseDate).getYears() < GUARDIAN_CONSENT_AGE;
     }
 
-    /** 이 계정이 특정 사용자의 자녀인가 */
+    /**
+     * 지금 보호자 아래에 있는 자녀 계정인가.
+     *
+     * <p>나이도 같이 본다 — 생일이 지났는데 배치가 아직 안 돌았어도 그날부터 보호자 권한이 없어야 한다.
+     * 해제 시각은 알림을 한 번만 보내기 위한 표시에 가깝다.
+     */
+    public boolean isUnderGuardian() {
+        return guardianUserId != null && guardianReleasedAt == null && isChild();
+    }
+
+    /** 이 계정이 특정 사용자의 (아직 보호 중인) 자녀인가 */
     public boolean isChildOf(Long guardianUserId) {
-        return this.guardianUserId != null && this.guardianUserId.equals(guardianUserId);
+        return isUnderGuardian() && this.guardianUserId.equals(guardianUserId);
+    }
+
+    /** 만 14세 도달 — 보호자 연결 해제. guardianUserId 는 동의 근거라 남긴다 */
+    public void releaseGuardian() {
+        if (guardianReleasedAt == null) this.guardianReleasedAt = Instant.now();
     }
 
     /**

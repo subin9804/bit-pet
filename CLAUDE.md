@@ -229,8 +229,9 @@ PostgreSQL이 재정규화하는데 의미는 같다.)
   V19(`routine_mst.cycle_mode`·`cycle_days_of_week`·`cycle_days_of_month` — 루틴 반복 방식.
   요일·날짜 지정이 `cycle_days` 하나로 뭉개지던 버그 수정, 기존 행은 전부 INTERVAL).
   V20(`pet_keeper_rls.sort_order` — 사람별 개체 순서), V21(탈퇴 계정 개인정보 정리),
-  V22(`user_oauth_rls` provider CHECK 에 `APPLE` 추가).
-  **다음은 V23.**
+  V22(`user_oauth_rls` provider CHECK 에 `APPLE` 추가),
+  V23(`user_mst.guardian_released_at` — 만 14세 보호자 연결 해제 시각. `guardian_user_id` 는 남긴다).
+  **다음은 V24.**
 - 코드성 시드(`memo_tag_cd`, `post_category_cd`, `serial_pool_stat_mst`)는 베이스라인 하단에 들어 있다.
   종·모프 마스터는 그대로 `R__01`/`R__02` 담당.
 - ⚠️ **`R__02` 는 파일에 없는 공식 모프를 매 실행마다 지운다** (개체가 물고 있으면 FK RESTRICT 라
@@ -851,7 +852,15 @@ SUPER_ADMIN 이라고 남의 개체 기록을 고칠 수 없다.
   DB 의 RESTRICT 가 안 걸려서, 막지 않으면 '법정대리인 없는 아동 계정'이 남는다.
   ⛔ **자녀를 같이 지우는 쪽으로 바꾸지 말 것** — 아이 계정과 기록이 부모의 버튼 하나로 사라지고 아이는 관여하지 못한다
 - ⛔ **'자녀 계정으로 로그인' 같은 대리 진입을 만들지 말 것.** 아이 계정으로 쓴 글의 작성자가 누구인지 답할 수 없게 된다.
-  보호자 감독은 별도 '자녀 활동 보기'로 한다
+  '자녀 활동 보기'는 보류했다 (2026-11-06). 만들게 되면 **아이 본인 글 본문만**, 댓글은 빼야 한다
+  (다른 아이들 댓글이 어른에게 보이게 된다)
+- **만 14세가 되면 보호자 연결이 해제된다 (V23 `guardian_released_at`, 2026-11-06).**
+  `UserMst.isUnderGuardian()` 이 나이를 매번 계산하므로 생일 당일부터 보호자 권한(목록·삭제·탈퇴 차단)이 사라진다.
+  `GuardianReleaseScheduler`(매일 Seoul 09:00)는 해제 시각을 찍고 **보호자에게 알림을 한 번** 보낸다
+  - ⛔ `guardian_user_id` 를 NULL 로 지우지 말 것 — 법정대리인 동의 기록의 근거다. 해제 여부는 `guardian_released_at` 으로만 본다
+  - 자녀 목록·자녀 수 제한·보호자 탈퇴 차단은 모두 `findChildrenUnderGuardian` 하나를 쓴다. 기준이 갈라지면
+    "목록엔 없는데 탈퇴는 막힌다"가 된다
+  - 알림은 해제 트랜잭션 **커밋 뒤에** 보낸다 (롤백돼도 알림이 나가 다음 날 중복되는 걸 막는다)
 - `MAX_CHILDREN = 5`. 자녀 계정은 이메일 인증 없이 발급되므로 무제한이면 계정 발급 통로가 된다
 - 남의 자녀 조회는 403 이 아니라 **404**(`CHILD_NOT_FOUND`) — 403 이면 "그 id 가 누군가의 자녀"라는 사실이 샌다
 - 자녀 삭제는 `AuthService.withdraw` 를 그대로 탄다 (개체·기록·사진 정리가 전부 거기 있다)

@@ -2,7 +2,10 @@ package io.bitpet.auth.repository;
 
 import io.bitpet.auth.domain.UserMst;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -37,14 +40,31 @@ public interface UserMstRepository extends JpaRepository<UserMst, Long> {
      */
     boolean existsByNameIgnoreCaseAndIdNot(String name, Long id);
 
-    /** 보호자의 자녀 계정 목록 (V12). 만든 순서대로 — 보호자 화면에서 순서가 흔들리면 안 된다. */
-    List<UserMst> findByGuardianUserIdOrderByIdAsc(Long guardianUserId);
+    /** 해제 전 자녀 계정 후보 (V23). 나이 판정 전이라 바로 쓰지 말고 {@link #findChildrenUnderGuardian} 을 쓴다 */
+    List<UserMst> findByGuardianUserIdAndGuardianReleasedAtIsNullOrderByIdAsc(Long guardianUserId);
 
     /**
-     * 자녀가 남아 있는지 (V12). 탈퇴를 막는 근거다 —
-     * DB 의 {@code ON DELETE RESTRICT} 는 마지막 방어선이고, 사용자에게는 여기서 이유를 설명해야 한다.
+     * 보호자 아래에 있는 자녀 계정 (V12·V23). 만든 순서대로 — 보호자 화면에서 순서가 흔들리면 안 된다.
+     *
+     * <p>만 14세가 지난 계정은 해제 배치가 아직 안 돌았어도 뺀다 ({@link UserMst#isUnderGuardian()}).
+     * 자녀 목록·자녀 수 제한·보호자 탈퇴 차단이 모두 이걸 쓴다 — 셋이 다른 기준을 쓰면
+     * "목록엔 없는데 탈퇴는 막힌다" 가 된다.
      */
-    boolean existsByGuardianUserId(Long guardianUserId);
+    default List<UserMst> findChildrenUnderGuardian(Long guardianUserId) {
+        return findByGuardianUserIdAndGuardianReleasedAtIsNullOrderByIdAsc(guardianUserId).stream()
+                .filter(UserMst::isUnderGuardian)
+                .toList();
+    }
+
+    /** 해제 배치 대상 — 보호자가 있고, 아직 해제 전이며, 생일 기준 만 14세가 지난 계정 */
+    @Query("""
+            select u from UserMst u
+            where u.guardianUserId is not null
+              and u.guardianReleasedAt is null
+              and u.birthDate <= :cutoff
+            """)
+    List<UserMst> findGuardianReleaseDue(
+            @Param("cutoff") LocalDate cutoff);
 
     Optional<UserMst> findByShareCode(String shareCode);
 

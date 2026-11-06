@@ -64,7 +64,7 @@ public class GuardianService {
             throw new BusinessException(ErrorCode.GUARDIAN_CHILD_AGE_INVALID);
         }
 
-        if (userRepository.findByGuardianUserIdOrderByIdAsc(guardianUserId).size() >= MAX_CHILDREN) {
+        if (userRepository.findChildrenUnderGuardian(guardianUserId).size() >= MAX_CHILDREN) {
             throw new BusinessException(ErrorCode.GUARDIAN_CHILD_LIMIT,
                     "자녀 계정은 최대 " + MAX_CHILDREN + "개까지 만들 수 있어요.");
         }
@@ -101,7 +101,7 @@ public class GuardianService {
 
     @Transactional(readOnly = true)
     public List<ChildResponse> listChildren(Long guardianUserId) {
-        return userRepository.findByGuardianUserIdOrderByIdAsc(guardianUserId).stream()
+        return userRepository.findChildrenUnderGuardian(guardianUserId).stream()
                 .map(ChildResponse::from)
                 .toList();
     }
@@ -134,6 +134,29 @@ public class GuardianService {
         UserMst child = getMyChild(guardianUserId, childId);
         authService.withdraw(child.getId(), true);
         log.info("child account deleted: childId={}, guardianId={}", childId, guardianUserId);
+    }
+
+    /** 보호자 연결이 해제된 자녀 한 명 — 해제 배치가 보호자에게 알림을 보내는 데 쓴다 */
+    public record ReleasedChild(Long childId, Long guardianUserId, String nickname) {}
+
+    /**
+     * 만 14세가 된 자녀 계정의 보호자 연결 해제 (V23). 매일 배치가 부른다.
+     *
+     * <p>해제 시각만 찍고 {@code guardianUserId} 는 남긴다 — 동의 기록의 근거다.
+     * 알림은 이 트랜잭션이 커밋된 <b>뒤에</b> 호출부가 보낸다: 여기서 보내면 롤백돼도 알림은 나가서
+     * 다음 날 같은 알림이 또 간다.
+     */
+    @Transactional
+    public List<ReleasedChild> releaseChildrenTurned14(LocalDate today) {
+        LocalDate cutoff = today.minusYears(UserMst.GUARDIAN_CONSENT_AGE);
+        return userRepository.findGuardianReleaseDue(cutoff).stream()
+                .map(child -> {
+                    child.releaseGuardian();
+                    log.info("guardian released: childId={}, guardianId={}",
+                            child.getId(), child.getGuardianUserId());
+                    return new ReleasedChild(child.getId(), child.getGuardianUserId(), child.getName());
+                })
+                .toList();
     }
 
     private static boolean isUnderConsentAge(LocalDate birthDate) {

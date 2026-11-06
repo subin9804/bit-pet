@@ -346,7 +346,7 @@ public class AuthService {
         // 사라지고 '법정대리인 없는 아동 계정'이 남는다.
         // ⛔ 자녀를 같이 지우는 쪽으로 바꾸지 말 것. 아이 계정과 기록이 부모의 탈퇴 버튼
         //    하나로 사라지는 건 되돌릴 수 없고, 아이는 그 결정에 관여하지 못한다.
-        if (userRepository.existsByGuardianUserId(userId)) {
+        if (!userRepository.findChildrenUnderGuardian(userId).isEmpty()) {
             throw new BusinessException(ErrorCode.GUARDIAN_HAS_CHILDREN);
         }
 
