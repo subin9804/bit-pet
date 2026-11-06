@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_response.dart';
 import '../../../core/auth/token_storage.dart';
@@ -97,6 +98,63 @@ class AuthRepository {
       {void Function(String provider)? onLinked}) async {
     final res = await _dio.post('/auth/oauth/exchange',
         data: {'code': grant.code, 'verifier': grant.verifier});
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => d as Map<String, dynamic>,
+    );
+    if (!apiRes.success || apiRes.data == null) {
+      throw ApiException(
+          statusCode: res.statusCode ?? 0,
+          message: apiRes.message ?? '로그인에 실패했습니다.');
+    }
+    final data = apiRes.data!;
+    await _tokenStorage.saveTokens(
+      accessToken: data['accessToken'] as String,
+      refreshToken: data['refreshToken'] as String,
+      persist: true,
+    );
+    final linked = data['linkedProvider'] as String?;
+    if (linked != null) onLinked?.call(linked);
+    return getMe();
+  }
+
+  // ── Apple 로그인 (iOS) ─────────────────────────────────────
+  // 브라우저 왕복이 아니라 OS 시트에서 끝난다. 받은 신원 토큰(JWT)을 서버가 Apple 공개키로
+  // 검증한다. nonce 는 원문을 서버에, **해시를** Apple 에 준다 — 토큰 안의 nonce 가
+  // 서버에 보낸 원문의 해시와 맞아야 하므로 남이 가로챈 토큰을 다시 쓸 수 없다.
+
+  /// Apple 시트를 띄운다. 사용자가 닫으면 null.
+  Future<AppleGrant?> authorizeApple() async {
+    final nonce = _randomUrlSafe(32);
+    final AuthorizationCredentialAppleID cred;
+    try {
+      cred = await SignInWithApple.getAppleIDCredential(
+        scopes: const [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+        nonce: sha256.convert(utf8.encode(nonce)).toString(),
+      );
+    } on SignInWithAppleAuthorizationException catch (e) {
+      if (e.code == AuthorizationErrorCode.canceled) return null;
+      throw SocialLoginException(e.code.name);
+    }
+    final token = cred.identityToken;
+    if (token == null) throw const SocialLoginException('missing_token');
+    return AppleGrant(
+      identityToken: token,
+      nonce: nonce,
+      authorizationCode: cred.authorizationCode,
+      // 이름은 **처음 동의할 때 한 번만** 온다. 다음부터는 null
+      givenName: cred.givenName,
+      familyName: cred.familyName,
+    );
+  }
+
+  /// 신원 토큰 → 우리 토큰. [onLinked] 는 [exchangeSocial] 과 같다 (값은 APPLE).
+  Future<UserProfile> exchangeApple(AppleGrant grant,
+      {void Function(String provider)? onLinked}) async {
+    final res = await _dio.post('/auth/oauth/apple', data: grant.toJson());
     final apiRes = ApiResponse.fromJson(
       res.data as Map<String, dynamic>,
       (d) => d as Map<String, dynamic>,
@@ -377,6 +435,30 @@ class SocialGrant {
   final String code;
   final String verifier;
   const SocialGrant({required this.code, required this.verifier});
+}
+
+/// Apple 시트에서 받은 것. [nonce] 는 Apple 에 해시만 보낸 원문이다.
+class AppleGrant {
+  final String identityToken;
+  final String nonce;
+  final String? authorizationCode;
+  final String? givenName;
+  final String? familyName;
+  const AppleGrant({
+    required this.identityToken,
+    required this.nonce,
+    this.authorizationCode,
+    this.givenName,
+    this.familyName,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'identityToken': identityToken,
+        'nonce': nonce,
+        'authorizationCode': authorizationCode,
+        'givenName': givenName,
+        'familyName': familyName,
+      };
 }
 
 /// 서버가 실패로 돌려보낸 경우. [reason] 은 `?error=` 값 그대로.

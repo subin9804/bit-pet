@@ -228,7 +228,9 @@ PostgreSQL이 재정규화하는데 의미는 같다.)
   소프트 삭제라 FK `ON DELETE SET NULL` 이 돌지 않아 남은 유령 링크. `status` 는 건드리지 않는다).
   V19(`routine_mst.cycle_mode`·`cycle_days_of_week`·`cycle_days_of_month` — 루틴 반복 방식.
   요일·날짜 지정이 `cycle_days` 하나로 뭉개지던 버그 수정, 기존 행은 전부 INTERVAL).
-  **다음은 V20.**
+  V20(`pet_keeper_rls.sort_order` — 사람별 개체 순서), V21(탈퇴 계정 개인정보 정리),
+  V22(`user_oauth_rls` provider CHECK 에 `APPLE` 추가).
+  **다음은 V23.**
 - 코드성 시드(`memo_tag_cd`, `post_category_cd`, `serial_pool_stat_mst`)는 베이스라인 하단에 들어 있다.
   종·모프 마스터는 그대로 `R__01`/`R__02` 담당.
 - ⚠️ **`R__02` 는 파일에 없는 공식 모프를 매 실행마다 지운다** (개체가 물고 있으면 FK RESTRICT 라
@@ -1017,6 +1019,38 @@ OAuth 토큰 AES-256-GCM 암호화 (`BITPET_TOKEN_ENC_KEY` 환경변수).
   - 약관 행 위젯은 `features/auth/presentation/widgets/terms_item.dart` 를 가입 3단계와 같이 쓴다
 - 브라우저 왕복 동안은 `authStateProvider` 를 loading 으로 두지 않는다 — 라우터가 스플래시로 보내 버린다
 
+### Apple 로그인 (iOS 전용, 2026-11-06)
+
+다른 소셜 로그인이 있으면 Apple 도 있어야 App Store 심사를 통과한다 (가이드라인 4.8).
+카카오·네이버·구글과 달리 **브라우저 왕복이 아니라 앱 네이티브**다 — `sign_in_with_apple` 가 OS 시트를 띄우고
+신원 토큰(JWT)을 받아 `POST /api/v1/auth/oauth/apple {identityToken, nonce, authorizationCode, givenName, familyName}`.
+
+- 서버 `AppleIdTokenVerifier`: Apple JWKS 로 서명 + iss + **aud = 번들 ID(`me.tailog.app`)** + nonce 검증.
+  앱은 nonce **원문**을 서버에, **SHA-256 hex** 를 Apple 에 준다 — 가로챈 토큰을 재사용 못 한다
+- 계정 찾기·만들기는 웹 소셜과 같은 `OAuthAccountService.resolve` (이메일 확인된 경우만 기존 계정 연결 등 규칙 동일).
+  Apple 은 `email_verified` 를 문자열 `"true"` 로 줄 때가 있다 — `AppleUserInfo` 가 둘 다 받는다
+- **이름은 첫 동의 때 한 번만 온다.** 앱이 그때 받은 givenName/familyName 을 보내고 서버가 '성+이름'으로 닉네임 후보를 만든다
+- **탈퇴하면 Apple 연결도 끊는다** (심사 5.1.1(v)). 로그인 때 authorization code 를 refresh 토큰으로 바꿔
+  `user_oauth_rls.refresh_token` 에 암호화 저장 → 탈퇴 **커밋 후** `/auth/revoke` (`AppleTokenClient`).
+  .p8 키가 없으면 로그인은 되고 revoke 만 건너뛴다. 설정: `BITPET_APPLE_TEAM_ID`·`BITPET_APPLE_KEY_ID` + `secrets/apple-signin-key.p8`
+- ⚠️ `withdraw` 에서 소셜 연결 조회는 **`softDelete` 보다 먼저.** 그 조회는 user_mst 를 조인해서, 뒤에 하면
+  자동 flush 로 탈퇴가 먼저 반영돼 `@SQLRestriction` 에 걸려 결과가 비고 연결이 안 지워진다 (2026-11-06 실제 버그)
+- 앱: 로그인 화면 **맨 위**에 검은 'Apple로 계속하기' (iOS 에서만). 중계 이메일(`@privaterelay.appleid.com`)과
+  `apple_…@oauth.bitpet.local` 은 `displayEmail` 이 'Apple 계정' 으로 보여 준다
+
+### iOS 출시 준비 (2026-11-06)
+
+- `ios/Runner/Runner.entitlements` — Apple 로그인 · NFC(`TAG`) · associated-domains(`applinks:tailog.me`) · aps-environment.
+  **App ID 에 같은 기능이 켜져 있어야 서명된다** (Developer > Identifiers > me.tailog.app)
+- Info.plist: `NFCReaderUsageDescription`(없으면 NFC 세션 여는 순간 크래시) · `FlutterDeepLinkingEnabled` ·
+  `UIBackgroundModes: remote-notification` · `ITSAppUsesNonExemptEncryption=false`
+- NFC 폴링은 `iso14443` 만 (`NfcReader`). 기본값(전부)은 iOS 에서 FeliCa 까지 열려다 시스템 코드 목록이 없어 실패한다
+- 유니버설 링크: `GET /.well-known/apple-app-site-association` (`AppleAppSiteAssociationController`) — appID = `팀ID.me.tailog.app`,
+  경로는 `/t/*` 만. **팀 ID 미설정이면 404** (`BITPET_APPLE_TEAM_ID` 를 assetlinks 와 같이 맞춘다)
+- 빌드: 레포 루트 `codemagic.yaml` — 맥 없이 TestFlight 업로드. 수동 실행, Firebase 파일은 Codemagic 환경변수 그룹 `firebase`
+- 푸시: Firebase 에 iOS 앱 등록 → `GoogleService-Info.plist` + `firebase_options.dart` iOS 항목 + APNs 키(.p8) 업로드가 남았다.
+  그 전까지 iOS 는 푸시 없이 뜬다 (main 이 UnsupportedError 를 잡는다)
+
 ### 약관 공개 페이지 — tailog.me/legal (2026-10-26)
 - 스토어 심사용 **앱 밖 URL**. `GET /legal`(목록) · `/legal/{tos|privacy|age|guardian|marketing}` — `common/legal/LegalPageController`, 공개 경로
 - Play 콘솔에 낼 개인정보처리방침 URL: `https://tailog.me/legal/privacy`
@@ -1087,7 +1121,7 @@ test → GHCR 이미지 빌드(**태그 = 커밋 SHA**) → SSH → `deploy/scri
 - 외부 시스템 영향(push·삭제·외부 API 호출)은 확인 후 진행
 - Flutter UI는 디자인 확정 전까지 **뼈대(Skeleton)만** 구현, 상세 UI는 별도 지시 대기
 - 새 Flyway 마이그레이션은 기존 파일 절대 수정 금지, 항상 다음 버전으로 신규 작성
-  (2026-08-19 스쿼시 이후 V2~V19 추가됨, **다음은 V20**. `V1__baseline_schema.sql` 수정 = 모든 DB 기동 불가)
+  (2026-08-19 스쿼시 이후 V2~V22 추가됨, **다음은 V23**. `V1__baseline_schema.sql` 수정 = 모든 DB 기동 불가)
 
 ---
 

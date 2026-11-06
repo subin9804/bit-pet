@@ -46,6 +46,9 @@ class NfcReader {
       await NfcManager.instance.startSession(
         // iOS에서만 보이는 시스템 시트 문구. Android는 무시한다
         alertMessage: '이름표에 휴대폰을 가까이 대주세요',
+        // 우리 칩(NTAG)은 ISO 14443-A 다. 기본값(전부)은 iOS 에서 FeliCa(18092)까지
+        // 폴링하려 하는데, 그건 Info.plist 에 시스템 코드 목록이 없으면 세션이 열리지 않는다
+        pollingOptions: {NfcPollingOption.iso14443},
         onDiscovered: (NfcTag tag) async {
           final code = _readTagCode(tag);
           if (code != null) {

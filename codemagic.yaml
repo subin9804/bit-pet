@@ -1,0 +1,65 @@
+# iOS 빌드 → TestFlight. 맥 없이 아이폰에 올리는 경로.
+#
+# 수동 실행 전용이다 (triggering 없음) — Codemagic 화면에서 'Start new build'.
+# 무료 플랜은 월 500분, 이 빌드는 한 번에 15~20분쯤 든다.
+#
+# ── 처음 한 번 Codemagic 에서 할 일 ──────────────────────────────────────────
+# 1. Teams > Integrations > App Store Connect 에 API 키 등록, 이름을 `tailog-asc` 로.
+#    (App Store Connect > 사용자 및 액세스 > 통합 > App Store Connect API, 역할 'App 관리')
+# 2. 앱 > Environment variables 에 그룹 `firebase` 를 만들고:
+#      FIREBASE_OPTIONS_DART       ← bitpet_app/lib/firebase_options.dart (필수 — 없으면 컴파일 실패)
+#      GOOGLE_SERVICE_INFO_PLIST   ← bitpet_app/ios/Runner/GoogleService-Info.plist (선택 — iOS 푸시용)
+#    GitHub Actions 시크릿과 같은 값이다. 파일 내용 그대로든 base64 든 둘 다 받는다.
+# 3. Apple Developer > Identifiers > me.tailog.app 에서 기능을 켠다:
+#    Sign in with Apple · NFC Tag Reading · Associated Domains · Push Notifications
+#    (ios/Runner/Runner.entitlements 와 짝. 하나라도 빠지면 서명 단계에서 멈춘다)
+workflows:
+  ios-testflight:
+    name: iOS → TestFlight
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    working_directory: bitpet_app
+    integrations:
+      app_store_connect: tailog-asc
+    environment:
+      flutter: 3.44.0   # app-build.yml 과 같은 버전
+      xcode: latest
+      cocoapods: default
+      groups:
+        - firebase
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: me.tailog.app
+    scripts:
+      - name: Firebase 설정 파일 복원
+        script: |
+          restore() {
+            value="$1"; dest="$2"; marker="$3"
+            if [ -z "$value" ]; then echo "$dest — 값 없음, 건너뜀"; return 1; fi
+            if printf '%s' "$value" | tr -d '[:space:]' | base64 --decode > /tmp/restore.tmp 2>/dev/null \
+               && grep -q "$marker" /tmp/restore.tmp; then
+              mv /tmp/restore.tmp "$dest"
+            else
+              printf '%s' "$value" > "$dest"
+            fi
+            grep -q "$marker" "$dest" || { echo "$dest — 내용이 이상하다 ($marker 없음)"; exit 1; }
+          }
+          restore "$FIREBASE_OPTIONS_DART" lib/firebase_options.dart DefaultFirebaseOptions || exit 1
+          # 없으면 iOS 푸시만 꺼진다 — 앱은 뜬다
+          restore "$GOOGLE_SERVICE_INFO_PLIST" ios/Runner/GoogleService-Info.plist GOOGLE_APP_ID || true
+      - name: 의존성
+        script: flutter pub get
+      - name: 서명 프로파일 적용
+        script: xcode-project use-profiles
+      - name: IPA 빌드
+        script: |
+          flutter build ipa --release \
+            --dart-define=API_BASE_URL=https://tailog.me/api/v1 \
+            --build-number=$PROJECT_BUILD_NUMBER \
+            --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true

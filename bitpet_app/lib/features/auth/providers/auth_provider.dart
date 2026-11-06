@@ -103,14 +103,20 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
   /// 기존 이메일 계정에 이 소셜이 **처음 연결됐으면** 제공자(KAKAO 등)를 돌려준다 —
   /// 화면이 "카카오 계정이 연결됐어요" 를 띄운다. 그 외엔 null.
   Future<String?> socialLogin(String provider) async {
-    final grant = await _repo.authorizeSocial(provider);
-    if (grant == null) return null;
     String? linked;
+    final Future<UserProfile> Function() exchange;
+    if (provider == 'apple') {
+      // Apple 은 브라우저가 아니라 OS 시트 — 나머지 흐름은 같다
+      final grant = await _repo.authorizeApple();
+      if (grant == null) return null;
+      exchange = () => _repo.exchangeApple(grant, onLinked: (p) => linked = p);
+    } else {
+      final grant = await _repo.authorizeSocial(provider);
+      if (grant == null) return null;
+      exchange = () => _repo.exchangeSocial(grant, onLinked: (p) => linked = p);
+    }
     state = const AsyncValue.loading();
-    state = await AsyncValue.guard(
-      () => _checkAgreement(
-          _repo.exchangeSocial(grant, onLinked: (p) => linked = p)),
-    );
+    state = await AsyncValue.guard(() => _checkAgreement(exchange()));
     if (state.hasValue && state.value != null) {
       await _setUpPush();
       return linked;

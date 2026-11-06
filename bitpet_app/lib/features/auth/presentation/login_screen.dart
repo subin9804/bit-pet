@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -18,6 +19,9 @@ import '../../../core/theme/app_dimens.dart';
 /// → `POST /auth/oauth/exchange` 로 토큰을 받는다 ([AuthRepository.authorizeSocial]).
 /// 처음 들어온 소셜 계정은 약관 동의 화면(`/agreements`)을 거친다.
 const bool kSocialLoginEnabled = true;
+
+/// Apple 로그인 버튼은 iOS 에서만 보인다 (안드로이드는 웹 왕복이 따로 필요하고 요구되지도 않는다).
+bool get _showApple => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
 
 // ─── 상단 로고 ──────────────────────────────────────────────────────────────
 //
@@ -148,7 +152,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   /// 소셜 버튼 탭. 버튼 라벨을 서버 registrationId 로 바꿔 넘긴다.
   Future<void> _onSocial(String label) async {
     if (_socialBusy) return;
-    const providers = {'카카오': 'kakao', '네이버': 'naver', 'Google': 'google'};
+    const providers = {
+      '카카오': 'kakao',
+      '네이버': 'naver',
+      'Google': 'google',
+      'Apple': 'apple',
+    };
     setState(() => _socialBusy = true);
     // 로그인되면 라우터가 이 화면을 치운다 — 앱 전체 메신저를 미리 잡아 둬야
     // 홈으로 넘어간 뒤에도 연결 안내를 띄울 수 있다
@@ -228,6 +237,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
                       // ── 소셜 로그인 ─────────────────────────────────
                       if (kSocialLoginEnabled) ...[
+                        // Apple 은 iOS 에서만. 다른 소셜 로그인이 있으면 Apple 도 같은 무게로
+                        // 있어야 심사를 통과한다(가이드라인 4.8) — 그래서 맨 위에 둔다.
+                        // 문구는 Apple 이 허용한 표현('Apple로 계속하기') 그대로
+                        if (_showApple) ...[
+                          _SocialButton(
+                            label: 'Apple로 계속하기',
+                            backgroundColor: Colors.black,
+                            textColor: Colors.white,
+                            fallbackIcon: const Icon(Icons.apple,
+                                color: Colors.white, size: 22),
+                            onPressed: () => _onSocial('Apple'),
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                        ],
                         _SocialButton(
                           label: '카카오로 시작하기',
                           backgroundColor: AppColors.kakao,
