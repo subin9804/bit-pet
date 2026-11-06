@@ -17,6 +17,14 @@ bitpet:
     refresh-token-validity: P14D
     issuer: tailog-test
   token-enc-key: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+  # 픽스처가 example.com 으로 가입하고 인증 단계를 건너뛴다.
+  # 인증·도메인 규칙 자체는 SignupEmailVerificationIntegrationTest 가 켜서 본다
+  signup:
+    allowed-email-domains:
+      - example.com
+      - naver.com
+      - gmail.com
+    email-verification-required: false
   oauth2:
     success-redirect-uri: http://localhost:3000/oauth/callback
     failure-redirect-uri: http://localhost:3000/oauth/error

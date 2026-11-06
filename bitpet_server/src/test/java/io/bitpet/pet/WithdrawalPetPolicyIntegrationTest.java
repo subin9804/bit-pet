@@ -199,7 +199,7 @@ class WithdrawalPetPolicyIntegrationTest extends IntegrationTestBase {
         // 필수 항목이 true 가 아니면 @AssertTrue 가 걸려 가입 자체가 400 이다.
         return authService.signup(new SignupRequest(
                 "withdraw" + n + "@example.com", "Passw0rd!23", "user" + n, null,
-                true, true, true, false)).id();
+                true, true, true, false, null)).id();
     }
 
     private Long createPet(Long userId, String name, PetGender gender) {

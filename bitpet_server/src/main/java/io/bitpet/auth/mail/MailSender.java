@@ -8,4 +8,6 @@ package io.bitpet.auth.mail;
 public interface MailSender {
 
     void sendPasswordResetCode(String toEmail, String code);
+
+    void sendSignupVerificationCode(String toEmail, String code);
 }

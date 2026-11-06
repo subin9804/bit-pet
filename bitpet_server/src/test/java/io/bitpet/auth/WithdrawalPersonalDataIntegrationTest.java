@@ -34,7 +34,7 @@ class WithdrawalPersonalDataIntegrationTest extends IntegrationTestBase {
         String email = "scrub" + n + "@example.com";
         String nickname = "scrub" + n;
         Long userId = authService.signup(new SignupRequest(
-                email, "Passw0rd!23", nickname, null, true, true, true, false)).id();
+                email, "Passw0rd!23", nickname, null, true, true, true, false, null)).id();
         deviceTokenService.register(userId,
                 new DeviceTokenRegisterRequest("token-scrub-" + n, DevicePlatform.ANDROID, null));
 
@@ -60,11 +60,11 @@ class WithdrawalPersonalDataIntegrationTest extends IntegrationTestBase {
         String email = "rejoin" + n + "@example.com";
         String nickname = "rejoin" + n;
         Long first = authService.signup(new SignupRequest(
-                email, "Passw0rd!23", nickname, null, true, true, true, false)).id();
+                email, "Passw0rd!23", nickname, null, true, true, true, false, null)).id();
         authService.withdraw(first, true);
 
         Long second = authService.signup(new SignupRequest(
-                email, "Passw0rd!23", nickname, null, true, true, true, false)).id();
+                email, "Passw0rd!23", nickname, null, true, true, true, false, null)).id();
 
         assertThat(second).isNotEqualTo(first);
     }

@@ -23,6 +23,7 @@ import io.bitpet.auth.oauth.OAuthAccountService;
 import io.bitpet.auth.oauth.OAuthLoginCodeStore;
 import io.bitpet.auth.repository.UserOAuthRlsRepository;
 import io.bitpet.auth.repository.UserMstRepository;
+import io.bitpet.auth.signup.SignupEmailVerificationService;
 import io.bitpet.common.dto.PresignResponse;
 import io.bitpet.common.exception.BusinessException;
 import io.bitpet.common.exception.ErrorCode;
@@ -67,9 +68,14 @@ public class AuthService {
     private final AppleIdTokenVerifier appleIdTokenVerifier;
     private final AppleTokenClient appleTokenClient;
     private final TokenEncryptor tokenEncryptor;
+    private final SignupEmailVerificationService signupEmailVerificationService;
 
     public EmailCheckResponse checkEmail(String email) {
-        return new EmailCheckResponse(!userRepository.existsByEmailIgnoreCase(email));
+        // 받지 않는 도메인이면 중복 조회 전에 끊는다 — 앱이 '이미 사용 중'과 다른 안내를 띄운다
+        if (!signupEmailVerificationService.isDomainAllowed(email)) {
+            return new EmailCheckResponse(false, false);
+        }
+        return new EmailCheckResponse(!userRepository.existsByEmailIgnoreCase(email), true);
     }
 
     /**
@@ -95,6 +101,9 @@ public class AuthService {
         if (userRepository.existsByEmailIgnoreCase(request.email())) {
             throw new BusinessException(ErrorCode.AUTH_EMAIL_ALREADY_EXISTS);
         }
+        // 도메인 허용 목록 + 이메일 인증 토큰 (2026-11-06)
+        signupEmailVerificationService.requireVerified(
+                EmailPolicy.normalize(request.email()), request.emailVerificationToken());
         // 앱이 중복확인을 거쳤더라도 여기서 다시 본다. 확인 시점과 가입 시점 사이에
         // 남이 선점할 수 있고, API 를 직접 호출하면 확인 자체를 건너뛸 수 있다.
         String nickname = requireAvailableNickname(request.nickname(), null);
@@ -113,6 +122,7 @@ public class AuthService {
                 AgreementType.MARKETING, request.marketingAgreed()
         ), AgreementSource.SIGNUP);
 
+        signupEmailVerificationService.consume(request.emailVerificationToken());
         log.info("User signed up: id={}, email={}", saved.getId(), saved.getEmail());
         return UserResponse.from(saved);
     }

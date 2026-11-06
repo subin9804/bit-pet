@@ -1019,6 +1019,19 @@ OAuth 토큰 AES-256-GCM 암호화 (`BITPET_TOKEN_ENC_KEY` 환경변수).
   - 약관 행 위젯은 `features/auth/presentation/widgets/terms_item.dart` 를 가입 3단계와 같이 쓴다
 - 브라우저 왕복 동안은 `authStateProvider` 를 loading 으로 두지 않는다 — 라우터가 스플래시로 보내 버린다
 
+### 이메일 가입 — 도메인 제한 + 인증 코드 (2026-11-06)
+
+전엔 이메일·비번·닉네임만 받아 주소가 진짜인지 몰랐다. 이제 이메일 가입은:
+`POST /auth/signup/email-code` (코드 발송) → `POST /auth/signup/email-code/verify` (토큰) → `POST /auth/signup` 에 `emailVerificationToken`.
+- 코드는 `auth/signup/` 패키지 (`SignupEmailVerificationService`·`SignupEmailStore`(Redis)·`SignupProperties`). 비밀번호 재설정과 키를 나눈다
+- **허용 도메인**: `bitpet.signup.allowed-email-domains` (naver·kakao·daum·hanmail·nate·gmail·icloud·me·outlook·hotmail·outlook.kr·yahoo). 추가 요청은 yml 에 더하면 끝
+- 코드 10분 · 인증 후 30분 안에 가입 · 재발송 60초 대기(429) · 오답 5회면 코드 폐기
+- 토큰은 **같은 주소**로 발급된 것만 통과하고, 가입 후 지운다 (재사용·주소 바꿔치기 차단)
+- `check-email` 응답에 `domainAllowed` 추가 — false 면 '이미 가입됨'이 아니라 받지 않는 메일
+- **소셜 로그인·자녀 계정에는 안 걸린다** (자녀는 인증된 보호자가 만들고, 아이에게 메일함이 없을 수 있음)
+- ⚠️ 테스트는 `application-test.yml` 에서 인증을 끄고 example.com 을 허용한다. 인증 규칙 자체는 `SignupEmailVerificationIntegrationTest` 가 켜서 본다.
+  `SignupRequest` 를 직접 만드는 픽스처는 마지막 인자(`emailVerificationToken`)에 null 을 넣는다
+
 ### Apple 로그인 (iOS 전용, 2026-11-06)
 
 다른 소셜 로그인이 있으면 Apple 도 있어야 App Store 심사를 통과한다 (가이드라인 4.8).

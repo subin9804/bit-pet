@@ -23,6 +23,9 @@ class SignupRequest {
   final bool agreeAge;
   final bool agreeMarketing;
 
+  /// 이메일 인증 결과 토큰 (POST /auth/signup/email-code/verify). 없으면 서버가 400 으로 거절한다.
+  final String emailVerificationToken;
+
   const SignupRequest({
     required this.email,
     required this.password,
@@ -32,6 +35,7 @@ class SignupRequest {
     required this.agreePrivacy,
     required this.agreeAge,
     required this.agreeMarketing,
+    required this.emailVerificationToken,
   });
 
   Map<String, dynamic> toJson() => {
@@ -43,6 +47,7 @@ class SignupRequest {
         'agreePrivacy': agreePrivacy,
         'agreeAge': agreeAge,
         'agreeMarketing': agreeMarketing,
+        'emailVerificationToken': emailVerificationToken,
       };
 }
 
@@ -175,4 +180,12 @@ class NicknameCheckResult {
   final String? reason;
 
   const NicknameCheckResult({required this.available, this.reason});
+}
+
+/// 이메일 중복확인 결과. domainAllowed=false 면 '이미 가입됨'이 아니라 받지 않는 메일이다.
+class EmailCheckResult {
+  final bool available;
+  final bool domainAllowed;
+
+  const EmailCheckResult({required this.available, required this.domainAllowed});
 }

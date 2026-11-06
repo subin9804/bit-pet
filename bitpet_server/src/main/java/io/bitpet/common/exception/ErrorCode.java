@@ -19,6 +19,7 @@ public enum ErrorCode {
     // --- Auth ---
     AUTH_INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "Invalid email or password"),
     AUTH_EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "Email already registered"),
+    AUTH_EMAIL_DOMAIN_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "지원하지 않는 이메일이에요. 네이버·카카오·다음·지메일 등 자주 쓰는 메일로 가입해 주세요."),
     AUTH_NICKNAME_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 사용 중인 닉네임입니다"),
     AUTH_NICKNAME_INVALID(HttpStatus.BAD_REQUEST, "사용할 수 없는 닉네임입니다"),
     AUTH_AGREEMENT_REQUIRED(HttpStatus.BAD_REQUEST, "필수 약관에 동의해야 합니다"),
@@ -36,6 +37,13 @@ public enum ErrorCode {
     CHILD_NOT_FOUND(HttpStatus.NOT_FOUND, "자녀 계정을 찾을 수 없습니다."),
     CHILD_BOARD_ONLY(HttpStatus.FORBIDDEN, "어린이 회원은 어린이 게시판에서만 글과 댓글을 남길 수 있습니다."),
     KIDS_BOARD_FORBIDDEN(HttpStatus.FORBIDDEN, "어린이 게시판입니다."),
+
+    // --- 가입 이메일 인증 (2026-11-06) ---
+    SIGNUP_CODE_NOT_FOUND(HttpStatus.BAD_REQUEST, "인증 코드가 없거나 만료되었어요. 코드를 다시 받아 주세요."),
+    SIGNUP_CODE_INVALID(HttpStatus.BAD_REQUEST, "인증 코드가 올바르지 않아요."),
+    SIGNUP_CODE_TOO_MANY_ATTEMPTS(HttpStatus.BAD_REQUEST, "인증 코드를 여러 번 틀렸어요. 코드를 다시 받아 주세요."),
+    SIGNUP_CODE_COOLDOWN(HttpStatus.TOO_MANY_REQUESTS, "잠시 후 다시 요청해 주세요."),
+    SIGNUP_EMAIL_NOT_VERIFIED(HttpStatus.BAD_REQUEST, "이메일 인증을 먼저 완료해 주세요."),
 
     // --- Password Reset ---
     PASSWORD_RESET_CODE_NOT_FOUND(HttpStatus.BAD_REQUEST, "인증 코드가 존재하지 않거나 만료되었습니다."),

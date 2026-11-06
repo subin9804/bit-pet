@@ -24,7 +24,11 @@ public record SignupRequest(
         @NotNull Boolean agreePrivacy,
         @NotNull Boolean agreeAge,
         // 선택 항목. 안 보내면 미동의로 본다.
-        Boolean agreeMarketing
+        Boolean agreeMarketing,
+
+        // 이메일 인증 결과 토큰 (POST /auth/signup/email-code/verify). 필수 여부는 서버 설정이
+        // 정한다 — 여기서 @NotBlank 를 걸면 테스트가 가입마다 인증을 거쳐야 한다.
+        @Size(max = 64) String emailVerificationToken
 ) {
     @AssertTrue(message = "서비스 이용약관에 동의해야 가입할 수 있습니다")
     public boolean isTosAgreed() {

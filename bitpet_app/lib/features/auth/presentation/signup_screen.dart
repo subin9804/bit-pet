@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/api/api_response.dart';
 import '../../../core/legal/legal_document_sheet.dart';
 import '../../../core/legal/legal_documents.dart';
 import '../../../core/theme/app_colors.dart';
@@ -44,9 +45,17 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   bool _obscurePw  = true;
   bool _obscurePw2 = true;
 
+  // 이메일 — 중복·도메인 확인 → 인증 코드 발송 → 코드 확인(토큰). 각 결과는 "어떤 주소에 대한
+  // 것인가"를 같이 들고 있어서, 주소를 고치면 이전 확인·인증이 자동으로 무효가 된다.
+  final _codeCtrl = TextEditingController();
   bool _emailChecking = false;
   bool? _emailAvailable;
+  bool _emailDomainAllowed = true;
   String? _emailCheckedFor;
+  String? _codeSentFor;
+  bool _codeVerifying = false;
+  String? _verifyToken;
+  String? _verifiedFor;
 
   // 닉네임 중복확인. _nickCheckedFor 는 "어떤 값에 대한 결과인가"를 들고 있다 —
   // 확인 후 닉네임을 고치면 이전 결과가 그대로 남아 통과해버리는 걸 막는다.
@@ -142,26 +151,86 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     }
   }
 
-  Future<void> _checkEmail() async {
-    if (!_emailValid || _emailChecking) return;
-    final email = _emailCtrl.text.trim();
+  String get _emailText => _emailCtrl.text.trim();
+
+  bool get _emailVerified =>
+      _verifyToken != null && _verifiedFor != null && _verifiedFor == _emailText;
+
+  bool get _codeSentForCurrent => _codeSentFor != null && _codeSentFor == _emailText;
+
+  /// 서버가 내려준 안내 문구(SIGNUP_*, AUTH_EMAIL_* 는 한국어로 온다). 못 닿았으면 연결 안내.
+  String _serverMessage(Object e, String fallback) {
+    if (e is DioException) {
+      // AUTH_EMAIL_ALREADY_EXISTS 문구는 영어라 여기서 바꾼다
+      if (e.response?.statusCode == 409) return '이미 가입된 이메일입니다';
+      final data = e.response?.data;
+      String? msg;
+      if (data is Map<String, dynamic>) {
+        final error = data['error'] as Map<String, dynamic>?;
+        msg = error?['message'] as String?;
+      }
+      return msg ?? _checkFailMessage(e, '이메일');
+    }
+    if (e is ApiException) return e.message;
+    return fallback;
+  }
+
+  /// 인증요청 — 중복·도메인을 먼저 보고, 통과하면 코드를 보낸다.
+  /// 확인을 따로 누르게 하면 버튼이 둘이 되고 순서를 헷갈린다.
+  Future<void> _requestEmailCode() async {
+    if (!_emailValid || _emailChecking || _emailVerified) return;
+    final email = _emailText;
     setState(() {
       _emailChecking = true;
       _emailAvailable = null;
     });
+    final repo = ref.read(authRepositoryProvider);
     try {
-      final available =
-          await ref.read(authRepositoryProvider).checkEmailAvailable(email);
+      final result = await repo.checkEmailAvailable(email);
       if (!mounted) return;
       setState(() {
-        _emailAvailable = available;
+        _emailAvailable = result.available;
+        _emailDomainAllowed = result.domainAllowed;
         _emailCheckedFor = email;
       });
+      if (!result.available) return;
+
+      await repo.sendSignupEmailCode(email);
+      if (!mounted) return;
+      setState(() {
+        _codeSentFor = email;
+        _codeCtrl.clear();
+      });
+      ToastMessage.show(context, '인증 코드를 보냈어요. 메일함을 확인해 주세요');
     } catch (e) {
       if (!mounted) return;
-      ToastMessage.show(context, _checkFailMessage(e, '이메일'), type: ToastType.error);
+      ToastMessage.show(context, _serverMessage(e, '인증 코드 발송에 실패했습니다'),
+          type: ToastType.error);
     } finally {
       if (mounted) setState(() => _emailChecking = false);
+    }
+  }
+
+  Future<void> _verifyEmailCode() async {
+    final code = _codeCtrl.text.trim();
+    if (code.length != 6 || _codeVerifying || !_codeSentForCurrent) return;
+    final email = _emailText;
+    setState(() => _codeVerifying = true);
+    try {
+      final token =
+          await ref.read(authRepositoryProvider).verifySignupEmailCode(email, code);
+      if (!mounted) return;
+      setState(() {
+        _verifyToken = token;
+        _verifiedFor = email;
+      });
+      FocusScope.of(context).unfocus();
+    } catch (e) {
+      if (!mounted) return;
+      ToastMessage.show(context, _serverMessage(e, '인증 코드 확인에 실패했습니다'),
+          type: ToastType.error);
+    } finally {
+      if (mounted) setState(() => _codeVerifying = false);
     }
   }
 
@@ -169,6 +238,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   void dispose() {
     _nickCtrl.dispose();
     _emailCtrl.dispose();
+    _codeCtrl.dispose();
     _pwCtrl.dispose();
     _pw2Ctrl.dispose();
     super.dispose();
@@ -222,6 +292,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       agreePrivacy: _agreePrivacy,
       agreeAge: _agreeAge,
       agreeMarketing: _agreeMarketing,
+      emailVerificationToken: _verifyToken!,
       profileColor: _colorKey,
       profileImage: _profileImage,
     );
@@ -397,14 +468,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     StepConfig(
       title: '로그인 정보',
       desc: '이메일과 비밀번호를 입력하세요.',
-      valid: () =>
-          _emailValid &&
-          _emailCheckedFor == _emailCtrl.text.trim() &&
-          _emailAvailable == true &&
-          _pwValid &&
-          _pw2Match,
+      // 이메일은 인증 코드까지 확인해야 넘어간다 — 주소가 진짜인지 서버가 확인한 상태
+      valid: () => _emailValid && _emailVerified && _pwValid && _pw2Match,
       render: (_) => ListenableBuilder(
-        listenable: Listenable.merge([_emailCtrl, _pwCtrl, _pw2Ctrl]),
+        listenable: Listenable.merge([_emailCtrl, _codeCtrl, _pwCtrl, _pw2Ctrl]),
         builder: (_, __) {
           final st = _strength(_pwCtrl.text);
           final Color stColor = st == 0
@@ -420,6 +487,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             children: [
               SField(
                 label: '이메일',
+                hint: '네이버·카카오·다음(한메일)·네이트·지메일·iCloud·아웃룩 메일로 가입할 수 있어요',
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -428,56 +496,86 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         Expanded(
                           child: PaleTextField(
                             controller: _emailCtrl,
-                            placeholder: 'name@example.com',
+                            placeholder: 'name@naver.com',
                             keyboardType: TextInputType.emailAddress,
                             onChanged: (_) => setState(() {}),
                           ),
                         ),
                         const SizedBox(width: 8),
-                        GestureDetector(
-                          onTap: _emailValid ? _checkEmail : null,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 12),
-                            decoration: BoxDecoration(
-                              color: AppColors.card,
-                              borderRadius: AppRadius.brLg,
-                              border: Border.all(color: AppColors.line),
-                            ),
-                            child: _emailChecking
-                                ? const SizedBox(
-                                    width: 14,
-                                    height: 14,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2),
-                                  )
-                                : Text(
-                                    '중복확인',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 12,
-                                      color: _emailValid
-                                          ? AppColors.brandAction
-                                          : AppColors.ink3,
-                                    ),
-                                  ),
-                          ),
+                        _SmallButton(
+                          label: _emailVerified
+                              ? '인증완료'
+                              : _codeSentForCurrent
+                                  ? '재전송'
+                                  : '인증요청',
+                          loading: _emailChecking,
+                          enabled: _emailValid && !_emailVerified,
+                          onTap: _requestEmailCode,
                         ),
                       ],
                     ),
-                    if (_emailCheckedFor != null &&
-                        _emailCheckedFor == _emailCtrl.text.trim()) ...[
+                    if (_emailVerified) ...[
                       const SizedBox(height: 8),
-                      Text(
-                        _emailAvailable == true
-                            ? '✓ 사용 가능한 이메일입니다'
-                            : '✗ 이미 가입된 이메일입니다',
+                      const Text(
+                        '✓ 이메일 인증이 완료되었습니다',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: _emailAvailable == true
-                              ? AppColors.success
-                              : AppColors.error,
+                          color: AppColors.success,
+                        ),
+                      ),
+                    ] else if (_emailCheckedFor != null &&
+                        _emailCheckedFor == _emailText &&
+                        _emailAvailable == false) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        _emailDomainAllowed
+                            ? '✗ 이미 가입된 이메일입니다'
+                            : '✗ 지원하지 않는 메일이에요. 위 안내의 메일로 가입해 주세요',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.error,
+                        ),
+                      ),
+                    ] else if (_codeSentForCurrent) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: PaleTextField(
+                              controller: _codeCtrl,
+                              placeholder: '인증 코드 6자리',
+                              keyboardType: TextInputType.number,
+                              onChanged: (_) => setState(() {}),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          _SmallButton(
+                            label: '확인',
+                            loading: _codeVerifying,
+                            enabled: _codeCtrl.text.trim().length == 6,
+                            onTap: _verifyEmailCode,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        '메일로 받은 6자리 코드를 입력해 주세요 (10분 안에). 안 보이면 스팸함도 확인해 주세요',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.ink3,
+                        ),
+                      ),
+                    ] else if (_emailValid) ...[
+                      const SizedBox(height: 8),
+                      const Text(
+                        '인증요청을 눌러 메일로 코드를 받아 주세요',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.ink3,
                         ),
                       ),
                     ],
@@ -690,6 +788,51 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           onDone: _submit,
           onCancel: () => context.pop(),
         ),
+      ),
+    );
+  }
+}
+
+// ── 입력칸 옆 작은 버튼 (인증요청·확인) ────────────────────────────────────────
+
+class _SmallButton extends StatelessWidget {
+  final String label;
+  final bool loading;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  const _SmallButton({
+    required this.label,
+    required this.loading,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: enabled && !loading ? onTap : null,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: AppRadius.brLg,
+          border: Border.all(color: AppColors.line),
+        ),
+        child: loading
+            ? const SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Text(
+                label,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                  color: enabled ? AppColors.brandAction : AppColors.ink3,
+                ),
+              ),
       ),
     );
   }

@@ -135,7 +135,7 @@ class FeedingListIntegrationTest extends IntegrationTestBase {
         int n = SEQ.incrementAndGet();
         return authService.signup(new SignupRequest(
                 "feedlist" + n + "@example.com", "Passw0rd!23", "feedlistuser" + n, null,
-                true, true, true, false)).id();
+                true, true, true, false, null)).id();
     }
 
     private Long createPet(Long userId, String name) {

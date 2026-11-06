@@ -265,7 +265,8 @@ class AuthRepository {
   }
 
   // ── 이메일 중복확인 ───────────────────────────────────────
-  Future<bool> checkEmailAvailable(String email) async {
+  // domainAllowed=false 면 중복이 아니라 받지 않는 메일(자주 쓰는 도메인만 허용)이라 막힌 것이다.
+  Future<EmailCheckResult> checkEmailAvailable(String email) async {
     final res = await _dio.get('/auth/check-email', queryParameters: {'email': email});
     final apiRes = ApiResponse.fromJson(
       res.data as Map<String, dynamic>,
@@ -276,7 +277,40 @@ class AuthRepository {
           statusCode: res.statusCode ?? 0,
           message: apiRes.message ?? '이메일 확인에 실패했습니다.');
     }
-    return apiRes.data!['available'] as bool;
+    return EmailCheckResult(
+      available: apiRes.data!['available'] as bool,
+      // 이 필드가 없던 서버(배포 전)는 도메인 제한도 없었다
+      domainAllowed: apiRes.data!['domainAllowed'] as bool? ?? true,
+    );
+  }
+
+  // ── 가입 이메일 인증 ──────────────────────────────────────
+  // 1) 코드 발송 → 2) 코드 확인 → 토큰. 토큰은 가입 요청(emailVerificationToken)에 싣는다.
+  Future<void> sendSignupEmailCode(String email) async {
+    final res = await _dio.post('/auth/signup/email-code', data: {'email': email});
+    final apiRes = ApiResponse.fromJson(res.data as Map<String, dynamic>, (d) => d);
+    if (!apiRes.success) {
+      throw ApiException(
+          statusCode: res.statusCode ?? 0,
+          message: apiRes.message ?? '인증 코드 발송에 실패했습니다.',
+          errorCode: apiRes.errorCode);
+    }
+  }
+
+  Future<String> verifySignupEmailCode(String email, String code) async {
+    final res = await _dio.post('/auth/signup/email-code/verify',
+        data: {'email': email, 'code': code});
+    final apiRes = ApiResponse.fromJson(
+      res.data as Map<String, dynamic>,
+      (d) => d as Map<String, dynamic>,
+    );
+    if (!apiRes.success || apiRes.data == null) {
+      throw ApiException(
+          statusCode: res.statusCode ?? 0,
+          message: apiRes.message ?? '인증 코드 확인에 실패했습니다.',
+          errorCode: apiRes.errorCode);
+    }
+    return apiRes.data!['verificationToken'] as String;
   }
 
   // ── 닉네임 중복확인 ───────────────────────────────────────

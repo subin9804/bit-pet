@@ -84,6 +84,6 @@ class NotificationInboxIntegrationTest extends IntegrationTestBase {
         int n = SEQ.incrementAndGet();
         return authService.signup(new SignupRequest(
                 "inbox" + n + "@example.com", "Passw0rd!23", "inboxuser" + n, null,
-                true, true, true, false)).id();
+                true, true, true, false, null)).id();
     }
 }

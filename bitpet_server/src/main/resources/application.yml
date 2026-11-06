@@ -129,6 +129,27 @@ bitpet:
     from: ${MAIL_FROM:noreply@tailog.me}
     reset-code-ttl-minutes: 5
     reset-token-ttl-minutes: 10
+  # 이메일 가입 규칙 (auth/signup/SignupProperties). 소셜 로그인·자녀 계정에는 걸리지 않는다
+  signup:
+    # 일회용·오타 주소를 막으려고 자주 쓰는 메일만 받는다. 추가 요청이 오면 여기에 더한다
+    allowed-email-domains:
+      - naver.com
+      - kakao.com
+      - daum.net
+      - hanmail.net
+      - nate.com
+      - gmail.com
+      - icloud.com
+      - me.com
+      - outlook.com
+      - hotmail.com
+      - outlook.kr
+      - yahoo.com
+    email-verification-required: true
+    code-ttl-minutes: 10
+    verified-ttl-minutes: 30
+    resend-cooldown-seconds: 60
+    max-attempts: 5
   serial-number:
     # Pool excludes ambiguous chars (0/O/I/1) → 32 chars
     pool: "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
@@ -157,6 +178,8 @@ bitpet:
       - /api/v1/auth/check-email
       - /api/v1/auth/check-nickname
       - /api/v1/auth/signup
+      - /api/v1/auth/signup/email-code
+      - /api/v1/auth/signup/email-code/verify
       - /api/v1/auth/login
       - /api/v1/auth/refresh
       - /api/v1/auth/oauth/exchange

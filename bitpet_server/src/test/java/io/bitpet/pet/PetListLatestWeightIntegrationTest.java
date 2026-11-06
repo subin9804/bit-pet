@@ -71,7 +71,7 @@ class PetListLatestWeightIntegrationTest extends IntegrationTestBase {
         int n = SEQ.incrementAndGet();
         return authService.signup(new SignupRequest(
                 "plw" + n + "@example.com", "Passw0rd!23", "plwuser" + n, null,
-                true, true, true, false)).id();
+                true, true, true, false, null)).id();
     }
 
     private Long createPet(Long userId, String name) {

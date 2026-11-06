@@ -17,6 +17,10 @@ import io.bitpet.auth.dto.WithdrawPreviewResponse;
 import io.bitpet.auth.jwt.AuthPrincipal;
 import io.bitpet.auth.service.AgreementService;
 import io.bitpet.auth.service.AuthService;
+import io.bitpet.auth.dto.SignupEmailCodeRequest;
+import io.bitpet.auth.dto.SignupEmailVerifyRequest;
+import io.bitpet.auth.dto.SignupEmailVerifyResponse;
+import io.bitpet.auth.signup.SignupEmailVerificationService;
 import io.bitpet.common.dto.PresignResponse;
 import io.bitpet.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -45,6 +49,7 @@ public class AuthController {
 
     private final AuthService authService;
     private final AgreementService agreementService;
+    private final SignupEmailVerificationService signupEmailVerificationService;
 
     @Operation(summary = "이메일 중복확인")
     @GetMapping("/check-email")
@@ -58,7 +63,22 @@ public class AuthController {
         return ApiResponse.ok(authService.checkNickname(nickname));
     }
 
-    @Operation(summary = "회원가입 (이메일 + 비밀번호)")
+    @Operation(summary = "가입 이메일 인증 코드 발송 (허용 도메인만, 재발송 60초 대기)")
+    @PostMapping("/signup/email-code")
+    public ApiResponse<Void> sendSignupEmailCode(@Valid @RequestBody SignupEmailCodeRequest request) {
+        signupEmailVerificationService.sendCode(request.email());
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "가입 이메일 인증 코드 확인 → 가입 요청에 실을 토큰")
+    @PostMapping("/signup/email-code/verify")
+    public ApiResponse<SignupEmailVerifyResponse> verifySignupEmailCode(
+            @Valid @RequestBody SignupEmailVerifyRequest request) {
+        return ApiResponse.ok(new SignupEmailVerifyResponse(
+                signupEmailVerificationService.verifyCode(request.email(), request.code())));
+    }
+
+    @Operation(summary = "회원가입 (이메일 + 비밀번호 + 이메일 인증 토큰)")
     @PostMapping("/signup")
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<UserResponse> signup(@Valid @RequestBody SignupRequest request) {

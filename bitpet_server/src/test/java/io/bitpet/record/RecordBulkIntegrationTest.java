@@ -106,7 +106,7 @@ class RecordBulkIntegrationTest extends IntegrationTestBase {
         int n = SEQ.incrementAndGet();
         return authService.signup(new SignupRequest(
                 "bulk" + n + "@example.com", "Passw0rd!23", "bulkuser" + n, null,
-                true, true, true, false)).id();
+                true, true, true, false, null)).id();
     }
 
     private Long createPet(Long userId, String name) {

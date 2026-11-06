@@ -215,6 +215,6 @@ class MorphCustomIntegrationTest extends IntegrationTestBase {
         int n = SEQ.incrementAndGet();
         return authService.signup(new SignupRequest(
                 "morph" + n + "@example.com", "Passw0rd!23", "morphuser" + n, null,
-                true, true, true, false)).id();
+                true, true, true, false, null)).id();
     }
 }

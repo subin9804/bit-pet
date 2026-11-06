@@ -24,6 +24,17 @@ public class SmtpMailSender implements MailSender {
             이 코드는 5분 후 만료됩니다.
             본인이 요청하지 않은 경우 이 메일을 무시해 주세요.""";
 
+    private static final String SIGNUP_CODE_SUBJECT = "[tailog] 회원가입 이메일 인증 코드";
+    private static final String SIGNUP_CODE_BODY = """
+            안녕하세요, 테일로그입니다.
+
+            회원가입을 위한 이메일 인증 코드를 알려드립니다.
+
+            인증 코드: %s
+
+            이 코드는 10분 후 만료됩니다.
+            본인이 요청하지 않은 경우 이 메일을 무시해 주세요.""";
+
     private final JavaMailSender javaMailSender;
     private final MailProperties mailProperties;
 
@@ -37,5 +48,17 @@ public class SmtpMailSender implements MailSender {
 
         javaMailSender.send(message);
         log.info("Password reset code mail sent: to={}", toEmail);
+    }
+
+    @Override
+    public void sendSignupVerificationCode(String toEmail, String code) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(mailProperties.from());
+        message.setTo(toEmail);
+        message.setSubject(SIGNUP_CODE_SUBJECT);
+        message.setText(SIGNUP_CODE_BODY.formatted(code));
+
+        javaMailSender.send(message);
+        log.info("Signup verification code mail sent: to={}", toEmail);
     }
 }

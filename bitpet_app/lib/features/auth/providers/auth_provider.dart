@@ -138,6 +138,7 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
     required bool agreePrivacy,
     required bool agreeAge,
     required bool agreeMarketing,
+    required String emailVerificationToken,
     String profileColor = 'peach',
     PickedImage? profileImage,
   }) async {
@@ -153,6 +154,7 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
         agreePrivacy: agreePrivacy,
         agreeAge: agreeAge,
         agreeMarketing: agreeMarketing,
+        emailVerificationToken: emailVerificationToken,
         ),
         profileImage: profileImage,
       ),
