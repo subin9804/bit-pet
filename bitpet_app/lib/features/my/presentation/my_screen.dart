@@ -119,6 +119,13 @@ class MyScreen extends ConsumerWidget {
                 label: '이름표 관리',
                 onTap: () => context.push('/my/tags'),
               ),
+              // [관리자] 빈 태그에 코드를 연속으로 굽는다 — 일반 사용자에겐 안 보인다
+              if (user?.isAdmin == true)
+                _MenuItem(
+                  icon: Icons.nfc,
+                  label: '이름표 굽기 (관리자)',
+                  onTap: () => context.push('/my/tag-writer'),
+                ),
               // 가계도 닉네임 공개 — 남의 가계도에 부모로 걸렸을 때 내가 드러날지
               _PedigreeNicknameToggle(
                 value: user?.showNicknameInPedigree ?? true,

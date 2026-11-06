@@ -50,7 +50,7 @@ class NfcReader {
         // 폴링하려 하는데, 그건 Info.plist 에 시스템 코드 목록이 없으면 세션이 열리지 않는다
         pollingOptions: {NfcPollingOption.iso14443},
         onDiscovered: (NfcTag tag) async {
-          final code = _readTagCode(tag);
+          final code = readTagCode(tag);
           if (code != null) {
             onTagCode(code);
           } else {
@@ -77,7 +77,8 @@ class NfcReader {
   }
 
   /// NDEF 레코드에서 URL을 꺼내 태그 코드로 환원. 못 읽으면 null.
-  String? _readTagCode(NfcTag tag) {
+  /// 굽기 모드(NfcTagWriter)도 "이미 구운 태그"를 거르려고 이걸 쓴다.
+  static String? readTagCode(NfcTag tag) {
     final ndef = Ndef.from(tag);
     final message = ndef?.cachedMessage;
     if (message == null) return null;
@@ -98,7 +99,7 @@ class NfcReader {
   /// 레코드 타입(`typeNameFormat`/`type`)으로 분기하지 않고 첫 바이트 값만 본다.
   /// 접두사 코드 범위(0x00~0x04)는 URL 문자열의 첫 글자와 겹칠 수 없어서 오판할 여지가 없고,
   /// 태그를 굽는 도구마다 레코드 타입을 다르게 쓰는 경우가 실제로 있다.
-  String? _decodeUri(NdefRecord record) {
+  static String? _decodeUri(NdefRecord record) {
     final payload = record.payload;
     if (payload.isEmpty) return null;
 

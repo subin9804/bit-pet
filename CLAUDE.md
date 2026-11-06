@@ -645,7 +645,14 @@ private Map<String, Object> extraData;
 
 ### NFC 태그 이름표 (v2)
 - **핵심 원칙**: 태그에는 `https://tailog.me/t/{tagCd}` **URL만** 굽혀 있고, 태그↔개체 연결은 **서버 DB에만** 존재
-  - 앱은 태그에 **쓰지 않는다**(굽는 건 생산 공정). 읽기는 두 경로다:
+  - 일반 사용자 경로에서 앱은 태그에 **쓰지 않는다**. **유일한 예외는 관리자 연속 굽기**(2026-11-06):
+    마이페이지 > '이름표 굽기 (관리자)' (`/my/tag-writer`, `TagWriterScreen` + `core/nfc/NfcTagWriter`).
+    - 코드는 `/admin/tags/issue?count=1` 로 **한 장씩** 받고 1장만 미리 받아 둔다(남는 STOCK 최소화).
+      이미 우리 코드가 든 태그는 건너뛴다. **쓰다 실패한 코드는 반쯤 써졌을 수 있어 재사용하지 않고 버린다**
+    - ⚠️ iOS 는 태그마다 세션을 닫고 1초 뒤 다시 연다. nfc_manager 3.x 의 `invalidateAfterFirstRead:false` 는
+      Dart 콜백을 기다리지 않고 `restartPolling()` 해서 태그 연결이 끊겨 write 가 실패한다
+    - 잠금(writeLock)은 선택·기본 꺼짐(되돌릴 수 없음). 메뉴의 '코드만 발급' 은 업체 인코딩용 CSV 를 클립보드로 복사한다
+  - 읽기는 두 경로다:
     1. **딥링크** — 앱이 꺼져 있거나 배경일 때. OS가 URL을 열고 `TagResolverScreen` 이 받는다
     2. **앱 내 스캔** — `core/nfc/NfcPetScanSheet`. `nfc_manager`(3.x) 로 NDEF(URL)만 읽는다. **UID는 쓰지 않는다**
   - ⚠️ **v1의 "앱은 NFC를 읽지 않는다 → `nfc_manager` 불필요"는 폐기됐다.** 뒤집은 이유는 읽기가 아니라 **선점**이다.

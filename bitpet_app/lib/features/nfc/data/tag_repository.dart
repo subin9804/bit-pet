@@ -118,6 +118,27 @@ class TagRepository {
     }
   }
 
+  /// [관리자] 재고 코드 발급 — 굽기 모드와 업체 인코딩용 CSV 가 쓴다.
+  /// 서버가 ApiResponse 로 감싸지 않고 배열을 그대로 내려서 둘 다 받는다.
+  Future<List<String>> issueStock({
+    required int count,
+    String? chipType,
+    String? batchNo,
+  }) async {
+    try {
+      final res = await _dio.post('/admin/tags/issue', queryParameters: {
+        'count': count,
+        if (chipType != null && chipType.isNotEmpty) 'chipType': chipType,
+        if (batchNo != null && batchNo.isNotEmpty) 'batchNo': batchNo,
+      });
+      final body = res.data;
+      final list = body is Map ? body['data'] : body;
+      return (list as List).map((e) => e.toString()).toList();
+    } on DioException catch (e) {
+      _mapDioError(e, '코드 발급에 실패했습니다.');
+    }
+  }
+
   Future<List<MyTag>> myTags() async {
     try {
       final res = await _dio.get('/tags/my');

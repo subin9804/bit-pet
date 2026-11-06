@@ -38,6 +38,7 @@ import '../../features/record/presentation/feed_detail_screen.dart';
 import '../../features/record/presentation/laying/clutch_detail_screen.dart';
 import '../../features/nfc/presentation/tag_resolver_screen.dart';
 import '../../features/nfc/presentation/my_tags_screen.dart';
+import '../../features/nfc/presentation/tag_writer_screen.dart';
 import '../../features/nfc/providers/tag_provider.dart';
 import '../../features/splash/presentation/splash_screen.dart';
 import '../../features/splash/presentation/intro_screen.dart';
@@ -219,6 +220,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/my', builder: (_, __) => const MyScreen()),
           // 마이페이지 > 이름표 관리
           GoRoute(path: '/my/tags', builder: (_, __) => const MyTagsScreen()),
+          // 마이페이지 > [관리자] 이름표 굽기 — 화면 안에서도 관리자인지 다시 본다
+          GoRoute(
+              path: '/my/tag-writer',
+              builder: (_, __) => const TagWriterScreen()),
           // 마이페이지 > 내 게시글 (작성한 글 / 작성한 댓글)
           GoRoute(
               path: '/my/activity',
