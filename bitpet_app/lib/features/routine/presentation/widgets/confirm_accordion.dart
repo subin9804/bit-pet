@@ -23,6 +23,9 @@ class ConfirmAccordion extends StatelessWidget {
   final VoidCallback onToggle;
   final Widget child;
 
+  /// 헤더 오른쪽 작은 동작 (예: 급여 '자동 입력'). 접힌 상태에서도 보인다.
+  final Widget? trailing;
+
   const ConfirmAccordion({
     super.key,
     required this.label,
@@ -32,6 +35,7 @@ class ConfirmAccordion extends StatelessWidget {
     required this.open,
     required this.onToggle,
     required this.child,
+    this.trailing,
   });
 
   @override
@@ -64,6 +68,11 @@ class ConfirmAccordion extends StatelessWidget {
                     ],
                   ],
                   const Spacer(),
+                  if (trailing != null)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: trailing!,
+                    ),
                   if (summary != null)
                     Padding(
                       padding: const EdgeInsets.only(right: 8),
@@ -92,6 +101,35 @@ class ConfirmAccordion extends StatelessWidget {
               child: child,
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// [ConfirmAccordion.trailing] 에 넣는 작은 알약 버튼 (급여 '자동 입력' 등).
+/// 헤더 탭(펼치기)과 겹치지 않게 자기 탭을 먼저 가져간다.
+class AccordionActionChip extends StatelessWidget {
+  final String label;
+  final VoidCallback? onTap;
+
+  const AccordionActionChip({super.key, required this.label, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: AppColors.brandTint,
+          borderRadius: AppRadius.brPill,
+        ),
+        child: Text(
+          label,
+          style: AppTextStyles.label.copyWith(
+              color: AppColors.brandTintInk, fontWeight: FontWeight.w700),
+        ),
       ),
     );
   }

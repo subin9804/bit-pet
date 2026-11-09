@@ -76,6 +76,8 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
   late final Map<int, _PerPetRec> _rec;
   int _idx = 0;
   bool _saving = false;
+  // 이 루틴의 완료 로그 (최신순) — 오늘 로그 복원과 급여 '자동 입력'이 같이 쓴다
+  List<RoutineLog> _logs = const [];
 
   List<TodayPetStatus> get _pets => widget.routine.petStatuses;
   bool get _isFeed => widget.routine.routineType == RoutineType.FEEDING;
@@ -120,6 +122,7 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
     if (!mounted) return;
     try {
       final logs = await ref.read(routineRepositoryProvider).getLogs(widget.routine.id);
+      _logs = logs;
       final now = DateTime.now();
       for (final pet in _pets) {
         final rec = _rec[pet.petId]!;
@@ -269,6 +272,24 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
     }
     rec.dirty = false;
     invalidatePetRecords(ref, pet.petId);
+  }
+
+  // ── 급여 '자동 입력' — 이 개체의 직전 급여로 채운다 ─────────────────
+  // 처음부터 채워 두지 않고 버튼으로 둔다 (2026-11-09 사용자 결정) — 누른 사람만 바뀐다.
+  // 오늘 이미 저장한 로그는 '직전'이 아니므로 뺀다.
+  List<FeedFormData>? _lastFeedFor(int petId) => lastFeedItems(_logs,
+      petId: petId, excludeLogId: _rec[petId]!.savedLogId);
+
+  void _autoFill(TodayPetStatus pet) {
+    final items = _lastFeedFor(pet.petId);
+    if (items == null) return;
+    final rec = _rec[pet.petId]!;
+    setState(() {
+      rec.feedItems = items;
+      rec.feedOpen = true;
+      rec.dirty = true;
+    });
+    showToast(context, '직전 기록으로 자동입력 되었습니다', type: ToastType.success);
   }
 
   static bool _isBlankFeedItem(FeedFormData f) =>
@@ -574,6 +595,9 @@ class _PerPetConfirmSheetState extends ConsumerState<PerPetConfirmSheet> {
                     onComplete: () => _completePet(_pets[i]),
                     onUndo: () => _undoPet(_pets[i]),
                     onChanged: () => setState(() {}),
+                    onAutoFill: _lastFeedFor(_pets[i].petId) == null
+                        ? null
+                        : () => _autoFill(_pets[i]),
                   ),
                 ),
               ),
@@ -608,6 +632,8 @@ class _PetPage extends StatelessWidget {
   final VoidCallback onComplete;
   final VoidCallback onUndo;
   final VoidCallback onChanged;
+  /// 직전 급여가 없으면 null — 버튼을 아예 안 띄운다 (처음 쓰는 사람에게 헛버튼이 안 보이게)
+  final VoidCallback? onAutoFill;
 
   const _PetPage({
     required this.pet,
@@ -619,6 +645,7 @@ class _PetPage extends StatelessWidget {
     required this.onComplete,
     required this.onUndo,
     required this.onChanged,
+    this.onAutoFill,
   });
 
   @override
@@ -790,6 +817,9 @@ class _PetPage extends StatelessWidget {
                   rec.feedOpen = !rec.feedOpen;
                   onChanged();
                 },
+                trailing: onAutoFill == null
+                    ? null
+                    : AccordionActionChip(label: '자동 입력', onTap: onAutoFill),
                 child: FeedItemsEditor(
                   items: rec.feedItems,
                   petId: pet.petId,

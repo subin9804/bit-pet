@@ -431,6 +431,24 @@ class RoutineLog {
       );
 }
 
+/// 급여 완료 시트의 '자동 입력' — 직전 완료 로그의 급여 항목.
+///
+/// [logs] 는 서버가 `executedAt` 최신순으로 준다. 먹이 없이 완료한 빈 행(food_type '')과
+/// 거식만 있는 로그는 건너뛴다 — 한 번 빈 채로 완료했다고 불러올 값이 사라지면 안 되고,
+/// 거식은 "다음에도 같게" 채울 대상이 아니다. [petId] 가 없으면 개체 구분 없이 찾는다
+/// ('모두 완료'는 전 개체에 같은 항목을 넣으므로).
+List<FeedFormData>? lastFeedItems(List<RoutineLog> logs,
+    {int? petId, int? excludeLogId}) {
+  for (final log in logs) {
+    if (log.status != RoutineLogStatus.COMPLETED) continue;
+    if (petId != null && log.petId != petId) continue;
+    if (log.id == excludeLogId) continue;
+    final items = log.feedItems.where((f) => !f.isRefused && f.isValid).toList();
+    if (items.isNotEmpty) return items;
+  }
+  return null;
+}
+
 // -----------------------------------------------------------------------
 // Request DTOs
 // -----------------------------------------------------------------------

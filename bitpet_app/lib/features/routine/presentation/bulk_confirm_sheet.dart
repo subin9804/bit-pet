@@ -33,6 +33,9 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
   bool _memoOpen = false;
   bool _saving = false;
 
+  // 급여 '일괄 자동 입력' — 개체 구분 없이 이 루틴의 직전 급여. 없으면 버튼을 안 띄운다.
+  List<FeedFormData>? _lastFeed;
+
   // WEIGHT 루틴 — 개체별 체중 입력 (petId → controller)
   final Map<int, TextEditingController> _weightCtrls = {};
 
@@ -44,6 +47,29 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
 
   double? _weightGFor(int petId) =>
       double.tryParse(_weightCtrlFor(petId).text.trim());
+
+  @override
+  void initState() {
+    super.initState();
+    if (_isFeed) _loadLastFeed();
+  }
+
+  Future<void> _loadLastFeed() async {
+    try {
+      final logs =
+          await ref.read(routineRepositoryProvider).getLogs(widget.routine.id);
+      final items = lastFeedItems(logs);
+      if (mounted && items != null) setState(() => _lastFeed = items);
+    } catch (_) {} // 못 불러오면 버튼만 안 뜬다 — 완료 자체는 막지 않는다
+  }
+
+  void _autoFill() {
+    setState(() {
+      _feedItems = _lastFeed!;
+      _feedOpen = true;
+    });
+    showToast(context, '직전 기록으로 자동입력 되었습니다', type: ToastType.success);
+  }
 
   @override
   void dispose() {
@@ -212,6 +238,9 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
               summaryActive: false,
               open: _feedOpen,
               onToggle: () => setState(() => _feedOpen = !_feedOpen),
+              trailing: _lastFeed == null
+                  ? null
+                  : AccordionActionChip(label: '일괄 자동 입력', onTap: _autoFill),
               child: FeedItemsEditor(
                 items: _feedItems,
                 bandColor: _accent,
