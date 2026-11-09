@@ -112,6 +112,10 @@ jobs:
             # 배포 스크립트·compose 변경분을 먼저 받는다. 스크립트를 서버가 아니라
             # 레포에서 관리해야 "서버에만 있는 배포 절차"가 생기지 않는다.
             git -C .. fetch --quiet origin master
+            # 예전 배포가 남긴 chmod 를 되돌린다. deploy.sh 가 644 로 커밋돼 있던 시절, 아래 chmod +x 가
+            # 서버 작업트리에 "로컬 수정"을 남겨서 deploy.sh 가 바뀐 커밋의 checkout 이 거부됐다 (2026-11-09).
+            # 지금은 755 로 커밋돼 있어 새로 생기지 않지만, 이미 남은 서버를 위해 둔다.
+            git -C .. checkout --quiet -- deploy/scripts/deploy.sh
             git -C .. checkout --quiet -B master origin/master
 
             # GHCR 은 비공개다. 러너의 임시 토큰으로 그때그때 로그인한다 —
