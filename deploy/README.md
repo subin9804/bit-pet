@@ -141,7 +141,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod logs -f app
 curl https://tailog.me/api/v1/memo-tags
 ```
 
-Flyway 마이그레이션(V1~V55)은 앱 첫 기동 때 자동 실행된다.
+Flyway 마이그레이션(베이스라인 V1 + 이후 추가분 + R__ 시드)은 앱 첫 기동 때 자동 실행된다.
 
 ---
 

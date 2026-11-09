@@ -1,21 +1,23 @@
 -- =====================================================================
--- V1 — 베이스라인 스키마 (구 V1~V55 통합, 2026-08-19)
+-- V1 — 베이스라인 스키마 (2차 스쿼시: 구 V1~V23 통합, 2026-11-09)
 -- =====================================================================
 --
--- 55개로 늘어난 마이그레이션을 하나로 합친 것이다. 내용은 "V55까지 전부 적용한
--- PostgreSQL 16 DB를 pg_dump 로 뽑은 최종 스키마"이므로, 순차 적용 결과와 동일하다.
--- (합친 뒤 빈 DB에 이 파일만 적용해 스키마를 다시 덤프하고 diff 로 검증했다)
+-- 1차 스쿼시(2026-08-19, 구 V1~V55) 이후 다시 쌓인 V2~V23 을 하나로 합친 것이다.
+-- 내용은 "구 V1~V23 을 전부 적용한 PostgreSQL 16 DB를 pg_dump 로 뽑은 최종 스키마"이므로
+-- 순차 적용 결과와 동일하다. (빈 DB에 이 파일만 적용해 스키마·시드를 다시 덤프하고
+-- 구 V1~V23 결과와 diff 로 검증했다)
 --
--- 합친 이유: 신규 환경 기동 때마다 55단계를 순서대로 재생하는 비용, 그리고 중간
--- 단계에만 존재하다 사라진 테이블(alarm_mst, pet_photo_dtl, health_memo_dtl,
--- breeding_group, mating_rls ...)이 파일에 남아 현재 스키마를 읽기 어렵게 만드는 문제.
+-- CHECK 제약 일부가 `col IN (...)` 형태인 건 의도된 것이다. 덤프 형태를 그대로 넣으면
+-- PostgreSQL 이 다른 모양으로 다시 저장해 덤프 diff 가 어긋나서, 구 V 파일이 쓰던 원래 표기로 되돌렸다.
 --
--- ⛔ 이미 구 이력(V1~V55)을 가진 DB에는 적용할 수 없다.
---    Flyway validate 가 V1 체크섬 불일치로 기동을 거부한다. 스쿼시는 운영 DB가
---    생기기 전에만 가능한 작업이고, 그래서 배포 직전인 지금 했다.
---    이후로 이 파일은 절대 수정하지 말 것 — 고치는 순간 모든 기존 DB가 깨진다.
+-- 합친 시점: 출시 전, 운영 DB를 비우고 새로 시작하기로 한 때. 운영 DB에는 실사용자
+-- 데이터가 없었고, 이 파일과 함께 운영 DB를 백업 후 초기화했다.
 --
--- 📎 구 V1~V55 원본은 git 이력에 남아 있다. 어떤 컬럼이 왜 생겼는지 추적할 때 참고:
+-- ⛔ 구 이력(V1~V23)을 가진 DB에는 적용할 수 없다.
+--    Flyway validate 가 V1 체크섬 불일치로 기동을 거부한다. 로컬 DB는 초기화할 것
+--    (CLAUDE.md "로컬 DB 초기화" 참고).
+--
+-- 📎 구 V1~V23 원본은 git 이력에 남아 있다. 어떤 컬럼이 왜 생겼는지 추적할 때 참고:
 --       git log --diff-filter=D --name-only -- 'bitpet_server/src/main/resources/db/migration/V*'
 --
 -- 다음 마이그레이션은 V2 부터 작성한다.
@@ -23,8 +25,6 @@
 -- 이 파일 뒤에 R__01_species_cd_seed / R__02_morph_cd_seed 가 이어서 실행된다.
 -- (종·모프 마스터는 여기 없음 — R__ 파일이 담당)
 -- =====================================================================
-
-
 
 -- pg_trgm  |  EXTENSION
 CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public;
@@ -51,7 +51,7 @@ CREATE TABLE admin_role_rls (
     granted_by bigint,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT ck_admin_role_rls_role CHECK (((role)::text = ANY ((ARRAY['SUPER_ADMIN'::character varying, 'MODERATOR'::character varying])::text[])))
+    CONSTRAINT ck_admin_role_rls_role CHECK (((role)::text = ANY (ARRAY[('SUPER_ADMIN'::character varying)::text, ('MODERATOR'::character varying)::text])))
 );
 
 -- TABLE admin_role_rls  |  COMMENT
@@ -87,7 +87,7 @@ CREATE TABLE cleaning_dtl (
     routine_id bigint,
     created_by_user_id bigint,
     routine_log_id bigint,
-    CONSTRAINT ck_cleaning_dtl_type CHECK (((cleaning_type)::text = ANY ((ARRAY['FULL'::character varying, 'PARTIAL'::character varying, 'WATER_CHANGE'::character varying])::text[])))
+    CONSTRAINT ck_cleaning_dtl_type CHECK (((cleaning_type)::text = ANY (ARRAY[('FULL'::character varying)::text, ('PARTIAL'::character varying)::text, ('WATER_CHANGE'::character varying)::text])))
 );
 
 -- TABLE cleaning_dtl  |  COMMENT
@@ -114,7 +114,7 @@ CREATE TABLE device_token_rls (
     last_used_at timestamp with time zone DEFAULT now() NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT ck_device_token_platform CHECK (((platform)::text = ANY ((ARRAY['ANDROID'::character varying, 'IOS'::character varying])::text[])))
+    CONSTRAINT ck_device_token_platform CHECK (((platform)::text = ANY (ARRAY[('ANDROID'::character varying)::text, ('IOS'::character varying)::text])))
 );
 
 -- TABLE device_token_rls  |  COMMENT
@@ -156,8 +156,8 @@ CREATE TABLE feeding_dtl (
     routine_log_id bigint,
     refused_yn character varying(1) DEFAULT 'N'::character varying NOT NULL,
     CONSTRAINT ck_feeding_dtl_food_type_by_refused CHECK (((((refused_yn)::text = 'Y'::text) AND (food_type IS NULL)) OR (((refused_yn)::text = 'N'::text) AND (food_type IS NOT NULL)))),
-    CONSTRAINT ck_feeding_dtl_refused_yn CHECK (((refused_yn)::text = ANY ((ARRAY['Y'::character varying, 'N'::character varying])::text[]))),
-    CONSTRAINT ck_feeding_dtl_supplement CHECK ((((supplement)::text = ANY ((ARRAY['CALCIUM'::character varying, 'PROBIOTIC'::character varying, 'VITAMIN'::character varying, 'OTHER'::character varying])::text[])) OR (supplement IS NULL)))
+    CONSTRAINT ck_feeding_dtl_refused_yn CHECK (((refused_yn)::text = ANY (ARRAY[('Y'::character varying)::text, ('N'::character varying)::text]))),
+    CONSTRAINT ck_feeding_dtl_supplement CHECK ((((supplement)::text = ANY (ARRAY[('CALCIUM'::character varying)::text, ('PROBIOTIC'::character varying)::text, ('VITAMIN'::character varying)::text, ('OTHER'::character varying)::text])) OR (supplement IS NULL)))
 );
 
 -- TABLE feeding_dtl  |  COMMENT
@@ -274,8 +274,9 @@ CREATE TABLE laying_hatch_dtl (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     created_by_user_id bigint,
+    egg_index integer,
     CONSTRAINT chk_hatch_hatched_at CHECK ((((status)::text <> 'HATCHED'::text) OR (hatched_at IS NOT NULL))),
-    CONSTRAINT chk_hatch_status CHECK (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'HATCHED'::character varying, 'FAILED'::character varying, 'SLUG'::character varying])::text[])))
+    CONSTRAINT chk_hatch_status CHECK (((status)::text = ANY (ARRAY[('PENDING'::character varying)::text, ('HATCHED'::character varying)::text, ('FAILED'::character varying)::text, ('SLUG'::character varying)::text])))
 );
 
 -- TABLE laying_hatch_dtl  |  COMMENT
@@ -283,6 +284,9 @@ COMMENT ON TABLE laying_hatch_dtl IS '클러치별 해칭 추적 (PENDING/HATCHE
 
 -- COLUMN laying_hatch_dtl.hatched_pet_id  |  COMMENT
 COMMENT ON COLUMN laying_hatch_dtl.hatched_pet_id IS '해칭→개체 등록 시 pet_mst.id 연결, 자동 pet_relation_rls 생성';
+
+-- COLUMN laying_hatch_dtl.egg_index  |  COMMENT
+COMMENT ON COLUMN laying_hatch_dtl.egg_index IS '클러치 안에서의 알 번호 (1부터) — 화면의 알 칸 순서';
 
 -- laying_hatch_dtl_id_seq  |  SEQUENCE
 CREATE SEQUENCE laying_hatch_dtl_id_seq
@@ -294,6 +298,39 @@ CREATE SEQUENCE laying_hatch_dtl_id_seq
 
 -- laying_hatch_dtl_id_seq  |  SEQUENCE OWNED BY
 ALTER SEQUENCE laying_hatch_dtl_id_seq OWNED BY laying_hatch_dtl.id;
+
+-- laying_note_dtl  |  TABLE
+CREATE TABLE laying_note_dtl (
+    id bigint NOT NULL,
+    laying_id bigint NOT NULL,
+    noted_at date NOT NULL,
+    content text NOT NULL,
+    created_by_user_id bigint,
+    deleted_at timestamp with time zone,
+    sync_version bigint DEFAULT 1 NOT NULL,
+    client_id character varying(64),
+    client_change_id uuid,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_laying_note_content_not_blank CHECK ((btrim(content) <> ''::text))
+);
+
+-- TABLE laying_note_dtl  |  COMMENT
+COMMENT ON TABLE laying_note_dtl IS '클러치의 날짜별 관찰 메모 — laying_dtl 1:N';
+
+-- COLUMN laying_note_dtl.noted_at  |  COMMENT
+COMMENT ON COLUMN laying_note_dtl.noted_at IS '관찰 날짜 (시각 아님) — 같은 날 여러 줄 허용';
+
+-- laying_note_dtl_id_seq  |  SEQUENCE
+CREATE SEQUENCE laying_note_dtl_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+-- laying_note_dtl_id_seq  |  SEQUENCE OWNED BY
+ALTER SEQUENCE laying_note_dtl_id_seq OWNED BY laying_note_dtl.id;
 
 -- mating_dtl  |  TABLE
 CREATE TABLE mating_dtl (
@@ -410,11 +447,20 @@ CREATE TABLE morph_cd (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     alias_list character varying(300),
-    has_health_concern boolean DEFAULT false NOT NULL
+    has_health_concern boolean DEFAULT false NOT NULL,
+    is_user_defined boolean DEFAULT false NOT NULL,
+    created_by bigint,
+    CONSTRAINT ck_morph_cd_user_defined CHECK (((is_user_defined = true) OR (created_by IS NULL)))
 );
 
 -- TABLE morph_cd  |  COMMENT
 COMMENT ON TABLE morph_cd IS '모프(색상변이) 코드 마스터';
+
+-- COLUMN morph_cd.is_user_defined  |  COMMENT
+COMMENT ON COLUMN morph_cd.is_user_defined IS '사용자가 직접 입력한 모프 여부 (false = 공식 카탈로그)';
+
+-- COLUMN morph_cd.created_by  |  COMMENT
+COMMENT ON COLUMN morph_cd.created_by IS '커스텀 모프 생성자 user_mst.id (공식 카탈로그는 NULL)';
 
 -- morph_cd_id_seq  |  SEQUENCE
 CREATE SEQUENCE morph_cd_id_seq
@@ -436,7 +482,7 @@ CREATE TABLE nfc_tag_bind_hst (
     prev_pet_id bigint,
     actor_id bigint,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT ck_nfc_tag_bind_hst_action CHECK (((action)::text = ANY ((ARRAY['BIND'::character varying, 'REBIND'::character varying, 'UNBIND'::character varying, 'REVOKE'::character varying])::text[])))
+    CONSTRAINT ck_nfc_tag_bind_hst_action CHECK (((action)::text = ANY (ARRAY[('BIND'::character varying)::text, ('REBIND'::character varying)::text, ('UNBIND'::character varying)::text, ('REVOKE'::character varying)::text])))
 );
 
 -- TABLE nfc_tag_bind_hst  |  COMMENT
@@ -475,7 +521,7 @@ CREATE TABLE nfc_tag_mst (
     status character varying(20) DEFAULT 'STOCK'::character varying NOT NULL,
     CONSTRAINT ck_nfc_tag_mst_cd_format CHECK (((tag_cd)::text ~ '^[0-9A-HJKMNP-TV-Z]{6}$'::text)),
     CONSTRAINT ck_nfc_tag_mst_cd_upper CHECK (((tag_cd)::text = upper((tag_cd)::text))),
-    CONSTRAINT ck_nfc_tag_mst_status CHECK (((status)::text = ANY ((ARRAY['STOCK'::character varying, 'SOLD'::character varying, 'BOUND'::character varying, 'REVOKED'::character varying])::text[])))
+    CONSTRAINT ck_nfc_tag_mst_status CHECK (((status)::text = ANY (ARRAY[('STOCK'::character varying)::text, ('SOLD'::character varying)::text, ('BOUND'::character varying)::text, ('REVOKED'::character varying)::text])))
 );
 
 -- TABLE nfc_tag_mst  |  COMMENT
@@ -519,7 +565,7 @@ CREATE TABLE notification_log_dtl (
     pet_count integer,
     notification_type character varying(30) DEFAULT 'ROUTINE_ALARM'::character varying NOT NULL,
     reference_id bigint,
-    CONSTRAINT ck_notification_log_status CHECK (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'SENT'::character varying, 'FAILED'::character varying, 'READ'::character varying])::text[])))
+    CONSTRAINT ck_notification_log_status CHECK ((status IN ('PENDING', 'SENT', 'FAILED', 'READ', 'SKIPPED')))
 );
 
 -- TABLE notification_log_dtl  |  COMMENT
@@ -529,7 +575,7 @@ COMMENT ON TABLE notification_log_dtl IS '알림 발송 이력';
 COMMENT ON COLUMN notification_log_dtl.pet_id IS 'v2.4: 대표 개체 ID (다개체 알림 시 pet_id ASC LIMIT 1)';
 
 -- COLUMN notification_log_dtl.status  |  COMMENT
-COMMENT ON COLUMN notification_log_dtl.status IS 'PENDING / SENT / FAILED / READ';
+COMMENT ON COLUMN notification_log_dtl.status IS 'PENDING / SENT / FAILED / READ / SKIPPED(수신 설정으로 푸시 생략 — 알림함에는 노출)';
 
 -- COLUMN notification_log_dtl.pet_count  |  COMMENT
 COMMENT ON COLUMN notification_log_dtl.pet_count IS '알림 발송 시점 연결 개체 수 (분석용)';
@@ -575,7 +621,8 @@ CREATE TABLE pet_keeper_rls (
     user_id bigint NOT NULL,
     role character varying(20) DEFAULT 'KEEPER'::character varying NOT NULL,
     joined_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT chk_pet_keeper_role CHECK (((role)::text = ANY ((ARRAY['OWNER'::character varying, 'KEEPER'::character varying])::text[])))
+    sort_order integer DEFAULT 0 NOT NULL,
+    CONSTRAINT chk_pet_keeper_role CHECK (((role)::text = ANY (ARRAY[('OWNER'::character varying)::text, ('KEEPER'::character varying)::text])))
 );
 
 -- pet_morph_rls  |  TABLE
@@ -613,9 +660,13 @@ CREATE TABLE pet_mst (
     hatching_date_approximate boolean DEFAULT false NOT NULL,
     deceased_at date,
     is_orphaned boolean DEFAULT false NOT NULL,
+    keeping_report_yn character varying(1) DEFAULT 'N'::character varying NOT NULL,
+    cites_report_yn character varying(1) DEFAULT 'N'::character varying NOT NULL,
+    CONSTRAINT chk_pet_cites_report_yn CHECK ((cites_report_yn IN ('Y', 'N'))),
+    CONSTRAINT chk_pet_keeping_report_yn CHECK ((keeping_report_yn IN ('Y', 'N'))),
     CONSTRAINT chk_pet_private_yn CHECK (((private_yn)::bpchar = ANY (ARRAY['Y'::bpchar, 'N'::bpchar]))),
     CONSTRAINT ck_pet_mst_color_code CHECK (((color_code IS NULL) OR ((color_code)::text ~ '^#[0-9A-Fa-f]{6}$'::text))),
-    CONSTRAINT ck_pet_mst_gender CHECK (((gender)::text = ANY ((ARRAY['MALE'::character varying, 'FEMALE'::character varying, 'UNKNOWN'::character varying])::text[]))),
+    CONSTRAINT ck_pet_mst_gender CHECK (((gender)::text = ANY (ARRAY[('MALE'::character varying)::text, ('FEMALE'::character varying)::text, ('UNKNOWN'::character varying)::text]))),
     CONSTRAINT ck_pet_mst_serial_no CHECK (((length((serial_no)::text) >= 6) AND (length((serial_no)::text) <= 8)))
 );
 
@@ -640,6 +691,12 @@ COMMENT ON COLUMN pet_mst.deleted_at IS 'Soft Delete 일시';
 -- COLUMN pet_mst.is_orphaned  |  COMMENT
 COMMENT ON COLUMN pet_mst.is_orphaned IS '탈퇴 익명화 개체. 신규 참조(부모 등록·메이팅 상대) 대상에서 제외되고, 참조가 0이 되면 정리 배치가 물리 삭제한다';
 
+-- COLUMN pet_mst.keeping_report_yn  |  COMMENT
+COMMENT ON COLUMN pet_mst.keeping_report_yn IS '지정관리 야생동물 보관신고 완료 여부(Y/N). 관할 지자체, 접수 API 없음';
+
+-- COLUMN pet_mst.cites_report_yn  |  COMMENT
+COMMENT ON COLUMN pet_mst.cites_report_yn IS 'CITES 양도·양수 신고 완료 여부(Y/N). 관할 유역환경청, 접수 API 없음';
+
 -- pet_relation_rls  |  TABLE
 CREATE TABLE pet_relation_rls (
     id bigint NOT NULL,
@@ -648,7 +705,7 @@ CREATE TABLE pet_relation_rls (
     relation_type character varying(10) NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT ck_pet_relation_type CHECK (((relation_type)::text = ANY ((ARRAY['FATHER'::character varying, 'MOTHER'::character varying])::text[])))
+    CONSTRAINT ck_pet_relation_type CHECK (((relation_type)::text = ANY (ARRAY[('FATHER'::character varying)::text, ('MOTHER'::character varying)::text])))
 );
 
 -- TABLE pet_relation_rls  |  COMMENT
@@ -680,8 +737,8 @@ CREATE TABLE pet_share_invitation (
     responded_at timestamp with time zone,
     expires_at timestamp with time zone NOT NULL,
     batch_id uuid NOT NULL,
-    CONSTRAINT chk_pet_share_inv_status CHECK (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'ACCEPTED'::character varying, 'REJECTED'::character varying, 'CANCELED'::character varying, 'EXPIRED'::character varying])::text[]))),
-    CONSTRAINT chk_pet_share_inv_type CHECK (((invite_type)::text = ANY ((ARRAY['SHARE'::character varying, 'TRANSFER'::character varying])::text[])))
+    CONSTRAINT chk_pet_share_inv_status CHECK (((status)::text = ANY (ARRAY[('PENDING'::character varying)::text, ('ACCEPTED'::character varying)::text, ('REJECTED'::character varying)::text, ('CANCELED'::character varying)::text, ('EXPIRED'::character varying)::text]))),
+    CONSTRAINT chk_pet_share_inv_type CHECK (((invite_type)::text = ANY (ARRAY[('SHARE'::character varying)::text, ('TRANSFER'::character varying)::text])))
 );
 
 -- pet_share_invitation_id_seq  |  SEQUENCE
@@ -722,7 +779,8 @@ CREATE TABLE photo_dtl (
     deleted_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT chk_photo_entity_type CHECK (((entity_type)::text = ANY ((ARRAY['PET'::character varying, 'MEMO'::character varying, 'MATING'::character varying, 'LAYING'::character varying])::text[])))
+    thumb_s3_key character varying(255),
+    CONSTRAINT chk_photo_entity_type CHECK (((entity_type)::text = ANY (ARRAY[('PET'::character varying)::text, ('MEMO'::character varying)::text, ('MATING'::character varying)::text, ('LAYING'::character varying)::text])))
 );
 
 -- TABLE photo_dtl  |  COMMENT
@@ -733,6 +791,9 @@ COMMENT ON COLUMN photo_dtl.entity_type IS 'PET | MEMO | MATING | LAYING';
 
 -- COLUMN photo_dtl.entity_id  |  COMMENT
 COMMENT ON COLUMN photo_dtl.entity_id IS '대상 엔티티 PK (폴리모픽 → DB FK 미설정)';
+
+-- COLUMN photo_dtl.thumb_s3_key  |  COMMENT
+COMMENT ON COLUMN photo_dtl.thumb_s3_key IS '썸네일 S3 키(짧은 변 512px 기준 JPEG). NULL = 썸네일 없음 → 원본으로 폴백';
 
 -- photo_dtl_id_seq  |  SEQUENCE
 CREATE SEQUENCE photo_dtl_id_seq
@@ -780,7 +841,9 @@ CREATE TABLE post_comment_dtl (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     sync_version bigint DEFAULT 1 NOT NULL,
     client_id character varying(64),
-    client_change_id uuid
+    client_change_id uuid,
+    blinded_at timestamp with time zone,
+    blinded_by bigint
 );
 
 -- TABLE post_comment_dtl  |  COMMENT
@@ -788,6 +851,9 @@ COMMENT ON TABLE post_comment_dtl IS '댓글 (1단계 대댓글 지원)';
 
 -- COLUMN post_comment_dtl.parent_comment_id  |  COMMENT
 COMMENT ON COLUMN post_comment_dtl.parent_comment_id IS 'NULL이면 최상위 댓글, NOT NULL이면 대댓글';
+
+-- COLUMN post_comment_dtl.blinded_at  |  COMMENT
+COMMENT ON COLUMN post_comment_dtl.blinded_at IS '운영자가 가린 시각. 내용은 그대로 두고 응답에서만 치환한다 (작성자 삭제는 deleted_at)';
 
 -- post_comment_dtl_id_seq  |  SEQUENCE
 CREATE SEQUENCE post_comment_dtl_id_seq
@@ -842,7 +908,9 @@ CREATE TABLE post_mst (
     sync_version bigint DEFAULT 1 NOT NULL,
     client_id character varying(64),
     client_change_id uuid,
-    pinned_yn character varying(1) DEFAULT 'N'::character varying NOT NULL
+    pinned_yn character varying(1) DEFAULT 'N'::character varying NOT NULL,
+    blinded_at timestamp with time zone,
+    blinded_by bigint
 );
 
 -- TABLE post_mst  |  COMMENT
@@ -856,6 +924,9 @@ COMMENT ON COLUMN post_mst.deleted_at IS 'Soft Delete';
 
 -- COLUMN post_mst.pinned_yn  |  COMMENT
 COMMENT ON COLUMN post_mst.pinned_yn IS '공지 상단 고정 여부 Y/N (관리자만 설정)';
+
+-- COLUMN post_mst.blinded_at  |  COMMENT
+COMMENT ON COLUMN post_mst.blinded_at IS '운영자가 가린 시각. 내용은 그대로 두고 응답에서만 치환한다 (작성자 삭제는 deleted_at)';
 
 -- post_mst_id_seq  |  SEQUENCE
 CREATE SEQUENCE post_mst_id_seq
@@ -894,6 +965,53 @@ CREATE SEQUENCE post_photo_dtl_id_seq
 -- post_photo_dtl_id_seq  |  SEQUENCE OWNED BY
 ALTER SEQUENCE post_photo_dtl_id_seq OWNED BY post_photo_dtl.id;
 
+-- post_report_dtl  |  TABLE
+CREATE TABLE post_report_dtl (
+    id bigint NOT NULL,
+    reporter_user_id bigint NOT NULL,
+    target_type character varying(10) NOT NULL,
+    target_id bigint NOT NULL,
+    target_user_id bigint NOT NULL,
+    reason_cd character varying(20) NOT NULL,
+    detail text,
+    status character varying(10) DEFAULT 'PENDING'::character varying NOT NULL,
+    action_taken character varying(20),
+    handled_by bigint,
+    handled_at timestamp with time zone,
+    handler_memo text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT ck_post_report_action CHECK (((action_taken IS NULL) OR (action_taken IN ('NONE', 'BLIND', 'DELETE', 'SUSPEND')))),
+    CONSTRAINT ck_post_report_handled CHECK (((((status)::text = 'PENDING'::text) AND (handled_at IS NULL)) OR (((status)::text <> 'PENDING'::text) AND (handled_at IS NOT NULL) AND (handled_by IS NOT NULL)))),
+    CONSTRAINT ck_post_report_reason CHECK ((reason_cd IN ('SPAM', 'ABUSE', 'SEXUAL', 'PRIVACY', 'ILLEGAL_TRADE', 'ANIMAL_CRUELTY', 'ETC'))),
+    CONSTRAINT ck_post_report_self CHECK ((reporter_user_id <> target_user_id)),
+    CONSTRAINT ck_post_report_status CHECK ((status IN ('PENDING', 'RESOLVED', 'REJECTED'))),
+    CONSTRAINT ck_post_report_target CHECK ((target_type IN ('POST', 'COMMENT', 'USER')))
+);
+
+-- TABLE post_report_dtl  |  COMMENT
+COMMENT ON TABLE post_report_dtl IS '커뮤니티 신고. 접수되면 신고자→작성자 차단도 함께 생성된다 (신고 취소는 없고 차단만 해제 가능)';
+
+-- COLUMN post_report_dtl.target_user_id  |  COMMENT
+COMMENT ON COLUMN post_report_dtl.target_user_id IS '신고당한 글·댓글의 작성자. 대상 글이 지워져도 누구를 신고한 것인지는 남아야 해서 비정규화한다';
+
+-- COLUMN post_report_dtl.reason_cd  |  COMMENT
+COMMENT ON COLUMN post_report_dtl.reason_cd IS 'SPAM=도배·광고 / ABUSE=욕설·혐오 / SEXUAL=음란 / PRIVACY=개인정보 노출 / ILLEGAL_TRADE=불법 분양·판매 / ANIMAL_CRUELTY=동물 학대 / ETC=기타. 뒤 두 개는 파충류 커뮤니티에서 실제로 가장 많이 나오는 신고라 일반 세트에 더한 것이다';
+
+-- COLUMN post_report_dtl.action_taken  |  COMMENT
+COMMENT ON COLUMN post_report_dtl.action_taken IS 'NONE=위반 아님 / BLIND=가림 / DELETE=삭제 / SUSPEND=계정 정지. status<>PENDING 일 때만 채운다';
+
+-- post_report_dtl_id_seq  |  SEQUENCE
+CREATE SEQUENCE post_report_dtl_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+-- post_report_dtl_id_seq  |  SEQUENCE OWNED BY
+ALTER SEQUENCE post_report_dtl_id_seq OWNED BY post_report_dtl.id;
+
 -- routine_log_dtl  |  TABLE
 CREATE TABLE routine_log_dtl (
     id bigint NOT NULL,
@@ -905,7 +1023,7 @@ CREATE TABLE routine_log_dtl (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     created_by_user_id bigint,
-    CONSTRAINT ck_routine_log_dtl_status CHECK (((status)::text = ANY ((ARRAY['COMPLETED'::character varying, 'REFUSED'::character varying])::text[])))
+    CONSTRAINT ck_routine_log_dtl_status CHECK (((status)::text = ANY (ARRAY[('COMPLETED'::character varying)::text, ('REFUSED'::character varying)::text])))
 );
 
 -- TABLE routine_log_dtl  |  COMMENT
@@ -943,8 +1061,17 @@ CREATE TABLE routine_mst (
     last_notified_at timestamp with time zone,
     start_date date,
     deleted_at timestamp with time zone,
+    postponed_at timestamp with time zone,
+    postponed_from date,
+    cycle_mode character varying(10) DEFAULT 'INTERVAL'::character varying NOT NULL,
+    cycle_days_of_week character varying(20),
+    cycle_days_of_month character varying(100),
     CONSTRAINT ck_routine_mst_cycle CHECK ((cycle_days > 0)),
-    CONSTRAINT ck_routine_mst_type CHECK (((routine_type)::text = ANY ((ARRAY['FEEDING'::character varying, 'CLEANING'::character varying, 'WEIGHT'::character varying, 'CUSTOM'::character varying])::text[])))
+    CONSTRAINT ck_routine_mst_cycle_days_of_month CHECK (((cycle_days_of_month IS NULL) OR ((cycle_days_of_month)::text ~ '^([1-9]|[12][0-9]|3[0-2])(,([1-9]|[12][0-9]|3[0-2]))*$'::text))),
+    CONSTRAINT ck_routine_mst_cycle_days_of_week CHECK (((cycle_days_of_week IS NULL) OR ((cycle_days_of_week)::text ~ '^[1-7](,[1-7])*$'::text))),
+    CONSTRAINT ck_routine_mst_cycle_fields_by_mode CHECK (((((cycle_mode)::text = 'INTERVAL'::text) AND (cycle_days_of_week IS NULL) AND (cycle_days_of_month IS NULL)) OR (((cycle_mode)::text = 'WEEKDAY'::text) AND (cycle_days_of_week IS NOT NULL) AND (cycle_days_of_month IS NULL)) OR (((cycle_mode)::text = 'MONTHDAY'::text) AND (cycle_days_of_month IS NOT NULL) AND (cycle_days_of_week IS NULL)))),
+    CONSTRAINT ck_routine_mst_cycle_mode CHECK ((cycle_mode IN ('INTERVAL', 'WEEKDAY', 'MONTHDAY'))),
+    CONSTRAINT ck_routine_mst_type CHECK (((routine_type)::text = ANY (ARRAY[('FEEDING'::character varying)::text, ('CLEANING'::character varying)::text, ('WEIGHT'::character varying)::text, ('CUSTOM'::character varying)::text])))
 );
 
 -- TABLE routine_mst  |  COMMENT
@@ -970,6 +1097,21 @@ COMMENT ON COLUMN routine_mst.start_date IS 'v6: 루틴 시작일(고정). nextD
 
 -- COLUMN routine_mst.deleted_at  |  COMMENT
 COMMENT ON COLUMN routine_mst.deleted_at IS 'soft delete 시각 (NULL = 활성). 삭제해도 기록 테이블은 보존';
+
+-- COLUMN routine_mst.postponed_at  |  COMMENT
+COMMENT ON COLUMN routine_mst.postponed_at IS '마지막으로 미룬 시각 (없으면 미룬 적 없음)';
+
+-- COLUMN routine_mst.postponed_from  |  COMMENT
+COMMENT ON COLUMN routine_mst.postponed_from IS '미루기 직전의 next_due_at — "9/16에서 미룸" 표시용';
+
+-- COLUMN routine_mst.cycle_mode  |  COMMENT
+COMMENT ON COLUMN routine_mst.cycle_mode IS '반복 방식: INTERVAL(cycle_days 마다) / WEEKDAY(요일 지정) / MONTHDAY(매월 날짜 지정)';
+
+-- COLUMN routine_mst.cycle_days_of_week  |  COMMENT
+COMMENT ON COLUMN routine_mst.cycle_days_of_week IS 'WEEKDAY 전용 — ISO 요일 CSV (1=월 … 7=일)';
+
+-- COLUMN routine_mst.cycle_days_of_month  |  COMMENT
+COMMENT ON COLUMN routine_mst.cycle_days_of_month IS 'MONTHDAY 전용 — 날짜 CSV (1~31, 32=말일). 그 달에 없는 날(2/30 등)은 건너뛴다';
 
 -- routine_mst_id_seq  |  SEQUENCE
 CREATE SEQUENCE routine_mst_id_seq
@@ -1082,7 +1224,7 @@ CREATE TABLE species_cd (
     is_active boolean DEFAULT true NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT ck_species_cd_category CHECK ((category = ANY (ARRAY['R'::bpchar, 'A'::bpchar])))
+    CONSTRAINT ck_species_cd_category CHECK ((category = ANY (ARRAY['R'::bpchar, 'A'::bpchar, 'M'::bpchar])))
 );
 
 -- TABLE species_cd  |  COMMENT
@@ -1092,10 +1234,10 @@ COMMENT ON TABLE species_cd IS '종 마스터 (배포 없이 종 추가 가능)'
 COMMENT ON COLUMN species_cd.code IS 'LEOPARD_GECKO 등 시스템 코드';
 
 -- COLUMN species_cd.category  |  COMMENT
-COMMENT ON COLUMN species_cd.category IS 'REPTILE / AMPHIBIAN';
+COMMENT ON COLUMN species_cd.category IS 'R=REPTILE / A=AMPHIBIAN / M=MAMMAL';
 
 -- COLUMN species_cd.subcategory  |  COMMENT
-COMMENT ON COLUMN species_cd.subcategory IS 'LIZARD / GECKO / IGUANA / TURTLE / SNAKE / FROG 등';
+COMMENT ON COLUMN species_cd.subcategory IS 'GECKO / LIZARD / CHAMELEON / SNAKE / TURTLE / FROG / NEWT / SMALL_MAMMAL';
 
 -- species_cd_id_seq  |  SEQUENCE
 CREATE SEQUENCE species_cd_id_seq
@@ -1116,6 +1258,77 @@ CREATE SEQUENCE sync_version_seq
     NO MAXVALUE
     CACHE 1;
 
+-- user_agreement_dtl  |  TABLE
+CREATE TABLE user_agreement_dtl (
+    id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    agreement_cd character varying(20) NOT NULL,
+    version character varying(20) NOT NULL,
+    agreed boolean NOT NULL,
+    source_cd character varying(20) NOT NULL,
+    agreed_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT ck_user_agreement_cd CHECK ((agreement_cd IN ('TOS', 'PRIVACY', 'AGE_14', 'MARKETING', 'GUARDIAN'))),
+    CONSTRAINT ck_user_agreement_source CHECK ((source_cd IN ('SIGNUP', 'OAUTH_SIGNUP', 'SETTINGS', 'REAGREEMENT', 'GUARDIAN_CONSENT')))
+);
+
+-- TABLE user_agreement_dtl  |  COMMENT
+COMMENT ON TABLE user_agreement_dtl IS '약관 동의 이력 (append-only, 철회도 행으로 남김)';
+
+-- COLUMN user_agreement_dtl.agreement_cd  |  COMMENT
+COMMENT ON COLUMN user_agreement_dtl.agreement_cd IS 'TOS=이용약관 / PRIVACY=개인정보 처리방침 / AGE_14=만14세이상 / MARKETING=마케팅 수신(선택) / GUARDIAN=법정대리인 동의';
+
+-- COLUMN user_agreement_dtl.version  |  COMMENT
+COMMENT ON COLUMN user_agreement_dtl.version IS '동의한 약관의 시행일. 개정 후 재동의를 받으면 새 버전으로 행이 하나 더 쌓인다';
+
+-- COLUMN user_agreement_dtl.agreed  |  COMMENT
+COMMENT ON COLUMN user_agreement_dtl.agreed IS 'true=동의, false=철회 또는 미동의. 철회는 UPDATE 가 아니라 새 행';
+
+-- COLUMN user_agreement_dtl.source_cd  |  COMMENT
+COMMENT ON COLUMN user_agreement_dtl.source_cd IS 'SIGNUP=이메일 가입 / OAUTH_SIGNUP=소셜 최초 가입 / SETTINGS=마이페이지 / REAGREEMENT=약관 개정 재동의 / GUARDIAN_CONSENT=보호자가 자녀 계정을 만들며 동의';
+
+-- COLUMN user_agreement_dtl.agreed_at  |  COMMENT
+COMMENT ON COLUMN user_agreement_dtl.agreed_at IS '동의(또는 철회) 시각. 증명의 핵심이라 created_at 과 별도로 둔다';
+
+-- user_agreement_dtl_id_seq  |  SEQUENCE
+CREATE SEQUENCE user_agreement_dtl_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+-- user_agreement_dtl_id_seq  |  SEQUENCE OWNED BY
+ALTER SEQUENCE user_agreement_dtl_id_seq OWNED BY user_agreement_dtl.id;
+
+-- user_block_rls  |  TABLE
+CREATE TABLE user_block_rls (
+    id bigint NOT NULL,
+    blocker_user_id bigint NOT NULL,
+    blocked_user_id bigint NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT ck_user_block_self CHECK ((blocker_user_id <> blocked_user_id))
+);
+
+-- TABLE user_block_rls  |  COMMENT
+COMMENT ON TABLE user_block_rls IS '사용자 차단 (단방향 행). 글 노출은 차단한 쪽에서만 숨고, 댓글은 양방향으로 막는다';
+
+-- COLUMN user_block_rls.blocked_user_id  |  COMMENT
+COMMENT ON COLUMN user_block_rls.blocked_user_id IS '차단당한 사람. ⛔ 이 사실을 상대에게 알리지 말 것 — 알리는 순간 보복이 시작된다';
+
+-- user_block_rls_id_seq  |  SEQUENCE
+CREATE SEQUENCE user_block_rls_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+-- user_block_rls_id_seq  |  SEQUENCE OWNED BY
+ALTER SEQUENCE user_block_rls_id_seq OWNED BY user_block_rls.id;
+
 -- user_mst  |  TABLE
 CREATE TABLE user_mst (
     id bigint NOT NULL,
@@ -1129,7 +1342,12 @@ CREATE TABLE user_mst (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     deleted_at timestamp with time zone,
     share_code character varying(8),
-    show_nickname_in_pedigree boolean DEFAULT true NOT NULL
+    show_nickname_in_pedigree boolean DEFAULT true NOT NULL,
+    profile_color character varying(20) DEFAULT 'peach'::character varying NOT NULL,
+    birth_date date,
+    guardian_user_id bigint,
+    guardian_released_at timestamp with time zone,
+    CONSTRAINT ck_user_guardian_not_self CHECK (((guardian_user_id IS NULL) OR (guardian_user_id <> id)))
 );
 
 -- TABLE user_mst  |  COMMENT
@@ -1159,6 +1377,18 @@ COMMENT ON COLUMN user_mst.share_code IS '개체 공유/입분양 대상 식별 
 -- COLUMN user_mst.show_nickname_in_pedigree  |  COMMENT
 COMMENT ON COLUMN user_mst.show_nickname_in_pedigree IS '가계도/개체 카드에 내 닉네임을 노출할지. false 면 "비공개"로 치환되고 프로필 이동 불가';
 
+-- COLUMN user_mst.profile_color  |  COMMENT
+COMMENT ON COLUMN user_mst.profile_color IS '프로필 아바타 색 팔레트 키 (sage/peach/sky/lilac/butter/coral). 사진이 있으면 테두리 색으로 쓰인다';
+
+-- COLUMN user_mst.birth_date  |  COMMENT
+COMMENT ON COLUMN user_mst.birth_date IS '생년월일. NULL = 기존 사용자(가입 시 AGE_14 자기신고로 만 14세 이상 확인). 만 14세 미만 판정에만 쓴다';
+
+-- COLUMN user_mst.guardian_user_id  |  COMMENT
+COMMENT ON COLUMN user_mst.guardian_user_id IS '법정대리인 user_id. 자녀 계정만 값이 있다. 보호자 탈퇴 시 RESTRICT — 자녀를 먼저 처리해야 한다';
+
+-- COLUMN user_mst.guardian_released_at  |  COMMENT
+COMMENT ON COLUMN user_mst.guardian_released_at IS '보호자 연결 해제 시각 — 만 14세 도달 시 GuardianReleaseScheduler 가 찍는다. guardian_user_id 는 동의 근거라 남긴다';
+
 -- user_mst_id_seq  |  SEQUENCE
 CREATE SEQUENCE user_mst_id_seq
     START WITH 1
@@ -1169,6 +1399,28 @@ CREATE SEQUENCE user_mst_id_seq
 
 -- user_mst_id_seq  |  SEQUENCE OWNED BY
 ALTER SEQUENCE user_mst_id_seq OWNED BY user_mst.id;
+
+-- user_notification_pref  |  TABLE
+CREATE TABLE user_notification_pref (
+    user_id bigint NOT NULL,
+    routine boolean DEFAULT true NOT NULL,
+    comment boolean DEFAULT true NOT NULL,
+    post_like boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+-- TABLE user_notification_pref  |  COMMENT
+COMMENT ON TABLE user_notification_pref IS '알림 종류별 푸시 수신 설정. 행이 없으면 전부 켜짐';
+
+-- COLUMN user_notification_pref.routine  |  COMMENT
+COMMENT ON COLUMN user_notification_pref.routine IS 'ROUTINE_ALARM — 급여·체중·청소 예정 알림';
+
+-- COLUMN user_notification_pref.comment  |  COMMENT
+COMMENT ON COLUMN user_notification_pref.comment IS 'COMMUNITY_COMMENT — 내 글에 달린 댓글';
+
+-- COLUMN user_notification_pref.post_like  |  COMMENT
+COMMENT ON COLUMN user_notification_pref.post_like IS 'COMMUNITY_LIKE — 내 글을 좋아한 사람. like 는 SQL 예약어라 컬럼명을 피했다';
 
 -- user_oauth_rls  |  TABLE
 CREATE TABLE user_oauth_rls (
@@ -1182,14 +1434,14 @@ CREATE TABLE user_oauth_rls (
     token_expires_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT ck_user_oauth_rls_provider CHECK (((provider)::text = ANY ((ARRAY['GOOGLE'::character varying, 'KAKAO'::character varying, 'NAVER'::character varying])::text[])))
+    CONSTRAINT ck_user_oauth_rls_provider CHECK ((provider IN ('GOOGLE', 'KAKAO', 'NAVER', 'APPLE')))
 );
 
 -- TABLE user_oauth_rls  |  COMMENT
 COMMENT ON TABLE user_oauth_rls IS '사용자-OAuth 공급자 연결';
 
 -- COLUMN user_oauth_rls.provider  |  COMMENT
-COMMENT ON COLUMN user_oauth_rls.provider IS 'GOOGLE / KAKAO / NAVER';
+COMMENT ON COLUMN user_oauth_rls.provider IS 'GOOGLE / KAKAO / NAVER / APPLE';
 
 -- COLUMN user_oauth_rls.provider_user_id  |  COMMENT
 COMMENT ON COLUMN user_oauth_rls.provider_user_id IS '공급자측 식별자 (sub 등)';
@@ -1222,7 +1474,7 @@ CREATE TABLE weight_dtl (
     routine_id bigint,
     created_by_user_id bigint,
     routine_log_id bigint,
-    CONSTRAINT ck_weight_dtl_source CHECK (((source)::text = ANY ((ARRAY['MANUAL'::character varying, 'BLUETOOTH'::character varying])::text[])))
+    CONSTRAINT ck_weight_dtl_source CHECK (((source)::text = ANY (ARRAY[('MANUAL'::character varying)::text, ('BLUETOOTH'::character varying)::text])))
 );
 
 -- TABLE weight_dtl  |  COMMENT
@@ -1259,6 +1511,9 @@ ALTER TABLE ONLY laying_dtl ALTER COLUMN id SET DEFAULT nextval('laying_dtl_id_s
 
 -- laying_hatch_dtl id  |  DEFAULT
 ALTER TABLE ONLY laying_hatch_dtl ALTER COLUMN id SET DEFAULT nextval('laying_hatch_dtl_id_seq'::regclass);
+
+-- laying_note_dtl id  |  DEFAULT
+ALTER TABLE ONLY laying_note_dtl ALTER COLUMN id SET DEFAULT nextval('laying_note_dtl_id_seq'::regclass);
 
 -- mating_dtl id  |  DEFAULT
 ALTER TABLE ONLY mating_dtl ALTER COLUMN id SET DEFAULT nextval('mating_rls_id_seq'::regclass);
@@ -1308,6 +1563,9 @@ ALTER TABLE ONLY post_mst ALTER COLUMN id SET DEFAULT nextval('post_mst_id_seq':
 -- post_photo_dtl id  |  DEFAULT
 ALTER TABLE ONLY post_photo_dtl ALTER COLUMN id SET DEFAULT nextval('post_photo_dtl_id_seq'::regclass);
 
+-- post_report_dtl id  |  DEFAULT
+ALTER TABLE ONLY post_report_dtl ALTER COLUMN id SET DEFAULT nextval('post_report_dtl_id_seq'::regclass);
+
 -- routine_log_dtl id  |  DEFAULT
 ALTER TABLE ONLY routine_log_dtl ALTER COLUMN id SET DEFAULT nextval('routine_log_dtl_id_seq'::regclass);
 
@@ -1325,6 +1583,12 @@ ALTER TABLE ONLY serial_pool_stat_mst ALTER COLUMN id SET DEFAULT nextval('seria
 
 -- species_cd id  |  DEFAULT
 ALTER TABLE ONLY species_cd ALTER COLUMN id SET DEFAULT nextval('species_cd_id_seq'::regclass);
+
+-- user_agreement_dtl id  |  DEFAULT
+ALTER TABLE ONLY user_agreement_dtl ALTER COLUMN id SET DEFAULT nextval('user_agreement_dtl_id_seq'::regclass);
+
+-- user_block_rls id  |  DEFAULT
+ALTER TABLE ONLY user_block_rls ALTER COLUMN id SET DEFAULT nextval('user_block_rls_id_seq'::regclass);
 
 -- user_mst id  |  DEFAULT
 ALTER TABLE ONLY user_mst ALTER COLUMN id SET DEFAULT nextval('user_mst_id_seq'::regclass);
@@ -1362,6 +1626,10 @@ ALTER TABLE ONLY laying_dtl
 -- laying_hatch_dtl laying_hatch_dtl_pkey  |  CONSTRAINT
 ALTER TABLE ONLY laying_hatch_dtl
     ADD CONSTRAINT laying_hatch_dtl_pkey PRIMARY KEY (id);
+
+-- laying_note_dtl laying_note_dtl_pkey  |  CONSTRAINT
+ALTER TABLE ONLY laying_note_dtl
+    ADD CONSTRAINT laying_note_dtl_pkey PRIMARY KEY (id);
 
 -- mating_dtl mating_rls_pkey  |  CONSTRAINT
 ALTER TABLE ONLY mating_dtl
@@ -1442,6 +1710,10 @@ ALTER TABLE ONLY post_mst
 -- post_photo_dtl post_photo_dtl_pkey  |  CONSTRAINT
 ALTER TABLE ONLY post_photo_dtl
     ADD CONSTRAINT post_photo_dtl_pkey PRIMARY KEY (id);
+
+-- post_report_dtl post_report_dtl_pkey  |  CONSTRAINT
+ALTER TABLE ONLY post_report_dtl
+    ADD CONSTRAINT post_report_dtl_pkey PRIMARY KEY (id);
 
 -- routine_log_dtl routine_log_dtl_pkey  |  CONSTRAINT
 ALTER TABLE ONLY routine_log_dtl
@@ -1539,6 +1811,10 @@ ALTER TABLE ONLY post_like_rls
 ALTER TABLE ONLY post_mst
     ADD CONSTRAINT uk_post_mst_sync UNIQUE (client_id, client_change_id) DEFERRABLE INITIALLY DEFERRED;
 
+-- post_report_dtl uk_post_report_dtl  |  CONSTRAINT
+ALTER TABLE ONLY post_report_dtl
+    ADD CONSTRAINT uk_post_report_dtl UNIQUE (reporter_user_id, target_type, target_id);
+
 -- serial_pool_stat_mst uk_serial_pool_stat_length  |  CONSTRAINT
 ALTER TABLE ONLY serial_pool_stat_mst
     ADD CONSTRAINT uk_serial_pool_stat_length UNIQUE (serial_length);
@@ -1546,6 +1822,10 @@ ALTER TABLE ONLY serial_pool_stat_mst
 -- species_cd uk_species_cd_code  |  CONSTRAINT
 ALTER TABLE ONLY species_cd
     ADD CONSTRAINT uk_species_cd_code UNIQUE (code);
+
+-- user_block_rls uk_user_block_rls  |  CONSTRAINT
+ALTER TABLE ONLY user_block_rls
+    ADD CONSTRAINT uk_user_block_rls UNIQUE (blocker_user_id, blocked_user_id);
 
 -- user_oauth_rls uk_user_oauth_rls_provider_user  |  CONSTRAINT
 ALTER TABLE ONLY user_oauth_rls
@@ -1571,9 +1851,21 @@ ALTER TABLE ONLY pet_morph_rls
 ALTER TABLE ONLY routine_pet_rls
     ADD CONSTRAINT uq_routine_pet_rls UNIQUE (routine_id, pet_id);
 
+-- user_agreement_dtl user_agreement_dtl_pkey  |  CONSTRAINT
+ALTER TABLE ONLY user_agreement_dtl
+    ADD CONSTRAINT user_agreement_dtl_pkey PRIMARY KEY (id);
+
+-- user_block_rls user_block_rls_pkey  |  CONSTRAINT
+ALTER TABLE ONLY user_block_rls
+    ADD CONSTRAINT user_block_rls_pkey PRIMARY KEY (id);
+
 -- user_mst user_mst_pkey  |  CONSTRAINT
 ALTER TABLE ONLY user_mst
     ADD CONSTRAINT user_mst_pkey PRIMARY KEY (id);
+
+-- user_notification_pref user_notification_pref_pkey  |  CONSTRAINT
+ALTER TABLE ONLY user_notification_pref
+    ADD CONSTRAINT user_notification_pref_pkey PRIMARY KEY (user_id);
 
 -- user_oauth_rls user_oauth_rls_pkey  |  CONSTRAINT
 ALTER TABLE ONLY user_oauth_rls
@@ -1631,6 +1923,9 @@ CREATE INDEX idx_laying_dtl_mating ON laying_dtl USING btree (mating_id) WHERE (
 -- idx_laying_dtl_pet_time  |  INDEX
 CREATE INDEX idx_laying_dtl_pet_time ON laying_dtl USING btree (pet_id, laid_at DESC) WHERE (deleted_at IS NULL);
 
+-- idx_laying_note_laying_date  |  INDEX
+CREATE INDEX idx_laying_note_laying_date ON laying_note_dtl USING btree (laying_id, noted_at DESC) WHERE (deleted_at IS NULL);
+
 -- idx_mating_dtl_female  |  INDEX
 CREATE INDEX idx_mating_dtl_female ON mating_dtl USING btree (female_pet_id, tried_at DESC) WHERE (deleted_at IS NULL);
 
@@ -1661,6 +1956,9 @@ CREATE INDEX idx_memo_vet_ext_next_visit ON memo_vet_ext_dtl USING btree (next_v
 -- idx_morph_cd_alias_trgm  |  INDEX
 CREATE INDEX idx_morph_cd_alias_trgm ON morph_cd USING gin (alias_list gin_trgm_ops) WHERE (alias_list IS NOT NULL);
 
+-- idx_morph_cd_created_by  |  INDEX
+CREATE INDEX idx_morph_cd_created_by ON morph_cd USING btree (created_by, species_id) WHERE (is_user_defined = true);
+
 -- idx_morph_cd_health_concern  |  INDEX
 CREATE INDEX idx_morph_cd_health_concern ON morph_cd USING btree (species_id, display_order) WHERE (has_health_concern = true);
 
@@ -1687,6 +1985,9 @@ CREATE INDEX idx_nfc_tag_mst_status ON nfc_tag_mst USING btree (status);
 
 -- idx_nfc_tag_mst_user  |  INDEX
 CREATE INDEX idx_nfc_tag_mst_user ON nfc_tag_mst USING btree (user_id);
+
+-- idx_notification_log_sent_at  |  INDEX
+CREATE INDEX idx_notification_log_sent_at ON notification_log_dtl USING btree (sent_at);
 
 -- idx_notification_log_status  |  INDEX
 CREATE INDEX idx_notification_log_status ON notification_log_dtl USING btree (status, sent_at);
@@ -1772,6 +2073,12 @@ CREATE INDEX idx_post_mst_user_time ON post_mst USING btree (user_id, created_at
 -- idx_post_photo_dtl_post  |  INDEX
 CREATE INDEX idx_post_photo_dtl_post ON post_photo_dtl USING btree (post_id, display_order);
 
+-- idx_post_report_dtl_queue  |  INDEX
+CREATE INDEX idx_post_report_dtl_queue ON post_report_dtl USING btree (status, created_at);
+
+-- idx_post_report_dtl_target  |  INDEX
+CREATE INDEX idx_post_report_dtl_target ON post_report_dtl USING btree (target_type, target_id);
+
 -- idx_routine_log_dtl_pet_time  |  INDEX
 CREATE INDEX idx_routine_log_dtl_pet_time ON routine_log_dtl USING btree (pet_id, executed_at DESC) WHERE (deleted_at IS NULL);
 
@@ -1805,8 +2112,26 @@ CREATE INDEX idx_species_cd_name_ko_trgm ON species_cd USING gin (name_ko gin_tr
 -- idx_species_cd_subcategory  |  INDEX
 CREATE INDEX idx_species_cd_subcategory ON species_cd USING btree (subcategory, is_active);
 
+-- idx_user_agreement_user  |  INDEX
+CREATE INDEX idx_user_agreement_user ON user_agreement_dtl USING btree (user_id, agreement_cd, agreed_at DESC);
+
+-- idx_user_block_rls_blocked  |  INDEX
+CREATE INDEX idx_user_block_rls_blocked ON user_block_rls USING btree (blocked_user_id);
+
+-- idx_user_block_rls_blocker  |  INDEX
+CREATE INDEX idx_user_block_rls_blocker ON user_block_rls USING btree (blocker_user_id);
+
+-- idx_user_guardian  |  INDEX
+CREATE INDEX idx_user_guardian ON user_mst USING btree (guardian_user_id) WHERE (guardian_user_id IS NOT NULL);
+
 -- idx_user_mst_email_active  |  INDEX
 CREATE UNIQUE INDEX idx_user_mst_email_active ON user_mst USING btree (email) WHERE (deleted_at IS NULL);
+
+-- idx_user_mst_name_unique  |  INDEX
+CREATE UNIQUE INDEX idx_user_mst_name_unique ON user_mst USING btree (lower((name)::text)) WHERE (deleted_at IS NULL);
+
+-- INDEX idx_user_mst_name_unique  |  COMMENT
+COMMENT ON INDEX idx_user_mst_name_unique IS '닉네임 중복 방지 (대소문자 무시, 탈퇴 계정 제외)';
 
 -- idx_user_mst_share_code  |  INDEX
 CREATE UNIQUE INDEX idx_user_mst_share_code ON user_mst USING btree (share_code) WHERE (share_code IS NOT NULL);
@@ -1829,6 +2154,9 @@ CREATE INDEX idx_weight_dtl_pet_time ON weight_dtl USING btree (pet_id, measured
 -- idx_weight_dtl_routine_log  |  INDEX
 CREATE INDEX idx_weight_dtl_routine_log ON weight_dtl USING btree (routine_log_id);
 
+-- uk_hatch_laying_egg_index  |  INDEX
+CREATE UNIQUE INDEX uk_hatch_laying_egg_index ON laying_hatch_dtl USING btree (laying_id, egg_index) WHERE ((deleted_at IS NULL) AND (egg_index IS NOT NULL));
+
 -- cleaning_dtl trg_cleaning_dtl_sync_version  |  TRIGGER
 CREATE TRIGGER trg_cleaning_dtl_sync_version BEFORE UPDATE ON cleaning_dtl FOR EACH ROW EXECUTE FUNCTION fn_bump_sync_version();
 
@@ -1840,6 +2168,9 @@ CREATE TRIGGER trg_laying_dtl_sync_version BEFORE UPDATE ON laying_dtl FOR EACH 
 
 -- laying_hatch_dtl trg_laying_hatch_dtl_sync_version  |  TRIGGER
 CREATE TRIGGER trg_laying_hatch_dtl_sync_version BEFORE UPDATE ON laying_hatch_dtl FOR EACH ROW EXECUTE FUNCTION fn_bump_sync_version();
+
+-- laying_note_dtl trg_laying_note_dtl_sync_version  |  TRIGGER
+CREATE TRIGGER trg_laying_note_dtl_sync_version BEFORE UPDATE ON laying_note_dtl FOR EACH ROW EXECUTE FUNCTION fn_bump_sync_version();
 
 -- mating_dtl trg_mating_dtl_sync_version  |  TRIGGER
 CREATE TRIGGER trg_mating_dtl_sync_version BEFORE UPDATE ON mating_dtl FOR EACH ROW EXECUTE FUNCTION fn_bump_sync_version();
@@ -1939,6 +2270,10 @@ ALTER TABLE ONLY memo_tag_rls
 -- memo_vet_ext_dtl fk_memo_vet_ext_memo  |  FK CONSTRAINT
 ALTER TABLE ONLY memo_vet_ext_dtl
     ADD CONSTRAINT fk_memo_vet_ext_memo FOREIGN KEY (memo_id) REFERENCES memo_dtl(id) ON DELETE CASCADE;
+
+-- morph_cd fk_morph_cd_created_by  |  FK CONSTRAINT
+ALTER TABLE ONLY morph_cd
+    ADD CONSTRAINT fk_morph_cd_created_by FOREIGN KEY (created_by) REFERENCES user_mst(id) ON DELETE SET NULL;
 
 -- morph_cd fk_morph_cd_species  |  FK CONSTRAINT
 ALTER TABLE ONLY morph_cd
@@ -2072,6 +2407,50 @@ ALTER TABLE ONLY user_oauth_rls
 ALTER TABLE ONLY weight_dtl
     ADD CONSTRAINT fk_weight_dtl_pet FOREIGN KEY (pet_id) REFERENCES pet_mst(id) ON DELETE CASCADE;
 
+-- laying_note_dtl laying_note_dtl_laying_id_fkey  |  FK CONSTRAINT
+ALTER TABLE ONLY laying_note_dtl
+    ADD CONSTRAINT laying_note_dtl_laying_id_fkey FOREIGN KEY (laying_id) REFERENCES laying_dtl(id) ON DELETE CASCADE;
+
+-- post_comment_dtl post_comment_dtl_blinded_by_fkey  |  FK CONSTRAINT
+ALTER TABLE ONLY post_comment_dtl
+    ADD CONSTRAINT post_comment_dtl_blinded_by_fkey FOREIGN KEY (blinded_by) REFERENCES user_mst(id) ON DELETE SET NULL;
+
+-- post_mst post_mst_blinded_by_fkey  |  FK CONSTRAINT
+ALTER TABLE ONLY post_mst
+    ADD CONSTRAINT post_mst_blinded_by_fkey FOREIGN KEY (blinded_by) REFERENCES user_mst(id) ON DELETE SET NULL;
+
+-- post_report_dtl post_report_dtl_handled_by_fkey  |  FK CONSTRAINT
+ALTER TABLE ONLY post_report_dtl
+    ADD CONSTRAINT post_report_dtl_handled_by_fkey FOREIGN KEY (handled_by) REFERENCES user_mst(id) ON DELETE SET NULL;
+
+-- post_report_dtl post_report_dtl_reporter_user_id_fkey  |  FK CONSTRAINT
+ALTER TABLE ONLY post_report_dtl
+    ADD CONSTRAINT post_report_dtl_reporter_user_id_fkey FOREIGN KEY (reporter_user_id) REFERENCES user_mst(id) ON DELETE CASCADE;
+
+-- post_report_dtl post_report_dtl_target_user_id_fkey  |  FK CONSTRAINT
+ALTER TABLE ONLY post_report_dtl
+    ADD CONSTRAINT post_report_dtl_target_user_id_fkey FOREIGN KEY (target_user_id) REFERENCES user_mst(id) ON DELETE CASCADE;
+
+-- user_agreement_dtl user_agreement_dtl_user_id_fkey  |  FK CONSTRAINT
+ALTER TABLE ONLY user_agreement_dtl
+    ADD CONSTRAINT user_agreement_dtl_user_id_fkey FOREIGN KEY (user_id) REFERENCES user_mst(id) ON DELETE CASCADE;
+
+-- user_block_rls user_block_rls_blocked_user_id_fkey  |  FK CONSTRAINT
+ALTER TABLE ONLY user_block_rls
+    ADD CONSTRAINT user_block_rls_blocked_user_id_fkey FOREIGN KEY (blocked_user_id) REFERENCES user_mst(id) ON DELETE CASCADE;
+
+-- user_block_rls user_block_rls_blocker_user_id_fkey  |  FK CONSTRAINT
+ALTER TABLE ONLY user_block_rls
+    ADD CONSTRAINT user_block_rls_blocker_user_id_fkey FOREIGN KEY (blocker_user_id) REFERENCES user_mst(id) ON DELETE CASCADE;
+
+-- user_mst user_mst_guardian_user_id_fkey  |  FK CONSTRAINT
+ALTER TABLE ONLY user_mst
+    ADD CONSTRAINT user_mst_guardian_user_id_fkey FOREIGN KEY (guardian_user_id) REFERENCES user_mst(id) ON DELETE RESTRICT;
+
+-- user_notification_pref user_notification_pref_user_id_fkey  |  FK CONSTRAINT
+ALTER TABLE ONLY user_notification_pref
+    ADD CONSTRAINT user_notification_pref_user_id_fkey FOREIGN KEY (user_id) REFERENCES user_mst(id) ON DELETE CASCADE;
+
 -- weight_dtl weight_dtl_routine_id_fkey  |  FK CONSTRAINT
 ALTER TABLE ONLY weight_dtl
     ADD CONSTRAINT weight_dtl_routine_id_fkey FOREIGN KEY (routine_id) REFERENCES routine_mst(id) ON DELETE SET NULL;
@@ -2081,20 +2460,18 @@ ALTER TABLE ONLY weight_dtl
 -- =====================================================================
 -- 코드성 시드 데이터
 -- =====================================================================
--- 구 V3(post_category_cd) / V16·V38(memo_tag_cd) / V11(serial_pool_stat_mst) 이
--- 심던 값이다. 스키마 덤프에는 데이터가 안 들어가므로 여기에 따로 옮겨 적었다.
+-- 스키마 덤프에는 데이터가 안 들어가므로 여기에 따로 옮겨 적었다.
 --
 -- id 를 명시하는 이유: 이 값들은 코드에서 이름(code)으로 찾지만, 개발/운영 DB의
 -- id 가 갈리면 덤프 비교가 매번 어긋난다. 뒤의 setval 로 시퀀스도 맞춰준다.
 --
 -- created_at/updated_at 은 적지 않는다 — DEFAULT now() 가 채운다.
--- 덤프에 찍힌 시각을 그대로 옮기면 "언제 스쿼시했는가"가 데이터에 박혀버린다.
 --
 -- ON CONFLICT DO NOTHING 은 붙이지 않는다. 이 파일은 빈 DB에만 적용되고,
 -- 조용히 넘어가면 시드 누락을 못 잡는다.
 -- =====================================================================
 
--- 메모 태그 (구 V16 + V38)
+-- 메모 태그
 -- ⚠️ VET 는 memo_vet_ext_dtl(병원명·비용·다음 방문일)을 필수로 끌고 온다. 지우지 말 것.
 INSERT INTO memo_tag_cd (id, code, label_ko, label_en, color_code, display_order, is_system, is_active) VALUES
     (1, 'VET',      '병원', 'Hospital',   '#E74C3C',  1, TRUE, TRUE),
@@ -2103,14 +2480,16 @@ INSERT INTO memo_tag_cd (id, code, label_ko, label_en, color_code, display_order
     (4, 'ETC',      '기타', 'Etc',        '#95A5A6', 99, TRUE, TRUE),
     (5, 'POOP',     '배변', 'Defecation', '#8D6E63',  4, TRUE, TRUE);
 
--- 커뮤니티 게시판 (구 V3)
+-- 커뮤니티 게시판 (NOTICE 는 구 V5, KIDS 는 구 V12)
 INSERT INTO post_category_cd (id, code, name_ko, description, display_order, is_active) VALUES
-    (1, 'FREE',     '자유게시판', '일상·사진 공유',                        1, TRUE),
-    (2, 'QNA',      'QnA',        '사육 관련 질문·답변',                    2, TRUE),
-    (3, 'INFO',     '정보게시판', '종별 사육 정보·팁',                      3, TRUE),
-    (4, 'ADOPTION', '분양게시판', '개체 분양 정보 공유 (결제·소유권 이전은 4차)', 4, TRUE);
+    (1, 'FREE',     '자유게시판',    '일상·사진 공유',                              1, TRUE),
+    (2, 'QNA',      'QnA',           '사육 관련 질문·답변',                          2, TRUE),
+    (3, 'INFO',     '정보게시판',    '종별 사육 정보·팁',                            3, TRUE),
+    (4, 'ADOPTION', '분양게시판',    '개체 분양 정보 공유 (결제·소유권 이전은 4차)', 4, TRUE),
+    (5, 'NOTICE',   '공지사항',      '운영자 공지',                                  0, TRUE),
+    (6, 'KIDS',     '어린이 게시판', '만 14세 미만 회원만 쓰고 볼 수 있는 게시판',   5, TRUE);
 
--- 일련번호 풀 용량 (구 V11)
+-- 일련번호 풀 용량
 -- 32자 풀(0/O/I/1 제외) 기준 32^n. 6자리로 시작해 사용률 80% 도달 시 7자리로 확장한다.
 INSERT INTO serial_pool_stat_mst (id, serial_length, total_capacity, is_current) VALUES
     (1, 6,       1073741824, TRUE),   -- 32^6
@@ -2120,5 +2499,5 @@ INSERT INTO serial_pool_stat_mst (id, serial_length, total_capacity, is_current)
 -- 위에서 id 를 직접 넣었으므로 시퀀스가 뒤처져 있다. 맞춰주지 않으면
 -- 다음 INSERT 가 id=1 을 다시 쓰려다 PK 중복으로 터진다.
 SELECT setval('memo_tag_cd_id_seq',          5, TRUE);
-SELECT setval('post_category_cd_id_seq',     4, TRUE);
+SELECT setval('post_category_cd_id_seq',     6, TRUE);
 SELECT setval('serial_pool_stat_mst_id_seq', 3, TRUE);

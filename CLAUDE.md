@@ -190,23 +190,47 @@ features/
 
 ## Flyway 마이그레이션 현황
 
-**2026-08-19 스쿼시 — 구 V1~V55 는 `V1__baseline_schema.sql` 하나로 합쳐졌고 파일은 삭제됐다.**
+**2026-11-09 2차 스쿼시 — 구 V1~V23 은 `V1__baseline_schema.sql` 하나로 합쳐졌고 파일은 삭제됐다.**
+(1차: 2026-08-19, 구 V1~V55 → V1)
 
-베이스라인은 V55까지 적용한 DB를 `pg_dump` 로 뽑은 것이라 순차 적용 결과와 동일하다.
-(빈 DB에 새 V1만 적용해 다시 덤프한 뒤 diff 로 검증 — 구조 차이 0. CHECK 제약 표기만
-PostgreSQL이 재정규화하는데 의미는 같다.)
+베이스라인은 구 V23까지 적용한 DB를 `pg_dump` 로 뽑은 것이라 순차 적용 결과와 동일하다.
+빈 DB에 새 V1만 적용해 다시 덤프한 뒤 diff 로 검증 — 스키마·시드·시퀀스 차이 0.
+(일부 CHECK 가 `col IN (...)` 표기인 건 PostgreSQL 재정규화로 덤프가 어긋나지 않게 원래 표기로 되돌린 것)
 
-- ⛔ **`V1__baseline_schema.sql` 은 절대 수정하지 말 것.** 고치면 체크섬이 바뀌어
-  이미 적용된 모든 DB가 `validate` 단계에서 기동을 거부한다.
-- **스쿼시 정책 (2026-09-10 확정):** 다음 스쿼시는 **운영 첫 배포 직전에 한 번** 한다.
-  개발 중인 지금은 하지 않는다 — 로컬 DB를 드롭·재생성해야 하고 실기기 확인용 데이터가 날아간다.
-- ℹ️ **"운영 DB가 생기면 스쿼시 불가"는 틀렸다.** 배포 후에도 가능하다. 절차만 늘어난다:
+- **운영 DB는 이 스쿼시와 함께 백업 후 초기화했다** (출시 전, 실사용자 데이터 없음). 이후 운영 DB는
+  새 V1 이력만 갖는다. 다음 스쿼시가 필요하면 그때는 운영 데이터가 있으므로 아래 repair 방식으로 한다.
+- ⛔ **push 된 마이그레이션 파일은 절대 수정 금지** (`V1__baseline_schema.sql` 포함). 고치면 체크섬이
+  바뀌어 이미 적용된 모든 DB가 `validate` 단계에서 기동을 거부한다.
+- ✅ **push 전이고 로컬에서만 돌린 파일은 고쳐도 된다.** 체크섬 검사는 DB마다 따로라, 운영은 아직 그
+  파일을 본 적이 없다. 로컬 DB만 아래처럼 초기화하면 된다.
+- 🔄 **로컬 DB 초기화** (구 이력이 남은 로컬 DB는 새 V1 체크섬 불일치로 기동 실패한다. 로컬 데이터 전부 삭제):
+  `docker exec bitpet-postgres psql -U bitpet -d bitpet -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"`
+  → 서버 재기동하면 Flyway 가 V1 + R__ 시드를 새로 깐다. Redis 의 옛 토큰·캐시도 지우려면
+  `docker exec bitpet-redis redis-cli FLUSHALL`.
+- ℹ️ **운영 데이터가 생긴 뒤의 스쿼시**도 가능하다. 절차만 늘어난다:
   ① 파일 합치기 → ② 운영 DB에 `flyway repair` 1회(히스토리 행 체크섬을 새 파일 기준으로 재정렬)
   → ③ `spring.flyway.ignore-migration-patterns: "*:missing"` (히스토리엔 있고 파일은 없는 버전 허용).
-  새로 만드는 DB(새 PC·CI Testcontainers)는 합쳐진 V1 하나만 적용하므로 영향 없다.
   ⚠️ `repair` 는 **운영 히스토리 테이블을 수정**한다 → 실행 전 Lightsail 스냅샷 필수, 배포와 겹치지 않게.
-  검증은 8/19 방식 그대로 — 빈 DB에 새 베이스라인만 적용해 덤프 뜨고 순차 적용 결과와 diff.
-- **스쿼시 이후 추가된 마이그레이션**: V2(자유), V3(`user_agreement_dtl` — 약관·마케팅 동의 원장),
+  검증은 같은 방식 — 빈 DB에 새 베이스라인만 적용해 덤프 뜨고 순차 적용 결과와 diff.
+- **2차 스쿼시 이후 추가된 마이그레이션**: 없음. **다음은 V2.**
+- 코드성 시드(`memo_tag_cd`, `post_category_cd`, `serial_pool_stat_mst`)는 베이스라인 하단에 들어 있다.
+  종·모프 마스터는 그대로 `R__01`/`R__02` 담당.
+- ⚠️ **`R__02` 는 파일에 없는 공식 모프를 매 실행마다 지운다** (개체가 물고 있으면 FK RESTRICT 라
+  지우지 않고 **사용자 정의 모프로 전환** — `created_by` = 그 개체의 OWNER).
+  공식 모프를 DB 에 직접 INSERT 하지 말고 반드시 `R__02` 에 추가할 것. 사용자 정의 모프는 대상 아님.
+- **안 쓰는 사용자 정의 모프는 매일 03:20 지워진다** (`MorphCleanupScheduler`, 2026-10-30 사용자 결정).
+  조건: `is_user_defined` + `updated_at` 이 하루 지남 + `pet_morph_rls` 참조 0. 하루 유예는 앱이 모프를
+  **먼저 만들고 개체 저장 때 붙이기** 때문 — 유예가 없으면 저장 직전 모프가 지워진다. 전환된 공식 모프도 같이 정리된다
+- **개체 목록은 개체 수와 무관하게 쿼리 수가 고정이다** — 최신 체중은 `WeightDtlRepository.findLatestByPetIds`
+  (DISTINCT ON 한 번), 대표사진은 `findAllById` 한 번. ⛔ `listByOwner` 안에서 개체마다 조회하지 말 것
+- 새 subcategory 를 추가하면 앱 `species_bottom_sheet.dart` 의 라벨·순서 목록에도 넣어야 레일에 뜬다.
+- 어떤 컬럼이 왜 생겼는지 추적할 땐 git 이력을 본다:
+  `git log --diff-filter=D --name-only -- 'bitpet_server/src/main/resources/db/migration/V*'`
+
+<details>
+<summary>구 V2~V23 이력 (2차 스쿼시로 V1 에 합쳐짐, 기록용)</summary>
+
+- V2(자유), V3(`user_agreement_dtl` — 약관·마케팅 동의 원장),
   V4(`user_notification_pref` — 알림 종류별 수신 설정 + `notification_log_dtl` 상태에 `SKIPPED` 추가),
   V5(`post_category_cd` 에 NOTICE 공지사항 카테고리 시드),
   V6(`notification_log_dtl.sent_at` 인덱스 — 보존기간 정리 배치용),
@@ -231,20 +255,8 @@ PostgreSQL이 재정규화하는데 의미는 같다.)
   V20(`pet_keeper_rls.sort_order` — 사람별 개체 순서), V21(탈퇴 계정 개인정보 정리),
   V22(`user_oauth_rls` provider CHECK 에 `APPLE` 추가),
   V23(`user_mst.guardian_released_at` — 만 14세 보호자 연결 해제 시각. `guardian_user_id` 는 남긴다).
-  **다음은 V24.**
-- 코드성 시드(`memo_tag_cd`, `post_category_cd`, `serial_pool_stat_mst`)는 베이스라인 하단에 들어 있다.
-  종·모프 마스터는 그대로 `R__01`/`R__02` 담당.
-- ⚠️ **`R__02` 는 파일에 없는 공식 모프를 매 실행마다 지운다** (개체가 물고 있으면 FK RESTRICT 라
-  지우지 않고 **사용자 정의 모프로 전환** — `created_by` = 그 개체의 OWNER).
-  공식 모프를 DB 에 직접 INSERT 하지 말고 반드시 `R__02` 에 추가할 것. 사용자 정의 모프는 대상 아님.
-- **안 쓰는 사용자 정의 모프는 매일 03:20 지워진다** (`MorphCleanupScheduler`, 2026-10-30 사용자 결정).
-  조건: `is_user_defined` + `updated_at` 이 하루 지남 + `pet_morph_rls` 참조 0. 하루 유예는 앱이 모프를
-  **먼저 만들고 개체 저장 때 붙이기** 때문 — 유예가 없으면 저장 직전 모프가 지워진다. 전환된 공식 모프도 같이 정리된다
-- **개체 목록은 개체 수와 무관하게 쿼리 수가 고정이다** — 최신 체중은 `WeightDtlRepository.findLatestByPetIds`
-  (DISTINCT ON 한 번), 대표사진은 `findAllById` 한 번. ⛔ `listByOwner` 안에서 개체마다 조회하지 말 것
-- 새 subcategory 를 추가하면 앱 `species_bottom_sheet.dart` 의 라벨·순서 목록에도 넣어야 레일에 뜬다.
-- 어떤 컬럼이 왜 생겼는지 추적할 땐 git 이력을 본다:
-  `git log --diff-filter=D --name-only -- 'bitpet_server/src/main/resources/db/migration/V*'`
+
+</details>
 
 <details>
 <summary>구 V1~V55 이력 (파일은 삭제됨, 기록용)</summary>
@@ -1164,8 +1176,9 @@ test → GHCR 이미지 빌드(**태그 = 커밋 SHA**) → SSH → `deploy/scri
 - 비파괴적·되돌릴 수 있는 결정만 자율 처리
 - 외부 시스템 영향(push·삭제·외부 API 호출)은 확인 후 진행
 - Flutter UI는 디자인 확정 전까지 **뼈대(Skeleton)만** 구현, 상세 UI는 별도 지시 대기
-- 새 Flyway 마이그레이션은 기존 파일 절대 수정 금지, 항상 다음 버전으로 신규 작성
-  (2026-08-19 스쿼시 이후 V2~V22 추가됨, **다음은 V24**. `V1__baseline_schema.sql` 수정 = 모든 DB 기동 불가)
+- 새 Flyway 마이그레이션은 **push 된(= 운영에 적용된) 파일은 절대 수정 금지**, 항상 다음 버전으로 신규 작성
+  (2026-11-09 2차 스쿼시 이후 **다음은 V2**. `V1__baseline_schema.sql` 수정 = 모든 DB 기동 불가).
+  push 전이고 로컬에서만 돌린 파일은 고쳐도 된다 — 로컬 DB 만 초기화하면 된다 (Flyway 현황 섹션 참고)
 
 ---
 
