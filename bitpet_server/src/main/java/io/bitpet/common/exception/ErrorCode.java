@@ -18,7 +18,7 @@ public enum ErrorCode {
 
     // --- Auth ---
     AUTH_INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "Invalid email or password"),
-    AUTH_LOGIN_LOCKED(HttpStatus.TOO_MANY_REQUESTS, "로그인에 여러 번 실패했어요. 10분 뒤에 다시 시도하거나 비밀번호를 재설정해 주세요."),
+    AUTH_LOGIN_LOCKED(HttpStatus.TOO_MANY_REQUESTS, "10분 후 다시 시도해주세요"),
     AUTH_EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "Email already registered"),
     AUTH_EMAIL_DOMAIN_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "지원하지 않는 이메일이에요. 네이버·카카오·다음·지메일 등 자주 쓰는 메일로 가입해 주세요."),
     AUTH_NICKNAME_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 사용 중인 닉네임입니다"),
