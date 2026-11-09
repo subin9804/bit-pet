@@ -40,7 +40,7 @@ class PetDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
-  int _tabIndex = 0; // 0:기록 1:캘린더 2:갤러리 3:가계도(부모가 있을 때만)
+  int _tabIndex = 0; // 0:기록 1:캘린더 2:갤러리 3:가계도(부모·자식·동배 중 하나라도 있을 때)
 
   @override
   void initState() {
@@ -65,12 +65,12 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final petAsync = ref.watch(petDetailProvider(widget.petId));
-    // 가계도 탭은 부모가 등록된 개체에만 붙는다. 부모가 지워져 탭이 사라지면
+    // 가계도 탭은 부모·자식·동배 중 하나라도 있는 개체에만 붙는다. 관계가 지워져 탭이 사라지면
     // 가계도를 보고 있던 인덱스가 범위를 벗어나므로 첫 탭으로 되돌린다.
     final hasPedigree = ref
             .watch(genealogyProvider(widget.petId))
             .valueOrNull
-            ?.hasParents ??
+            ?.hasFamily ??
         false;
     final tabs = ['기록', '캘린더', '갤러리', if (hasPedigree) '가계도'];
     final tabIndex = _tabIndex < tabs.length ? _tabIndex : 0;

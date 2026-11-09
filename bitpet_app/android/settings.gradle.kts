@@ -23,6 +23,8 @@ plugins {
     id("org.jetbrains.kotlin.android") version "2.3.20" apply false
     // FCM — google-services.json 처리
     id("com.google.gms.google-services") version "4.4.3" apply false
+    // Crashlytics — 빌드 ID 주입 + 난독화 매핑 업로드. 없으면 앱 기동 시 Crashlytics 가 예외를 던진다
+    id("com.google.firebase.crashlytics") version "3.0.8" apply false
 }
 
 include(":app")

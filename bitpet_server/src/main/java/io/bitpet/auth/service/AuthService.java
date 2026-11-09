@@ -1,5 +1,6 @@
 package io.bitpet.auth.service;
 
+import io.bitpet.auth.LoginAttemptStore;
 import io.bitpet.auth.apple.AppleIdTokenVerifier;
 import io.bitpet.auth.apple.AppleTokenClient;
 import io.bitpet.auth.apple.AppleUserInfo;
@@ -69,6 +70,7 @@ public class AuthService {
     private final AppleTokenClient appleTokenClient;
     private final TokenEncryptor tokenEncryptor;
     private final SignupEmailVerificationService signupEmailVerificationService;
+    private final LoginAttemptStore loginAttemptStore;
 
     public EmailCheckResponse checkEmail(String email) {
         // 받지 않는 도메인이면 중복 조회 전에 끊는다 — 앱이 '이미 사용 중'과 다른 안내를 띄운다
@@ -129,14 +131,19 @@ public class AuthService {
 
     @Transactional
     public TokenResponse login(LoginRequest request) {
-        UserMst user = userRepository.findByEmailLoose(request.email())
-                .orElseThrow(() -> new BusinessException(ErrorCode.AUTH_INVALID_CREDENTIALS));
+        // 잠긴 동안은 맞는 비밀번호여도 대조하지 않는다 — 대조해 주면 잠금이 오답 판정기로 바뀐다
+        if (loginAttemptStore.isLocked(request.email())) {
+            throw new BusinessException(ErrorCode.AUTH_LOGIN_LOCKED);
+        }
 
-        if (user.getPasswordHash() == null
+        UserMst user = userRepository.findByEmailLoose(request.email()).orElse(null);
+        if (user == null || user.getPasswordHash() == null
                 || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+            loginAttemptStore.recordFailure(request.email());
             throw new BusinessException(ErrorCode.AUTH_INVALID_CREDENTIALS);
         }
 
+        loginAttemptStore.reset(request.email());
         user.markLoggedIn();
         return issueTokens(user);
     }

@@ -99,6 +99,15 @@ if [ "$HEALTHY" != true ]; then
     exit 1
 fi
 
+# ── nginx 설정 반영 ──────────────────────────────────────────────────────────
+# conf.d 는 레포에서 오지만 nginx 는 6시간마다만 reload 한다. 문법 검사를 통과할 때만 바로 적용하고,
+# 실패해도 배포는 성공으로 둔다 — 앱은 이미 떴고, nginx 는 옛 설정을 계속 쓴다.
+if $COMPOSE exec -T nginx nginx -t >/dev/null 2>&1; then
+    $COMPOSE exec -T nginx nginx -s reload >/dev/null 2>&1 && echo "▸ nginx 설정 reload"
+else
+    echo "⚠ nginx 설정 검사 실패 — reload 건너뜀 (옛 설정 유지). 'docker exec tailog-nginx nginx -t' 로 확인할 것"
+fi
+
 # ── 정리 ─────────────────────────────────────────────────────────────────────
 # 태그마다 이미지가 쌓여 20GB 디스크를 금방 채운다. 떠 있는 것만 남기고 지운다.
 # ⚠️ -a 를 붙이지 않는다. 붙이면 롤백 대상인 직전 이미지까지 사라진다.

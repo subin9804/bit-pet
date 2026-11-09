@@ -13,10 +13,8 @@ import '../../../../core/widgets/sex_icon.dart';
 /// 부모는 **소유자와 무관하게** 걸 수 있고 승인·차단 절차가 없다. 대신 남의 개체라는 사실을
 /// 소유자 줄로 드러내서 사칭을 억제한다 — 그래서 이 카드의 1줄은 장식이 아니라 정책의 일부다.
 ///
-/// 두 줄은 **탭 타겟이 서로 겹치지 않는다**:
-///   1줄(소유자) → 프로필 이동 / 2줄(개체명) → 개체 상세 또는 최소 정보 시트.
-/// 썸네일은 어느 쪽에도 속하지 않는 순수 표시 영역이다 (두 줄에 걸쳐 있어 어디로 가야 할지
-/// 애매해진다).
+/// 탭 타겟: **카드 전체 → 개체 상세** 또는 최소 정보 시트 (2026-11-09 — 이름 글자만 눌리던 게 불편했다).
+/// 소유자 줄(@닉네임)만 예외로 프로필로 간다 — 안쪽 GestureDetector 가 제스처 경쟁에서 이긴다.
 ///
 /// [isMe]인 개체는 소유자 줄을 **아예 그리지 않는다**. 대부분이 본인 개체라 매번 내 닉네임이
 /// 붙으면 노이즈일 뿐이고, 반대로 "유저명이 보인다 = 남의 개체"라는 신호가 사라진다.
@@ -27,7 +25,11 @@ class PedigreeParentCard extends StatelessWidget {
   /// 자식 카드의 relationType 은 **가운데 개체의** 역할이라 그 개체 자신의 성별로 그려야 한다.
   final bool asParent;
 
-  const PedigreeParentCard({super.key, required this.card, this.asParent = true});
+  const PedigreeParentCard({
+    super.key,
+    required this.card,
+    this.asParent = true,
+  });
 
   Color get _identityColor {
     // 개체 지정색은 걷어냈다 — 저장된 hex 를 그대로 칠하던 자리다.
@@ -53,66 +55,72 @@ class PedigreeParentCard extends StatelessWidget {
     final owner = card.owner;
     final showOwnerLine = !owner.isMe;
 
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
+    return Material(
+      color: AppColors.card,
+      shape: RoundedRectangleBorder(
         borderRadius: AppRadius.brLg,
-        color: AppColors.card,
-        border: Border.all(color: AppColors.paleLine),
+        side: const BorderSide(color: AppColors.paleLine),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          _Thumbnail(url: card.profileImageUrl, color: _identityColor, subcategory: card.speciesSubcategory),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (showOwnerLine) ...[
-                  _OwnerLine(owner: owner),
-                  const SizedBox(height: 4),
-                ],
-                // 2줄 — 개체명. 탭 타겟은 이 줄에만 걸린다
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => _openPet(context),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SexIcon(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => _openPet(context),
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              _Thumbnail(
+                url: card.profileImageUrl,
+                color: _identityColor,
+                subcategory: card.speciesSubcategory,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (showOwnerLine) ...[
+                      _OwnerLine(owner: owner),
+                      const SizedBox(height: 4),
+                    ],
+                    // 2줄 — 개체명. 탭은 카드 전체(InkWell)가 받는다
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SexIcon(
                             asParent
                                 ? (card.isFather ? PetSex.male : PetSex.female)
                                 : petSexFrom(card.gender),
-                            size: 13),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            card.name,
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
-                            ),
-                            overflow: TextOverflow.ellipsis,
+                            size: 13,
                           ),
-                        ),
-                        if (card.isDeceased) ...[
                           const SizedBox(width: 4),
-                          const Text('🕊',
-                              style: TextStyle(fontSize: 12)),
+                          Flexible(
+                            child: Text(
+                              card.name,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textPrimary,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (card.isDeceased) ...[
+                            const SizedBox(width: 4),
+                            const Text('🕊', style: TextStyle(fontSize: 12)),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -129,19 +137,24 @@ class _OwnerLine extends StatelessWidget {
 
     // 탈퇴 익명화 — 갈 곳이 없으니 탭 불가. 개체명은 2줄에 그대로 남는다
     if (owner.isOrphaned) {
-      return const Text('정보 없음',
-          style: TextStyle(
-            fontSize: 12,
-            color: AppColors.textSecondary,
-            fontStyle: FontStyle.italic,
-          ));
+      return const Text(
+        '정보 없음',
+        style: TextStyle(
+          fontSize: 12,
+          color: AppColors.textSecondary,
+          fontStyle: FontStyle.italic,
+        ),
+      );
     }
 
     // 닉네임 비공개 — 주인은 있지만 서버가 userId를 내리지 않는다(프로필 이동 불가).
     // '정보 없음'(주인 없음)과는 다른 상태라 표시도 구분한다.
     if (owner.userId == null) {
-      return Text(owner.nickname ?? '비공개',
-          style: style, overflow: TextOverflow.ellipsis);
+      return Text(
+        owner.nickname ?? '비공개',
+        style: style,
+        overflow: TextOverflow.ellipsis,
+      );
     }
 
     return GestureDetector(
@@ -149,8 +162,11 @@ class _OwnerLine extends StatelessWidget {
       onTap: () => context.push('/users/${owner.userId}'),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Text('@${owner.nickname ?? ''}',
-            style: style, overflow: TextOverflow.ellipsis),
+        child: Text(
+          '@${owner.nickname ?? ''}',
+          style: style,
+          overflow: TextOverflow.ellipsis,
+        ),
       ),
     );
   }
@@ -176,10 +192,12 @@ class _Thumbnail extends StatelessWidget {
       ),
       clipBehavior: Clip.hardEdge,
       child: url != null
-          ? AppNetworkImage(url,
+          ? AppNetworkImage(
+              url,
               fit: BoxFit.cover,
               memWidth: 150,
-              placeholder: _ThumbFallback(subcategory))
+              placeholder: _ThumbFallback(subcategory),
+            )
           : _ThumbFallback(subcategory),
     );
   }
@@ -191,8 +209,12 @@ class _ThumbFallback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-      child: AppIcon(AppIcons.species(subcategory),
-          size: 20, color: AppColors.paleInk2));
+    child: AppIcon(
+      AppIcons.species(subcategory),
+      size: 20,
+      color: AppColors.paleInk2,
+    ),
+  );
 }
 
 /// 비공개 개체용 최소 정보 시트 — 개체명·종·모프·성별·해칭일이 전부다.
@@ -211,10 +233,10 @@ class _PetCardSheet extends StatelessWidget {
   const _PetCardSheet({required this.card});
 
   String get _genderLabel => switch (card.gender) {
-        'MALE' => '수컷',
-        'FEMALE' => '암컷',
-        _ => '미구분',
-      };
+    'MALE' => '수컷',
+    'FEMALE' => '암컷',
+    _ => '미구분',
+  };
 
   String get _hatchLabel {
     final d = card.hatchingDate;
@@ -234,11 +256,13 @@ class _PetCardSheet extends StatelessWidget {
       child: Column(
         children: [
           _SheetRow(
-              label: '종',
-              value: card.speciesName.isEmpty ? '-' : card.speciesName),
+            label: '종',
+            value: card.speciesName.isEmpty ? '-' : card.speciesName,
+          ),
           _SheetRow(
-              label: '모프',
-              value: card.morphLabel.isEmpty ? '-' : card.morphLabel),
+            label: '모프',
+            value: card.morphLabel.isEmpty ? '-' : card.morphLabel,
+          ),
           _SheetRow(label: '성별', value: _genderLabel),
           _SheetRow(label: card.terms.hatchDate, value: _hatchLabel),
           const SizedBox(height: 16),
@@ -266,18 +290,24 @@ class _SheetRow extends StatelessWidget {
         children: [
           SizedBox(
             width: 58,
-            child: Text(label,
-                style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.paleInk3)),
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.paleInk3,
+              ),
+            ),
           ),
           Expanded(
-            child: Text(value,
-                style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary)),
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
           ),
         ],
       ),

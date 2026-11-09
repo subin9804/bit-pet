@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/api/api_response.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/toast_message.dart';
@@ -141,9 +142,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     if (!mounted) return;
     ref.read(authStateProvider).whenOrNull(
       error: (e, _) {
-        final msg = (e is DioException && e.response?.statusCode == 401)
-            ? '존재하지 않는 아이디/비밀번호 입니다.'
-            : '로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.';
+        final status = e is DioException ? e.response?.statusCode : null;
+        final msg = switch (status) {
+          401 => '존재하지 않는 아이디/비밀번호 입니다.',
+          // 서버 계정 잠금(5회 실패 → 10분) 또는 nginx IP 제한. nginx 는 HTML 을 내려서 문구가 없다
+          429 => serverMessageOf(e) ?? '로그인 시도가 너무 많아요. 잠시 후 다시 시도해 주세요.',
+          _ => '로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.',
+        };
         ToastMessage.show(context, msg, type: ToastType.error);
       },
     );

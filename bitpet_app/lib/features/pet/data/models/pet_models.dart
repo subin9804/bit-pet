@@ -397,6 +397,10 @@ class Genealogy {
 
   bool get hasParents => parents.isNotEmpty;
 
+  /// 가계도 탭을 띄울 만한 관계가 하나라도 있는가 — 부모 없이 자식만 있는 개체(직접 키운 첫 세대)도 포함한다
+  bool get hasFamily =>
+      hasParents || children.isNotEmpty || siblings.isNotEmpty;
+
   bool get hasGrandparents => grandparents.values.any((l) => l.isNotEmpty);
 
   PetCard? _parentOf(String relationType) {

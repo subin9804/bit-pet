@@ -994,6 +994,21 @@ JWT Access 30분 + Refresh 14일 (Redis 저장, Rotation).
 OAuth 토큰 AES-256-GCM 암호화 (`BITPET_TOKEN_ENC_KEY` 환경변수).
 비밀번호 최소 10자 + 2종류 이상 조합.
 
+**로그인 실패 잠금 (2026-11-09)** — 이메일당 5회 실패 → 첫 실패부터 10분 잠금 (`LoginAttemptStore`, Redis).
+- 잠긴 동안은 **맞는 비밀번호도 대조하지 않는다** (`AUTH_LOGIN_LOCKED` 429). 성공·비밀번호 재설정 완료 시 카운트 삭제
+- 가입 안 된 이메일도 똑같이 센다 — 잠금이 가입 여부를 드러내면 안 된다
+- IP 단위(여러 계정에 같은 비번 뿌리기·인증메일 남발)는 nginx `limit_req zone=auth` (분당 10 + burst 10) —
+  login · signup/email-code · password-reset 만. `deploy.sh` 가 배포 끝에 `nginx -t` 통과 시 reload 한다
+
+**강제 업데이트 (2026-11-09)** — `GET /api/v1/app/version?platform=` (public) → minVersion·latestVersion·storeUrl.
+- 앱 `core/update/force_update.dart`: `MaterialApp.builder` 의 `ForceUpdateGate` 가 min 미만이면 전체를 덮는다.
+  스플래시는 기다리지 않는다. 판정 실패(오프라인 등)면 **막지 않는다**
+- ⚠️ `BITPET_ANDROID_MIN_VERSION` 은 스토어에 새 버전이 **풀린 뒤에** 올릴 것 — 먼저 올리면 사용자가 갇힌다
+
+**Crashlytics (2026-11-09)** — `main.dart` `_setUpCrashlytics()`. 디버그 빌드는 수집 안 함. Firebase 초기화 성공 시에만 켠다(iOS 미설정).
+- Gradle 플러그인 `com.google.firebase.crashlytics` 3.0.8 필수 — 없으면 빌드 ID 누락으로 기동 시 예외
+- `firebase_crashlytics` 는 ^5 로 고정 — ^6 은 firebase_core 5·messaging 17 메이저 업그레이드를 끌고 온다
+
 ### 소셜 로그인 — 카카오·네이버·Google (2026-10-20 배선)
 
 앱(`flutter_web_auth_2`)이 브라우저로 `https://tailog.me/oauth2/authorization/{kakao|naver|google}?app_challenge=`
@@ -1150,7 +1165,7 @@ test → GHCR 이미지 빌드(**태그 = 커밋 SHA**) → SSH → `deploy/scri
 - 외부 시스템 영향(push·삭제·외부 API 호출)은 확인 후 진행
 - Flutter UI는 디자인 확정 전까지 **뼈대(Skeleton)만** 구현, 상세 UI는 별도 지시 대기
 - 새 Flyway 마이그레이션은 기존 파일 절대 수정 금지, 항상 다음 버전으로 신규 작성
-  (2026-08-19 스쿼시 이후 V2~V22 추가됨, **다음은 V23**. `V1__baseline_schema.sql` 수정 = 모든 DB 기동 불가)
+  (2026-08-19 스쿼시 이후 V2~V22 추가됨, **다음은 V24**. `V1__baseline_schema.sql` 수정 = 모든 DB 기동 불가)
 
 ---
 

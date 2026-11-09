@@ -12,6 +12,7 @@ plugins {
     id("com.android.application")
     // FCM — android/app/google-services.json 을 읽어 Firebase 설정 주입
     id("com.google.gms.google-services")
+    id("com.google.firebase.crashlytics")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }

@@ -11,7 +11,7 @@ import 'pedigree_parent_card.dart';
 ///
 /// 등록 안 된 개체는 자리표시 없이 생략하고, 조부모가 한 마리도 없으면 그 줄을 통째로 뺀다.
 ///
-/// 부모가 등록된 개체에서만 탭이 생긴다(`PetDetailScreen`). 그 위 세대는 보여주지 않는다 —
+/// 부모·자식·동배 중 하나라도 있는 개체에서 탭이 생긴다(`PetDetailScreen`). 조부모 위 세대는 보여주지 않는다 —
 /// 서버도 한 세대 위(조부모)까지만 내린다.
 ///
 /// 세로로 내려 그린다. 가로 트리는 조부모 4칸이 한 줄에 서야 해서 폰 폭에서는 카드가
@@ -47,13 +47,15 @@ class PedigreeTab extends ConsumerWidget {
           const _Connector(),
         ],
 
-        // ── 부모 ──
-        const _GenLabel('부모'),
-        _Halves(
-          left: _Stack([father]),
-          right: _Stack([mother]),
-        ),
-        const _Connector(),
+        // ── 부모 — 부모 없이 자식만 있는 개체(첫 세대)면 줄째 생략 ──
+        if (g.hasParents) ...[
+          const _GenLabel('부모'),
+          _Halves(
+            left: _Stack([father]),
+            right: _Stack([mother]),
+          ),
+          const _Connector(),
+        ],
 
         // ── 이 개체 + 동배 (같은 세대라 선으로 잇지 않는다) ──
         _Self(pet: g.pet),

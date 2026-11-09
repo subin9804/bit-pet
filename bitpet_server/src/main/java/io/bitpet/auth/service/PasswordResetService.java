@@ -1,5 +1,6 @@
 package io.bitpet.auth.service;
 
+import io.bitpet.auth.LoginAttemptStore;
 import io.bitpet.auth.PasswordResetStore;
 import io.bitpet.auth.domain.UserMst;
 import io.bitpet.auth.jwt.RefreshTokenStore;
@@ -26,6 +27,7 @@ public class PasswordResetService {
     private final RefreshTokenStore refreshTokenStore;
     private final MailSender mailSender;
     private final PasswordEncoder passwordEncoder;
+    private final LoginAttemptStore loginAttemptStore;
 
     private final SecureRandom random = new SecureRandom();
 
@@ -83,6 +85,7 @@ public class PasswordResetService {
         user.changePassword(passwordEncoder.encode(newPassword));
         passwordResetStore.deleteToken(token);
         refreshTokenStore.delete(user.getId());
+        loginAttemptStore.reset(email); // 본인 확인을 마쳤으니 실패 잠금도 푼다
         log.info("Password reset completed: userId={}", user.getId());
     }
 }
