@@ -164,19 +164,26 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
                     required: true,
                     // 손으로 그린 칩(선택 시 검정 채움)이었다 — 목록 화면의 게시판 칩과
                     // 같은 [AppChip] 이어야 '같은 게시판을 고르는 것'으로 읽힌다.
-                    child: Wrap(
-                      spacing: AppSpacing.sm,
-                      runSpacing: AppSpacing.sm,
-                      children: categories
-                          .map((c) => AppChip(
-                                label: c.nameKo,
-                                selected: state.categoryId == c.id,
-                                onTap: () => ref
-                                    .read(composeProvider.notifier)
-                                    .setCategory(c.id),
-                              ))
-                          .toList(),
-                    ),
+                    // 목록이 비면 칩 없이 빈 칸만 남아 '고를 수 없는 화면'이 된다 —
+                    // 받는 중이면 표시하고, 실패했으면 다시 받을 길을 준다.
+                    child: categories.isEmpty
+                        ? _CategoryPlaceholder(
+                            loading: ref.watch(categoriesProvider).isLoading,
+                            onRetry: () => ref.invalidate(categoriesProvider),
+                          )
+                        : Wrap(
+                            spacing: AppSpacing.sm,
+                            runSpacing: AppSpacing.sm,
+                            children: categories
+                                .map((c) => AppChip(
+                                      label: c.nameKo,
+                                      selected: state.categoryId == c.id,
+                                      onTap: () => ref
+                                          .read(composeProvider.notifier)
+                                          .setCategory(c.id),
+                                    ))
+                                .toList(),
+                          ),
                   ),
 
                   // ── 제목 ──────────────────────────────────────
@@ -398,6 +405,35 @@ class _PaleTextField extends StatelessWidget {
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
       ),
+    );
+  }
+}
+
+/// 게시판 목록이 비었을 때 — 받는 중이면 스피너, 실패했으면 다시 받기.
+class _CategoryPlaceholder extends StatelessWidget {
+  final bool loading;
+  final VoidCallback onRetry;
+
+  const _CategoryPlaceholder({required this.loading, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
+        child: SizedBox(
+          width: 18,
+          height: 18,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+    return Row(
+      children: [
+        Text('게시판 목록을 불러오지 못했어요', style: AppTextStyles.caption),
+        const SizedBox(width: AppSpacing.sm),
+        TextButton(onPressed: onRetry, child: const Text('다시 시도')),
+      ],
     );
   }
 }

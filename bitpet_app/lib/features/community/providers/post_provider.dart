@@ -11,7 +11,13 @@ final categoryFilterProvider = StateProvider<int?>((ref) => null);
 final postSearchProvider = StateProvider<String>((ref) => '');
 
 // 카테고리 전체 목록 (게시글 라벨/색상 해석용 — 숨긴 카테고리도 포함)
+//
+// 로그인한 사람이 바뀌면 다시 받는다. 서버가 사람마다 다른 목록을 준다(어린이 게시판은
+// 아동·운영자에게만). 그리고 FutureProvider 는 **실패도 앱이 꺼질 때까지 들고 있어서**,
+// 로그아웃 상태나 끊긴 망에서 한 번 실패하면 재로그인해도 글쓰기의 게시판 칩이 계속
+// 비어 있었다 (2026-11-10 — 서버엔 하루 동안 요청이 한 번도 안 왔다).
 final categoriesProvider = FutureProvider<List<PostCategory>>((ref) {
+  ref.watch(authStateProvider.select((s) => s.valueOrNull?.id));
   return ref.watch(postRepositoryProvider).getCategories();
 });
 
