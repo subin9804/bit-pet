@@ -38,6 +38,7 @@ public enum ErrorCode {
     CHILD_NOT_FOUND(HttpStatus.NOT_FOUND, "자녀 계정을 찾을 수 없습니다."),
     CHILD_BOARD_ONLY(HttpStatus.FORBIDDEN, "어린이 회원은 어린이 게시판에서만 글과 댓글을 남길 수 있습니다."),
     KIDS_BOARD_FORBIDDEN(HttpStatus.FORBIDDEN, "어린이 게시판입니다."),
+    CHILD_COMMUNITY_DISABLED(HttpStatus.FORBIDDEN, "보호자가 커뮤니티를 허용하면 이용할 수 있어요."),
 
     // --- 가입 이메일 인증 (2026-11-06) ---
     SIGNUP_CODE_NOT_FOUND(HttpStatus.BAD_REQUEST, "인증 코드가 없거나 만료되었어요. 코드를 다시 받아 주세요."),

@@ -1,5 +1,6 @@
 package io.bitpet.auth.controller;
 
+import io.bitpet.auth.dto.ChildCommunityRequest;
 import io.bitpet.auth.dto.ChildCreateRequest;
 import io.bitpet.auth.dto.ChildResponse;
 import io.bitpet.auth.jwt.AuthPrincipal;
@@ -13,6 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -49,6 +51,14 @@ public class GuardianController {
     public ApiResponse<List<ChildResponse>> listChildren(
             @AuthenticationPrincipal AuthPrincipal principal) {
         return ApiResponse.ok(guardianService.listChildren(principal.userId()));
+    }
+
+    @Operation(summary = "자녀 계정 커뮤니티 허용 켜기/끄기")
+    @PatchMapping("/children/{childId}/community")
+    public ApiResponse<ChildResponse> changeCommunity(@AuthenticationPrincipal AuthPrincipal principal,
+                                                      @PathVariable Long childId,
+                                                      @Valid @RequestBody ChildCommunityRequest request) {
+        return ApiResponse.ok(guardianService.changeCommunity(principal.userId(), childId, request.enabled()));
     }
 
     @Operation(summary = "자녀 계정 삭제 (일반 탈퇴와 같은 처리)")

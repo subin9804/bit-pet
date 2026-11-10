@@ -36,7 +36,13 @@ public record ChildCreateRequest(
         @NotNull Boolean agreeGuardian,
 
         /** 자녀 계정의 마케팅 수신. 안 보내면 미동의. */
-        Boolean agreeMarketing
+        Boolean agreeMarketing,
+
+        /**
+         * 커뮤니티 이용 허용 (V2, Play 가족 정책). 안 보내면 꺼짐 —
+         * 보호자가 고르지 않은 채로 아이가 남들과 글을 주고받으면 안 된다.
+         */
+        Boolean communityEnabled
 ) {
     @AssertTrue(message = "법정대리인 동의가 있어야 자녀 계정을 만들 수 있습니다")
     public boolean isGuardianAgreed() {
@@ -45,5 +51,9 @@ public record ChildCreateRequest(
 
     public boolean marketingAgreed() {
         return Boolean.TRUE.equals(agreeMarketing);
+    }
+
+    public boolean communityAllowed() {
+        return Boolean.TRUE.equals(communityEnabled);
     }
 }

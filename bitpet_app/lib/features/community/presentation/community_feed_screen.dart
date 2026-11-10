@@ -11,6 +11,7 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/skeleton_loader.dart';
 import '../../notification/providers/notification_provider.dart';
 import '../data/models/post_models.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../providers/post_provider.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/widgets/app_network_image.dart';
@@ -77,6 +78,26 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 보호자가 커뮤니티를 허용하지 않은 자녀 계정 (2026-11-10, Play 가족 정책).
+    // 피드 provider 를 보기 **전에** 돌려보낸다 — 보면 서버가 403 을 주는 요청이 나간다.
+    final communityAllowed = ref.watch(authStateProvider
+        .select((s) => s.valueOrNull?.communityAllowed ?? true));
+    if (!communityAllowed) {
+      return Scaffold(
+        backgroundColor: AppColors.canvas,
+        appBar: AppBar(
+          backgroundColor: AppColors.canvas,
+          title: const Text('커뮤니티'),
+        ),
+        body: const EmptyState(
+          icon: Icons.lock_outline_rounded,
+          tone: EmptyTone.neutral,
+          message: '아직 커뮤니티를 쓸 수 없어요',
+          subMessage: '보호자가 자녀 계정 설정에서 허용하면\n어린이 게시판을 볼 수 있어요.',
+        ),
+      );
+    }
+
     final selectedCat = ref.watch(categoryFilterProvider);
     final feed = ref.watch(feedProvider);
     final search = ref.watch(postSearchProvider);

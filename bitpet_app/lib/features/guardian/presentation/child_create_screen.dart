@@ -33,6 +33,10 @@ class _ChildCreateScreenState extends ConsumerState<ChildCreateScreen> {
   DateTime? _birthDate;
   bool _agreeGuardian = false;
   bool _agreeMarketing = false;
+
+  // 커뮤니티 허용 (Play 가족 정책) — 기본 꺼짐. 보호자가 고르지 않은 채로
+  // 아이가 남들과 글을 주고받게 두지 않는다. 나중에 자녀 계정 목록에서 바꿀 수 있다.
+  bool _communityEnabled = false;
   bool _submitting = false;
 
   /// 만 14세 미만만 자녀 계정이 된다. 서버도 같은 기준으로 다시 본다
@@ -90,6 +94,7 @@ class _ChildCreateScreenState extends ConsumerState<ChildCreateScreen> {
             nickname: _nickCtrl.text.trim(),
             birthDate: _birthDate!,
             agreeMarketing: _agreeMarketing,
+            communityEnabled: _communityEnabled,
           );
       if (!mounted) return;
       showToast(context, '자녀 계정을 만들었어요', type: ToastType.success);
@@ -237,9 +242,44 @@ class _ChildCreateScreenState extends ConsumerState<ChildCreateScreen> {
               ),
             ),
             const SizedBox(height: 16),
+
+            // ── 커뮤니티 허용 ────────────────────────────────────────────────
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+              decoration: BoxDecoration(
+                borderRadius: AppRadius.brLg,
+                color: AppColors.card,
+                border: Border.all(color: AppColors.line),
+              ),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('커뮤니티 사용 허용',
+                            style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.ink)),
+                        SizedBox(height: 4),
+                        Text('끄면 커뮤니티 글을 읽거나 쓸 수 없어요',
+                            style: TextStyle(
+                                fontSize: 12, color: AppColors.ink3)),
+                      ],
+                    ),
+                  ),
+                  Switch(
+                    value: _communityEnabled,
+                    onChanged: (v) => setState(() => _communityEnabled = v),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
             const Text(
-              '자녀 계정은 어린이 게시판에서만 글·댓글을 남길 수 있어요.\n'
-              '다른 게시판의 글은 읽을 수 있습니다.',
+              '커뮤니티를 허용해도 글·댓글은 어린이 게시판에서만 남길 수 있어요.\n'
+              '허용 여부는 자녀 계정 목록에서 언제든 바꿀 수 있어요.',
               style: TextStyle(
                   fontSize: 12, height: 1.6, color: AppColors.ink3),
             ),

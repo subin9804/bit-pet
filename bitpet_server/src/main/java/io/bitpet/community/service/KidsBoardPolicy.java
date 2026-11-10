@@ -49,6 +49,21 @@ public class KidsBoardPolicy {
                 .orElse(false);
     }
 
+    /**
+     * 커뮤니티를 아예 쓸 수 없는 자녀 계정인가 (V2, 2026-11-10 — Play 가족 정책).
+     *
+     * <p>보호자가 켜기 전에는 어린이 게시판을 포함해 <b>읽기·쓰기 전부</b> 막는다. 읽기도 막는 이유 —
+     * 꺼진 상태는 "아직 이 아이에게 남의 글을 보여줄지 정하지 않았다"는 뜻이다.
+     * 자기 글·댓글 삭제와 내 글 목록은 막지 않는다 (끈 뒤에 지우고 싶을 수 있다).
+     */
+    public void assertCommunityAllowed(Long userId) {
+        if (userId == null) return;
+        boolean blocked = userRepository.findById(userId)
+                .map(u -> !u.isCommunityAllowed())
+                .orElse(false);
+        if (blocked) throw new BusinessException(ErrorCode.CHILD_COMMUNITY_DISABLED);
+    }
+
     public boolean isKidsCategory(Long categoryId) {
         return categoryId != null && categoryRepository.findById(categoryId)
                 .map(c -> KIDS_CATEGORY_CODE.equals(c.getCode()))
@@ -61,6 +76,7 @@ public class KidsBoardPolicy {
      * <p>두 방향을 한 메서드에서 본다 — 나눠두면 호출부가 한쪽만 부르고 다른 쪽을 빠뜨린다.
      */
     public void assertCanWrite(Long userId, Long categoryId) {
+        assertCommunityAllowed(userId);
         boolean kids = isKidsCategory(categoryId);
         boolean child = isChild(userId);
 
@@ -75,6 +91,7 @@ public class KidsBoardPolicy {
 
     /** 읽을 수 있는가. 어린이 게시판은 아동 본인들과 운영자만. */
     public void assertCanRead(Long userId, Long categoryId) {
+        assertCommunityAllowed(userId);
         if (!isKidsCategory(categoryId)) return;
         if (isChild(userId)) return;
         if (adminGuard.hasRole(userId, AdminRole.SUPER_ADMIN)
@@ -90,12 +107,14 @@ public class KidsBoardPolicy {
      * 필요하면 카테고리를 직접 지정해 들어간다.
      */
     public Long excludedCategoryIdFor(Long userId) {
+        assertCommunityAllowed(userId);
         if (isChild(userId)) return null;
         return kidsCategoryId();
     }
 
     /** 이 사용자에게 보여줄 카테고리. 성인에게는 어린이 게시판이 목록에서 아예 빠진다. */
     public List<PostCategoryCd> visibleCategories(Long userId) {
+        assertCommunityAllowed(userId);
         List<PostCategoryCd> all = categoryRepository.findAllByOrderByDisplayOrderAsc();
         if (isChild(userId)) return all;
         boolean admin = adminGuard.hasRole(userId, AdminRole.SUPER_ADMIN)

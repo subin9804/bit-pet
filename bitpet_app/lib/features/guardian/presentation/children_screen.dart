@@ -105,8 +105,11 @@ class ChildrenScreen extends ConsumerWidget {
             children: [
               intro,
               MenuCard(children: [
-                for (final c in children)
+                for (final c in children) ...[
                   _ChildRow(child: c, onDelete: () => _delete(context, ref, c)),
+                  // 만 14세가 지난 계정엔 스위치가 의미 없다 (서버가 성인으로 본다)
+                  if (c.isChild) _CommunityToggle(child: c),
+                ],
               ]),
               Padding(
                 padding:
@@ -132,7 +135,8 @@ class _Intro extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Text(
         '만 14세 미만 자녀는 보호자가 계정을 만들어 주셔야 해요.\n'
-        '자녀 계정은 어린이 게시판에서만 글과 댓글을 남길 수 있어요.',
+        '자녀 계정은 어린이 게시판에서만 글과 댓글을 남길 수 있어요.\n'
+        '커뮤니티는 보호자가 허용해야 쓸 수 있어요.',
         style: AppTextStyles.caption.copyWith(height: 1.6),
       );
 }
@@ -195,6 +199,64 @@ class _ChildRow extends StatelessWidget {
             style: TextButton.styleFrom(foregroundColor: AppColors.error),
             child: const Text('삭제'),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 자녀의 커뮤니티 허용 스위치 (2026-11-10, Play 가족 정책).
+/// 낙관적으로 바꾸고 실패하면 되돌린다. 끄면 자녀의 다음 요청부터 서버가 막는다.
+class _CommunityToggle extends ConsumerStatefulWidget {
+  final ChildAccount child;
+  const _CommunityToggle({required this.child});
+
+  @override
+  ConsumerState<_CommunityToggle> createState() => _CommunityToggleState();
+}
+
+class _CommunityToggleState extends ConsumerState<_CommunityToggle> {
+  late bool _value = widget.child.communityEnabled;
+  bool _saving = false;
+
+  Future<void> _toggle(bool v) async {
+    setState(() {
+      _value = v;
+      _saving = true;
+    });
+    try {
+      await ref.read(guardianRepositoryProvider).setCommunity(widget.child.id, v);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _value = !v);
+      showToast(context, '설정을 바꾸지 못했어요. 잠시 후 다시 시도해주세요.',
+          type: ToastType.error);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg + 40 + AppSpacing.md, 0, AppSpacing.sm, AppSpacing.sm),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('커뮤니티 사용 허용', style: AppTextStyles.body),
+                const SizedBox(height: 2),
+                Text(
+                  _value ? '어린이 게시판에서 글을 읽고 쓸 수 있어요' : '커뮤니티를 볼 수 없어요',
+                  style: AppTextStyles.caption,
+                ),
+              ],
+            ),
+          ),
+          Switch(value: _value, onChanged: _saving ? null : _toggle),
         ],
       ),
     );

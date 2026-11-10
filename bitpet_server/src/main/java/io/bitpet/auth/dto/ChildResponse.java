@@ -23,6 +23,8 @@ public record ChildResponse(
          * 자녀가 만 14세가 되면 그날부터 일반 회원과 같아지고, 보호자 화면은 그걸 알려야 한다.
          */
         boolean isChild,
+        /** 보호자가 커뮤니티 이용을 허용했는가 (V2) */
+        boolean communityEnabled,
         Instant createdAt
 ) {
     public static ChildResponse from(UserMst child) {
@@ -34,6 +36,7 @@ public record ChildResponse(
                 child.getProfileColor(),
                 child.getBirthDate(),
                 child.isChild(),
+                child.isCommunityEnabled(),
                 child.getCreatedAt()
         );
     }

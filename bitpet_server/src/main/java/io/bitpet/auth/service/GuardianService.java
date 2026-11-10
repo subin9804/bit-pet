@@ -81,6 +81,7 @@ public class GuardianService {
                 request.profileColor(),
                 request.birthDate(),
                 guardianUserId);
+        child.changeCommunityEnabled(request.communityAllowed());
         UserMst saved = userRepository.save(child);
 
         // 동의 기록은 계정 생성과 같은 트랜잭션이다. 기록이 실패하면 계정도 없던 일이 되어야
@@ -120,6 +121,21 @@ public class GuardianService {
             throw new BusinessException(ErrorCode.CHILD_NOT_FOUND);
         }
         return child;
+    }
+
+    /**
+     * 자녀 계정 커뮤니티 허용 켜기/끄기 (V2, 2026-11-10 — Play 가족 정책).
+     *
+     * <p>끄는 즉시 다음 요청부터 막힌다 (판정은 매 요청 DB 값으로 한다). 이미 쓴 글은 그대로 둔다 —
+     * 지우는 건 아이 본인 몫이고, 보호자의 스위치가 아이 글을 사라지게 하면 안 된다.
+     */
+    @Transactional
+    public ChildResponse changeCommunity(Long guardianUserId, Long childId, boolean enabled) {
+        UserMst child = getMyChild(guardianUserId, childId);
+        child.changeCommunityEnabled(enabled);
+        log.info("child community toggled: childId={}, guardianId={}, enabled={}",
+                childId, guardianUserId, enabled);
+        return ChildResponse.from(child);
     }
 
     /**

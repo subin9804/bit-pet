@@ -104,6 +104,15 @@ public class UserMst extends BaseTimeEntity {
     @Column(name = "guardian_released_at")
     private Instant guardianReleasedAt;
 
+    /**
+     * 자녀 계정 커뮤니티 이용 허용 (V2, 2026-11-10). 보호자가 켜고 끈다. 기본 꺼짐.
+     *
+     * <p>Google Play 가족 정책 — 아동이 남들과 글을 주고받는 기능은 성인이 켜고 끌 수 있어야 한다.
+     * 만 14세 미만일 때만 본다 ({@link #isCommunityAllowed()}).
+     */
+    @Column(name = "community_enabled", nullable = false)
+    private boolean communityEnabled = false;
+
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
@@ -196,6 +205,15 @@ public class UserMst extends BaseTimeEntity {
 
     public void changeShowNicknameInPedigree(boolean show) {
         this.showNicknameInPedigree = show;
+    }
+
+    public void changeCommunityEnabled(boolean enabled) {
+        this.communityEnabled = enabled;
+    }
+
+    /** 커뮤니티를 쓸 수 있는가. 성인은 항상, 만 14세 미만은 보호자가 켰을 때만 */
+    public boolean isCommunityAllowed() {
+        return communityEnabled || !isChild();
     }
 
     public void assignShareCode(String shareCode) {

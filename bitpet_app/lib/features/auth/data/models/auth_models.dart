@@ -116,6 +116,11 @@ class UserProfile {
   /// 실제 차단은 서버(`KidsBoardPolicy`)가 매 요청 판정한다.
   final bool isChild;
 
+  /// 커뮤니티를 쓸 수 있는가 (2026-11-10, Play 가족 정책). 성인은 항상 true,
+  /// 자녀 계정은 보호자가 허용했을 때만. false 면 커뮤니티 탭이 안내 화면으로 바뀐다.
+  /// 화면 안내용 — 실제 차단은 서버(`KidsBoardPolicy.assertCommunityAllowed`)가 한다.
+  final bool communityAllowed;
+
   const UserProfile({
     required this.id,
     required this.email,
@@ -126,6 +131,7 @@ class UserProfile {
     this.showNicknameInPedigree = true,
     this.adminRoles = const [],
     this.isChild = false,
+    this.communityAllowed = true,
   });
 
   /// 등급 종류를 가리지 않는 운영자 여부. 공지 작성 UI 노출 기준이다
@@ -152,7 +158,7 @@ class UserProfile {
   }
 
   // 서버 UserResponse: id, email, nickname, userType, profileImageUrl,
-  //                    showNicknameInPedigree, adminRoles, isChild
+  //                    showNicknameInPedigree, adminRoles, isChild, communityAllowed
   factory UserProfile.fromJson(Map<String, dynamic> json) => UserProfile(
         id: json['id'] as int,
         email: json['email'] as String,
@@ -166,6 +172,7 @@ class UserProfile {
             .map((e) => e.toString())
             .toList(),
         isChild: json['isChild'] as bool? ?? false,
+        communityAllowed: json['communityAllowed'] as bool? ?? true,
       );
 }
 

@@ -212,7 +212,7 @@ features/
   → ③ `spring.flyway.ignore-migration-patterns: "*:missing"` (히스토리엔 있고 파일은 없는 버전 허용).
   ⚠️ `repair` 는 **운영 히스토리 테이블을 수정**한다 → 실행 전 Lightsail 스냅샷 필수, 배포와 겹치지 않게.
   검증은 같은 방식 — 빈 DB에 새 베이스라인만 적용해 덤프 뜨고 순차 적용 결과와 diff.
-- **2차 스쿼시 이후 추가된 마이그레이션**: 없음. **다음은 V2.**
+- **2차 스쿼시 이후 추가된 마이그레이션**: V2(`user_mst.community_enabled` — 보호자의 자녀 커뮤니티 허용 스위치, 기본 false). **다음은 V3.**
 - 코드성 시드(`memo_tag_cd`, `post_category_cd`, `serial_pool_stat_mst`)는 베이스라인 하단에 들어 있다.
   종·모프 마스터는 그대로 `R__01`/`R__02` 담당.
 - ⚠️ **`R__02` 는 파일에 없는 공식 모프를 매 실행마다 지운다** (개체가 물고 있으면 FK RESTRICT 라
@@ -897,6 +897,16 @@ SUPER_ADMIN 이라고 남의 개체 기록을 고칠 수 없다.
   ⚠️ 이 문서는 `legalDocuments` 목록에 **의도적으로 넣지 않았다** — 일반 가입 3단계에 뜨면 안 된다
 - `/auth/me` 응답의 `isChild` 는 **화면 안내용**(자녀 계정 메뉴 숨김 등). 실제 차단은 서버가 매 요청 판정한다
 
+**커뮤니티 허용 스위치 (V2, 2026-11-10, Play 가족 정책)** — 자녀 계정은 보호자가 켜기 전엔 커뮤니티를 **읽지도 쓰지도** 못한다.
+- `user_mst.community_enabled` 기본 false. 판정은 `UserMst.isCommunityAllowed()` = `communityEnabled || !isChild()` — 성인·만 14세가 지난 계정은 항상 허용
+- 서버 `KidsBoardPolicy.assertCommunityAllowed` → 403 `CHILD_COMMUNITY_DISABLED`. `assertCanRead/Write`·`visibleCategories`·`excludedCategoryIdFor` 맨 앞 +
+  `PostService` 의 사진 presign/등록·댓글 수정. **자기 글·댓글 삭제와 '내 글'은 꺼져도 된다** (지울 권리는 남긴다). 끈다고 기존 글을 지우지 않는다
+- 보호자: 자녀 생성 폼 스위치(`communityEnabled`) + 목록의 자녀별 토글 → `PATCH /guardian/children/{id}/community {enabled}` (남의 자녀 404)
+- 응답: `/auth/me` 의 `communityAllowed`(계산값), `ChildResponse.communityEnabled`(저장값)
+- 앱: 꺼져 있으면 커뮤니티 탭이 피드 provider 를 **보기 전에** 잠금 안내로 바뀐다(403 요청 자체를 안 보낸다).
+  자녀 글쓰기 화면 맨 위엔 닫을 수 없는 안전 안내(`_ChildSafetyNotice`)
+- **Crashlytics 는 자녀 로그인 중 꺼진다** (`main.dart` auth 리스너, 세션 복원 전엔 꺼진 채 시작). 매니페스트는 `AD_ID` 권한을 `tools:node="remove"` 로 뺀다
+
 ### 가계도 부모 등록 (V53)
 - **부모는 항상 실존 개체(`pet_mst`) 참조.** 텍스트 직접 입력 없음. 폐사(DECEASED) 개체도 부모로 등록 가능
 - **소유자와 무관하게 등록 가능. 승인·차단 절차 없음** — 남의 개체를 내 가계도에 부모로 걸 수 있다
@@ -1177,7 +1187,7 @@ test → GHCR 이미지 빌드(**태그 = 커밋 SHA**) → SSH → `deploy/scri
 - 외부 시스템 영향(push·삭제·외부 API 호출)은 확인 후 진행
 - Flutter UI는 디자인 확정 전까지 **뼈대(Skeleton)만** 구현, 상세 UI는 별도 지시 대기
 - 새 Flyway 마이그레이션은 **push 된(= 운영에 적용된) 파일은 절대 수정 금지**, 항상 다음 버전으로 신규 작성
-  (2026-11-09 2차 스쿼시 이후 **다음은 V2**. `V1__baseline_schema.sql` 수정 = 모든 DB 기동 불가).
+  (2026-11-09 2차 스쿼시 이후 V2 추가, **다음은 V3**. `V1__baseline_schema.sql` 수정 = 모든 DB 기동 불가).
   push 전이고 로컬에서만 돌린 파일은 고쳐도 된다 — 로컬 DB 만 초기화하면 된다 (Flyway 현황 섹션 참고)
 
 ---

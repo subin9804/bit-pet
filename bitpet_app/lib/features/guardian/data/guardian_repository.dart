@@ -27,6 +27,9 @@ class ChildAccount {
   /// 생일이 지나 만 14세가 되면 그날부터 일반 회원과 같아진다.
   final bool isChild;
 
+  /// 보호자가 커뮤니티 이용을 허용했는가 (2026-11-10). 기본 꺼짐.
+  final bool communityEnabled;
+
   const ChildAccount({
     required this.id,
     required this.email,
@@ -35,6 +38,7 @@ class ChildAccount {
     required this.profileColor,
     required this.birthDate,
     required this.isChild,
+    this.communityEnabled = false,
   });
 
   factory ChildAccount.fromJson(Map<String, dynamic> json) => ChildAccount(
@@ -47,6 +51,7 @@ class ChildAccount {
             ? null
             : DateTime.parse(json['birthDate'] as String),
         isChild: json['isChild'] as bool? ?? false,
+        communityEnabled: json['communityEnabled'] as bool? ?? false,
       );
 }
 
@@ -82,6 +87,7 @@ class GuardianRepository {
     required DateTime birthDate,
     String? profileColor,
     bool agreeMarketing = false,
+    bool communityEnabled = false,
   }) async {
     final Response<dynamic> res;
     try {
@@ -93,6 +99,7 @@ class GuardianRepository {
         if (profileColor != null) 'profileColor': profileColor,
         'agreeGuardian': true,
         'agreeMarketing': agreeMarketing,
+        'communityEnabled': communityEnabled,
       });
     } on DioException catch (e) {
       // 서버 문구를 그대로 올린다 — 이메일 중복·나이 초과·개수 제한이 전부
@@ -109,6 +116,16 @@ class GuardianRepository {
           message: apiRes.message ?? '자녀 계정을 만들지 못했습니다.');
     }
     return ChildAccount.fromJson(apiRes.data!);
+  }
+
+  /// 커뮤니티 허용 켜기/끄기. 끄면 자녀의 다음 요청부터 서버가 막는다.
+  Future<void> setCommunity(int childId, bool enabled) async {
+    try {
+      await _dio.patch('/guardian/children/$childId/community',
+          data: {'enabled': enabled});
+    } on DioException catch (e) {
+      _mapDioError(e, '설정을 바꾸지 못했습니다.');
+    }
   }
 
   Future<void> deleteChild(int childId) async {

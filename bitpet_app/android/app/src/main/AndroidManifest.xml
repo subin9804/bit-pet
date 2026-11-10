@@ -1,4 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <!-- Flutter 템플릿은 INTERNET 을 debug/profile 매니페스트에만 넣어준다(핫리로드용).
          그래서 릴리즈 빌드에는 이 권한이 없고, 개발 중에는 절대 드러나지 않는다.
          앱이 서버 없이는 아무것도 못 하므로 여기(main)에 둔다. -->
@@ -10,6 +11,10 @@
     <!-- 앱 내 스캔 시트(core/nfc/NfcReader)가 리더 모드로 태그를 직접 읽는다.
          딥링크만 받을 때는 필요 없던 권한이다. -->
     <uses-permission android:name="android.permission.NFC"/>
+
+    <!-- 광고 ID 를 쓰지 않는다. Firebase 등 라이브러리가 병합해 넣는 권한을 지운다
+         (Play 가족 정책 — 아동 대상 앱은 광고 ID 를 수집하면 안 된다). -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove"/>
     <!-- NFC 미탑재 기기도 설치는 되게 둔다. 개체 관리·기록은 태그 없이도 전부 쓸 수 있고,
          required="true" 로 두면 스토어에서 그런 기기를 아예 걸러낸다. -->
     <uses-feature android:name="android.hardware.nfc" android:required="false"/>

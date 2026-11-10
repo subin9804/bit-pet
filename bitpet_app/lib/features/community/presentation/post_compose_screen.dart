@@ -11,6 +11,7 @@ import '../../../core/widgets/app_chip.dart';
 import '../../../core/widgets/app_network_image.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../data/models/post_models.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../providers/post_provider.dart';
 import '../../../core/theme/app_dimens.dart';
 
@@ -158,6 +159,10 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
                     AppSpacing.lg, AppSpacing.sm, AppSpacing.lg,
                     MediaQuery.of(context).viewInsets.bottom + 32),
                 children: [
+                  // 아이가 남들과 글을 주고받기 전에 보는 안전 안내 (Play 가족 정책)
+                  if (ref.watch(authStateProvider
+                      .select((s) => s.valueOrNull?.isChild ?? false)))
+                    const _ChildSafetyNotice(),
                   // ── 게시판 선택 ────────────────────────────────
                   _Field(
                     label: '게시판 선택',
@@ -434,6 +439,55 @@ class _CategoryPlaceholder extends StatelessWidget {
         const SizedBox(width: AppSpacing.sm),
         TextButton(onPressed: onRetry, child: const Text('다시 시도')),
       ],
+    );
+  }
+}
+
+/// 자녀 계정 글쓰기 상단의 온라인 안전 안내 (2026-11-10, Play 가족 정책 —
+/// 아동이 자유 형식 콘텐츠를 주고받기 전에 안전 수칙을 알려야 한다).
+/// 닫기 버튼을 두지 않는다 — 글을 쓸 때마다 보여야 하는 안내다.
+class _ChildSafetyNotice extends StatelessWidget {
+  const _ChildSafetyNotice();
+
+  static const _rules = [
+    '이름·학교·사는 곳·전화번호는 쓰지 않아요',
+    '내 얼굴이 나온 사진은 올리지 않아요',
+    '따로 만나자거나 연락처를 묻는 사람이 있으면 바로 보호자에게 알려요',
+    '기분 나쁜 말을 들으면 신고하고 보호자에게 이야기해요',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.brandTintSoft,
+        borderRadius: AppRadius.brLg,
+        border: Border.all(color: AppColors.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.shield_outlined,
+                  size: 18, color: AppColors.brandTintInk),
+              const SizedBox(width: AppSpacing.sm),
+              Text('글을 쓰기 전에 꼭 지켜요',
+                  style: AppTextStyles.bodyBold
+                      .copyWith(color: AppColors.brandTintInk)),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          for (final r in _rules)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text('· $r',
+                  style: AppTextStyles.caption.copyWith(height: 1.5)),
+            ),
+        ],
+      ),
     );
   }
 }

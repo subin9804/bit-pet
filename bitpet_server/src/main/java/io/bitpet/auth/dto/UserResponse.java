@@ -35,6 +35,11 @@ public record UserResponse(
          * 실제 차단은 서버가 매 요청 판정한다 ({@code KidsBoardPolicy}).
          */
         boolean isChild,
+        /**
+         * 커뮤니티를 쓸 수 있는가 (V2). 성인은 항상 true, 만 14세 미만은 보호자가 켰을 때만.
+         * 앱은 false 면 커뮤니티 탭을 안내 화면으로 바꾼다. 실제 차단은 서버가 매 요청 판정한다.
+         */
+        boolean communityAllowed,
         Instant createdAt
 ) {
     public static UserResponse from(UserMst user) {
@@ -57,6 +62,7 @@ public record UserResponse(
                 user.isShowNicknameInPedigree(),
                 roles.stream().map(Enum::name).toList(),
                 user.isChild(),
+                user.isCommunityAllowed(),
                 user.getCreatedAt()
         );
     }
