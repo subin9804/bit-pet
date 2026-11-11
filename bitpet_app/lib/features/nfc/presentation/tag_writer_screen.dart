@@ -49,7 +49,8 @@ class TagWriterScreen extends ConsumerStatefulWidget {
 }
 
 class _TagWriterScreenState extends ConsumerState<TagWriterScreen> {
-  static const _chipTypes = ['NTAG213', 'NTAG215', 'NTAG216'];
+  // 기록용 라벨일 뿐 굽는 방식은 칩과 무관하다. 첫 값이 기본 — 서버 기본값·현재 입고분(NTAG203)과 맞춘다
+  static const _chipTypes = ['NTAG203', 'NTAG213', 'NTAG215', 'NTAG216'];
 
   final _writer = NfcTagWriter();
   late final TextEditingController _batchCtrl;
