@@ -12,7 +12,6 @@ import 'core/push/push_service.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/update/force_update.dart';
-import 'features/auth/providers/auth_provider.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -47,15 +46,6 @@ class TailogApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
-    // 자녀 계정이 로그인해 있는 동안엔 크래시 리포트를 보내지 않는다 (Play 가족 정책).
-    // 세션 복원 전(loading)엔 판단을 미룬다 — 그동안은 꺼진 채로 시작한다.
-    ref.listen(
-      authStateProvider.select(
-          (s) => s.isLoading ? null : !(s.valueOrNull?.isChild ?? false)),
-      (_, allowed) {
-        if (allowed != null) _setCrashlyticsAllowed(allowed);
-      },
-    );
     return MaterialApp.router(
       title: 'tailog',
       theme: AppTheme.light,
@@ -82,21 +72,9 @@ class TailogApp extends ConsumerWidget {
 /// 플랫폼에서는 초기화가 실패해 여기까지 오지 않는다.
 ///
 /// 디버그 빌드는 보내지 않는다. 개발 중 핫리로드 예외가 콘솔을 덮으면 진짜 크래시가 묻힌다.
-bool _crashlyticsReady = false;
-
-/// 자녀 계정 로그인 중에는 수집을 끈다 (2026-11-10, Play 가족 정책 — 아동 기기 정보를
-/// 제3자 SDK 로 보내지 않는다). Firebase 가 안 뜬 플랫폼에선 아무것도 하지 않는다.
-void _setCrashlyticsAllowed(bool allowed) {
-  if (!_crashlyticsReady) return;
-  FirebaseCrashlytics.instance
-      .setCrashlyticsCollectionEnabled(!kDebugMode && allowed);
-}
-
 void _setUpCrashlytics() {
   final crashlytics = FirebaseCrashlytics.instance;
-  // 로그인 상태를 알기 전까지는 끈 채로 둔다 — 켜는 건 TailogApp 의 auth 리스너다
-  crashlytics.setCrashlyticsCollectionEnabled(false);
-  _crashlyticsReady = true;
+  crashlytics.setCrashlyticsCollectionEnabled(!kDebugMode);
 
   // 위젯 빌드·레이아웃 중 예외 — 화면은 살아 있는 경우가 많아 non-fatal 로 남긴다
   FlutterError.onError = crashlytics.recordFlutterError;
