@@ -96,7 +96,7 @@ class PetOrderIntegrationTest extends IntegrationTestBase {
         int n = SEQ.incrementAndGet();
         return authService.signup(new SignupRequest(
                 "order" + n + "@example.com", "Passw0rd!23", "orderuser" + n, null,
-                true, true, true, false, null)).id();
+                true, true, true, null, false, null)).id();
     }
 
     private Long createPet(Long userId, String name) {

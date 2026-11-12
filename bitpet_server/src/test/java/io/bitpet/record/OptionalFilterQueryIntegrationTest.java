@@ -121,7 +121,7 @@ class OptionalFilterQueryIntegrationTest extends IntegrationTestBase {
         int n = SEQ.incrementAndGet();
         return authService.signup(new SignupRequest(
                 "filter" + n + "@example.com", "Passw0rd!23", "filteruser" + n, null,
-                true, true, true, false, null)).id();
+                true, true, true, null, false, null)).id();
     }
 
     private Long createPet(Long userId, String name, PetGender gender) {

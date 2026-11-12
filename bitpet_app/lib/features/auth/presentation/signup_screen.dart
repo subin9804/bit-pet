@@ -11,14 +11,16 @@ import '../../../core/upload/image_upload.dart';
 import '../../../core/widgets/step_shell.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../../../core/widgets/user_avatar.dart';
+import '../data/age_gate.dart';
 import '../data/auth_repository.dart';
 import '../providers/auth_provider.dart';
 import 'widgets/terms_item.dart';
+import 'widgets/under_age_notice.dart';
 import '../../../core/theme/app_dimens.dart';
 
 // ════════════════════════════════════════════════════════════════
-// 11s · 회원가입 — 4단계 스텝 위저드
-// 1) 프로필(사진·색·닉네임)  2) 로그인 정보  3) 약관  4) 확인
+// 11s · 회원가입 — 5단계 스텝 위저드
+// 0) 생년월일  1) 프로필(사진·색·닉네임)  2) 로그인 정보  3) 약관  4) 확인
 // ════════════════════════════════════════════════════════════════
 
 class SignupScreen extends ConsumerStatefulWidget {
@@ -67,10 +69,45 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   bool _agreeAll       = false;
   bool _agreeTos       = false; // 필수
   bool _agreePrivacy   = false; // 필수
-  bool _agreeAge       = false; // 필수
   bool _agreeMarketing = false; // 선택
 
-  bool get _reqAgreed => _agreeTos && _agreePrivacy && _agreeAge;
+  bool get _reqAgreed => _agreeTos && _agreePrivacy;
+
+  // 연령 확인 — 기준 나이는 화면에 쓰지 않는다 (AgeGate 주석).
+  DateTime? _birthDate;
+
+  /// 만 14세 미만으로 판정됐거나, 이 기기에서 전에 그렇게 판정된 적이 있다.
+  /// true 면 가입 위저드 대신 보호자 안내만 보인다.
+  bool _blocked = false;
+
+  @override
+  void initState() {
+    super.initState();
+    ref.read(ageGateStoreProvider).isBlocked().then((blocked) {
+      if (blocked && mounted) setState(() => _blocked = true);
+    });
+  }
+
+  Future<void> _pickBirthDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _birthDate ?? DateTime(now.year - 25, 1, 1),
+      firstDate: DateTime(1900),
+      lastDate: now,
+      initialDatePickerMode: DatePickerMode.year,
+      helpText: '생년월일',
+    );
+    if (picked == null || !mounted) return;
+    if (AgeGate.isUnderConsentAge(picked)) {
+      await ref.read(ageGateStoreProvider).block();
+      if (mounted) setState(() => _blocked = true);
+      return;
+    }
+    setState(() => _birthDate = picked);
+  }
+
+  String _fmtDate(DateTime d) => '${d.year}년 ${d.month}월 ${d.day}일';
 
   // ── 팔레트 ──────────────────────────────────────────────────────────────────
   // 목록은 ProfilePalette 한 곳에만 둔다 — 마이페이지와 각자 들고 있으면 반드시 어긋난다.
@@ -248,9 +285,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     setState(() {
       if (k == 'tos')       _agreeTos       = !_agreeTos;
       if (k == 'privacy')   _agreePrivacy   = !_agreePrivacy;
-      if (k == 'age')       _agreeAge       = !_agreeAge;
       if (k == 'marketing') _agreeMarketing = !_agreeMarketing;
-      _agreeAll = _agreeTos && _agreePrivacy && _agreeAge && _agreeMarketing;
+      _agreeAll = _agreeTos && _agreePrivacy && _agreeMarketing;
     });
   }
 
@@ -259,7 +295,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       _agreeAll = !_agreeAll;
       _agreeTos = _agreeAll;
       _agreePrivacy = _agreeAll;
-      _agreeAge = _agreeAll;
       _agreeMarketing = _agreeAll;
     });
   }
@@ -290,7 +325,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       _nickCtrl.text.trim(),
       agreeTos: _agreeTos,
       agreePrivacy: _agreePrivacy,
-      agreeAge: _agreeAge,
+      birthDate: _birthDate!,
       agreeMarketing: _agreeMarketing,
       emailVerificationToken: _verifyToken!,
       profileColor: _colorKey,
@@ -304,6 +339,42 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
   // ── 스텝 빌드 ─────────────────────────────────────────────────────────────
   List<StepConfig> get _steps => [
+    // ── Step 0: 생년월일 ────────────────────────────────────────────────────
+    // '만 14세 이상인가요?'라고 물으면 답이 정해져 버린다. 기준은 말하지 않고 날짜만 받는다.
+    StepConfig(
+      title: '생년월일을 알려주세요',
+      desc: '가입하시는 분의 생년월일이에요. 확인에만 쓰고 저장하지 않아요.',
+      valid: () => _birthDate != null,
+      render: (_) => GestureDetector(
+        onTap: _pickBirthDate,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: AppRadius.brLg,
+            border: Border.all(color: AppColors.line),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.cake_outlined, size: 20, color: AppColors.ink3),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  _birthDate == null ? '생년월일 선택' : _fmtDate(_birthDate!),
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: _birthDate == null ? AppColors.ink3 : AppColors.ink,
+                  ),
+                ),
+              ),
+              const Icon(Icons.chevron_right, size: 20, color: AppColors.ink3),
+            ],
+          ),
+        ),
+      ),
+    ),
+
     // ── Step 1: 프로필 ──────────────────────────────────────────────────────
     StepConfig(
       title: '프로필을 만들어요',
@@ -720,13 +791,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               onView: () => _showTerms('privacy'),
             ),
             TermsItem(
-              label: '만 14세 이상입니다',
-              checked: _agreeAge,
-              badge: '필수',
-              onTap: () => _toggleOne('age'),
-              onView: () => _showTerms('age'),
-            ),
-            TermsItem(
               label: '마케팅 정보 수신',
               checked: _agreeMarketing,
               badge: '선택',
@@ -746,19 +810,25 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       render: (ctx) => StepSummary(
         goEdit: ctx.goEdit,
         groups: [
-          StepSummaryGroup(label: '프로필', step: 0, rows: [
+          StepSummaryGroup(label: '생년월일', step: 0, rows: [
+            StepSummaryRow(
+              k: '생년월일',
+              v: _birthDate == null ? '' : _fmtDate(_birthDate!),
+            ),
+          ]),
+          StepSummaryGroup(label: '프로필', step: 1, rows: [
             StepSummaryRow(k: '닉네임', v: _nickCtrl.text),
             StepSummaryRow(k: '색상', v: _colorKey),
             StepSummaryRow(k: '프로필 사진', v: _profileImage == null ? '없음' : '선택됨'),
           ]),
-          StepSummaryGroup(label: '계정', step: 1, rows: [
+          StepSummaryGroup(label: '계정', step: 2, rows: [
             StepSummaryRow(k: '이메일', v: _emailCtrl.text),
             StepSummaryRow(
               k: '비밀번호',
               v: _pwCtrl.text.isNotEmpty ? '•' * _pwCtrl.text.length.clamp(0, 10) : '',
             ),
           ]),
-          StepSummaryGroup(label: '약관', step: 2, rows: [
+          StepSummaryGroup(label: '약관', step: 3, rows: [
             StepSummaryRow(
               k: '필수 약관',
               v: _reqAgreed ? '모두 동의' : '미동의',
@@ -777,6 +847,17 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_blocked) {
+      return Scaffold(
+        backgroundColor: AppColors.canvas,
+        body: SafeArea(
+          child: UnderAgeNotice(
+            buttonLabel: '확인',
+            onPressed: () => context.pop(),
+          ),
+        ),
+      );
+    }
     return Scaffold(
       backgroundColor: AppColors.canvas,
       body: SafeArea(

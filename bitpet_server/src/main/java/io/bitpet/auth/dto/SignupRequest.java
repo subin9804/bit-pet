@@ -1,11 +1,14 @@
 package io.bitpet.auth.dto;
 
+import io.bitpet.auth.domain.AgePolicy;
 import io.bitpet.common.validation.ValidPassword;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+
+import java.time.LocalDate;
 
 public record SignupRequest(
         @NotBlank @Email String email,
@@ -22,7 +25,11 @@ public record SignupRequest(
         // 통과해 "동의하지 않음"으로 기록된다. null 과 false 는 구별해야 한다.
         @NotNull Boolean agreeTos,
         @NotNull Boolean agreePrivacy,
-        @NotNull Boolean agreeAge,
+        // 연령 확인 — 생년월일을 받으면 그걸로 판정하고 agreeAge 는 보지 않는다 (2026-11-13).
+        // 앱은 기준 나이를 말하지 않고 생년월일만 묻는다. agreeAge 는 구버전 앱 호환용.
+        // 생년월일은 판정에만 쓰고 저장하지 않는다 (AgePolicy).
+        Boolean agreeAge,
+        LocalDate birthDate,
         // 선택 항목. 안 보내면 미동의로 본다.
         Boolean agreeMarketing,
 
@@ -40,8 +47,14 @@ public record SignupRequest(
         return Boolean.TRUE.equals(agreePrivacy);
     }
 
-    @AssertTrue(message = "만 14세 이상만 가입할 수 있습니다")
+    @AssertTrue(message = "생년월일을 다시 확인해 주세요")
+    public boolean isBirthDatePlausible() {
+        return birthDate == null || !AgePolicy.isImplausible(birthDate, AgePolicy.today());
+    }
+
+    @AssertTrue(message = "만 14세 미만은 보호자가 자녀 계정을 만들어 주세요")
     public boolean isAgeAgreed() {
+        if (birthDate != null) return !AgePolicy.isUnderConsentAge(birthDate, AgePolicy.today());
         return Boolean.TRUE.equals(agreeAge);
     }
 

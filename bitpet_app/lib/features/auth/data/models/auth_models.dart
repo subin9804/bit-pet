@@ -1,3 +1,5 @@
+import '../age_gate.dart';
+
 class LoginRequest {
   final String email;
   final String password;
@@ -15,12 +17,13 @@ class SignupRequest {
   /// 프로필 색 팔레트 키. 사진을 올리면 이 색이 테두리가 된다.
   final String profileColor;
 
-  // 약관 동의. 필수 3종이 true 가 아니면 서버가 400 으로 거절한다.
+  // 약관 동의. 필수 2종이 true 가 아니면 서버가 400 으로 거절한다.
   // 선택(마케팅)은 false 여도 그대로 보낸다 — 서버가 "동의 안 함"으로 기록해야
   // 나중에 "물어본 적 없음"과 구별된다.
   final bool agreeTos;
   final bool agreePrivacy;
-  final bool agreeAge;
+  // 연령 확인용 생년월일. 서버가 만 14세 이상인지 판정만 하고 저장하지 않는다.
+  final DateTime birthDate;
   final bool agreeMarketing;
 
   /// 이메일 인증 결과 토큰 (POST /auth/signup/email-code/verify). 없으면 서버가 400 으로 거절한다.
@@ -33,7 +36,7 @@ class SignupRequest {
     this.profileColor = 'peach',
     required this.agreeTos,
     required this.agreePrivacy,
-    required this.agreeAge,
+    required this.birthDate,
     required this.agreeMarketing,
     required this.emailVerificationToken,
   });
@@ -45,7 +48,7 @@ class SignupRequest {
         'profileColor': profileColor,
         'agreeTos': agreeTos,
         'agreePrivacy': agreePrivacy,
-        'agreeAge': agreeAge,
+        'birthDate': AgeGate.format(birthDate),
         'agreeMarketing': agreeMarketing,
         'emailVerificationToken': emailVerificationToken,
       };

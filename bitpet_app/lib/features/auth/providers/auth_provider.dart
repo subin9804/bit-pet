@@ -18,6 +18,9 @@ final authStateProvider =
 /// 라우터가 이 값이 true 인 동안 `/agreements` 밖으로 못 나가게 한다.
 final needsAgreementProvider = StateProvider<bool>((ref) => false);
 
+/// 동의 화면에서 생년월일도 물어야 하는지 — 소셜로 막 가입해 연령 확인을 한 적 없는 계정.
+final ageCheckNeededProvider = StateProvider<bool>((ref) => false);
+
 class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
   final AuthRepository _repo;
   final Ref _ref;
@@ -63,13 +66,17 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
   Future<UserProfile> _checkAgreement(Future<UserProfile> load) async {
     final user = await load;
     var needs = false;
+    var ageUnchecked = false;
     if (!user.isChild) {
       try {
-        needs = await _repo.needsAgreement();
+        final r = await _repo.needsAgreement();
+        needs = r.needs;
+        ageUnchecked = r.ageUnchecked;
       } catch (e) {
         debugPrint('[Auth] 약관 동의 상태 조회 실패: $e');
       }
     }
+    _ref.read(ageCheckNeededProvider.notifier).state = ageUnchecked;
     _ref.read(needsAgreementProvider.notifier).state = needs;
     return user;
   }
@@ -125,8 +132,13 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
   }
 
   /// 동의 화면에서 '동의' — 기록이 남으면 라우터가 원래 가던 곳으로 보낸다.
-  Future<void> acceptAgreements({required bool agreeMarketing}) async {
-    await _repo.acceptAgreements(agreeMarketing: agreeMarketing);
+  Future<void> acceptAgreements({
+    required bool agreeMarketing,
+    DateTime? birthDate,
+  }) async {
+    await _repo.acceptAgreements(
+        agreeMarketing: agreeMarketing, birthDate: birthDate);
+    _ref.read(ageCheckNeededProvider.notifier).state = false;
     _ref.read(needsAgreementProvider.notifier).state = false;
   }
 
@@ -136,7 +148,7 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
     String nickname, {
     required bool agreeTos,
     required bool agreePrivacy,
-    required bool agreeAge,
+    required DateTime birthDate,
     required bool agreeMarketing,
     required String emailVerificationToken,
     String profileColor = 'peach',
@@ -152,7 +164,7 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
         profileColor: profileColor,
         agreeTos: agreeTos,
         agreePrivacy: agreePrivacy,
-        agreeAge: agreeAge,
+        birthDate: birthDate,
         agreeMarketing: agreeMarketing,
         emailVerificationToken: emailVerificationToken,
         ),

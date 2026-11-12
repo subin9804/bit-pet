@@ -2,12 +2,14 @@ package io.bitpet.auth;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.bitpet.auth.domain.AgePolicy;
 import io.bitpet.support.IntegrationTestBase;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MvcResult;
 
+import java.time.LocalDate;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -103,6 +105,42 @@ class AuthFlowIntegrationTest extends IntegrationTestBase {
         mockMvc.perform(post("/api/v1/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(declinedAge)))
+                .andExpect(status().isBadRequest());
+    }
+
+    /**
+     * 생년월일 연령 확인 (2026-11-13). 만 14세가 되는 날부터 가입되고, 하루라도 모자라면 400.
+     * 생년월일을 보내면 agreeAge 는 보지 않는다 — 앱은 더 이상 체크박스를 보내지 않는다.
+     */
+    @Test
+    void signup_age_is_judged_by_birth_date() throws Exception {
+        LocalDate fourteenToday = AgePolicy.today().minusYears(14);
+
+        mockMvc.perform(post("/api/v1/auth/signup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "email", "erin@example.com", "password", "Passw0rd!23",
+                                "nickname", "Erin", "agreeTos", true, "agreePrivacy", true,
+                                "birthDate", fourteenToday.toString()))))
+                .andExpect(status().isCreated());
+
+        // 생년월일이 만 14세 미만이면 agreeAge=true 를 같이 보내도 막힌다
+        mockMvc.perform(post("/api/v1/auth/signup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "email", "frank@example.com", "password", "Passw0rd!23",
+                                "nickname", "Frank", "agreeTos", true, "agreePrivacy", true,
+                                "agreeAge", true,
+                                "birthDate", fourteenToday.plusDays(1).toString()))))
+                .andExpect(status().isBadRequest());
+
+        // 미래 날짜
+        mockMvc.perform(post("/api/v1/auth/signup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "email", "gina@example.com", "password", "Passw0rd!23",
+                                "nickname", "Gina", "agreeTos", true, "agreePrivacy", true,
+                                "birthDate", AgePolicy.today().plusDays(1).toString()))))
                 .andExpect(status().isBadRequest());
     }
 }

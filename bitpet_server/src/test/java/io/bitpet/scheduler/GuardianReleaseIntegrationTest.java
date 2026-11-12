@@ -86,7 +86,7 @@ class GuardianReleaseIntegrationTest extends IntegrationTestBase {
         int n = SEQ.incrementAndGet();
         return authService.signup(new SignupRequest(
                 "grel" + n + "@example.com", "Passw0rd!23", "grelparent" + n, null,
-                true, true, true, false, null)).id();
+                true, true, true, null, false, null)).id();
     }
 
     private Long createChild(Long guardian, LocalDate birthDate) {

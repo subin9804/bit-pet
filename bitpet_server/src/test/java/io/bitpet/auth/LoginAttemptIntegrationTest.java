@@ -76,7 +76,7 @@ class LoginAttemptIntegrationTest extends IntegrationTestBase {
         int n = SEQ.incrementAndGet();
         String email = "lock" + n + "@example.com";
         authService.signup(new SignupRequest(
-                email, PASSWORD, "lockuser" + n, null, true, true, true, false, null));
+                email, PASSWORD, "lockuser" + n, null, true, true, true, null, false, null));
         return email;
     }
 

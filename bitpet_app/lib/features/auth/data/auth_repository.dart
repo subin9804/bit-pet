@@ -11,6 +11,7 @@ import '../../../core/api/api_client.dart';
 import '../../../core/api/api_response.dart';
 import '../../../core/auth/token_storage.dart';
 import '../../../core/upload/image_upload.dart';
+import 'age_gate.dart';
 import 'models/auth_models.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
@@ -191,20 +192,36 @@ class AuthRepository {
   // 소셜 가입은 약관 화면 없이 계정이 생긴다. 서버는 그 자리에서 동의를 기록하지
   // 않으므로(본 적 없는 약관에 동의했다는 거짓 기록이 된다) 앱이 로그인 직후 물어본다.
   // 약관 개정 후 재동의도 같은 값으로 걸린다.
-  Future<bool> needsAgreement() async {
+  //
+  // ageUnchecked — 연령 확인(AGE_14)을 한 번도 안 한 계정(소셜로 막 가입). 이때만 생년월일을
+  // 묻는다. 약관 개정 재동의는 이미 확인을 마친 계정이라 다시 묻지 않는다.
+  Future<({bool needs, bool ageUnchecked})> needsAgreement() async {
     final res = await _dio.get('/auth/me/agreements');
     final apiRes = ApiResponse.fromJson(
       res.data as Map<String, dynamic>,
       (d) => d as Map<String, dynamic>,
     );
-    return apiRes.data?['needsReagreement'] as bool? ?? false;
+    final items = (apiRes.data?['items'] as List?) ?? const [];
+    final ageUnchecked = items.whereType<Map<String, dynamic>>().any(
+        (i) => i['type'] == 'AGE_14' && i['agreed'] != true);
+    return (
+      needs: apiRes.data?['needsReagreement'] as bool? ?? false,
+      ageUnchecked: ageUnchecked,
+    );
   }
 
-  Future<void> acceptAgreements({required bool agreeMarketing}) async {
+  /// [birthDate] 가 있으면 서버가 그걸로 연령을 판정한다. 없으면(재동의) 기존 확인을 잇는다.
+  Future<void> acceptAgreements({
+    required bool agreeMarketing,
+    DateTime? birthDate,
+  }) async {
     await _dio.post('/auth/me/agreements', data: {
       'agreeTos': true,
       'agreePrivacy': true,
-      'agreeAge': true,
+      if (birthDate != null)
+        'birthDate': AgeGate.format(birthDate)
+      else
+        'agreeAge': true,
       'agreeMarketing': agreeMarketing,
     });
   }

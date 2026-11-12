@@ -102,7 +102,7 @@ class ChildCommunityToggleIntegrationTest extends IntegrationTestBase {
         int n = SEQ.incrementAndGet();
         return authService.signup(new SignupRequest(
                 "ccom" + n + "@example.com", "Passw0rd!23", "ccomparent" + n, null,
-                true, true, true, false, null)).id();
+                true, true, true, null, false, null)).id();
     }
 
     private Long createChild(Long guardian, Boolean communityEnabled) {

@@ -108,7 +108,7 @@ class RecordsByDateBoundaryIntegrationTest extends IntegrationTestBase {
         int n = SEQ.incrementAndGet();
         return authService.signup(new SignupRequest(
                 "bydate" + n + "@example.com", "Passw0rd!23", "bydateuser" + n, null,
-                true, true, true, false, null)).id();
+                true, true, true, null, false, null)).id();
     }
 
     private Long createPet(Long userId) {
