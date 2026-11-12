@@ -733,9 +733,14 @@ private Map<String, Object> extraData;
     - 설치 유도는 **맨 아래 한 줄뿐**. 버튼으로 키우지 말 것 (광고로 보이는 순간 이름표의 신뢰가 깎인다)
 - 🚨 **assetlinks.json 최대 함정**: AAB 업로드 시 Google이 **재서명**하므로 업로드 키 지문이 아니라
   **Play 앱 서명 키 지문**(Play Console > 설정 > 앱 서명, 업로드 후에만 보임)이 필요. 로컬 빌드 테스트를 위해 **둘 다** 넣을 것
+  - **CI APK 는 레포의 `ci-debug.keystore` 로 서명된다** (SHA256 `4A:98:EA:83:…:F5:A3:F8`). 이 지문도 `BITPET_ANDROID_SHA256` 에
+    콤마로 넣어야 CI APK 로 태그를 찍었을 때 앱이 열린다 — 빠지면 앱이 떠 있어도 브라우저 랜딩으로 간다 (2026-11-12 실제 증상).
+    지문을 고친 뒤엔 앱을 **재설치**해야 안드로이드가 다시 검증한다
   - 설정: `bitpet.deeplink.*` (`BITPET_ANDROID_SHA256` 등 환경변수)
 - **앱 측**: `features/nfc/`
   - AndroidManifest — `autoVerify="true"` intent-filter (`https` / `tailog.me` / pathPrefix `/t/`) + `flutter_deeplinking_enabled` 메타데이터
+  - 🚨 **`NDEF_DISCOVERED` intent-filter 가 필수.** 태그를 폰에 대면 NFC 디스패처가 보내는 건 VIEW 가 아니라 NDEF_DISCOVERED 다.
+    받는 앱이 없으면 BROWSABLE 없는 VIEW 로 폴백하는데, 이건 App Links 검증을 타지 않아 assetlinks 가 맞아도 브라우저가 열린다 (2026-11-12 실제 증상)
     - ⚠️ 콜드 스타트: 앱이 꺼진 상태의 첫 링크는 go_router 초기화보다 먼저 도착 → 위 메타데이터 없으면 **홈으로 빠진다**. 반드시 앱 완전 종료 상태로 실기기 테스트
   - `/t/:tagCd` → `TagResolverScreen` (경유 화면, ShellRoute 바깥). status로 분기, 로그아웃 상태면 `PendingTagLink`에 담아두고 로그인 후 복귀
   - 개체 진입은 `context.go('/home')` → `context.push('/pets/:id')` — 홈을 스택 하단에 깔지 않으면 뒤로가기 한 번에 앱이 종료됨

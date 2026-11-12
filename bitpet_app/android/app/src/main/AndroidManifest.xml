@@ -59,6 +59,18 @@
                       android:host="tailog.me"
                       android:pathPrefix="/t/" />
             </intent-filter>
+
+            <!-- 태그를 폰에 직접 댔을 때. NFC 디스패처는 NDEF_DISCOVERED 를 먼저 찾고,
+                 받는 앱이 없을 때만 VIEW 로 넘긴다. 그 VIEW 는 BROWSABLE 이 없어 App Links 검증을
+                 타지 않고 기본 브라우저로 간다 — 그래서 위 필터만으로는 assetlinks 가 맞아도 웹이 열렸다.
+                 data 는 VIEW 와 같은 URI 라 flutter_deeplinking 이 그대로 /t/{tagCd} 로 라우팅한다. -->
+            <intent-filter>
+                <action android:name="android.nfc.action.NDEF_DISCOVERED" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="https"
+                      android:host="tailog.me"
+                      android:pathPrefix="/t/" />
+            </intent-filter>
         </activity>
 
         <!-- 딥링크를 Flutter(go_router)로 그대로 넘긴다.
