@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../core/api/api_response.dart';
 import '../../../core/constants/external_links.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_buttons.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/confirm_modal.dart';
 import '../../../core/widgets/empty_state.dart';
@@ -167,11 +168,16 @@ class _TagRow extends ConsumerWidget {
                 ],
               ),
             ),
-            IconButton(
-              tooltip: '연결 해제',
-              icon: const Icon(Icons.link_off,
-                  size: 20, color: AppColors.ink2),
-              onPressed: () => _confirmUnlink(context, ref),
+            // 아이콘(link_off)만 두니 무슨 버튼인지 못 알아봤다 — 글자로 쓴다.
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 84,
+              child: AppActionButton(
+                '연결 끊기',
+                tone: AppButtonTone.neutral,
+                height: 36,
+                onPressed: () => _confirmUnlink(context, ref),
+              ),
             ),
           ],
         ),

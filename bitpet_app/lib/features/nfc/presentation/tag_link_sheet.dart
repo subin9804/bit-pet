@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_response.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/app_search_field.dart';
 import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/pet_avatar.dart';
 import '../../../core/widgets/toast_message.dart';
@@ -39,6 +40,7 @@ class TagLinkSheet extends ConsumerStatefulWidget {
 class _TagLinkSheetState extends ConsumerState<TagLinkSheet> {
   int? _petId;
   bool _saving = false;
+  String _query = '';
 
   @override
   void initState() {
@@ -106,17 +108,42 @@ class _TagLinkSheetState extends ConsumerState<TagLinkSheet> {
                               style: TextStyle(color: AppColors.textSecondary))),
                     );
                   }
+                  // 개체가 많으면 목록에서 하나씩 찾기 힘들다 — 위에 검색창.
+                  final q = _query.trim().toLowerCase();
+                  final shown = q.isEmpty
+                      ? selectable
+                      : selectable
+                          .where((p) =>
+                              p.name.toLowerCase().contains(q) ||
+                              p.speciesName.toLowerCase().contains(q) ||
+                              p.serialNo.toLowerCase().contains(q))
+                          .toList(growable: false);
                   // ListView 를 쓰지 않는다 — AppSheet 가 이미 스크롤이라
                   // 안쪽에 또 두면 스크롤이 겹친다.
                   return Column(
                     mainAxisSize: MainAxisSize.min,
-                    children: selectable
-                        .map((p) => _PetRow(
-                              pet: p,
-                              selected: p.id == _petId,
-                              onTap: () => setState(() => _petId = p.id),
-                            ))
-                        .toList(growable: false),
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      AppSearchField(
+                        value: _query,
+                        onChanged: (v) => setState(() => _query = v),
+                        hintText: '이름·종·개체번호 검색',
+                      ),
+                      const SizedBox(height: 8),
+                      if (shown.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 32),
+                          child: Center(
+                              child: Text('검색 결과가 없어요',
+                                  style: TextStyle(
+                                      color: AppColors.textSecondary))),
+                        ),
+                      ...shown.map((p) => _PetRow(
+                            pet: p,
+                            selected: p.id == _petId,
+                            onTap: () => setState(() => _petId = p.id),
+                          )),
+                    ],
                   );
                 },
             ),
