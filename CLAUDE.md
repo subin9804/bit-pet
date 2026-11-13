@@ -414,6 +414,7 @@ features/
   작성은 ✕ + '새 글 작성/글 수정' + 브랜드 `ElevatedButton` '등록/저장', 차단 목록도 같은 형식
 - 목록 알림 점은 `unreadNotificationCountProvider > 0` 일 때만(전엔 항상 떠 있었다). 검색창은 `AppSearchField(autofocus)`
 - 눌리는 주 행동(글쓰기 FAB·등록·댓글 보내기)·포커스 밑줄은 `brandAction`. ⛔ `AppColors.primary` 는 먹색이다
+- **메모 입력칸은 전부 `core/widgets/app_memo_field.dart`** (2026-11-13) — 3줄에서 6줄까지 늘어나는 박스, 14px, 포커스 테두리 brandAction. ⛔ 화면마다 TextField 로 다시 그리지 말 것 (개체 폼 메모만 6~10줄)
 - 게시판 고르기는 `AppChip`, 오류·빈 상태는 `EmptyState`, 알림은 `showToast`(SnackBar 금지), 작성자 아바타는 bgAlt + person 로 통일
 - `pale*` 별칭 대신 실토큰(`ink2/ink3/line/bgAlt/bg`)
 
@@ -469,6 +470,11 @@ features/
 - 암컷 pet만 산란 가능 (FEMALE 검증)
 - `laying_hatch_dtl.status`: PENDING / HATCHED / FAILED / SLUG
 - `POST /api/v1/layings/{layingId}/hatches/{hatchId}/register-pet` → 새 개체 + 계보 자동 생성
+- **산란 ↔ 메이팅 연결** (2026-11-13): 서버는 처음부터 `matingId` 를 받아 알 등록 시 그 메이팅의 수컷을 **아비로 자동 연결**했는데, 앱에 고르는 칸이 없어 한 번도 채워진 적이 없었다.
+  `widgets/mating_link_picker.dart` 하나를 산란 폼(FAB·개체 상세)과 클러치 상세 '메이팅' 줄이 같이 쓴다.
+  기본값 = 산란일 **이전**의 가장 최근 메이팅(실패 표시는 건너뜀), '연결 안 함' 가능. FAB 여러 마리는 칸을 숨기고 개체마다 기본값으로 연결
+  - 🚨 **`PUT /layings/{id}` 는 통째 교체다** (`LayingDtl.update`). 메이팅만 바꿀 때도 `laidAt`·`eggCountTotal`·`eggCountFertile`·
+    `incubationTemp`·`incubationHumidity`·`memo` 를 **전부 다시 보낼 것** — 빠진 필드는 null 로 지워진다 (개체 상세 수정이 실제로 온도·습도·연결을 지우고 있었다)
 
 #### 포유류는 '산란'이 아니라 '출산' (2026-10-14)
 
@@ -654,6 +660,8 @@ private Map<String, Object> extraData;
 - **앱 측**: `core/push/push_service.dart` — 로그인 성공/앱 시작 시 `initialize()`, 로그아웃 시 `unregisterToken()`
   - 알림 채널 ID `bitpet_default_channel` 은 AndroidManifest·서버 설정·PushService 3곳이 일치해야 함
   - 포그라운드 알림은 OS가 안 띄우므로 `flutter_local_notifications`로 직접 표시
+  - 🚨 **MainActivity 에 `FLUTTER_NOTIFICATION_CLICK` intent-filter 필수** (2026-11-13). 서버가 notification 페이로드에 `click_action` 을 실어 보내서,
+    받는 액티비티가 없으면 **알림을 눌러도 앱이 열리지 않는다**
 - **iOS 미구현**: Apple 개발자 계정 + APNs 인증 키 + `GoogleService-Info.plist` 필요. 현재 iOS는 `firebase_options.dart`에서 `UnsupportedError` → main에서 catch되어 푸시 없이 실행
 
 ### NFC 태그 이름표 (v2)
