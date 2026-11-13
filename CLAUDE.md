@@ -212,7 +212,7 @@ features/
   → ③ `spring.flyway.ignore-migration-patterns: "*:missing"` (히스토리엔 있고 파일은 없는 버전 허용).
   ⚠️ `repair` 는 **운영 히스토리 테이블을 수정**한다 → 실행 전 Lightsail 스냅샷 필수, 배포와 겹치지 않게.
   검증은 같은 방식 — 빈 DB에 새 베이스라인만 적용해 덤프 뜨고 순차 적용 결과와 diff.
-- **2차 스쿼시 이후 추가된 마이그레이션**: V2(`user_mst.community_enabled` — 보호자의 자녀 커뮤니티 허용 스위치, 기본 false). **다음은 V3.**
+- **2차 스쿼시 이후 추가된 마이그레이션**: V2(`user_mst.community_enabled` — 보호자의 자녀 커뮤니티 허용 스위치, 기본 false), V3(`inquiry_dtl` — 개발자에게 문의하기. 답장 없는 일방향 건의함, 운영자는 DB 로 직접 본다 · 메일 알림 없음 · 24시간 10건 · 탈퇴 시 `AuthService.withdraw` 가 삭제). **다음은 V4.**
 - 코드성 시드(`memo_tag_cd`, `post_category_cd`, `serial_pool_stat_mst`)는 베이스라인 하단에 들어 있다.
   종·모프 마스터는 그대로 `R__01`/`R__02` 담당.
 - ⚠️ **`R__02` 는 파일에 없는 공식 모프를 매 실행마다 지운다** (개체가 물고 있으면 FK RESTRICT 라

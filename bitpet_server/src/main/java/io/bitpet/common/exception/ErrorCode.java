@@ -160,6 +160,9 @@ public enum ErrorCode {
     BLOCK_NOT_FOUND(HttpStatus.NOT_FOUND, "차단하지 않은 사용자입니다."),
     // 차단 관계는 양방향으로 가린다 — '차단당한 쪽'에게 이유를 알리지 않기 위해 메시지를 뭉뚱그린다
     POST_BLOCKED(HttpStatus.FORBIDDEN, "볼 수 없는 게시글입니다."),
+
+    // --- Inquiry ---
+    INQUIRY_TOO_MANY(HttpStatus.TOO_MANY_REQUESTS, "오늘은 더 보낼 수 없어요. 내일 다시 보내 주세요."),
     ;
 
     private final HttpStatus status;

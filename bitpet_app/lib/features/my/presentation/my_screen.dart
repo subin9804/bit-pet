@@ -159,6 +159,12 @@ class MyScreen extends ConsumerWidget {
                   label: '자녀 계정',
                   onTap: () => context.push('/my/children'),
                 ),
+              // 답장 없는 건의함 — 서버 DB 에만 쌓인다 (메일·답변 없음)
+              _MenuItem(
+                icon: Icons.mail_outline,
+                label: '개발자에게 문의하기',
+                onTap: () => context.push('/my/inquiry'),
+              ),
               _MenuItem(
                 icon: Icons.info_outline,
                 label: '앱 정보',

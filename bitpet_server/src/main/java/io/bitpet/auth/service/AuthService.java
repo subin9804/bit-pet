@@ -28,6 +28,7 @@ import io.bitpet.auth.signup.SignupEmailVerificationService;
 import io.bitpet.common.dto.PresignResponse;
 import io.bitpet.common.exception.BusinessException;
 import io.bitpet.common.exception.ErrorCode;
+import io.bitpet.inquiry.repository.InquiryDtlRepository;
 import io.bitpet.notification.repository.DeviceTokenRlsRepository;
 import io.bitpet.pet.service.PetWithdrawalService;
 import io.bitpet.storage.S3Service;
@@ -65,6 +66,7 @@ public class AuthService {
     private final OAuthLoginCodeStore oAuthLoginCodeStore;
     private final UserOAuthRlsRepository userOAuthRlsRepository;
     private final DeviceTokenRlsRepository deviceTokenRepository;
+    private final InquiryDtlRepository inquiryRepository;
     private final OAuthAccountService oAuthAccountService;
     private final AppleIdTokenVerifier appleIdTokenVerifier;
     private final AppleTokenClient appleTokenClient;
@@ -377,6 +379,8 @@ public class AuthService {
         user.softDelete();
         // 푸시 토큰도 개인정보다(처리방침 1조). 남겨두면 탈퇴한 기기로 알림이 계속 나갈 수도 있다.
         deviceTokenRepository.deleteAll(deviceTokenRepository.findByUserId(userId));
+        // 문의 본문은 자유 입력이라 개인정보가 섞일 수 있다. 답장도 안 하니 남겨둘 이유가 없다.
+        inquiryRepository.deleteAllByUserId(userId);
         refreshTokenStore.delete(userId);
         log.info("User withdrew: id={}, deletedAt={}, pets={}", userId, user.getDeletedAt(), petResult);
     }
