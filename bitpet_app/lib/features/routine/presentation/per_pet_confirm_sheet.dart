@@ -10,6 +10,7 @@
 // · 이전/다음/슬라이드는 저장하지 않는다 — 자유롭게 오가며 적는다
 // · 완료 취소: 로그 삭제 후 미완료로 복귀 (적어 둔 내용은 남아 다음 저장 때 보통 기록으로 간다)
 import 'package:flutter/material.dart';
+import '../../../core/widgets/app_memo_field.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_icons.dart';
@@ -843,18 +844,14 @@ class _PetPage extends StatelessWidget {
                 rec.memoOpen = !rec.memoOpen;
                 onChanged();
               },
-              child: TextField(
+              child: AppMemoField(
                 controller: rec.memoCtrl,
                 onChanged: (v) {
                   rec.memo = v;
                   rec.dirty = true;
                   onChanged(); // 푸터 'n마리 저장' 개수가 따라 바뀐다
                 },
-                maxLines: 2,
-                style: AppTextStyles.sub,
-                decoration: AppInputStyles.textarea(
-                  hintText: '예: 1마리 남김 · 식욕 좋음',
-                ),
+                hintText: '예: 1마리 남김 · 식욕 좋음',
               ),
             ),
           ],

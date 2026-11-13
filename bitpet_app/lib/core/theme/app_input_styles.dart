@@ -7,7 +7,7 @@ import './app_dimens.dart';
 abstract final class AppInputStyles {
   static const _side = BorderSide(color: AppColors.border);
   static const _focusedSide =
-      BorderSide(color: AppColors.textPrimary, width: 1.5);
+      BorderSide(color: AppColors.brandAction, width: 1.5);
   static const _errorSide = BorderSide(color: AppColors.error);
 
   static InputDecoration textarea({

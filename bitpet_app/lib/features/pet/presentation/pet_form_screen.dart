@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../../../core/widgets/app_memo_field.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -952,24 +953,12 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
         children: [
           SField(
             label: '메모',
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: AppRadius.brLg,
-                color: AppColors.surface,
-                border: Border.all(color: AppColors.paleLine),
-              ),
-              child: TextField(
-                controller: _memoCtrl,
-                maxLines: 6,
-                style: const TextStyle(fontSize: 14, color: AppColors.primary, height: 1.55),
-                cursorColor: AppColors.primary,
-                decoration: const InputDecoration(
-                  hintText: '예: 온도 26°C · 습도 70%\n2024.11.18 — 첫 동물병원 검진 (이상 없음)',
-                  hintStyle: TextStyle(color: AppColors.paleInk3, fontSize: 13),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  border: InputBorder.none,
-                ),
-              ),
+            // 사육환경·병원 이력처럼 길게 쓰는 칸이라 다른 메모칸보다 크게 둔다
+            child: AppMemoField(
+              controller: _memoCtrl,
+              minLines: 6,
+              maxLines: 10,
+              hintText: '예: 온도 26°C · 습도 70%\n2024.11.18 — 첫 동물병원 검진 (이상 없음)',
             ),
           ),
           const SizedBox(height: 16),

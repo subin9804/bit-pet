@@ -1,6 +1,7 @@
 // 루틴 '모두 완료' 시트 — 배정된 개체를 한 번에 완료 처리.
 // 홈 루틴 행의 '모두 완료' 알약에서 `showAppSheet` 로 열린다.
 import 'package:flutter/material.dart';
+import '../../../core/widgets/app_memo_field.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
@@ -256,13 +257,9 @@ class _BulkConfirmSheetState extends ConsumerState<BulkConfirmSheet> {
             summaryActive: false,
             open: _memoOpen,
             onToggle: () => setState(() => _memoOpen = !_memoOpen),
-            child: TextField(
+            child: AppMemoField(
               onChanged: (v) => _memo = v,
-              maxLines: 2,
-              style: AppTextStyles.sub,
-              decoration: AppInputStyles.textarea(
-                hintText: '예: 1마리 남김 · 식욕 좋음',
-              ),
+              hintText: '예: 1마리 남김 · 식욕 좋음',
             ),
           ),
         ],

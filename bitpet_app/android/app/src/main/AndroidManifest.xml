@@ -47,6 +47,14 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
 
+            <!-- 푸시 알림 탭. 서버(FcmSender)가 click_action 을 FLUTTER_NOTIFICATION_CLICK 으로
+                 보내는데, 그 액션을 받는 액티비티가 없으면 알림을 눌러도 아무 일도 안 일어난다
+                 (앱이 백그라운드·종료 상태일 때 — 2026-11-13 실제 증상). -->
+            <intent-filter>
+                <action android:name="FLUTTER_NOTIFICATION_CLICK" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+
             <!-- NFC 태그 이름표 딥링크.
                  태그에는 https://tailog.me/t/{tagCd} 만 굽혀 있고, OS가 이 URL을 열면
                  autoVerify가 통과한 경우 브라우저를 거치지 않고 이 액티비티로 바로 들어온다.

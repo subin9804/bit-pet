@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/app_memo_field.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/species/breeding_terms.dart';
@@ -20,6 +21,7 @@ import '../data/record_repository.dart';
 import '../providers/record_invalidation.dart';
 import '../providers/record_provider.dart';
 import 'widgets/memo_tag_pill.dart';
+import 'widgets/mating_link_picker.dart';
 import '../../pet/providers/pet_provider.dart';
 import '../../pet/data/pet_repository.dart';
 import '../../pet/data/models/pet_models.dart';
@@ -258,8 +260,19 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
           showToast(context, '유정란 수가 총 개수보다 많아요', type: ToastType.error);
           return;
         }
+        final matingId = await resolveMatingLink(ref,
+            petId: widget.petId,
+            laidAt: DateTime.parse(e.dateStr),
+            chosen: e.form['matingChosen'] == true,
+            selectedId: e.form['matingId'] as int?);
         final data = {
           'laidAt': dateTime,
+          // PUT 은 통째 교체라 수정에선 null 도 보낸다 — 빼면 연결이 끊긴다.
+          if (matingId != null || e.isEdit) 'matingId': matingId,
+          if (e.isEdit) ...{
+            'incubationTemp': e.form['incubationTemp'],
+            'incubationHumidity': e.form['incubationHumidity'],
+          },
           // 서버 필드명은 `eggCountTotal`(@NotNull @Min(1)).
           // `totalCount` 로 보내면 알맹이가 없는 요청이 되어 400 이 떨어진다.
           'eggCountTotal': cnt,
@@ -447,7 +460,9 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
     'memo'     => {'content': '', 'tags': <String>[], 'memo': ''},
     'mating'   => {'isSuccessful': null, 'partnerPetId': null,
                    'partnerLabel': null, 'memo': ''},
-    'laying'   => {'totalCount': 1, 'fertileCount': null, 'memo': ''},
+    'laying'   => {'totalCount': 1, 'fertileCount': null, 'memo': '',
+                   // 메이팅은 고르기 전까지 '가장 최근 것'을 따른다 (MatingLinkPicker)
+                   'matingId': null, 'matingChosen': false},
     _ => {},
   };
 
@@ -482,6 +497,12 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
           'totalCount': r.totalCount,
           'fertileCount': r.fertileCount,
           'memo': r.memo ?? '',
+          // 수정은 이미 정해진 연결을 그대로 보여 준다 — 기본값으로 갈아끼우지 않는다.
+          'matingId': r.matingId,
+          'matingChosen': true,
+          // 이 폼엔 칸이 없지만 PUT 이 통째 교체라 다시 실어 보내야 지워지지 않는다.
+          'incubationTemp': r.incubationTemp,
+          'incubationHumidity': r.incubationHumidity,
         };
       default:
         return {};
@@ -1264,13 +1285,10 @@ class _EditorSheetState extends State<_EditorSheet> {
                                 fontWeight: FontWeight.w700,
                                 color: AppColors.primary)),
                         const SizedBox(height: 8),
-                        TextField(
+                        AppMemoField(
                           controller: _contentCtrl,
-                          maxLines: 4,
                           onChanged: (v) => _updateForm('content', v),
-                          decoration: AppInputStyles.textarea(
-                            hintText: '관찰한 내용을 기록해요 (선택)',
-                          ),
+                          hintText: '관찰한 내용을 기록해요 (선택)',
                         ),
                       ],
 
@@ -1381,6 +1399,22 @@ class _EditorSheetState extends State<_EditorSheet> {
                                 v.trim().isEmpty ? null : int.tryParse(v.trim())),
                           ),
                         ],
+                        const SizedBox(height: 16),
+                        _eggLabel('메이팅 기록', required: false),
+                        const SizedBox(height: 8),
+                        MatingLinkPicker(
+                          petId: widget.petId,
+                          laidAt: dt,
+                          chosen: e.form['matingChosen'] == true,
+                          selectedId: e.form['matingId'] as int?,
+                          // 두 키를 한 번에 — _updateForm 을 연달아 부르면 둘째가
+                          // 아직 갱신 전의 editor 를 복사해 첫째를 덮는다.
+                          onChanged: (id) => widget.onChanged(e.copyWith(form: {
+                            ...e.form,
+                            'matingId': id,
+                            'matingChosen': true,
+                          })),
+                        ),
                       ],
 
                       // ── 공통 메모 (memo 타입 제외) ─────────
@@ -1395,13 +1429,10 @@ class _EditorSheetState extends State<_EditorSheet> {
                           Text('OPTIONAL', style: AppTextStyles.monoXxs),
                         ]),
                         const SizedBox(height: 8),
-                        TextField(
+                        AppMemoField(
                           controller: _memoCtrl,
                           onChanged: (v) => _updateForm('memo', v),
-                          maxLines: 2,
-                          decoration: AppInputStyles.textarea(
-                            hintText: '메모 (선택)',
-                          ),
+                          hintText: '메모 (선택)',
                         ),
                       ],
 

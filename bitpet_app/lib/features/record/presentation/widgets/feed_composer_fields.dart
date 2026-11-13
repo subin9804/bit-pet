@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/widgets/app_memo_field.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_input_styles.dart';
@@ -75,13 +76,9 @@ class FeedComposerFields extends StatelessWidget {
           if (!refused) const SizedBox(height: 20),
           FeedFieldLabel('메모', optional: true),
           const SizedBox(height: 8),
-          TextField(
+          AppMemoField(
             onChanged: (v) => onChanged(form.copyWith(memo: v)),
-            maxLines: 2,
-            style: AppTextStyles.body,
-            decoration: AppInputStyles.textarea(
-              hintText: refused ? '거부 상황·컨디션 등 (선택)' : '특이사항 (선택)',
-            ),
+            hintText: refused ? '거부 상황·컨디션 등 (선택)' : '특이사항 (선택)',
           ),
         ],
 

@@ -353,6 +353,10 @@ class LayingRecord {
   /// 그대로 쓰면 되고, 이 필드는 '알' 탭처럼 개체가 없는 자리를 위한 것이다.
   final String? speciesCategory;
 
+  /// 이 클러치를 낳게 한 메이팅 기록. 알을 개체로 등록할 때 서버가 이 메이팅의
+  /// 수컷을 아비로 잇는다. 고르지 않았으면 null.
+  final int? matingId;
+
   final DateTime laidAt;
   final int totalCount;
 
@@ -375,6 +379,7 @@ class LayingRecord {
     this.petName,
     this.speciesName,
     this.speciesCategory,
+    this.matingId,
     required this.laidAt,
     required this.totalCount,
     this.fertileCount,
@@ -419,6 +424,7 @@ class LayingRecord {
         petName: json['petName'] as String?,
         speciesName: json['speciesName'] as String?,
         speciesCategory: json['speciesCategory'] as String?,
+        matingId: (json['matingId'] as num?)?.toInt(),
         laidAt: DateTime.parse(json['laidAt'] as String),
         totalCount: ((json['eggCountTotal'] ?? json['totalCount']) as num).toInt(),
         fertileCount: (json['eggCountFertile'] as num?)?.toInt(),

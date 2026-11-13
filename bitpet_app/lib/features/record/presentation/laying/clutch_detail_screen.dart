@@ -8,6 +8,7 @@
 // (서버도 `HATCH_ALREADY_REGISTERED` 로 막는다).
 
 import 'package:flutter/material.dart';
+import '../../../../core/widgets/app_memo_field.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -22,6 +23,7 @@ import '../../data/models/record_models.dart';
 import '../../data/record_repository.dart';
 import '../../providers/record_invalidation.dart';
 import '../../providers/record_provider.dart';
+import '../widgets/mating_link_picker.dart';
 import 'hatch_register_sheet.dart';
 
 class ClutchDetailScreen extends ConsumerWidget {
@@ -78,6 +80,8 @@ class _Body extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(
                   AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.x40),
               children: [
+                _MatingRow(laying: laying),
+                const SizedBox(height: AppSpacing.cardGap),
                 _EggCard(laying: laying),
                 const SizedBox(height: AppSpacing.cardGap),
                 _NoteCard(laying: laying),
@@ -527,6 +531,127 @@ class _EggOptionSheetState extends ConsumerState<_EggOptionSheet> {
 
 // ── 관찰 메모 ─────────────────────────────────────────────────
 
+// ── 메이팅 연결 ───────────────────────────────────────────────
+
+/// 이 클러치를 낳게 한 메이팅 한 줄. 알을 개체로 등록할 때 서버가 이 메이팅의
+/// 수컷을 아비로 잇는다 — 등록 전에 맞는지 볼 수 있어야 한다.
+class _MatingRow extends ConsumerWidget {
+  final LayingRecord laying;
+  const _MatingRow({required this.laying});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final id = laying.matingId;
+    final String value;
+    if (id == null) {
+      value = '연결 안 함';
+    } else {
+      final m = ref
+          .watch(matingListProvider(laying.petId))
+          .whenOrNull(data: (all) => all.where((m) => m.id == id).firstOrNull);
+      value = m == null ? '연결됨' : matingLinkLabel(m);
+    }
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: AppRadius.brLg,
+        onTap: () => showAppSheet<void>(
+          context: context,
+          builder: (_) => _MatingSheet(laying: laying),
+        ),
+        child: Ink(
+          decoration: AppDecor.card,
+          padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+          child: Row(
+            children: [
+              Text('메이팅', style: AppTextStyles.subheading),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Text(
+                  value,
+                  textAlign: TextAlign.right,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.body.copyWith(
+                      color: id == null ? AppColors.ink3 : AppColors.ink),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              const Icon(Icons.chevron_right, size: 20, color: AppColors.ink3),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MatingSheet extends ConsumerStatefulWidget {
+  final LayingRecord laying;
+  const _MatingSheet({required this.laying});
+
+  @override
+  ConsumerState<_MatingSheet> createState() => _MatingSheetState();
+}
+
+class _MatingSheetState extends ConsumerState<_MatingSheet> {
+  late int? _matingId = widget.laying.matingId;
+  bool _busy = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppSheet(
+      title: '메이팅 기록',
+      subtitle: '알을 개체로 등록하면 이 메이팅의 수컷이 아비로 이어져요',
+      busy: _busy,
+      primaryLabel: '저장',
+      onPrimary: _save,
+      child: Container(
+        decoration: AppDecor.card,
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: MatingLinkPicker(
+          petId: widget.laying.petId,
+          laidAt: widget.laying.laidAt,
+          chosen: true,
+          selectedId: _matingId,
+          onChanged: (id) => setState(() => _matingId = id),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _save() async {
+    final l = widget.laying;
+    if (_matingId == l.matingId) {
+      Navigator.of(context).pop();
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      // PUT 은 통째 교체다 — 메이팅만 보내면 온도·습도·유정란 수·메모가 지워진다.
+      await ref.read(recordRepositoryProvider).updateLaying(l.id, {
+        'laidAt': l.laidAt.toUtc().toIso8601String(),
+        'matingId': _matingId,
+        'eggCountTotal': l.totalCount,
+        'eggCountFertile': l.fertileCount,
+        'incubationTemp': l.incubationTemp,
+        'incubationHumidity': l.incubationHumidity,
+        if (l.memo != null) 'memo': l.memo,
+      });
+      invalidatePetRecords(ref, l.petId);
+      if (mounted) Navigator.of(context).pop();
+    } catch (_) {
+      if (mounted) {
+        setState(() => _busy = false);
+        showToast(context, '저장하지 못했어요', type: ToastType.error);
+      }
+    }
+  }
+}
+
+// ── 관찰 메모 ─────────────────────────────────────────────────
+
 class _NoteCard extends StatelessWidget {
   final LayingRecord laying;
   const _NoteCard({required this.laying});
@@ -657,17 +782,11 @@ class _NoteSheetState extends ConsumerState<_NoteSheet> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            TextField(
+            AppMemoField(
               controller: _content,
               autofocus: true,
-              minLines: 3,
-              maxLines: 6,
               maxLength: 300,
-              style: AppTextStyles.body,
-              decoration: const InputDecoration(
-                hintText: '예: 캔들링 — 3번 알 혈관이 안 보임, 실패 의심',
-                counterText: '',
-              ),
+              hintText: '예: 캔들링 — 3번 알 혈관이 안 보임, 실패 의심',
             ),
             if (editing)
               Align(

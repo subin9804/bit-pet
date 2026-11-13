@@ -1,11 +1,11 @@
 // FAB 기록 바텀시트 — 급여 플로우 06 → 06b → 06c → 06d / 06e
 // 단일 모달 시트 안에서 단계를 전환해 슬라이드업 애니메이션을 1회만 발생.
 import 'package:flutter/material.dart';
+import '../../../core/widgets/app_memo_field.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/species/breeding_terms.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_input_styles.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_search_field.dart';
 import '../../../core/widgets/pet_avatar.dart';
@@ -22,6 +22,7 @@ import '../data/record_repository.dart';
 import '../providers/record_provider.dart';
 import '../providers/record_invalidation.dart';
 import 'widgets/feed_items_editor.dart';
+import 'widgets/mating_link_picker.dart';
 import 'widgets/selected_pet_row.dart';
 import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_dimens.dart';
@@ -71,6 +72,8 @@ class _SimpleDraft {
   final bool? mateSuccess;
   final String eggTotal;
   final String eggFertile;
+  final int? layMatingId;
+  final int? layMatingFor;
 
   const _SimpleDraft({
     this.weight = '',
@@ -84,6 +87,8 @@ class _SimpleDraft {
     this.mateSuccess,
     this.eggTotal = '',
     this.eggFertile = '',
+    this.layMatingId,
+    this.layMatingFor,
   });
 }
 
@@ -251,6 +256,11 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
   // lay
   final _eggTotalCtrl   = TextEditingController();
   final _eggFertileCtrl = TextEditingController();
+  // 이 산란을 낳게 한 메이팅. [_layMatingFor] 가 지금 개체일 때만 사용자가 고른 값이고,
+  // 아니면 그 개체의 가장 최근 메이팅을 따른다 ([resolveMatingLink]). 개체 id 를 같이
+  // 들고 있는 건 개체를 바꿨을 때 남의 메이팅이 실려 가지 않게 하려는 것이다.
+  int? _layMatingId;
+  int? _layMatingFor;
 
   // 저장
   bool _saving = false;
@@ -330,6 +340,8 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         mateSuccess: _mateSuccess,
         eggTotal: _eggTotalCtrl.text,
         eggFertile: _eggFertileCtrl.text,
+        layMatingId: _layMatingId,
+        layMatingFor: _layMatingFor,
       );
 
   void _restoreDraft(_SimpleDraft d) {
@@ -344,6 +356,8 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
     _mateSuccess         = d.mateSuccess;
     _eggTotalCtrl.text   = d.eggTotal;
     _eggFertileCtrl.text = d.eggFertile;
+    _layMatingId         = d.layMatingId;
+    _layMatingFor        = d.layMatingFor;
     _searchLoading       = false;
     _searchError         = null;
   }
@@ -971,11 +985,9 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                 const SizedBox(height: 16),
                 const _MemoLabel(),
                 const SizedBox(height: 8),
-                TextField(
+                AppMemoField(
                   controller: _bulkMemoCtrl,
-                  maxLines: 2,
-                  style: const TextStyle(fontSize: 13, color: AppColors.ink),
-                  decoration: AppInputStyles.textarea(hintText: '특이사항 (선택)'),
+                  hintText: '특이사항 (선택)',
                 ),
               ],
             ),
@@ -1247,14 +1259,11 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                   const SizedBox(height: 16),
                   const _MemoLabel(),
                   const SizedBox(height: 8),
-                  TextField(
+                  AppMemoField(
                     controller: _perPetMemoCtrl.putIfAbsent(
                         activePet.id, () => TextEditingController()),
                     onChanged: (v) => entry.memo = v,
-                    maxLines: 2,
-                    style: const TextStyle(
-                        fontSize: 13, color: AppColors.ink),
-                    decoration: AppInputStyles.textarea(hintText: '특이사항 (선택)'),
+                    hintText: '특이사항 (선택)',
                   ),
                   const SizedBox(height: 16),
                 ],
@@ -1508,8 +1517,14 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
             final fertile = pet.terms.isMammal
                 ? null
                 : int.tryParse(_eggFertileCtrl.text.trim());
+            final matingId = await resolveMatingLink(ref,
+                petId: pet.id,
+                laidAt: now,
+                chosen: _layMatingFor == pet.id,
+                selectedId: _layMatingId);
             final layData = <String, dynamic>{
               'eggCountTotal': total,
+              if (matingId != null) 'matingId': matingId,
               if (fertile != null && fertile > 0) 'eggCountFertile': fertile,
               'laidAt': now.toUtc().toIso8601String(),
               'memo': memo,
@@ -1626,11 +1641,9 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
             const SizedBox(height: 20),
             _FieldLabel('메모', required: false),
             const SizedBox(height: 8),
-            TextField(
+            AppMemoField(
               controller: _simpleMemoCtrl,
-              maxLines: 2,
-              style: const TextStyle(fontSize: 13, color: AppColors.ink),
-              decoration: AppInputStyles.textarea(hintText: '특이사항 (선택)'),
+              hintText: '특이사항 (선택)',
             ),
           ],
         );
@@ -1689,11 +1702,9 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
             const SizedBox(height: 20),
             _FieldLabel('메모', required: false),
             const SizedBox(height: 8),
-            TextField(
+            AppMemoField(
               controller: _simpleMemoCtrl,
-              maxLines: 2,
-              style: const TextStyle(fontSize: 13, color: AppColors.ink),
-              decoration: AppInputStyles.textarea(hintText: '특이사항 (선택)'),
+              hintText: '특이사항 (선택)',
             ),
           ],
         );
@@ -1763,13 +1774,9 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
             const SizedBox(height: 16),
             _FieldLabel('내용', required: false),
             const SizedBox(height: 8),
-            TextField(
+            AppMemoField(
               controller: _simpleMemoCtrl,
-              maxLines: 5,
-              style: const TextStyle(fontSize: 13, color: AppColors.ink),
-              decoration: AppInputStyles.textarea(
-                hintText: '관찰한 내용을 기록해요 (선택)',
-              ).copyWith(alignLabelWithHint: true),
+              hintText: '관찰한 내용을 기록해요 (선택)',
               onChanged: (_) => setState(() {}),
             ),
           ],
@@ -1988,11 +1995,9 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
             const SizedBox(height: 20),
             _FieldLabel('메모', required: false),
             const SizedBox(height: 8),
-            TextField(
+            AppMemoField(
               controller: _simpleMemoCtrl,
-              maxLines: 2,
-              style: const TextStyle(fontSize: 13, color: AppColors.ink),
-              decoration: AppInputStyles.textarea(hintText: '특이사항 (선택)'),
+              hintText: '특이사항 (선택)',
             ),
           ],
         );
@@ -2039,13 +2044,30 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
               ),
             ],
             const SizedBox(height: 20),
+            _FieldLabel('메이팅 기록', required: false),
+            const SizedBox(height: 8),
+            // 여러 마리 일괄이면 개체마다 메이팅이 달라 한 칸으로 고를 수 없다 —
+            // 각자 가장 최근 것에 걸고, 바꾸려면 개별 입력이나 클러치 상세에서.
+            if (pets.length == 1)
+              MatingLinkPicker(
+                petId: pets.first.id,
+                laidAt: _recordAt,
+                chosen: _layMatingFor == pets.first.id,
+                selectedId: _layMatingId,
+                onChanged: (id) => setState(() {
+                  _layMatingId = id;
+                  _layMatingFor = pets.first.id;
+                }),
+              )
+            else
+              Text('개체마다 가장 최근 메이팅 기록에 연결돼요',
+                  style: AppTextStyles.caption),
+            const SizedBox(height: 20),
             _FieldLabel('메모', required: false),
             const SizedBox(height: 8),
-            TextField(
+            AppMemoField(
               controller: _simpleMemoCtrl,
-              maxLines: 2,
-              style: const TextStyle(fontSize: 13, color: AppColors.ink),
-              decoration: AppInputStyles.textarea(hintText: '특이사항 (선택)'),
+              hintText: '특이사항 (선택)',
             ),
           ],
         );

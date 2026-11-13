@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/app_memo_field.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_input_styles.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_buttons.dart';
 import '../../../core/widgets/app_sheet.dart';
@@ -94,9 +94,7 @@ class _FeedDetailScreenState extends ConsumerState<FeedDetailScreen> {
   Future<void> _save() async {
     final e = _editor;
     if (e == null) return;
-    // 새로 추가할 때는 먹이가 있어야 한다. 수정은 비어도 보낸다 —
-    // 먹이 없이 완료한 루틴 기록의 시각·메모만 고치는 경우가 있다.
-    if (!e.isEdit && e.items.isEmpty) return;
+    // 먹이가 비어도 저장한다 — '급여'(food_type '') 한 행이 된다. FAB 와 같은 규칙.
     final notifier = ref.read(feedSessionsProvider(widget.petId).notifier);
     try {
       if (e.isEdit && e.editId != null) {
@@ -788,7 +786,7 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
               child: AppSheet(
                 title: e.isEdit ? '급여 기록 수정' : '급여 기록 추가',
                 primaryLabel: e.isEdit ? '수정 완료' : '저장',
-                onPrimary: e.items.isEmpty ? null : widget.onSave,
+                onPrimary: widget.onSave,
                 dateField: Row(
                   children: [
                     AppNavButton(onTap: () => _shiftDate(-1)),
@@ -849,13 +847,10 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    TextField(
+                    AppMemoField(
                       controller: _memoCtrl,
                       onChanged: (v) => widget.onChanged(e.copyWith(memo: v)),
-                      maxLines: 2,
-                      decoration: AppInputStyles.textarea(
-                        hintText: '예: 1마리 남김 · 식욕 좋음 · 더스팅',
-                      ),
+                      hintText: '예: 1마리 남김 · 식욕 좋음 · 더스팅',
                     ),
 
                     // 삭제 버튼 (수정 모드)

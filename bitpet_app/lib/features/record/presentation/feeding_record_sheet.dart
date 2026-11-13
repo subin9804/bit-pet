@@ -5,9 +5,9 @@
 // - 완료/미완료 버튼
 // - 다음 개체 / 뒤로 / 닫기
 import 'package:flutter/material.dart';
+import '../../../core/widgets/app_memo_field.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_input_styles.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/pet_avatar.dart';
 import '../../../core/widgets/toast_message.dart';
@@ -263,10 +263,9 @@ class _FeedingRecordSheetState extends ConsumerState<FeedingRecordSheet> {
                       onChanged: (list) => setState(() => _items[_current.petId] = list),
                     ),
                     const SizedBox(height: 16),
-                    TextField(
+                    AppMemoField(
                       onChanged: (v) => _memos[_current.petId] = v,
-                      maxLines: 2,
-                      decoration: AppInputStyles.textarea(hintText: '특이사항 (선택)'),
+                      hintText: '특이사항 (선택)',
                     ),
                     const SizedBox(height: 16),
                     // 완료/저장됨 상태 버튼

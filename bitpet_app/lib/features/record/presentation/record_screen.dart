@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/app_memo_field.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -6,7 +7,6 @@ import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/skeleton_loader.dart';
 import '../../../core/widgets/toast_message.dart';
-import '../../../core/theme/app_input_styles.dart';
 import '../providers/record_invalidation.dart';
 import '../providers/record_provider.dart';
 import '../data/models/record_models.dart';
@@ -640,10 +640,9 @@ class _InputSheetState extends ConsumerState<_InputSheet> {
                   setState(() => _cleaningType = s.first),
             ),
           ] else if (widget.recordType == 'memo') ...[
-            TextFormField(
+            AppMemoField(
               controller: _contentCtrl,
-              decoration: AppInputStyles.textarea(hintText: '내용 *'),
-              maxLines: 3,
+              hintText: '내용 *',
               autofocus: true,
             ),
           ] else if (widget.recordType == 'mating') ...[
