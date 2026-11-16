@@ -21,8 +21,12 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./backups:/backups
-    # ⚠️ ports 를 뚫지 않는다. app 컨테이너가 같은 네트워크에서 postgres:5432 로 붙는다.
-    #    5432 를 호스트에 열면 인터넷에서 DB가 직접 보인다.
+    # app 컨테이너는 같은 네트워크에서 postgres:5432 로 붙는다.
+    # 호스트에는 **루프백(127.0.0.1)에만** 연다 — DBeaver 가 SSH 터널로 들어오는 통로 (2026-11-17).
+    # ⛔ `127.0.0.1:` 을 빼면 0.0.0.0 에 열려 인터넷에서 DB가 직접 보인다. 방화벽은 80/443 만 유지.
+    # ⚠️ deploy.sh 는 app 만 재기동한다 — 이 줄을 바꾸면 서버에서 `up -d postgres` 를 직접 돌려야 반영된다.
+    ports:
+      - "127.0.0.1:5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 10s
