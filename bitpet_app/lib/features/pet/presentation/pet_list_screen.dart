@@ -906,10 +906,7 @@ class _PetCard extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(pet.name,
-                      style: AppTextStyles.bodyBold,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
+                  _PetName(pet: pet),
                   const SizedBox(height: 2),
                   Text(pet.speciesName,
                       style: AppTextStyles.caption,
@@ -929,6 +926,31 @@ class _PetCard extends ConsumerWidget {
   Widget _spriteIcon() => Center(
       child: AppIcon(AppIcons.species(pet.speciesSubcategory),
           size: 36, color: AppColors.ink.withValues(alpha: 0.3)));
+}
+
+/// 개체 이름 — 이별한 개체는 이름 뒤에 🌈 (상세 화면 프로필 배지와 같은 표식).
+/// 목록 맨 아래로 내려가긴 하지만, 그것만으론 훑어볼 때 알아채기 어렵다.
+class _PetName extends StatelessWidget {
+  final Pet pet;
+  const _PetName({required this.pet});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Flexible(
+          child: Text(pet.name,
+              style: AppTextStyles.bodyBold,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis),
+        ),
+        if (pet.isDeceased) ...[
+          const SizedBox(width: 4),
+          const Text('🌈', style: TextStyle(fontSize: 12)),
+        ],
+      ],
+    );
+  }
 }
 
 /// 선택 모드 체크 배지
@@ -1065,7 +1087,7 @@ class _PetListTile extends ConsumerWidget {
               leading: selecting
                   ? _CheckBadge(selected: selected)
                   : _PetAvatarSmall(pet: pet),
-              title: Text(pet.name, style: AppTextStyles.bodyBold),
+              title: _PetName(pet: pet),
               subtitle: Text(pet.speciesName, style: AppTextStyles.caption),
               trailing: pet.latestWeightG != null
                   ? Text('${pet.latestWeightG!.toStringAsFixed(0)}g',
