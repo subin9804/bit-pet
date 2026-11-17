@@ -109,6 +109,7 @@ class ChildrenScreen extends ConsumerWidget {
                   _ChildRow(child: c, onDelete: () => _delete(context, ref, c)),
                   // 만 14세가 지난 계정엔 스위치가 의미 없다 (서버가 성인으로 본다)
                   if (c.isChild) _CommunityToggle(child: c),
+                  _ShareAllPetsRow(child: c),
                 ],
               ]),
               Padding(
@@ -257,6 +258,67 @@ class _CommunityToggleState extends ConsumerState<_CommunityToggle> {
             ),
           ),
           Switch(value: _value, onChanged: _saving ? null : _toggle),
+        ],
+      ),
+    );
+  }
+}
+
+/// 내 개체 전체를 이 자녀에게 공유 (2026-11-18). 초대·수락 없이 바로 붙는다.
+/// 여러 번 눌러도 된다 — 이미 공유된 개체는 서버가 건너뛰고 새 개체만 붙인다.
+class _ShareAllPetsRow extends ConsumerStatefulWidget {
+  final ChildAccount child;
+  const _ShareAllPetsRow({required this.child});
+
+  @override
+  ConsumerState<_ShareAllPetsRow> createState() => _ShareAllPetsRowState();
+}
+
+class _ShareAllPetsRowState extends ConsumerState<_ShareAllPetsRow> {
+  bool _busy = false;
+
+  Future<void> _share() async {
+    setState(() => _busy = true);
+    try {
+      final n =
+          await ref.read(guardianRepositoryProvider).shareAllPets(widget.child.id);
+      if (!mounted) return;
+      showToast(
+          context,
+          n > 0
+              ? '${widget.child.nickname} 님에게 $n마리를 공유했어요'
+              : '이미 모든 개체가 공유돼 있어요');
+    } catch (_) {
+      if (!mounted) return;
+      showToast(context, '공유하지 못했어요. 잠시 후 다시 시도해주세요.',
+          type: ToastType.error);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg + 40 + AppSpacing.md, 0, AppSpacing.sm, AppSpacing.sm),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text('아직 공유하지 않은 개체만 새로 공유돼요',
+                style: AppTextStyles.caption),
+          ),
+          TextButton.icon(
+            onPressed: _busy ? null : _share,
+            style: TextButton.styleFrom(foregroundColor: AppColors.brandAction),
+            icon: _busy
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.share_outlined, size: 18),
+            label: const Text('내 개체 전체 공유'),
+          ),
         ],
       ),
     );

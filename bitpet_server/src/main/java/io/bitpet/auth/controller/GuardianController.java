@@ -61,6 +61,14 @@ public class GuardianController {
         return ApiResponse.ok(guardianService.changeCommunity(principal.userId(), childId, request.enabled()));
     }
 
+    @Operation(summary = "내 개체 전체를 자녀 계정에 공유",
+            description = "초대 없이 바로 공유된다. 이미 공유된 개체는 건너뛰며, 응답은 새로 공유된 수")
+    @PostMapping("/children/{childId}/share-all-pets")
+    public ApiResponse<Integer> shareAllPets(@AuthenticationPrincipal AuthPrincipal principal,
+                                             @PathVariable Long childId) {
+        return ApiResponse.ok(guardianService.shareAllPetsToChild(principal.userId(), childId));
+    }
+
     @Operation(summary = "자녀 계정 삭제 (일반 탈퇴와 같은 처리)")
     @DeleteMapping("/children/{childId}")
     public ApiResponse<Void> deleteChild(@AuthenticationPrincipal AuthPrincipal principal,

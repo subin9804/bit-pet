@@ -128,6 +128,18 @@ class GuardianRepository {
     }
   }
 
+  /// 내 개체 전부를 이 자녀에게 공유. 이미 공유된 개체는 서버가 건너뛴다.
+  /// 반환값은 이번에 새로 공유된 수.
+  Future<int> shareAllPets(int childId) async {
+    try {
+      final res =
+          await _dio.post('/guardian/children/$childId/share-all-pets');
+      return (res.data['data'] as num?)?.toInt() ?? 0;
+    } on DioException catch (e) {
+      _mapDioError(e, '개체를 공유하지 못했습니다.');
+    }
+  }
+
   Future<void> deleteChild(int childId) async {
     try {
       await _dio.delete('/guardian/children/$childId');

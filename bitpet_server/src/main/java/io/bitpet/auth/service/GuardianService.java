@@ -8,6 +8,7 @@ import io.bitpet.auth.dto.ChildResponse;
 import io.bitpet.auth.repository.UserMstRepository;
 import io.bitpet.common.exception.BusinessException;
 import io.bitpet.common.exception.ErrorCode;
+import io.bitpet.pet.share.service.PetSharingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -39,6 +40,7 @@ public class GuardianService {
     private final PasswordEncoder passwordEncoder;
     private final AgreementService agreementService;
     private final AuthService authService;
+    private final PetSharingService petSharingService;
 
     /**
      * 한 보호자가 만들 수 있는 자녀 계정 수.
@@ -150,6 +152,21 @@ public class GuardianService {
         UserMst child = getMyChild(guardianUserId, childId);
         authService.withdraw(child.getId(), true);
         log.info("child account deleted: childId={}, guardianId={}", childId, guardianUserId);
+    }
+
+    /**
+     * 내 개체 전부를 자녀 계정에 공유 (2026-11-18). 초대·수락 없이 바로 KEEPER 로 붙는다.
+     * 여러 번 눌러도 이미 공유된 개체는 건너뛴다. 자녀 → 보호자 방향은 없다.
+     *
+     * @return 이번에 새로 공유된 개체 수
+     */
+    @Transactional
+    public int shareAllPetsToChild(Long guardianUserId, Long childId) {
+        UserMst child = getMyChild(guardianUserId, childId);
+        int shared = petSharingService.shareAllOwnedTo(guardianUserId, child.getId());
+        log.info("guardian shared pets to child: guardianId={}, childId={}, count={}",
+                guardianUserId, childId, shared);
+        return shared;
     }
 
     /** 보호자 연결이 해제된 자녀 한 명 — 해제 배치가 보호자에게 알림을 보내는 데 쓴다 */

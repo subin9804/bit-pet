@@ -29,6 +29,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -49,6 +50,38 @@ public class PetSharingService {
     private final PetKeeperService petKeeper;
     private final RoutineMaintenanceService routineMaintenance;
     private final ShareCodeGenerator shareCodeGenerator;
+
+    // -------------------------------------------------------------------------
+    // 보호자 → 자녀 일괄 공유 (2026-11-18)
+    // -------------------------------------------------------------------------
+
+    /**
+     * 내가 소유한 개체 전부를 {@code targetUserId} 에게 KEEPER 로 붙인다. <b>초대·수락 없이 바로</b>.
+     *
+     * <p>지금은 보호자가 자기 자녀 계정에만 부른다 (호출부 {@code GuardianService} 가 관계를 확인한다).
+     * 자녀 계정은 보호자가 만든 것이라 "받을지 말지" 묻는 단계가 의미가 없다.
+     *
+     * <p>여러 번 눌러도 된다 — 이미 사육자인 개체는 건너뛰고 새로 생긴 개체만 붙는다.
+     * 받는 쪽 목록에서는 보내는 사람의 순서를 그대로 따르도록 뒤에서부터 붙인다
+     * ({@code registerKeeper} 는 매번 맨 위에 꽂는다).
+     *
+     * @return 이번에 새로 공유된 개체 수
+     */
+    @Transactional
+    public int shareAllOwnedTo(Long ownerUserId, Long targetUserId) {
+        Set<Long> owned = petKeeper.ownedPetIds(ownerUserId);
+        // 소유 행은 남아 있어도 삭제된 개체(@SQLRestriction 으로 안 읽힘)는 뺀다
+        Set<Long> alive = new LinkedHashSet<>();
+        petRepository.findAllById(owned).forEach(p -> alive.add(p.getId()));
+
+        List<Long> ordered = new ArrayList<>(petKeeper.keptPetIdsOrdered(ownerUserId).stream()
+                .filter(alive::contains)
+                .filter(id -> !keeperRepository.existsByIdPetIdAndIdUserId(id, targetUserId))
+                .toList());
+        java.util.Collections.reverse(ordered);
+        ordered.forEach(petId -> petKeeper.registerKeeper(petId, targetUserId));
+        return ordered.size();
+    }
 
     // -------------------------------------------------------------------------
     // 초대 보내기 (소유자 전용)
