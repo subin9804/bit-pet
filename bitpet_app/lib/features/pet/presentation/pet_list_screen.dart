@@ -85,7 +85,9 @@ Future<void> _confirmAndDelete(
     context,
     title: '개체 삭제',
     message: '정말로 $count마리의 개체 정보를 삭제하시겠습니까?\n'
-        '급여·체중 등 그동안의 기록도 함께 사라지며 복구할 수 없습니다.',
+        '급여·체중 등 그동안의 기록도 함께 사라지며 복구할 수 없습니다.\n\n'
+        '함께 키우는 사람의 목록에서도 사라져요. 계속 키울 사람이 있다면 '
+        "삭제 대신 '분양 보내기'로 소유권을 넘겨 주세요.",
     confirmLabel: '삭제',
     isDangerous: true,
   );

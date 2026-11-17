@@ -435,7 +435,10 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
     final ok = await ConfirmModal.show(
       context,
       title: '개체 삭제',
-      message: '$name을(를) 삭제할까요? 모든 기록도 함께 삭제됩니다.',
+      // 공유 중이면 함께 키우는 사람에게서도 사라진다 — 지우기 전에 입분양을 권한다 (2026-11-18)
+      message: '$name을(를) 삭제할까요? 모든 기록도 함께 삭제됩니다.\n\n'
+          '함께 키우는 사람의 목록에서도 사라져요. 계속 키울 사람이 있다면 '
+          "삭제 대신 '공유 관리 > 입분양'으로 소유권을 넘겨 주세요.",
       confirmLabel: '삭제',
       isDangerous: true,
       requireTextConfirmation: name,
