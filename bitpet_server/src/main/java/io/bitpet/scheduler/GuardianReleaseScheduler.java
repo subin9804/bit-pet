@@ -52,7 +52,8 @@ public class GuardianReleaseScheduler {
                 notificationService.createSystemNotification(
                         child.childId(),
                         "만 14세가 된 걸 축하해요 🎉",
-                        "이제 일반 회원이 됐어요.");
+                        "이제 일반 회원이에요. 커뮤니티 어느 게시판에서든 글과 댓글을 쓸 수 있고, "
+                                + "어린이 게시판은 더 이상 보이지 않아요.");
             } catch (Exception e) {
                 log.warn("guardian release notification (child) failed: childId={}", child.childId(), e);
             }
