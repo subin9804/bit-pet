@@ -87,8 +87,8 @@ class _InquiryScreenState extends ConsumerState<InquiryScreen> {
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
           children: [
             const Text(
-              '불편했던 점, 있었으면 하는 기능을 편하게 남겨 주세요.\n'
-              '하나하나 읽고 앱에 반영할게요. 따로 답장은 드리지 않아요.',
+              '▶ 불편했던 점, 있었으면 하는 기능을 전달해주시면\n'
+              '꼼꼼하게 확인하고 신중하게 반영하겠습니다.\n문의사항은 메일로 부탁드려요.',
               style:
                   TextStyle(fontSize: 13, height: 1.6, color: AppColors.ink3),
             ),
