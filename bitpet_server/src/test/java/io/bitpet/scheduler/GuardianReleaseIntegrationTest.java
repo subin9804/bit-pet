@@ -54,10 +54,16 @@ class GuardianReleaseIntegrationTest extends IntegrationTestBase {
         assertThat(notificationService.listNotifications(guardian))
                 .extracting(NotificationLogResponse::title)
                 .containsExactly("자녀 계정이 일반 계정으로 바뀌었어요");
+        // 본인에게도 축하 알림, 아직 14세가 안 된 아이에겐 없음
+        assertThat(notificationService.listNotifications(older))
+                .extracting(NotificationLogResponse::title)
+                .containsExactly("만 14세가 된 걸 축하해요 🎉");
+        assertThat(notificationService.listNotifications(younger)).isEmpty();
 
         // 다음 날 다시 돌아도 알림이 또 가면 안 된다
         scheduler.run(nextYear.plusDays(1));
         assertThat(notificationService.listNotifications(guardian)).hasSize(1);
+        assertThat(notificationService.listNotifications(older)).hasSize(1);
     }
 
     @Test

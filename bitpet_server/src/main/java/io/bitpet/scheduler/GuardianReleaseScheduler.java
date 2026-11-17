@@ -47,6 +47,18 @@ public class GuardianReleaseScheduler {
                 // 해제는 이미 커밋됐다 — 알림 하나 실패로 나머지 보호자 알림까지 멈추면 안 된다
                 log.warn("guardian release notification failed: childId={}", child.childId(), e);
             }
+            // 본인에게도 (2026-11-18). 비밀번호는 보호자가 정해 준 것이라 바꾸라고 함께 말한다 —
+            // 앱 안에 비밀번호 변경 화면이 없어 로그인 화면의 '비밀번호 찾기'로 안내한다.
+            try {
+                notificationService.createSystemNotification(
+                        child.childId(),
+                        "만 14세가 된 걸 축하해요 🎉",
+                        "이제 일반 회원이에요. 커뮤니티 어느 게시판에서든 글과 댓글을 쓸 수 있고, "
+                                + "어린이 게시판은 더 이상 보이지 않아요. 보호자가 정해 준 비밀번호라면 "
+                                + "로그인 화면의 '비밀번호 찾기'로 새로 바꿔 두세요.");
+            } catch (Exception e) {
+                log.warn("guardian release notification (child) failed: childId={}", child.childId(), e);
+            }
         }
         if (!released.isEmpty()) {
             log.info("Guardian release: {} child account(s) released", released.size());

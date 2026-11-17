@@ -98,6 +98,8 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
       );
     }
 
+    final isChild = ref.watch(
+        authStateProvider.select((s) => s.valueOrNull?.isChild ?? false));
     final selectedCat = ref.watch(categoryFilterProvider);
     final feed = ref.watch(feedProvider);
     final search = ref.watch(postSearchProvider);
@@ -163,6 +165,37 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                 autofocus: true,
                 onChanged: (v) =>
                     ref.read(postSearchProvider.notifier).state = v,
+              ),
+            ),
+
+          // ── 어린이 회원 안내 ─────────────────────────────
+          // 일반 게시판은 읽기만 된다(서버 CHILD_BOARD_ONLY). 글쓰기를 눌러 보고서야
+          // 막히는 걸 알게 하지 않으려고 피드 맨 위에서 먼저 말해 둔다.
+          if (isChild)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.fromLTRB(
+                  AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.md),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+              decoration: BoxDecoration(
+                color: AppColors.bg,
+                borderRadius: AppRadius.brMd,
+                border: Border.all(color: AppColors.line),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline_rounded,
+                      size: 16, color: AppColors.ink3),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      '모든 글을 볼 수 있지만, 글과 댓글은 어린이 게시판에서만 쓸 수 있어요',
+                      style: AppTextStyles.caption
+                          .copyWith(color: AppColors.ink2),
+                    ),
+                  ),
+                ],
               ),
             ),
 
