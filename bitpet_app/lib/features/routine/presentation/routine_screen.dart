@@ -664,6 +664,10 @@ class _RoutinePetPickerSheetState
   Widget build(BuildContext context) {
     final petsAsync = ref.watch(petListProvider);
     final allPets = petsAsync.valueOrNull ?? const <Pet>[];
+    // 전체선택은 **지금 보이는 개체**만 대상 — 종 필터·검색으로 좁힌 뒤 한 번에 고르는 용도.
+    final shown = _filter(allPets);
+    final allShownOn =
+        shown.isNotEmpty && shown.every((p) => _selectedIds.contains(p.id));
 
     return AppSheet(
       title: '개체 추가·제거',
@@ -675,17 +679,38 @@ class _RoutinePetPickerSheetState
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ── 검색 · 종 필터 ──
+          // ── 검색 · 종 필터 ── (셋이 붙어 있으면 한 덩어리로 읽혀 사이를 띄운다)
           AppSearchField(
             value: _query,
             onChanged: (v) => setState(() => _query = v),
           ),
+          const SizedBox(height: AppSpacing.md),
           SpeciesFilterChips(
             pets: allPets,
             selectedSpeciesId: _speciesId,
             onChanged: (id) => setState(() => _speciesId = id),
           ),
           const SizedBox(height: AppSpacing.sm),
+
+          // ── 전체선택 / 전체해제 (보이는 개체 기준) ──
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: shown.isEmpty
+                  ? null
+                  : () => setState(() {
+                        for (final p in shown) {
+                          if (allShownOn) {
+                            _selectedIds.remove(p.id);
+                          } else {
+                            _selectedIds.add(p.id);
+                          }
+                        }
+                      }),
+              child: Text(allShownOn ? '전체해제' : '전체선택'),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
 
           // ── 개체 그리드 ──
           ConstrainedBox(
