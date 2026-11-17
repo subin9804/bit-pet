@@ -9,6 +9,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/upload/image_source_sheet.dart';
 import '../../../core/widgets/app_chip.dart';
 import '../../../core/widgets/app_network_image.dart';
+import '../../../core/widgets/confirm_modal.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../data/models/post_models.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -73,6 +74,16 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
   }
 
   Future<void> _submit() async {
+    // 새 글만 한 번 더 묻는다 — 등록하면 바로 남들에게 보인다. 수정은 이미 공개된 글이라 묻지 않는다.
+    if (!widget.isEdit) {
+      final ok = await ConfirmModal.show(
+        context,
+        title: '글을 등록할까요?',
+        message: '등록하면 커뮤니티에 바로 공개돼요.',
+        confirmLabel: '등록',
+      );
+      if (!ok || !mounted) return;
+    }
     final notifier = ref.read(composeProvider.notifier);
     try {
       if (widget.isEdit) {

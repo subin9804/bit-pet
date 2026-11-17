@@ -750,6 +750,26 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
     super.dispose();
   }
 
+  /// 가운데 날짜를 누르면 달력 — 며칠 전 기록을 고칠 때 화살표를 여러 번 누르지 않게.
+  /// 미래는 막는다(FAB 와 같음). 다만 이미 미래 날짜로 저장된 기록이면 그 날까지는 열어준다
+  /// (initialDate 가 lastDate 를 넘으면 showDatePicker 가 assert 로 죽는다).
+  Future<void> _pickDate() async {
+    final current = DateTime.parse(widget.editor.date);
+    final today = DateTime.now();
+    final last = current.isAfter(today) ? current : today;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: current,
+      firstDate: DateTime(today.year - 5),
+      lastDate: last,
+      helpText: '기록 날짜 선택',
+    );
+    if (picked == null || !mounted) return;
+    _shiftDate(DateTime(picked.year, picked.month, picked.day)
+        .difference(DateTime(current.year, current.month, current.day))
+        .inDays);
+  }
+
   void _shiftDate(int days) {
     final parts = widget.editor.date.split('-').map(int.parse).toList();
     final dt = DateTime(parts[0], parts[1], parts[2] + days);
@@ -791,28 +811,35 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
                   children: [
                     AppNavButton(onTap: () => _shiftDate(-1)),
                     Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        decoration: BoxDecoration(
-                          color: AppColors.card,
-                          border: Border.all(color: AppColors.line),
-                          borderRadius: AppRadius.brMd,
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              e.date.replaceAll('-', '.'),
-                              style: AppTextStyles.mono(14, FontWeight.w700),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              '(${_weekKo[dt.weekday % 7]})',
-                              style: const TextStyle(
-                                  fontSize: 12, fontWeight: FontWeight.w600,
-                                  color: AppColors.ink2),
-                            ),
-                          ],
+                      child: GestureDetector(
+                        onTap: _pickDate,
+                        behavior: HitTestBehavior.opaque,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: AppColors.card,
+                            border: Border.all(color: AppColors.line),
+                            borderRadius: AppRadius.brMd,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.calendar_today_outlined,
+                                  size: 14, color: AppColors.ink3),
+                              const SizedBox(width: 6),
+                              Text(
+                                e.date.replaceAll('-', '.'),
+                                style: AppTextStyles.mono(14, FontWeight.w700),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '(${_weekKo[dt.weekday % 7]})',
+                                style: const TextStyle(
+                                    fontSize: 12, fontWeight: FontWeight.w600,
+                                    color: AppColors.ink2),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),

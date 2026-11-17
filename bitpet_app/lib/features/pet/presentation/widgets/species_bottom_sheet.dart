@@ -252,8 +252,10 @@ class _SubcategoryRail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 라벨은 **한 줄**이어야 한다 — '카멜레온'(4자, 선택 시 굵게)이 90px 에서 두 줄로
+    // 꺾여 레일 칸 높이가 들쭉날쭉했다. 폭을 넓히고, 그래도 넘치면 줄바꿈 대신 줄여서 맞춘다.
     return SizedBox(
-      width: 90,
+      width: 100,
       child: ListView.builder(
         itemCount: subcategories.length,
         itemBuilder: (_, i) {
@@ -280,12 +282,18 @@ class _SubcategoryRail extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: isSel ? FontWeight.w700 : FontWeight.w500,
-                      color: isSel ? AppColors.primary : AppColors.paleInk2,
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      softWrap: false,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: isSel ? FontWeight.w700 : FontWeight.w500,
+                        color: isSel ? AppColors.primary : AppColors.paleInk2,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 4),
