@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../error/app_error_guard.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/signup_screen.dart';
@@ -46,6 +47,9 @@ import '../../features/splash/presentation/intro_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
+    navigatorKey: rootNavigatorKey,
+    // 없는 경로(잘못된 딥링크 등) — 오류 화면 대신 안내 창 후 이전 화면으로
+    errorBuilder: (context, state) => Scaffold(body: appErrorPlaceholder()),
     // 앱의 입구는 스플래시다. `/home` 으로 바로 들어가던 동안은 토큰 확인이
     // 끝나기 전이라 아래 isLoggedIn 이 false 로 읽혀, **로그인해 둔 사람에게도
     // 로그인 화면이 한 번 번쩍였다**.
