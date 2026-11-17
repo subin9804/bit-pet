@@ -294,7 +294,7 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
     if (!mounted) return;
 
     switch (action) {
-      case 'farewell': await _handleFarewell(pet.name);
+      case 'farewell': await _handleFarewell(pet);
       case 'revert':   await _handleRevertFarewell();
       case 'share':    context.push('/pets/${widget.petId}/share');
       case 'delete':   await _handleDelete(pet.name);
@@ -386,8 +386,10 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
         ),
       ];
 
-  /// 이별하기 — 폐사 처리 (기록 보존)
-  Future<void> _handleFarewell(String name) async {
+  /// 이별하기 — 폐사 처리 (기록 보존). 확인 뒤 **이별한 날**을 고른다 (기본 오늘).
+  /// 며칠 지나 정리하는 경우가 많아 오늘로 못박으면 기념일·함께한 날이 어긋난다.
+  Future<void> _handleFarewell(Pet pet) async {
+    final name = pet.name;
     final ok = await ConfirmModal.show(
       context,
       title: '이별하기',
@@ -397,13 +399,26 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
       // 되돌릴 수는 있지만(이별 취소) 무게가 큰 동작이라 경고색으로 (2026-10-30 사용자 결정)
       isDangerous: true,
     );
-    if (ok && mounted) {
-      await ref.read(petListProvider.notifier).markDeceased(widget.petId);
-      ref.invalidate(petDetailProvider(widget.petId));
-      if (mounted) {
-        ToastMessage.show(context, '$name와(과)의 기억은 그대로 남아있어요. 🌈',
-            type: ToastType.success);
-      }
+    if (!ok || !mounted) return;
+    final today = DateUtils.dateOnly(DateTime.now());
+    // 함께 지내기 시작한 날보다 앞설 수는 없다
+    final start = pet.adoptionDate ?? pet.hatchingDate;
+    final first = start != null && !start.isAfter(today)
+        ? DateUtils.dateOnly(start)
+        : DateTime(today.year - 30);
+    final date = await showDatePicker(
+      context: context,
+      initialDate: today,
+      firstDate: first,
+      lastDate: today,
+      helpText: '이별한 날',
+    );
+    if (date == null || !mounted) return;
+    await ref.read(petListProvider.notifier).markDeceased(widget.petId, date: date);
+    ref.invalidate(petDetailProvider(widget.petId));
+    if (mounted) {
+      ToastMessage.show(context, '$name와(과)의 기억은 그대로 남아있어요. 🌈',
+          type: ToastType.success);
     }
   }
 
@@ -548,12 +563,15 @@ class _PetStats extends StatelessWidget {
 
   const _PetStats({required this.pet});
 
+  /// 함께한 날·나이를 세는 끝 — 이별한 개체는 이별한 날에서 멈춘다.
+  DateTime get _until => pet.deceasedAt ?? DateTime.now();
+
   /// 함께한 날 — 입양일이 있으면 그 날부터, 없으면 해칭일부터 센다.
   /// 둘 다 없는 개체(분양받아 날짜를 모르는 경우)는 셀 근거가 없으므로 null.
   int? get _days {
     final from = pet.adoptionDate ?? pet.hatchingDate;
     if (from == null) return null;
-    final d = DateTime.now().difference(from).inDays;
+    final d = _until.difference(from).inDays;
     return d < 0 ? null : d + 1;
   }
 
@@ -561,7 +579,7 @@ class _PetStats extends StatelessWidget {
   (String, String)? get _age {
     final h = pet.hatchingDate;
     if (h == null) return null;
-    final months = (DateTime.now().difference(h).inDays / 30.44).floor();
+    final months = (_until.difference(h).inDays / 30.44).floor();
     if (months < 0) return null;
     if (months < 12) return ('$months', '개월');
     return ((months / 12).floor().toString(), '년');

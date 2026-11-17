@@ -83,8 +83,10 @@ class PetRepository {
   }
 
   /// 이별하기 — 폐사 처리 (기록은 그대로 보존)
-  Future<Pet> markDeceased(int id) async {
-    final res = await _dio.post('/pets/$id/deceased');
+  /// [date] 이별한 날 — 없으면 서버가 오늘로 둔다.
+  Future<Pet> markDeceased(int id, {DateTime? date}) async {
+    final res = await _dio.post('/pets/$id/deceased',
+        data: date == null ? null : {'deceasedAt': date.toIso8601String().substring(0, 10)});
     final apiRes = ApiResponse.fromJson(
       res.data as Map<String, dynamic>,
       (d) => Pet.fromJson(d as Map<String, dynamic>),

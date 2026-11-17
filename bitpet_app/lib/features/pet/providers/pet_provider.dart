@@ -56,8 +56,8 @@ class PetListNotifier extends StateNotifier<AsyncValue<List<Pet>>> {
   }
 
   /// 이별하기 — 폐사 처리 후 목록 재정렬
-  Future<void> markDeceased(int id) async {
-    final pet = await _repo.markDeceased(id);
+  Future<void> markDeceased(int id, {DateTime? date}) async {
+    final pet = await _repo.markDeceased(id, date: date);
     state.whenData((list) {
       state = AsyncValue.data(
           _sorted(list.map((p) => p.id == id ? pet : p).toList()));

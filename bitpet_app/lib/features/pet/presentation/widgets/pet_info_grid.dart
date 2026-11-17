@@ -59,6 +59,21 @@ class _PetInfoGridState extends ConsumerState<PetInfoGrid> {
               _Cell(label: '입양일', value: _fmtDate(adopt), mono: true),
             ],
           ),
+          // 이별한 날 — 날짜 줄 바로 아래, 같은 반 칸 폭으로 (빈 짝을 채워 열을 맞춘다)
+          if (pet.deceasedAt != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            Row(
+              children: [
+                _Cell(
+                  label: '이별한 날 🌈',
+                  value: _fmtDate(pet.deceasedAt),
+                  mono: true,
+                ),
+                const SizedBox(width: AppSpacing.md),
+                const Expanded(child: SizedBox()),
+              ],
+            ),
+          ],
           // 모프는 날짜 줄 아래, 부모 위다 (2026-10-16 사용자 요청으로 부모를 모프 밑으로). 한때 맨 위였는데, 윗자리는 해칭일·입양일
           // 처럼 자주 확인하는 값에 양보하는 게 맞다 — 모프는 한 번 알면 다시 볼
           // 일이 드물고, 개체가 여러 개를 물고 있으면 높이가 들쭉날쭉해 그 아래
