@@ -9,6 +9,7 @@ import io.bitpet.community.dto.LikeToggleResponse;
 import io.bitpet.community.dto.MyCommentResponse;
 import io.bitpet.community.dto.PostCreateRequest;
 import io.bitpet.community.dto.PostDetailResponse;
+import io.bitpet.community.dto.PostFeedResponse;
 import io.bitpet.community.dto.PostPhotoPresignResponse;
 import io.bitpet.community.dto.PostPhotoRegisterRequest;
 import io.bitpet.community.dto.PostPhotoResponse;
@@ -59,13 +60,15 @@ public class PostController {
         return ApiResponse.ok(postService.createPost(principal.userId(), request));
     }
 
-    @Operation(summary = "게시글 목록 (카테고리 필터 / 페이지네이션 / 공지 상단 고정)")
+    @Operation(summary = "게시글 목록 (카테고리 필터 / 커서 무한스크롤 / 공지 상단 고정)",
+            description = "cursor 없이 부르면 첫 묶음(고정 글 포함). 다음은 응답의 nextCursor 를 cursor 로. size 최대 50")
     @GetMapping
-    public ApiResponse<Page<PostSummaryResponse>> listPosts(
+    public ApiResponse<PostFeedResponse> listPosts(
             @AuthenticationPrincipal AuthPrincipal principal,
             @RequestParam(required = false) Long categoryId,
-            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        return ApiResponse.ok(postService.listPosts(principal.userId(), categoryId, pageable));
+            @RequestParam(required = false) Long cursor,
+            @RequestParam(defaultValue = "20") int size) {
+        return ApiResponse.ok(postService.listPosts(principal.userId(), categoryId, cursor, size));
     }
 
     @Operation(summary = "내 게시글 목록")

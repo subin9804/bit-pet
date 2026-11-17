@@ -8,50 +8,50 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Collection;
+import java.util.List;
 
 public interface PostMstRepository extends JpaRepository<PostMst, Long> {
 
-    // 공지(pinned) 우선, 그다음 최신순. Pageable 의 sort 는 무시하고 page/size 만 사용한다.
-    @Query("SELECT p FROM PostMst p "
-            + "ORDER BY CASE WHEN p.pinnedYn = 'Y' THEN 0 ELSE 1 END, p.createdAt DESC")
-    Page<PostMst> findAllOrdered(Pageable pageable);
+    // ── 피드: 커서(마지막으로 본 글 id) 기반 (2026-11-17) ───────────────────────
+    // 예전엔 page 번호(offset)로 끊었다. 스크롤 중에 새 글이 올라오면 전체가 한 칸씩 밀려
+    // 다음 페이지 첫 글이 방금 본 글과 겹쳤다(지워지면 반대로 한 건을 건너뛴다).
+    // "이 id 보다 오래된 N개" 로 물으면 앞쪽에서 무슨 일이 일어나도 이어지는 지점이 고정된다.
+    //
+    // - 순서는 id DESC. id 는 시퀀스라 작성 순서와 같고 유일하다 — created_at 은 같은 값이
+    //   나올 수 있어 커서로 쓰면 경계에서 글이 빠진다.
+    // - 고정 글은 따로 읽어 **첫 요청에만** 맨 위에 붙인다. 정렬에 섞으면 커서가 두 축이 된다.
+    // - 차단·어린이 게시판 제외는 **센티널(-1)** 로 항상 걸어 쿼리를 한 벌로 줄였다.
+    //   JPQL `NOT IN (:list)` 는 빈 리스트에서 터지므로 부르는 쪽이 비어 있으면 [-1] 을 넘긴다.
+    //   예전처럼 "차단 유무에 따라 다른 쿼리" 로 나누지 않으니 정렬이 갈라질 일도 없다.
 
-    @Query("SELECT p FROM PostMst p WHERE p.categoryId = :categoryId "
-            + "ORDER BY CASE WHEN p.pinnedYn = 'Y' THEN 0 ELSE 1 END, p.createdAt DESC")
-    Page<PostMst> findByCategoryOrdered(@Param("categoryId") Long categoryId, Pageable pageable);
+    @Query("SELECT p FROM PostMst p WHERE p.pinnedYn = 'Y' "
+            + "AND p.categoryId <> :excludeCategoryId AND p.userId NOT IN :hiddenUserIds "
+            + "ORDER BY p.id DESC")
+    List<PostMst> findPinned(@Param("excludeCategoryId") Long excludeCategoryId,
+                             @Param("hiddenUserIds") Collection<Long> hiddenUserIds);
+
+    @Query("SELECT p FROM PostMst p WHERE p.pinnedYn = 'Y' AND p.categoryId = :categoryId "
+            + "AND p.userId NOT IN :hiddenUserIds "
+            + "ORDER BY p.id DESC")
+    List<PostMst> findPinnedInCategory(@Param("categoryId") Long categoryId,
+                                       @Param("hiddenUserIds") Collection<Long> hiddenUserIds);
+
+    /** {@code pageable} 은 크기만 쓴다 (항상 0페이지). 하나 더 읽어 다음이 있는지 판단한다. */
+    @Query("SELECT p FROM PostMst p WHERE p.pinnedYn = 'N' AND p.id < :cursor "
+            + "AND p.categoryId <> :excludeCategoryId AND p.userId NOT IN :hiddenUserIds "
+            + "ORDER BY p.id DESC")
+    List<PostMst> findFeedBefore(@Param("cursor") Long cursor,
+                                 @Param("excludeCategoryId") Long excludeCategoryId,
+                                 @Param("hiddenUserIds") Collection<Long> hiddenUserIds,
+                                 Pageable pageable);
+
+    @Query("SELECT p FROM PostMst p WHERE p.pinnedYn = 'N' AND p.id < :cursor "
+            + "AND p.categoryId = :categoryId AND p.userId NOT IN :hiddenUserIds "
+            + "ORDER BY p.id DESC")
+    List<PostMst> findFeedInCategoryBefore(@Param("cursor") Long cursor,
+                                           @Param("categoryId") Long categoryId,
+                                           @Param("hiddenUserIds") Collection<Long> hiddenUserIds,
+                                           Pageable pageable);
 
     Page<PostMst> findByUserId(Long userId, Pageable pageable);
-
-    // ── 차단 필터 버전 ──────────────────────────────────────────────────────────
-    // 위 두 쿼리와 정렬이 완전히 같아야 한다. 차단이 있고 없고에 따라 피드 순서가 달라지면
-    // 사용자가 눈치챈다 — 차단은 조용히 빠지는 것이어야 한다.
-    // ⚠️ JPQL `NOT IN (:list)` 는 빈 리스트에서 터진다. 부르는 쪽이 비었을 때 위 쿼리로 분기할 것.
-
-    @Query("SELECT p FROM PostMst p WHERE p.userId NOT IN :blockedUserIds "
-            + "ORDER BY CASE WHEN p.pinnedYn = 'Y' THEN 0 ELSE 1 END, p.createdAt DESC")
-    Page<PostMst> findAllOrderedExcluding(
-            @Param("blockedUserIds") Collection<Long> blockedUserIds, Pageable pageable);
-
-    @Query("SELECT p FROM PostMst p WHERE p.categoryId = :categoryId "
-            + "AND p.userId NOT IN :blockedUserIds "
-            + "ORDER BY CASE WHEN p.pinnedYn = 'Y' THEN 0 ELSE 1 END, p.createdAt DESC")
-    Page<PostMst> findByCategoryOrderedExcluding(@Param("categoryId") Long categoryId,
-            @Param("blockedUserIds") Collection<Long> blockedUserIds, Pageable pageable);
-
-    // ── 어린이 게시판 제외 버전 (V12) ────────────────────────────────────────────
-    // 전체 피드에서만 쓴다. 카테고리를 콕 집어 들어오는 경로는 KidsBoardPolicy 가 403 으로 막으므로
-    // 여기서 또 거를 필요가 없다.
-    // ⚠️ 정렬은 위 쿼리들과 한 글자도 다르면 안 된다 (차단 필터와 같은 이유).
-
-    @Query("SELECT p FROM PostMst p WHERE p.categoryId <> :excludeCategoryId "
-            + "ORDER BY CASE WHEN p.pinnedYn = 'Y' THEN 0 ELSE 1 END, p.createdAt DESC")
-    Page<PostMst> findAllOrderedExcludingCategory(
-            @Param("excludeCategoryId") Long excludeCategoryId, Pageable pageable);
-
-    @Query("SELECT p FROM PostMst p WHERE p.categoryId <> :excludeCategoryId "
-            + "AND p.userId NOT IN :blockedUserIds "
-            + "ORDER BY CASE WHEN p.pinnedYn = 'Y' THEN 0 ELSE 1 END, p.createdAt DESC")
-    Page<PostMst> findAllOrderedExcludingCategoryAndUsers(
-            @Param("excludeCategoryId") Long excludeCategoryId,
-            @Param("blockedUserIds") Collection<Long> blockedUserIds, Pageable pageable);
 }

@@ -835,11 +835,11 @@ class MockPostRepository extends PostRepository {
       List.from(_mockCategories);
 
   @override
-  Future<PostPage> getFeed({int? categoryId, int page = 0, int size = 20}) async {
+  Future<FeedPage> getFeed({int? categoryId, int? cursor, int size = 20}) async {
     final items = categoryId == null
         ? List<Post>.from(_mockPosts)
         : _mockPosts.where((p) => p.categoryId == categoryId).toList();
-    return PostPage(items: page == 0 ? items : const [], last: true, page: page);
+    return FeedPage(items: cursor == null ? items : const [], nextCursor: null);
   }
 
   @override

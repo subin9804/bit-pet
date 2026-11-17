@@ -217,6 +217,16 @@ class LikeResult {
 }
 
 /// 게시글 한 페이지 (Spring Page)
+/// 피드 한 묶음 (커서 기반, 2026-11-17). 다음 묶음은 [nextCursor] 로 받는다 — null 이면 끝.
+/// page 번호로 받던 시절엔 스크롤 중 새 글이 올라오면 다음 묶음 첫 글이 겹쳤다.
+class FeedPage {
+  final List<Post> items;
+  final int? nextCursor;
+  const FeedPage({required this.items, required this.nextCursor});
+
+  bool get hasMore => nextCursor != null;
+}
+
 class PostPage {
   final List<Post> items;
   final bool last;

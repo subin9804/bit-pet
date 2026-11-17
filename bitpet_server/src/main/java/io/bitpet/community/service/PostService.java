@@ -19,6 +19,7 @@ import io.bitpet.community.dto.MyCommentResponse;
 import io.bitpet.community.dto.PostCategoryResponse;
 import io.bitpet.community.dto.PostCreateRequest;
 import io.bitpet.community.dto.PostDetailResponse;
+import io.bitpet.community.dto.PostFeedResponse;
 import io.bitpet.community.dto.PostPhotoPresignResponse;
 import io.bitpet.community.dto.PostPhotoRegisterRequest;
 import io.bitpet.community.dto.PostPhotoResponse;
@@ -39,6 +40,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -113,37 +115,47 @@ public class PostService {
                 nameOf(author), imageOf(author));
     }
 
-    public Page<PostSummaryResponse> listPosts(Long userId, Long categoryId, Pageable pageable) {
-        // 공지 우선 정렬은 @Query 에서 처리 → sort 제거하고 page/size 만 전달
-        Pageable pageOnly = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
+    /** 한 번에 내려줄 일반 글 수 상한 — 클라이언트가 size 를 크게 불러 통째로 긁어가지 못하게. */
+    static final int FEED_MAX_SIZE = 50;
 
-        // 차단 관계가 하나도 없으면 필터 없는 쿼리로 간다.
-        // JPQL `NOT IN (:list)` 는 빈 리스트에서 터지기도 하고, 대부분의 사용자는 차단이 0건이다.
-        Set<Long> hidden = blockService.hiddenUserIds(userId);
+    /**
+     * 피드. 커서 기반 — {@code cursor} 가 없으면 첫 묶음(고정 글 + 최신 글),
+     * 있으면 그 id 보다 오래된 일반 글만. 자세한 이유는 {@link PostMstRepository} 주석.
+     */
+    public PostFeedResponse listPosts(Long userId, Long categoryId, Long cursor, int size) {
+        int limit = Math.clamp(size, 1, FEED_MAX_SIZE);
+        // 쿼리를 한 벌로 줄이려고 제외 조건을 항상 건다. 비었으면 걸리지 않는 센티널(-1).
+        Set<Long> hiddenSet = blockService.hiddenUserIds(userId);
+        Collection<Long> hidden = hiddenSet.isEmpty() ? List.of(-1L) : hiddenSet;
+        long before = cursor == null ? Long.MAX_VALUE : cursor;
+        // 하나 더 읽어서 다음 묶음이 있는지 본다 (전체 개수 COUNT 를 돌리지 않는다)
+        Pageable fetch = PageRequest.of(0, limit + 1);
 
-        Page<PostMst> page;
+        List<PostMst> pinned;
+        List<PostMst> rows;
         if (categoryId != null) {
             // 카테고리를 콕 집어 들어오는 경로. 어린이 게시판이면 여기서 403 이다 —
             // 목록을 빈 페이지로 내려주면 "글이 없는 게시판"처럼 보여 오해를 만든다.
             kidsBoardPolicy.assertCanRead(userId, categoryId);
-            page = hidden.isEmpty()
-                    ? postRepository.findByCategoryOrdered(categoryId, pageOnly)
-                    : postRepository.findByCategoryOrderedExcluding(categoryId, hidden, pageOnly);
+            pinned = cursor == null
+                    ? postRepository.findPinnedInCategory(categoryId, hidden) : List.of();
+            rows = postRepository.findFeedInCategoryBefore(before, categoryId, hidden, fetch);
         } else {
             // 전체 피드. 아동이 아니면 어린이 게시판 글이 섞이지 않는다 (V12).
             Long excluded = kidsBoardPolicy.excludedCategoryIdFor(userId);
-            if (excluded == null) {
-                page = hidden.isEmpty()
-                        ? postRepository.findAllOrdered(pageOnly)
-                        : postRepository.findAllOrderedExcluding(hidden, pageOnly);
-            } else {
-                page = hidden.isEmpty()
-                        ? postRepository.findAllOrderedExcludingCategory(excluded, pageOnly)
-                        : postRepository.findAllOrderedExcludingCategoryAndUsers(
-                                excluded, hidden, pageOnly);
-            }
+            long excludeId = excluded == null ? -1L : excluded;
+            pinned = cursor == null ? postRepository.findPinned(excludeId, hidden) : List.of();
+            rows = postRepository.findFeedBefore(before, excludeId, hidden, fetch);
         }
-        return toSummaryPage(userId, page);
+
+        boolean hasMore = rows.size() > limit;
+        List<PostMst> pageRows = hasMore ? rows.subList(0, limit) : rows;
+        Long nextCursor = hasMore ? pageRows.get(pageRows.size() - 1).getId() : null;
+
+        List<PostMst> all = new ArrayList<>(pinned.size() + pageRows.size());
+        all.addAll(pinned);
+        all.addAll(pageRows);
+        return new PostFeedResponse(toSummaries(userId, all), nextCursor, hasMore);
     }
 
     public Page<PostSummaryResponse> listMyPosts(Long userId, Pageable pageable) {
@@ -180,7 +192,11 @@ public class PostService {
     }
 
     private Page<PostSummaryResponse> toSummaryPage(Long userId, Page<PostMst> page) {
-        List<PostMst> posts = page.getContent();
+        return new PageImpl<>(toSummaries(userId, page.getContent()),
+                page.getPageable(), page.getTotalElements());
+    }
+
+    private List<PostSummaryResponse> toSummaries(Long userId, List<PostMst> posts) {
         Map<Long, UserMst> authors = loadAuthors(
                 posts.stream().map(PostMst::getUserId).collect(Collectors.toSet()));
         Set<Long> liked = likedPostIds(userId,
@@ -193,7 +209,7 @@ public class PostService {
                         .stream()
                         .collect(Collectors.toMap(PostPhotoDtl::getPostId, ph -> ph, (a, b) -> a));
 
-        List<PostSummaryResponse> content = posts.stream().map(p -> {
+        return posts.stream().map(p -> {
             PostPhotoDtl first = firstPhotos.get(p.getId());
             String thumbnail = first == null ? null
                     : s3Service.presignGet(first.getS3Key()).url().toString();
@@ -201,8 +217,6 @@ public class PostService {
             return PostSummaryResponse.of(p, thumbnail,
                     nameOf(author), imageOf(author), liked.contains(p.getId()));
         }).toList();
-
-        return new PageImpl<>(content, page.getPageable(), page.getTotalElements());
     }
 
     @Transactional

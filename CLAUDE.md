@@ -446,6 +446,15 @@ features/
 - 앱 정보 버전 줄이 잘리던 원인: `SizedBox(height: 18)` < caption 한 줄(19.5). 고정 높이 대신 빈 값이면 공백 `' '` 을 그린다
 - 자녀 계정: SnackBar → 토스트, 빈/에러는 `EmptyState`, 자녀 행은 카드 + brandTint 아바타(petClay 제거)
 
+### 커뮤니티 피드 — 커서 페이지네이션 (2026-11-17)
+
+`GET /posts?categoryId=&cursor=&size=` → `{content, nextCursor, hasMore}` (`PostFeedResponse`). 전엔 page 번호(offset)라
+스크롤 중 새 글이 올라오면 다음 묶음 첫 글이 겹쳤다.
+- 순서는 **id DESC**, 커서 = 마지막 일반 글 id. ⛔ `created_at` 을 커서로 쓰지 말 것 — 같은 값이 나오면 경계에서 글이 빠진다
+- 고정 글은 따로 읽어 **cursor 없는 첫 요청에만** 맨 위에 붙인다. size 상한 50, 하나 더 읽어 hasMore 판단(COUNT 없음)
+- 차단·어린이 게시판 제외는 센티널 `-1` 로 항상 걸어 쿼리가 한 벌이다(빈 `NOT IN` 회피)
+- 내 글·내 댓글 목록은 아직 page 방식 (내 것만 보여 밀릴 일이 거의 없다)
+
 ### 커뮤니티 카드화 (2026-10-19)
 
 - 피드: 글 한 건 = `AppDecor.cardRaised` 한 장(좌우 lg, 사이 sm). 고정 글은 `commPinnedBg` + `brand200` 테두리.

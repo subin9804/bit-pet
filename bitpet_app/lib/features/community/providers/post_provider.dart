@@ -112,18 +112,20 @@ final feedProvider =
 class FeedNotifier extends StateNotifier<FeedState> {
   final PostRepository _repo;
   final int? _categoryId;
-  int _page = 0;
+  /// 다음 묶음을 받을 기준 — 지금까지 받은 마지막 일반 글의 id (서버가 알려준다)
+  int? _cursor;
 
   FeedNotifier(this._repo, this._categoryId) : super(const FeedState()) {
     refresh();
   }
 
   Future<void> refresh() async {
-    _page = 0;
+    _cursor = null;
     state = const FeedState(loading: true);
     try {
-      final p = await _repo.getFeed(categoryId: _categoryId, page: 0);
-      state = FeedState(posts: p.items, loading: false, hasMore: !p.last);
+      final p = await _repo.getFeed(categoryId: _categoryId);
+      _cursor = p.nextCursor;
+      state = FeedState(posts: p.items, loading: false, hasMore: p.hasMore);
     } catch (e) {
       state = FeedState(loading: false, hasMore: false, error: e);
     }
@@ -133,13 +135,12 @@ class FeedNotifier extends StateNotifier<FeedState> {
     if (state.loading || state.loadingMore || !state.hasMore) return;
     state = state.copyWith(loadingMore: true);
     try {
-      final next = _page + 1;
-      final p = await _repo.getFeed(categoryId: _categoryId, page: next);
-      _page = next;
+      final p = await _repo.getFeed(categoryId: _categoryId, cursor: _cursor);
+      _cursor = p.nextCursor;
       state = state.copyWith(
         posts: [...state.posts, ...p.items],
         loadingMore: false,
-        hasMore: !p.last,
+        hasMore: p.hasMore,
       );
     } catch (_) {
       state = state.copyWith(loadingMore: false);

@@ -52,10 +52,10 @@ class PostRepository {
   }
 
   // ── 피드 (페이지네이션 / 공지 상단 고정) ─────────────────────────────
-  Future<PostPage> getFeed({int? categoryId, int page = 0, int size = 20}) async {
+  Future<FeedPage> getFeed({int? categoryId, int? cursor, int size = 20}) async {
     final res = await _dio.get('/posts', queryParameters: {
-      if (categoryId != null) 'categoryId': categoryId,
-      'page': page,
+      'categoryId': ?categoryId,
+      'cursor': ?cursor,
       'size': size,
     });
     final apiRes = ApiResponse.fromJson(
@@ -66,10 +66,9 @@ class PostRepository {
     final content = (data['content'] as List<dynamic>? ?? [])
         .map((e) => Post.fromJson(e as Map<String, dynamic>))
         .toList();
-    return PostPage(
+    return FeedPage(
       items: content,
-      last: data['last'] as bool? ?? true,
-      page: data['number'] as int? ?? page,
+      nextCursor: (data['nextCursor'] as num?)?.toInt(),
     );
   }
 

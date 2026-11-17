@@ -13,7 +13,6 @@ import io.bitpet.community.service.PostService;
 import io.bitpet.support.IntegrationTestBase;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.PageRequest;
 
 import java.time.LocalDate;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -41,7 +40,7 @@ class ChildCommunityToggleIntegrationTest extends IntegrationTestBase {
 
         assertThat(authService.getMe(child).communityAllowed()).isFalse();
         assertDisabled(() -> postService.listCategories(child));
-        assertDisabled(() -> postService.listPosts(child, null, PageRequest.of(0, 10)));
+        assertDisabled(() -> postService.listPosts(child, null, null, 10));
         assertDisabled(() -> postService.createPost(child, kidsPost()));
         // 성인은 스위치와 무관하다
         assertThat(authService.getMe(guardian).communityAllowed()).isTrue();
