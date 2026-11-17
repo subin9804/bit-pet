@@ -446,7 +446,8 @@ class _PetCountTag extends StatelessWidget {
             ? AppColors.warning
             : AppColors.textSecondary;
     return Row(mainAxisSize: MainAxisSize.min, children: [
-      Icon(Icons.pets, size: 14, color: c),
+      // 발바닥은 포유류 그림이라 파충류 앱과 안 맞는다 — 개체 탭과 같은 도마뱀 (2026-11-18)
+      AppIcon(AppIcons.petLine, size: 14, color: c),
       const SizedBox(width: 3),
       Text(empty ? '개체 없음' : '$count마리',
           style: TextStyle(
