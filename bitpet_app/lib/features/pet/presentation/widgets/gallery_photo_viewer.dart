@@ -16,11 +16,15 @@ class GalleryPhotoViewer extends StatefulWidget {
   final int initialIndex;
   final int? profilePhotoId;
 
+  /// 남의 개체(이름표 스캔)에서 열 때 — 대표 설정·삭제 메뉴를 숨긴다.
+  final bool readOnly;
+
   const GalleryPhotoViewer({
     super.key,
     required this.photos,
     required this.initialIndex,
     this.profilePhotoId,
+    this.readOnly = false,
   });
 
   static Future<GalleryViewerResult?> show(
@@ -28,6 +32,7 @@ class GalleryPhotoViewer extends StatefulWidget {
     required List<PetPhoto> photos,
     required int initialIndex,
     int? profilePhotoId,
+    bool readOnly = false,
   }) {
     return Navigator.of(context, rootNavigator: true).push<GalleryViewerResult>(
       PageRouteBuilder(
@@ -39,6 +44,7 @@ class GalleryPhotoViewer extends StatefulWidget {
           photos: photos,
           initialIndex: initialIndex,
           profilePhotoId: profilePhotoId,
+          readOnly: readOnly,
         ),
         transitionsBuilder: (_, anim, __, child) =>
             FadeTransition(opacity: anim, child: child),
@@ -173,11 +179,15 @@ class _GalleryPhotoViewerState extends State<GalleryPhotoViewer> {
                             color: Colors.white),
                       ),
                       const Spacer(),
-                      IconButton(
-                        tooltip: '사진 메뉴',
-                        onPressed: _openMenu,
-                        icon: const Icon(Icons.more_vert, color: Colors.white),
-                      ),
+                      // 읽기 전용이어도 자리는 남긴다 — 빼면 가운데 쪽수가 오른쪽으로 쏠린다
+                      if (widget.readOnly)
+                        const SizedBox(width: 48)
+                      else
+                        IconButton(
+                          tooltip: '사진 메뉴',
+                          onPressed: _openMenu,
+                          icon: const Icon(Icons.more_vert, color: Colors.white),
+                        ),
                     ],
                   ),
                 ),

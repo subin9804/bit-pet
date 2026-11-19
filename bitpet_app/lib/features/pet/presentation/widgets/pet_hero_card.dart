@@ -20,13 +20,48 @@ import '../../../../core/widgets/sex_icon.dart';
 /// 화면마다 의미 없는 색이 브랜드색과 서로 당기기만 했다. 개체의 정체성은 사진과
 /// 이름이 이미 하고 있다.
 class PetHeroCard extends StatefulWidget {
-  final Pet pet;
+  final PetHeroData pet;
 
-  const PetHeroCard({super.key, required this.pet});
+  PetHeroCard({super.key, required Pet pet})
+      : pet = (
+          name: pet.name,
+          gender: pet.gender,
+          serialNo: pet.serialNo,
+          privateYn: pet.privateYn,
+          speciesName: pet.speciesName,
+          profileImageUrl: pet.profileImageUrl,
+          speciesSubcategory: pet.speciesSubcategory,
+          isDeceased: pet.isDeceased,
+        );
+
+  /// 남의 개체(이름표 스캔)용 — 서버가 내려준 카드만으로 그린다. 상세 [Pet] 은 받을 수 없다.
+  PetHeroCard.card({super.key, required PetCard card})
+      : pet = (
+          name: card.name,
+          gender: card.gender,
+          serialNo: card.serialNo,
+          privateYn: card.privateYn,
+          speciesName: card.speciesName,
+          profileImageUrl: card.profileImageUrl,
+          speciesSubcategory: card.speciesSubcategory,
+          isDeceased: card.isDeceased,
+        );
 
   @override
   State<PetHeroCard> createState() => _PetHeroCardState();
 }
+
+/// 히어로 줄이 그리는 값 — [Pet] 과 [PetCard] 양쪽에서 채운다.
+typedef PetHeroData = ({
+  String name,
+  String gender,
+  String serialNo,
+  String privateYn,
+  String speciesName,
+  String? profileImageUrl,
+  String? speciesSubcategory,
+  bool isDeceased,
+});
 
 class _PetHeroCardState extends State<PetHeroCard> {
   bool _copied = false;

@@ -2,6 +2,7 @@ package io.bitpet.nfc.controller;
 
 import io.bitpet.auth.jwt.AuthPrincipal;
 import io.bitpet.common.response.ApiResponse;
+import io.bitpet.nfc.dto.NfcPetProfileResponse;
 import io.bitpet.nfc.dto.NfcScanResponse;
 import io.bitpet.nfc.dto.TagBindRequest;
 import io.bitpet.nfc.service.NfcTagService;
@@ -38,6 +39,14 @@ public class NfcScanController {
             @AuthenticationPrincipal AuthPrincipal principal,
             @PathVariable String tagCd) {
         return ApiResponse.ok(nfcTagService.scan(principal.userId(), tagCd));
+    }
+
+    @Operation(summary = "이름표로 찍은 개체의 프로필 — 카드 + 갤러리 사진. 비공개 개체도 열린다(실물 태그가 있어야 닿는 경로). 기록은 담지 않는다")
+    @GetMapping("/tags/{tagCd}/profile")
+    public ApiResponse<NfcPetProfileResponse> profile(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @PathVariable String tagCd) {
+        return ApiResponse.ok(nfcTagService.profile(principal.userId(), tagCd));
     }
 
     @Operation(summary = "태그를 개체에 바인딩 (개체 소유자만). 내 다른 개체에 붙어 있으면 409 후 rebind=true 로 재요청")

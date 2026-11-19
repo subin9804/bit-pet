@@ -8,6 +8,7 @@ import io.bitpet.nfc.domain.NfcTagBindHst;
 import io.bitpet.nfc.domain.TagBindAction;
 import io.bitpet.nfc.domain.TagStatus;
 import io.bitpet.nfc.dto.MyTagResponse;
+import io.bitpet.nfc.dto.NfcPetProfileResponse;
 import io.bitpet.nfc.dto.NfcScanResponse;
 import io.bitpet.nfc.service.NfcTagService;
 import io.bitpet.pet.domain.PetGender;
@@ -17,6 +18,9 @@ import io.bitpet.pet.dto.PetCreateRequest;
 import io.bitpet.pet.dto.PetResponse;
 import io.bitpet.pet.repository.PetKeeperRlsRepository;
 import io.bitpet.pet.service.PetService;
+import io.bitpet.photo.domain.EntityType;
+import io.bitpet.photo.domain.PhotoDtl;
+import io.bitpet.photo.repository.PhotoDtlRepository;
 import io.bitpet.support.IntegrationTestBase;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,6 +50,7 @@ class NfcScanBindIntegrationTest extends IntegrationTestBase {
     @Autowired private PetService petService;
     @Autowired private NfcTagService nfcTagService;
     @Autowired private PetKeeperRlsRepository keeperRepository;
+    @Autowired private PhotoDtlRepository photoRepository;
 
     @Test
     void 내_개체에_붙은_태그는_카드까지_내려온다() {
@@ -81,6 +86,38 @@ class NfcScanBindIntegrationTest extends IntegrationTestBase {
         assertThat(res.pet().isKeeper()).isFalse();
         // 소유자는 서버가 응답에서 빼 버린다 — 클라이언트 숨김에 맡기지 않는다
         assertThat(res.pet().owner()).isNull();
+    }
+
+    @Test
+    void 이름표로는_남의_비공개_개체도_프로필과_사진이_열린다() {
+        Long owner    = signup();
+        Long stranger = signup();
+        Long petId    = createPet(owner, "비공개레오", PetGender.FEMALE);
+        photoRepository.save(PhotoDtl.builder()
+                .entityType(EntityType.PET).entityId(petId)
+                .s3Key("pets/test/a.jpg").caption("탈피").build());
+        String tagCd = issueTag();
+        nfcTagService.bind(owner, tagCd, petId, false);
+
+        NfcPetProfileResponse res = nfcTagService.profile(stranger, tagCd);
+
+        // 개체는 기본 비공개다 — 그래도 실물 이름표를 가진 사람에겐 보여준다
+        assertThat(res.pet().privateYn()).isEqualTo("Y");
+        assertThat(res.pet().name()).isEqualTo("비공개레오");
+        assertThat(res.pet().owner()).isNull();
+        assertThat(res.photos()).hasSize(1);
+        assertThat(res.photos().get(0).caption()).isEqualTo("탈피");
+    }
+
+    @Test
+    void 연결되지_않은_이름표는_프로필이_없다() {
+        Long stranger = signup();
+        String tagCd  = issueTag();
+
+        assertThatThrownBy(() -> nfcTagService.profile(stranger, tagCd))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.TAG_NOT_FOUND);
     }
 
     @Test

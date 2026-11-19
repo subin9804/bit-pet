@@ -9,6 +9,7 @@
 library;
 
 import '../../../pet/data/models/pet_models.dart';
+import '../../../pet/data/models/photo_models.dart';
 
 /// 태그 스캔 결과 상태. 이 값으로만 분기한다.
 enum TagStatus {
@@ -130,6 +131,36 @@ class MyTag {
       linkedAt: parse(json['linkedAt'] as String?),
       status: TagStockStatus.fromServer(json['status'] as String?),
       chipType: json['chipType'] as String?,
+    );
+  }
+}
+
+/// 이름표로 찍은 남의 개체 프로필 (`GET /nfc/tags/{tagCd}/profile`).
+///
+/// 카드와 갤러리 사진뿐이다. 기록·체중·소유자는 서버가 애초에 담지 않는다 —
+/// 비공개 개체도 열리는 경로라 무엇을 내보낼지는 서버가 정한다.
+class NfcPetProfile {
+  final PetCard pet;
+  final List<PetPhoto> photos;
+
+  const NfcPetProfile({required this.pet, required this.photos});
+
+  factory NfcPetProfile.fromJson(Map<String, dynamic> json) {
+    final pet = PetCard.fromJson(json['pet'] as Map<String, dynamic>);
+    return NfcPetProfile(
+      pet: pet,
+      photos: ((json['photos'] as List?) ?? const [])
+          .map((e) => e as Map<String, dynamic>)
+          .map((p) => PetPhoto(
+                id: p['photoId'] as int,
+                entityType: 'PET',
+                entityId: pet.petId,
+                url: p['url'] as String,
+                thumbnailUrl: p['thumbnailUrl'] as String?,
+                tag: p['caption'] as String?,
+                createdAt: DateTime.parse(p['createdAt'] as String),
+              ))
+          .toList(),
     );
   }
 }

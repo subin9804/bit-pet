@@ -60,6 +60,24 @@ class TagRepository {
     }
   }
 
+  /// 이름표로 찍은 남의 개체 프로필 — 카드 + 갤러리. 연결된 개체가 없으면 404.
+  Future<NfcPetProfile> profile(String tagCd) async {
+    try {
+      final res = await _dio.get('/nfc/tags/$tagCd/profile');
+      final apiRes = ApiResponse.fromJson(
+        res.data as Map<String, dynamic>,
+        (d) => NfcPetProfile.fromJson(d as Map<String, dynamic>),
+      );
+      if (!apiRes.success || apiRes.data == null) {
+        throw ApiException(
+            statusCode: res.statusCode ?? 0, message: '개체 정보를 불러오지 못했습니다.');
+      }
+      return apiRes.data!;
+    } on DioException catch (e) {
+      _mapDioError(e, '개체 정보를 불러오지 못했습니다.');
+    }
+  }
+
   /// 태그 바인딩.
   ///
   /// [rebind]가 false인데 태그가 내 다른 개체에 붙어 있으면

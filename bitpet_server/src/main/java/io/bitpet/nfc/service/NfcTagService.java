@@ -6,9 +6,11 @@ import io.bitpet.nfc.domain.NfcTagBindHst;
 import io.bitpet.nfc.domain.NfcTagMst;
 import io.bitpet.nfc.domain.TagStockStatus;
 import io.bitpet.nfc.dto.MyTagResponse;
+import io.bitpet.nfc.dto.NfcPetProfileResponse;
 import io.bitpet.nfc.dto.NfcScanResponse;
 import io.bitpet.nfc.dto.TagLandingPet;
 import io.bitpet.nfc.dto.TagResolveResponse;
+import io.bitpet.photo.domain.EntityType;
 import io.bitpet.photo.repository.PhotoDtlRepository;
 import io.bitpet.storage.S3Service;
 import io.bitpet.nfc.repository.NfcTagBindHstRepository;
@@ -118,6 +120,35 @@ public class NfcTagService {
         return keeper
                 ? NfcScanResponse.linked(tag.getTagCd(), petService.cardOf(userId, pet, true))
                 : NfcScanResponse.ownedByOther(tag.getTagCd(), petService.cardOf(userId, pet, false));
+    }
+
+    /**
+     * 이름표로 찍은 개체의 프로필 — 카드 + 갤러리 사진.
+     *
+     * <p><b>비공개 개체도 연다.</b> 이 경로에 닿으려면 실물 이름표의 코드가 있어야 한다.
+     * 대신 연결된 개체가 없으면(미연결·차단·삭제·고아) 404 로 닫는다 — 스캔과 같은 판정이다.
+     * 소유자는 사육자에게만 싣는다 ({@link #scan} 과 같은 규칙).
+     */
+    public NfcPetProfileResponse profile(Long userId, String tagCd) {
+        NfcTagMst tag = findTag(tagCd);
+        if (tag.isRevoked() || !tag.isLinked()) throw new BusinessException(ErrorCode.TAG_NOT_FOUND);
+
+        PetMst pet = petRepository.findById(tag.getPetId())
+                .filter(p -> !p.isOrphaned())
+                .orElseThrow(() -> new BusinessException(ErrorCode.TAG_NOT_FOUND));
+
+        boolean keeper = petKeeperService.isKeeper(userId, pet.getId());
+        List<NfcPetProfileResponse.Photo> photos = photoRepository
+                .findAllByEntityTypeAndEntityIdOrderByDisplayOrderAscCreatedAtDescIdDesc(EntityType.PET, pet.getId())
+                .stream()
+                .map(p -> new NfcPetProfileResponse.Photo(
+                        p.getId(),
+                        s3Service.resolveUrl(p.getS3Key()),
+                        p.getThumbS3Key() != null ? s3Service.resolveUrl(p.getThumbS3Key()) : null,
+                        p.getCaption(),
+                        p.getCreatedAt()))
+                .toList();
+        return new NfcPetProfileResponse(petService.cardOf(userId, pet, keeper), photos);
     }
 
     /**

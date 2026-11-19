@@ -7,6 +7,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../pet/data/models/pet_models.dart';
 import '../data/models/tag_models.dart';
 import '../data/tag_repository.dart';
+import 'nfc_pet_profile_view.dart';
 import 'tag_link_sheet.dart';
 
 /// NFC 태그 딥링크의 경유 화면.
@@ -18,7 +19,7 @@ import 'tag_link_sheet.dart';
 ///
 /// * LINKED         → 개체 상세
 /// * UNLINKED       → 개체 선택 모달 → 연결 → 개체 상세
-/// * OWNED_BY_OTHER → 안내 + 서버가 내려준 만큼의 개체 정보(이름·종·모프·성별·해칭일)
+/// * OWNED_BY_OTHER → 개체 프로필(히어로 + 갤러리, 비공개도). 프로필을 못 받으면 안내 + 카드 한 줄
 /// * REVOKED        → "사용 중지된 태그" 안내 (실재하는 코드라 404와 구분한다)
 /// * 404            → "유효하지 않은 태그"
 class TagResolverScreen extends ConsumerStatefulWidget {
@@ -38,6 +39,9 @@ class _TagResolverScreenState extends ConsumerState<TagResolverScreen> {
   /// 남의 개체일 때 서버가 내려준 카드. 소유자 정보는 애초에 담겨 오지 않는다.
   PetCard? _otherPet;
 
+  /// 남의 개체 프로필(히어로 + 갤러리). 못 받으면 위 카드 한 줄 안내로 떨어진다.
+  NfcPetProfile? _otherProfile;
+
   @override
   void initState() {
     super.initState();
@@ -54,7 +58,14 @@ class _TagResolverScreenState extends ConsumerState<TagResolverScreen> {
         case TagStatus.unlinked:
           await _promptLink();
         case TagStatus.ownedByOther:
+          // 비공개 개체도 이름표로는 프로필이 열린다. 실패하면 예전 안내 화면으로
+          NfcPetProfile? profile;
+          try {
+            profile = await ref.read(tagRepositoryProvider).profile(widget.tagCd);
+          } catch (_) {}
+          if (!mounted) return;
           setState(() {
+            _otherProfile = profile;
             _blockedStatus = result.status;
             _otherPet = result.pet;
           });
@@ -118,6 +129,8 @@ class _TagResolverScreenState extends ConsumerState<TagResolverScreen> {
       );
     }
     if (_blockedStatus == TagStatus.ownedByOther) {
+      final profile = _otherProfile;
+      if (profile != null) return NfcPetProfileView(profile: profile);
       final pet = _otherPet;
       return _TagMessage(
         icon: Icons.lock_outline,
