@@ -19,7 +19,7 @@ import 'tag_link_sheet.dart';
 ///
 /// * LINKED         → 개체 상세
 /// * UNLINKED       → 개체 선택 모달 → 연결 → 개체 상세
-/// * OWNED_BY_OTHER → 개체 프로필(히어로 + 갤러리, 비공개도). 프로필을 못 받으면 안내 + 카드 한 줄
+/// * OWNED_BY_OTHER → 개체 프로필(히어로 + 최근 체중, 비공개도). 프로필을 못 받으면 안내 + 카드 한 줄
 /// * REVOKED        → "사용 중지된 태그" 안내 (실재하는 코드라 404와 구분한다)
 /// * 404            → "유효하지 않은 태그"
 class TagResolverScreen extends ConsumerStatefulWidget {
@@ -39,7 +39,7 @@ class _TagResolverScreenState extends ConsumerState<TagResolverScreen> {
   /// 남의 개체일 때 서버가 내려준 카드. 소유자 정보는 애초에 담겨 오지 않는다.
   PetCard? _otherPet;
 
-  /// 남의 개체 프로필(히어로 + 갤러리). 못 받으면 위 카드 한 줄 안내로 떨어진다.
+  /// 남의 개체 프로필(히어로 + 최근 체중). 못 받으면 위 카드 한 줄 안내로 떨어진다.
   NfcPetProfile? _otherProfile;
 
   @override

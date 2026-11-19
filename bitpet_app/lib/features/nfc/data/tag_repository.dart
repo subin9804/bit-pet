@@ -60,7 +60,7 @@ class TagRepository {
     }
   }
 
-  /// 이름표로 찍은 남의 개체 프로필 — 카드 + 갤러리. 연결된 개체가 없으면 404.
+  /// 이름표로 찍은 남의 개체 프로필 — 카드 + 최근 체중. 연결된 개체가 없으면 404.
   Future<NfcPetProfile> profile(String tagCd) async {
     try {
       final res = await _dio.get('/nfc/tags/$tagCd/profile');

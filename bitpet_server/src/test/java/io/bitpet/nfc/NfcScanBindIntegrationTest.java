@@ -18,9 +18,6 @@ import io.bitpet.pet.dto.PetCreateRequest;
 import io.bitpet.pet.dto.PetResponse;
 import io.bitpet.pet.repository.PetKeeperRlsRepository;
 import io.bitpet.pet.service.PetService;
-import io.bitpet.photo.domain.EntityType;
-import io.bitpet.photo.domain.PhotoDtl;
-import io.bitpet.photo.repository.PhotoDtlRepository;
 import io.bitpet.support.IntegrationTestBase;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,7 +47,6 @@ class NfcScanBindIntegrationTest extends IntegrationTestBase {
     @Autowired private PetService petService;
     @Autowired private NfcTagService nfcTagService;
     @Autowired private PetKeeperRlsRepository keeperRepository;
-    @Autowired private PhotoDtlRepository photoRepository;
     @Autowired private io.bitpet.record.repository.WeightDtlRepository weightRepository;
 
     @Test
@@ -90,13 +86,10 @@ class NfcScanBindIntegrationTest extends IntegrationTestBase {
     }
 
     @Test
-    void 이름표로는_남의_비공개_개체도_프로필과_사진이_열린다() {
+    void 이름표로는_남의_비공개_개체도_프로필이_열린다() {
         Long owner    = signup();
         Long stranger = signup();
         Long petId    = createPet(owner, "비공개레오", PetGender.FEMALE);
-        photoRepository.save(PhotoDtl.builder()
-                .entityType(EntityType.PET).entityId(petId)
-                .s3Key("pets/test/a.jpg").caption("탈피").build());
         // 체중은 최신 값 하나만 나간다 — 등록 시 초기 체중·옛 값이 아니라 마지막 측정값인지 본다
         weightRepository.save(io.bitpet.record.domain.WeightDtl.builder().petId(petId)
                 .weightG(new java.math.BigDecimal("40.0")).measuredAt(java.time.Instant.now().plusSeconds(60)).build());
@@ -111,8 +104,6 @@ class NfcScanBindIntegrationTest extends IntegrationTestBase {
         assertThat(res.pet().privateYn()).isEqualTo("Y");
         assertThat(res.pet().name()).isEqualTo("비공개레오");
         assertThat(res.pet().owner()).isNull();
-        assertThat(res.photos()).hasSize(1);
-        assertThat(res.photos().get(0).caption()).isEqualTo("탈피");
         assertThat(res.latestWeightG()).isEqualTo(52.5);
     }
 
