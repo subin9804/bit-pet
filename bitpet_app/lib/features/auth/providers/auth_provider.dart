@@ -234,8 +234,10 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
     } catch (e) {
       debugPrint('[FCM] 푸시 토큰 해제 실패: $e');
     }
+    // 로컬 토큰은 _repo.withdraw 가 지운다. 서버 로그아웃(DELETE /auth/logout)을 또 부르면
+    // 토큰 없이 나가 401 → 탈퇴는 됐는데 '탈퇴 실패' 토스트가 뜬다 (2026-11-19 실기기).
+    // 리프레시 토큰·푸시 토큰은 서버가 탈퇴 트랜잭션에서 이미 지운다.
     await _repo.withdraw(handOverSharedPets: handOverSharedPets);
-    await _repo.logout();
     state = const AsyncValue.data(null);
   }
 }
