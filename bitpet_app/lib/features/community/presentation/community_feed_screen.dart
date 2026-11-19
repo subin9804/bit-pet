@@ -269,6 +269,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
         color: AppColors.brandAction,
         // 당겨서 새로고침이 되려면 스크롤 가능한 자식이어야 한다.
         child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
           children: [
             SizedBox(
               height: 320,
@@ -294,6 +295,8 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
       color: AppColors.brandAction,
       child: ListView.builder(
         controller: _scrollCtrl,
+        // 컨트롤러를 붙이면 화면이 안 찰 때 스크롤이 안 돼 당겨지지 않는다
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.only(bottom: 110),
         itemCount: filtered.length + 1,
         itemBuilder: (_, i) {

@@ -764,6 +764,8 @@ class _PetGridState extends ConsumerState<_PetGrid> {
       final cellH = cellW + infoH;
 
       return GridView(
+        // 몇 마리 안 돼 화면이 안 차도 당겨서 새로고침되게
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(pad),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: cols,
@@ -992,6 +994,7 @@ class _PetListView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     if (!canReorder) {
       return ListView.separated(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(AppSpacing.xl),
         itemCount: pets.length,
         separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
@@ -1001,6 +1004,7 @@ class _PetListView extends ConsumerWidget {
     // ReorderableListView 에는 separated 가 없다 — 칸 아래 여백으로 간격을 만들고,
     // 마지막 칸 여백만큼 바깥 아래 패딩을 줄인다.
     return ReorderableListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.xl, AppSpacing.xl, AppSpacing.xl, AppSpacing.md),
       buildDefaultDragHandles: false,

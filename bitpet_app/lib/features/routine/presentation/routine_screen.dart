@@ -176,11 +176,11 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
         Expanded(
           child: routinesAsync.when(
             loading: () => const SkeletonCardList(),
-            error: (e, _) => const EmptyState(
+            error: (e, _) => _pullable(const EmptyState(
                 message: '불러오지 못했어요',
                 subMessage: '연결을 확인하고 당겨서 새로고침해 주세요.',
                 icon: Icons.cloud_off,
-                tone: EmptyTone.neutral),
+                tone: EmptyTone.neutral)),
             data: (all) {
               final q = _query.toLowerCase();
               final visible = all.where((r) {
@@ -194,25 +194,31 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
 
               if (visible.isEmpty) {
                 final searching = _query.isNotEmpty;
-                return EmptyState(
+                return _pullable(EmptyState(
                   message: searching ? '검색 결과가 없어요' : '등록된 루틴이 없어요',
                   subMessage: searching
                       ? '다른 말로 찾아보세요.'
                       : '급여·청소·체중 재는 주기를 정해두면 그날 홈에 올라와요.',
                   icon: searching ? Icons.search_off : Icons.event_repeat,
                   tone: searching ? EmptyTone.neutral : EmptyTone.brand,
-                );
+                ));
               }
 
-              return ListView.builder(
-                padding: const EdgeInsets.only(
-                    top: AppSpacing.cardGap, bottom: 110),
-                itemCount: visible.length,
-                itemBuilder: (_, i) => _RoutineCard(
-                  routine: visible[i],
-                  routineOn: _routineOn(visible[i]),
-                  onToggle: () => _toggleActive(visible[i]),
-                  onDelete: () => _deleteRoutine(visible[i]),
+              return RefreshIndicator(
+                onRefresh: _refresh,
+                color: AppColors.brandAction,
+                child: ListView.builder(
+                  // 카드가 몇 장 안 돼 화면이 안 차도 당길 수 있게
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.only(
+                      top: AppSpacing.cardGap, bottom: 110),
+                  itemCount: visible.length,
+                  itemBuilder: (_, i) => _RoutineCard(
+                    routine: visible[i],
+                    routineOn: _routineOn(visible[i]),
+                    onToggle: () => _toggleActive(visible[i]),
+                    onDelete: () => _deleteRoutine(visible[i]),
+                  ),
                 ),
               );
             },
@@ -221,6 +227,24 @@ class _RoutineScreenState extends ConsumerState<RoutineScreen> {
       ],
     );
   }
+
+  /// 당겨서 새로고침 (2026-11-19). 카드마다 붙은 '오늘 완료' 상태도 같이 다시 받는다.
+  Future<void> _refresh() async {
+    ref.invalidate(routineTodayStatusProvider);
+    await ref.read(routineListProvider.notifier).refresh();
+  }
+
+  /// 빈 화면·오류 화면도 당겨서 새로고침되게 — 당기려면 스크롤되는 자식이어야 한다.
+  Widget _pullable(Widget child) => RefreshIndicator(
+        onRefresh: _refresh,
+        color: AppColors.brandAction,
+        child: LayoutBuilder(
+          builder: (_, box) => ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            children: [SizedBox(height: box.maxHeight, child: child)],
+          ),
+        ),
+      );
 }
 
 // ════════════════════════════════════════════════════════════════

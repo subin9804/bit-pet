@@ -21,6 +21,13 @@ class RoutineListNotifier extends StateNotifier<AsyncValue<List<Routine>>> {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() => _repo.getRoutines());
   }
+
+  /// 당겨서 새로고침 — 목록을 스켈레톤으로 비우지 않고 그 자리에서 바꿔 끼운다.
+  /// 실패하면 보던 목록을 그대로 둔다.
+  Future<void> refresh() async {
+    final next = await AsyncValue.guard(() => _repo.getRoutines());
+    if (next.hasValue || !state.hasValue) state = next;
+  }
 }
 
 // ---------------------------------------------------------------------------
