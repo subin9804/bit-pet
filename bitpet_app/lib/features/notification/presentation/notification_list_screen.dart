@@ -42,6 +42,9 @@ class _NotificationListScreenState
   /// 서버 응답 전에 화면에서 먼저 뺀 알림.
   final _hidden = <int>{};
 
+  /// ✕ 로 지워서 접히는 중인 알림. 다 접히면 [_hidden] 으로 옮긴다.
+  final _collapsing = <int>{};
+
   /// 서버 응답 전에 먼저 읽음으로 보이는 알림.
   final _read = <int>{};
 
@@ -61,14 +64,19 @@ class _NotificationListScreenState
     });
   }
 
-  Future<void> _delete(NotificationLog n) async {
-    setState(() => _hidden.add(n.id));
+  /// [animate] — ✕ 버튼은 카드가 접히며 사라진다. 밀어서 지우기는 [Dismissible] 이
+  /// 이미 접어 줬으므로 바로 뺀다 (2026-11-19: ✕ 는 툭 사라지고 아래가 튀어 올라 어색했다).
+  Future<void> _delete(NotificationLog n, {bool animate = false}) async {
+    setState(() => animate ? _collapsing.add(n.id) : _hidden.add(n.id));
     try {
       await _repo.delete(n.id);
       ref.invalidate(notificationListProvider);
     } catch (_) {
       if (!mounted) return;
-      setState(() => _hidden.remove(n.id));
+      setState(() {
+        _collapsing.remove(n.id);
+        _hidden.remove(n.id);
+      });
       showToast(context, '알림을 지우지 못했어요', type: ToastType.error);
     }
   }
@@ -177,23 +185,45 @@ class _NotificationListScreenState
           return RefreshIndicator(
             color: AppColors.brandAction,
             onRefresh: _refresh,
-            child: ListView.separated(
+            child: ListView.builder(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm,
                   AppSpacing.lg, AppSpacing.x40),
               itemCount: visible.length,
-              separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
               itemBuilder: (_, i) {
                 final n = visible[i];
-                return Dismissible(
+                final collapsing = _collapsing.contains(n.id);
+                // 카드 사이 간격은 칸 안에 넣는다 — 바깥 구분자로 두면 카드가 접힌 뒤
+                // 간격 8 이 한 번 더 툭 줄어든다.
+                return _Collapse(
                   key: ValueKey(n.id),
-                  direction: DismissDirection.endToStart,
-                  onDismissed: (_) => _delete(n),
-                  background: const _DeleteBackground(),
-                  child: _NotificationCard(
-                    item: n,
-                    onTap: () => _markRead(n),
-                    onDelete: () => _delete(n),
+                  collapsing: collapsing,
+                  // 접힘이 끝나는 프레임에 삭제 실패가 겹치면 위젯 쪽 값은 아직 '접는 중'이다 —
+                  // 화면 상태(_collapsing)로 다시 확인해야 되살린 카드를 또 숨기지 않는다
+                  onCollapsed: () {
+                    if (!_collapsing.contains(n.id)) return;
+                    setState(() {
+                      _collapsing.remove(n.id);
+                      _hidden.add(n.id);
+                    });
+                  },
+                  child: Dismissible(
+                    key: ValueKey('d${n.id}'),
+                    direction: collapsing
+                        ? DismissDirection.none
+                        : DismissDirection.endToStart,
+                    onDismissed: (_) => _delete(n),
+                    background: const _DeleteBackground(),
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                      child: _NotificationCard(
+                        item: n,
+                        onTap: () => _markRead(n),
+                        onDelete: collapsing
+                            ? () {}
+                            : () => _delete(n, animate: true),
+                      ),
+                    ),
                   ),
                 );
               },
@@ -349,6 +379,54 @@ class _NotificationCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// ✕ 로 지운 카드를 접으며 흐리게 — 밀어서 지울 때와 같은 '접히는' 움직임.
+class _Collapse extends StatefulWidget {
+  final bool collapsing;
+  final VoidCallback onCollapsed;
+  final Widget child;
+  const _Collapse({
+    super.key,
+    required this.collapsing,
+    required this.onCollapsed,
+    required this.child,
+  });
+
+  @override
+  State<_Collapse> createState() => _CollapseState();
+}
+
+class _CollapseState extends State<_Collapse>
+    with SingleTickerProviderStateMixin {
+  late final _c = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 220), value: 1);
+  late final _curve = CurvedAnimation(parent: _c, curve: Curves.easeOut);
+
+  @override
+  void didUpdateWidget(_Collapse old) {
+    super.didUpdateWidget(old);
+    if (widget.collapsing && !old.collapsing) {
+      _c.reverse().whenCompleteOrCancel(() {
+        if (mounted && widget.collapsing) widget.onCollapsed();
+      });
+    } else if (!widget.collapsing && old.collapsing) {
+      _c.forward(); // 삭제 실패 — 다시 펼친다
+    }
+  }
+
+  @override
+  void dispose() {
+    _curve.dispose();
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => SizeTransition(
+        sizeFactor: _curve,
+        child: FadeTransition(opacity: _curve, child: widget.child),
+      );
 }
 
 class _DeleteBackground extends StatelessWidget {
