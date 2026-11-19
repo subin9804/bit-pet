@@ -51,6 +51,7 @@ class NfcScanBindIntegrationTest extends IntegrationTestBase {
     @Autowired private NfcTagService nfcTagService;
     @Autowired private PetKeeperRlsRepository keeperRepository;
     @Autowired private PhotoDtlRepository photoRepository;
+    @Autowired private io.bitpet.record.repository.WeightDtlRepository weightRepository;
 
     @Test
     void 내_개체에_붙은_태그는_카드까지_내려온다() {
@@ -96,6 +97,11 @@ class NfcScanBindIntegrationTest extends IntegrationTestBase {
         photoRepository.save(PhotoDtl.builder()
                 .entityType(EntityType.PET).entityId(petId)
                 .s3Key("pets/test/a.jpg").caption("탈피").build());
+        // 체중은 최신 값 하나만 나간다 — 등록 시 초기 체중·옛 값이 아니라 마지막 측정값인지 본다
+        weightRepository.save(io.bitpet.record.domain.WeightDtl.builder().petId(petId)
+                .weightG(new java.math.BigDecimal("40.0")).measuredAt(java.time.Instant.now().plusSeconds(60)).build());
+        weightRepository.save(io.bitpet.record.domain.WeightDtl.builder().petId(petId)
+                .weightG(new java.math.BigDecimal("52.5")).measuredAt(java.time.Instant.now().plusSeconds(120)).build());
         String tagCd = issueTag();
         nfcTagService.bind(owner, tagCd, petId, false);
 
@@ -107,6 +113,7 @@ class NfcScanBindIntegrationTest extends IntegrationTestBase {
         assertThat(res.pet().owner()).isNull();
         assertThat(res.photos()).hasSize(1);
         assertThat(res.photos().get(0).caption()).isEqualTo("탈피");
+        assertThat(res.latestWeightG()).isEqualTo(52.5);
     }
 
     @Test

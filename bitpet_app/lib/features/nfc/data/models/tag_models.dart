@@ -137,18 +137,23 @@ class MyTag {
 
 /// 이름표로 찍은 남의 개체 프로필 (`GET /nfc/tags/{tagCd}/profile`).
 ///
-/// 카드와 갤러리 사진뿐이다. 기록·체중·소유자는 서버가 애초에 담지 않는다 —
+/// 카드·최근 체중 하나·갤러리 사진뿐이다. 기록·체중 이력·소유자는 서버가 애초에 담지 않는다 —
 /// 비공개 개체도 열리는 경로라 무엇을 내보낼지는 서버가 정한다.
 class NfcPetProfile {
   final PetCard pet;
+
+  /// 가장 최근 체중(g) 하나. 기록이 없으면 null — 이력은 내려오지 않는다.
+  final double? latestWeightG;
   final List<PetPhoto> photos;
 
-  const NfcPetProfile({required this.pet, required this.photos});
+  const NfcPetProfile(
+      {required this.pet, this.latestWeightG, required this.photos});
 
   factory NfcPetProfile.fromJson(Map<String, dynamic> json) {
     final pet = PetCard.fromJson(json['pet'] as Map<String, dynamic>);
     return NfcPetProfile(
       pet: pet,
+      latestWeightG: (json['latestWeightG'] as num?)?.toDouble(),
       photos: ((json['photos'] as List?) ?? const [])
           .map((e) => e as Map<String, dynamic>)
           .map((p) => PetPhoto(

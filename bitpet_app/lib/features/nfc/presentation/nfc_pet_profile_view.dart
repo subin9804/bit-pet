@@ -4,17 +4,19 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/utils/weight_format.dart';
 import '../../../core/widgets/app_network_image.dart';
 import '../../../core/widgets/empty_state.dart';
+import '../../../core/widgets/stat_card.dart';
 import '../../pet/data/models/photo_models.dart';
 import '../../pet/presentation/widgets/gallery_photo_viewer.dart';
 import '../../pet/presentation/widgets/pet_hero_card.dart';
 import '../data/models/tag_models.dart';
 
-/// 남의 개체 이름표를 찍었을 때의 프로필 — 히어로 + 갤러리만.
+/// 남의 개체 이름표를 찍었을 때의 프로필 — 히어로 + 최근 체중 + 갤러리만.
 ///
 /// 비공개 개체도 열린다 (실물 이름표가 있어야 닿는 경로). 무엇을 보여줄지는
-/// 서버가 응답에서 이미 정했다 — 기록·체중·소유자는 여기 오지도 않는다.
+/// 서버가 응답에서 이미 정했다 — 기록·체중 이력·소유자는 여기 오지도 않는다.
 /// 이 화면은 받은 걸 그리기만 하고, 대표 설정·삭제·업로드 같은 동작은 없다.
 class NfcPetProfileView extends StatelessWidget {
   final NfcPetProfile profile;
@@ -44,12 +46,30 @@ class NfcPetProfileView extends StatelessWidget {
             width: double.infinity,
             color: AppColors.brandTintSoft,
             padding: const EdgeInsets.fromLTRB(
-                AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.xl),
+                AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, 44),
             child: PetHeroCard.card(card: profile.pet),
           ),
+          // 개체 상세처럼 밴드에 걸치는 통계 칸 — 남에게는 최근 체중 하나만.
+          // 이력·그래프는 기록이라 서버가 내려주지 않는다.
+          Transform.translate(
+            offset: const Offset(0, -28),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+              child: StatCardRow(cards: [
+                StatCard(
+                  label: '최근 체중',
+                  value: profile.latestWeightG == null
+                      ? null
+                      : formatWeight(profile.latestWeightG!),
+                  unit: 'g',
+                ),
+              ]),
+            ),
+          ),
+          // Transform 은 레이아웃 높이를 줄이지 않아 위로 28px 이 이미 비어 있다
           Padding(
             padding: const EdgeInsets.fromLTRB(
-                AppSpacing.xl, AppSpacing.md, AppSpacing.xl, 0),
+                AppSpacing.xl, 0, AppSpacing.xl, 0),
             child: Row(
               children: [
                 const Icon(Icons.lock_outline,

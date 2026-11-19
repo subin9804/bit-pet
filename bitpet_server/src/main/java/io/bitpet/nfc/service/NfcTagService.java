@@ -55,6 +55,7 @@ public class NfcTagService {
     private final TagCodeGenerator tagCodeGenerator;
     private final PhotoDtlRepository photoRepository;   // 랜딩 페이지 대표 사진
     private final S3Service s3Service;
+    private final io.bitpet.record.repository.WeightDtlRepository weightRepository;  // 이름표 프로필 최신 체중
     private final io.bitpet.auth.repository.UserMstRepository userRepository;  // 랜딩 페이지 주인 닉네임
     private final io.bitpet.pet.repository.PetRelationRlsRepository relationRepository;  // 랜딩 페이지 부모
     private final org.springframework.jdbc.core.JdbcTemplate jdbc;             // 랜딩 페이지 마지막 기록
@@ -148,7 +149,10 @@ public class NfcTagService {
                         p.getCaption(),
                         p.getCreatedAt()))
                 .toList();
-        return new NfcPetProfileResponse(petService.cardOf(userId, pet, keeper), photos);
+        // 체중은 최신 값 하나만 — 이력은 기록이라 이 경로로 내보내지 않는다
+        Double latestWeight = weightRepository.findLatestByPetIds(List.of(pet.getId()))
+                .stream().findFirst().map(r -> r.getWeightG().doubleValue()).orElse(null);
+        return new NfcPetProfileResponse(petService.cardOf(userId, pet, keeper), latestWeight, photos);
     }
 
     /**

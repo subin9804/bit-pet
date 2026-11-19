@@ -722,10 +722,10 @@ private Map<String, Object> extraData;
 - **남의 개체 스캔 시 필드 축소는 서버가 한다.** `PetCardResponse` 자체가 "남에게 보여도 되는 전부"(이름·종·모프·성별·해칭일)라
   사육기록·체중·커뮤니티 활동은 애초에 담기지 않고, `owner` 는 OWNED_BY_OTHER 에서 **null 로 비워 내보낸다**.
   ⛔ 클라이언트 숨김 처리로 대체하지 말 것 — 숨김은 응답을 까 보면 무너진다 (`NfcScanBindIntegrationTest` 가 이걸 검증한다)
-- **남의 개체 이름표 → 프로필(히어로 + 갤러리)** (2026-11-20): `GET /api/v1/nfc/tags/{tagCd}/profile` → `NfcPetProfileResponse{pet: PetCard, photos[]}`.
+- **남의 개체 이름표 → 프로필(히어로 + 갤러리)** (2026-11-20): `GET /api/v1/nfc/tags/{tagCd}/profile` → `NfcPetProfileResponse{pet: PetCard, latestWeightG, photos[]}`.
   **비공개 개체도 연다** — 실물 이름표 코드가 있어야 닿는 경로라서다. 연결된 개체가 없으면(미연결·차단·삭제·고아) 404.
-  사진은 PET 갤러리 전부(url·축소본·caption·날짜만). ⛔ 기록·체중·메모를 이 응답에 더하지 말 것. 소유자는 스캔과 같은 규칙(사육자에게만)
-  - 앱: `TagResolverScreen` 의 OWNED_BY_OTHER 가 `NfcPetProfileView` 를 그린다 (`PetHeroCard.card` + 읽기 전용 갤러리, 뷰어 `readOnly`).
+  사진은 PET 갤러리 전부(url·축소본·caption·날짜만). 체중은 **최신 값 하나**만 (사용자 요청 2026-11-20, PetCard 가 아니라 이 응답에만 — PetCard 는 가계도에도 나간다). ⛔ 기록·체중 이력·메모를 더하지 말 것. 소유자는 스캔과 같은 규칙(사육자에게만)
+  - 앱: `TagResolverScreen` 의 OWNED_BY_OTHER 가 `NfcPetProfileView` 를 그린다 (`PetHeroCard.card` + 밴드에 걸친 최근 체중 칸 + 읽기 전용 갤러리, 뷰어 `readOnly`).
     프로필을 못 받으면 예전 '이미 등록된 이름표' 안내로 떨어진다
 - **재연결(rebind)은 확인을 강제한다**: 내 다른 개체에 붙어 있는 태그면 409 `TAG_REBIND_CONFIRM_REQUIRED`(어느 개체인지 메시지에 담김)
   → 앱이 확인 다이얼로그를 띄우고 `rebind=true` 로 재요청. 남의 개체에 붙은 태그는 409 `TAG_ALREADY_LINKED` — 확인으로 넘길 수 없다
