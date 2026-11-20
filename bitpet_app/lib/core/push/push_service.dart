@@ -198,6 +198,20 @@ class PushService {
 
   void _handleMessageTap(RemoteMessage message) => _routeToTarget(message.data);
 
+  /// 폰 상단 알림창에 남은 우리 앱 푸시를 모두 걷는다.
+  ///
+  /// 안드로이드 런처 아이콘의 빨간 숫자는 **알림창에 남은 푸시 개수**다 — 앱 안 알림함에서
+  /// 읽거나 지워도 알림창의 푸시는 그대로라 숫자가 안 사라졌다 (2026-11-20 사용자 제보).
+  /// 알림함을 열었다는 건 알림을 확인했다는 뜻이라 그때 같이 걷는다.
+  /// 서버가 푸시로 보낸 것(FCM 이 직접 띄운 것)도 앱 소유라 cancelAll 로 함께 지워진다.
+  Future<void> clearTray() async {
+    try {
+      await _localNotifications.cancelAll();
+    } catch (e) {
+      debugPrint('[FCM] 알림창 정리 실패: $e');
+    }
+  }
+
   /// 서버 FcmSender.buildData() 가 실어 보낸 type/참조 ID 로 이동 대상을 결정한다.
   void _routeToTarget(Map<String, dynamic> data) {
     final router = _ref.read(routerProvider);
