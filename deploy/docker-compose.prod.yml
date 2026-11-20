@@ -8,11 +8,22 @@
 
 name: tailog
 
+# 컨테이너 로그 보관 한도. 도커 기본값(json-file)은 **무한정** 쌓인다 — 실제로 nginx 접속 기록(IP 포함)이
+# 9/10 부터 한 번도 안 지워지고 21MB 쌓여 있었다(2026-11-20 확인). 처리방침이 "접속 기록 최대 3개월"을
+# 약속하므로 크기로 자른다: 5MB x 3개 = 15MB ≈ 지금 트래픽(하루 0.3MB)으로 50일. 트래픽이 늘면 더 짧아질
+# 뿐이라 약속을 넘지 않는다. ⚠️ 바꾸면 컨테이너를 **재생성**해야 적용된다(restart 로는 안 됨).
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "5m"
+    max-file: "3"
+
 services:
   postgres:
     image: postgres:16-alpine
     container_name: tailog-postgres
     restart: unless-stopped
+    logging: *default-logging
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -37,6 +48,7 @@ services:
     image: redis:7-alpine
     container_name: tailog-redis
     restart: unless-stopped
+    logging: *default-logging
     command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
     # 헬스체크가 컨테이너 안에서 $REDIS_PASSWORD 를 읽는다. 이 블록이 없으면 빈 값이 되어
     # redis-cli -a "" 가 WRONGPASS 로 떨어지고, redis 는 멀쩡한데 계속 unhealthy 로 남는다.
@@ -62,6 +74,7 @@ services:
     # ⛔ container_name 을 되살리지 말 것. 이름을 고정하면 같은 서비스를 2개로
     #    띄울 수 없어(--scale) 무중단 배포가 원천 봉쇄된다.
     restart: unless-stopped
+    logging: *default-logging
     depends_on:
       postgres:
         condition: service_healthy
@@ -132,6 +145,7 @@ services:
     image: nginx:1.27-alpine
     container_name: tailog-nginx
     restart: unless-stopped
+    logging: *default-logging
     depends_on:
       - app
     ports:
@@ -152,6 +166,7 @@ services:
     image: certbot/certbot:latest
     container_name: tailog-certbot
     restart: unless-stopped
+    logging: *default-logging
     volumes:
       - certbot-www:/var/www/certbot
       - certbot-conf:/etc/letsencrypt
