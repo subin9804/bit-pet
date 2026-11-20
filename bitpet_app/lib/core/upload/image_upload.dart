@@ -51,14 +51,52 @@ class ImageUploadService {
       maxWidth: 2000,
     );
     if (x == null) return null;
-    final bytes = await x.readAsBytes();
-    final name = x.name;
-    return PickedImage(
-      bytes: bytes,
-      filename: name,
-      contentType: contentTypeFor(name),
-    );
+    return _withoutMetadata(await x.readAsBytes(), x.name);
   }
+
+  /// 사진 속 메타데이터(EXIF)를 지운 사본을 만든다 — 특히 **촬영 위치(GPS)**.
+  ///
+  /// 집에서 찍은 사진에는 집 좌표가 박혀 있고, 공개 개체·커뮤니티·이름표 페이지의 사진은
+  /// 누구나 원본을 받아 열어볼 수 있다. image_picker 는 `imageQuality`/`maxWidth` 로 다시
+  /// 저장할 때 원본 EXIF 를 GPS 까지 그대로 복사해 넣는다(Android `ExifDataCopier`) — 그래서
+  /// 한 번 더 인코딩해 털어낸다. 처리방침의 "위치 정보를 수집하지 않는다"가 이것에 기대고 있다.
+  ///
+  /// - `keepExif: false` 가 기본이고, `autoCorrectionAngle` 이 회전을 픽셀에 먼저 반영하므로
+  ///   방향 정보가 사라져도 사진이 눕지 않는다.
+  /// - minWidth/minHeight 를 크게 준 건 **줄이지 않으려고**다. 이 라이브러리의 축소 배율은
+  ///   max(1, min(가로/minWidth, 세로/minHeight)) 라, 기본값(1920x1080)을 두면 2000px 사진이 살짝 줄어든다.
+  /// - PNG 는 투명도 때문에 PNG 로, 나머지(JPEG·HEIC·WebP)는 JPEG 로 저장한다. 파일명 확장자도
+  ///   바꿔야 content-type(= presign)이 실제 바이트와 맞는다.
+  /// - 실패하면 원본을 그대로 쓴다. 사진 등록 자체가 막히는 쪽이 더 나쁘다고 봤다.
+  Future<PickedImage> _withoutMetadata(Uint8List bytes, String name) async {
+    final isPng = contentTypeFor(name) == 'image/png';
+    try {
+      final out = await FlutterImageCompress.compressWithList(
+        bytes,
+        minWidth: _noResize,
+        minHeight: _noResize,
+        quality: 92,
+        format: isPng ? CompressFormat.png : CompressFormat.jpeg,
+      );
+      final dot = name.lastIndexOf('.');
+      final base = dot > 0 ? name.substring(0, dot) : name;
+      final filename = '$base.${isPng ? 'png' : 'jpg'}';
+      return PickedImage(
+        bytes: out,
+        filename: filename,
+        contentType: contentTypeFor(filename),
+      );
+    } catch (e) {
+      debugPrint('메타데이터 제거 실패 — 원본을 올린다: $e');
+      return PickedImage(
+        bytes: bytes,
+        filename: name,
+        contentType: contentTypeFor(name),
+      );
+    }
+  }
+
+  static const int _noResize = 1 << 14;
 
   /// 갤러리에서 여러 장 선택. 취소하면 빈 목록.
   ///
@@ -75,12 +113,7 @@ class ImageUploadService {
     );
     final out = <PickedImage>[];
     for (final x in xs) {
-      final bytes = await x.readAsBytes();
-      out.add(PickedImage(
-        bytes: bytes,
-        filename: x.name,
-        contentType: contentTypeFor(x.name),
-      ));
+      out.add(await _withoutMetadata(await x.readAsBytes(), x.name));
     }
     return out;
   }
