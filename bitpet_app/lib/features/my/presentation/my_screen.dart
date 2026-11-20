@@ -361,6 +361,9 @@ Future<void> _startWithdraw(BuildContext context, WidgetRef ref) async {
         '기록·사진은 지워집니다. 정말 탈퇴하시겠어요?',
     confirmLabel: '탈퇴',
     isDangerous: true,
+    // 로그아웃 바로 아래라 잘못 누르기 쉽다 — 실제로 로그아웃인 줄 알고 탈퇴한 일이 있었다
+    // (2026-11-20). 되돌릴 수 없는 동작이라 개체 삭제와 같이 글자를 직접 쳐야 진행된다
+    requireTextConfirmation: '탈퇴',
   );
   if (!ok || !context.mounted) return;
 
