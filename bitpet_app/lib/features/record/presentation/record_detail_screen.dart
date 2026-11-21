@@ -128,7 +128,18 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
     }
   }
 
-  void _invalidate() => invalidatePetRecords(ref, widget.petId);
+  /// [newPartnerId] — 방금 저장한 메이팅의 상대. 수정 전 상대는 아직 들고 있는 목록에서 찾는다
+  /// (상대를 바꾸거나 지우면 예전 상대 화면에서도 빠져야 한다).
+  void _invalidate({int? newPartnerId}) {
+    if (widget.recordType == 'mating') {
+      final before = ref.read(matingListProvider(widget.petId)).valueOrNull ?? const [];
+      invalidateMatingPartners(ref, widget.petId, [
+        newPartnerId,
+        for (final m in before) ...[m.malePetId, m.femalePetId],
+      ]);
+    }
+    invalidatePetRecords(ref, widget.petId);
+  }
 
   void _openAdd(String? dateStr) {
     setState(() {
@@ -287,10 +298,20 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
           await repo.addLaying(widget.petId, data);
         }
       }
-      _invalidate();
+      final partnerId = widget.recordType == 'mating'
+          ? e.form['partnerPetId'] as int?
+          : null;
+      _invalidate(newPartnerId: partnerId);
       if (mounted) {
         setState(() => _editor = null);
-        showToast(context, e.isEdit ? '수정되었습니다.' : '기록이 추가되었습니다.',
+        final base = e.isEdit ? '수정되었습니다.' : '기록이 추가되었습니다.';
+        // 메이팅은 상대 개체에도 같은 기록이 걸린다 — 따로 적지 않아도 된다는 걸 알린다
+        final partnerLabel = e.form['partnerLabel'] as String?;
+        showToast(
+            context,
+            partnerId != null && partnerLabel != null
+                ? '$base $partnerLabel에게도 같은 기록이 남았어요'
+                : base,
             type: ToastType.success);
       }
     } catch (err) {

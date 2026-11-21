@@ -250,6 +250,8 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
   bool? _mateSuccess;
   Pet? _partnerPet;       // 내 개체 (인터널)
   Pet? _searchedPartner;  // 검색으로 찾은 외부 개체
+  /// 이번 저장으로 같은 메이팅 기록이 함께 남은 내 상대 개체 이름 — 저장 뒤 토스트로 알린다
+  final Set<String> _matePartnerNames = {};
   bool _searchLoading = false;
   String? _searchError;
   final _partnerExtCtrl = TextEditingController(); // 일련번호 입력
@@ -457,6 +459,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
     if (!isFeed) _simpleDrafts[active.id] = _captureDraft();
 
     setState(() => _saving = true);
+    _matePartnerNames.clear();
     final repo = ref.read(recordRepositoryProvider);
     final now  = _recordAt;
     final failed = <Pet>[];
@@ -507,6 +510,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         _restoreDraft(_simpleDrafts[pets[_activePerPetIdx].id] ?? const _SimpleDraft());
       }
     });
+    if (failed.isEmpty) _announceMatePartners();
     if (failed.isNotEmpty) {
       final who = failed.length == 1
           ? failed.first.name
@@ -516,6 +520,15 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
   }
 
   // ── 저장 ─────────────────────────────────────────────────────
+
+  /// 메이팅을 저장하면 상대 개체(내 개체일 때)에도 같은 기록이 남는다 — 따로 적지 않아도
+  /// 된다는 걸 알려 준다. 안 알리면 상대 개체에 한 번 더 적어 두 벌이 되기 쉽다.
+  void _announceMatePartners() {
+    if (!mounted || _matePartnerNames.isEmpty) return;
+    final names = _matePartnerNames.join(', ');
+    showToast(context, '$names에게도 같은 메이팅 기록이 남았어요',
+        type: ToastType.success);
+  }
 
   /// 먹이를 안 고르고 저장한 급여 — "급여는 했고 뭘 줬는지는 안 적음".
   /// 서버가 `food_type = ''` 로 남기고 화면엔 '급여' 로 보인다. 거식(`refused`)과는
@@ -1411,6 +1424,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
       // 개별 입력에서 이미 저장한 개체는 건너뛴다 — 개별로 몇 마리 적다가
       // 뒤로 가서 일괄로 바꾸면 그 개체만 두 벌이 된다
       final targets = pets.where((p) => !_simpleSaved.contains(p.id)).toList();
+      _matePartnerNames.clear();
       for (final pet in targets) {
         await _writeSimple(repo, pet, now, memo, noteContent);
         invalidatePetRecords(ref, pet.id);
@@ -1419,6 +1433,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         _savedCount = targets.length + _simpleSaved.length;
         _step = _FabStep.done;
       });
+      _announceMatePartners();
     } catch (e) {
       if (mounted) showToast(context, '저장 실패: $e', type: ToastType.error);
     } finally {
@@ -1518,6 +1533,11 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
               'memo': memo,
             };
             await repo.addMating(pet.id, matingData);
+            // 같은 기록이 상대 개체에도 걸린다 — 그쪽 화면도 새로 불러오게 한다
+            invalidateMatingPartners(ref, pet.id, [malePetId, femalePetId]);
+            // 내 개체가 상대일 때만 알린다. 검색으로 찾은 남의 개체는 내 화면에 없다
+            final partner = _partnerExternal ? null : _partnerPet;
+            if (partner != null) _matePartnerNames.add(partner.name);
           case 'lay':
             final total   = int.parse(_eggTotalCtrl.text.trim());
             // 포유류(출산)는 유정란 칸을 보여주지 않는다 — 컨트롤러에 남아 있을 수

@@ -36,3 +36,16 @@ void invalidatePetRecords(WidgetRef ref, int petId,
   ref.invalidate(homeDayRecordsProvider);
   ref.invalidate(recentRecordsProvider);
 }
+
+/// 메이팅은 한 건이 **암수 두 개체에 함께 걸린다** — 서버에 행이 하나뿐이고 양쪽 목록에서
+/// 같은 기록이 보인다. 그래서 저장·수정·삭제 뒤에는 상대 개체의 캐시도 비워야 한다.
+///
+/// 안 비우면 캘린더(family 전체를 비운다)에는 표시가 생기는데 상대 개체의 기록 탭·메이팅
+/// 목록은 옛 값으로 남아 "점만 찍히고 기록은 없는" 상태가 된다 (2026-11-21 사용자 제보).
+/// [petIds] 에는 수정 전·후 상대를 모두 넘긴다 — 상대를 바꾸면 예전 상대에게서도 빠져야 한다.
+void invalidateMatingPartners(WidgetRef ref, int petId, Iterable<int?> petIds) {
+  final others = petIds.whereType<int>().toSet()..remove(petId);
+  for (final id in others) {
+    invalidatePetRecords(ref, id);
+  }
+}
