@@ -398,10 +398,11 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
   /// 아직 저장 안 했고 내용이 있는 개체. 보고 있는 탭은 폼 칸이 곧 그 개체 값이다.
   bool _petPending(Pet p, List<Pet> pets) {
     if (_typeId == 'feed') {
-      final e = _perPetForms[p.id];
-      // 먹이 없이 메모만 적은 개체도 저장한다 — '급여' 기록에 메모가 붙는다.
-      // 아무것도 안 적은 개체는 건드리지 않는다 (탭을 넘겨 본 것만으로 기록이 생기면 안 된다)
-      return e != null && !e.saved && (e.items.isNotEmpty || e.memo.trim().isNotEmpty);
+      // 급여는 **고른 개체 전부**가 저장 대상이다 — 개체를 골랐다는 것 자체가 '줬다'는 뜻이고,
+      // 아무것도 안 적은 개체는 먹이 없는 '급여'로 남는다([_foodlessFeeding]). 일괄 입력과 같다.
+      // (전엔 적은 개체만 저장해서, 먹이를 안 적으면 개별 입력으론 기록을 못 남겼다 — 2026-11-21 사용자 결정)
+      // 청소·체중 등 다른 종류는 그대로 '적은 개체만' 이다.
+      return !(_perPetForms[p.id]?.saved ?? false);
     }
     if (_simpleSaved.contains(p.id)) return false;
     final active = pets[_activePerPetIdx.clamp(0, pets.length - 1)];
@@ -416,8 +417,15 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
       _step == _FabStep.feedPerPet || _step == _FabStep.simplePerPet;
 
   /// 닫으면 사라지는 입력이 있는가 — 시트를 닫을 때 확인을 받는다([build] 의 PopScope)
-  bool _hasUnsavedPerPet(List<Pet> pets) =>
-      _inPerPetStep && pets.isNotEmpty && _pendingPets(pets).isNotEmpty;
+  ///
+  /// 급여는 안 적은 개체도 저장 대상이지만, 버릴 '입력'은 아니다 — 먹이·메모를 적은 개체가
+  /// 있을 때만 묻는다. 안 그러면 개별 입력에 들어가기만 해도 닫을 때마다 확인창이 뜬다.
+  bool _hasUnsavedPerPet(List<Pet> pets) {
+    if (!_inPerPetStep || pets.isEmpty) return false;
+    if (_typeId != 'feed') return _pendingPets(pets).isNotEmpty;
+    return _perPetForms.values.any((e) =>
+        !e.saved && (e.items.isNotEmpty || e.memo.trim().isNotEmpty));
+  }
 
   void _initPerPetForms(List<Pet> pets) {
     for (final p in pets) {
