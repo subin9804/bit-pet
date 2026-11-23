@@ -1219,7 +1219,13 @@ class _CategoryDetailSheetState extends ConsumerState<_CategoryDetailSheet> {
     final records = _records;
     // 다른 경로로 사라진 기록이 선택에 남아 있지 않게
     _selected.retainAll(records.map((r) => r.id));
-    final chosen = records.where((r) => _selected.contains(r.id)).toList();
+    // 메이팅은 한 기록이 암수 개체마다 한 줄씩 온다(같은 id) — 건수·삭제·날짜 변경은
+    // 기록 단위라 id 로 한 번만 센다. 줄 하나를 고르면 상대 줄도 같이 골라진다(같은 기록)
+    final seen = <int>{};
+    final chosen = records
+        .where((r) => _selected.contains(r.id) && seen.add(r.id))
+        .toList();
+    final recordCount = records.map((r) => r.id).toSet().length;
 
     final Map<String, List<RecentRecord>> petGroups = {};
     for (final r in records) {
@@ -1228,7 +1234,7 @@ class _CategoryDetailSheetState extends ConsumerState<_CategoryDetailSheet> {
     }
     final petKeys = petGroups.keys.toList();
     final allSelected =
-        records.isNotEmpty && chosen.length == records.length;
+        records.isNotEmpty && chosen.length == recordCount;
     final tagLabels = {
       for (final t in ref.watch(memoTagsProvider).valueOrNull ??
           const <MemoTag>[])
@@ -1240,7 +1246,7 @@ class _CategoryDetailSheetState extends ConsumerState<_CategoryDetailSheet> {
       // 맥락 한 줄 — 몇 마리의 몇 건인지 **먼저** 말해준다. 목록이 시트 높이를
       // 넘길 때 "아래가 더 있나"를 스크롤 막대와 함께 이 숫자가 받쳐준다.
       subtitle: petKeys.length > 1
-          ? '개체 ${petKeys.length}마리 · 기록 ${records.length}건'
+          ? '개체 ${petKeys.length}마리 · 기록 $recordCount건'
           : null,
       // 화면을 다 덮지 않게 시트 자체의 상한을 낮춘다 (2026-10-16 사용자 요청:
       // "화면 전체를 채우는건 별로"). 넘치는 기록은 시트 본문 스크롤 하나로 본다 —

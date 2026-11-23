@@ -371,17 +371,33 @@ public class RecordService {
                         m.getContent(),
                         memoTags.getOrDefault(m.getId(), List.of()))));
 
-        // MATING: 교배 양쪽 개체 모두 표시 (한 교배당 최대 2개 칩)
-        matingRepository.findByPetIdsAndDateRange(petIds, from, to).forEach(m -> {
-            String maleName  = m.getMalePetId()   != null ? petNameMap.getOrDefault(m.getMalePetId(), "외부") : "외부";
-            String femaleName = m.getFemalePetId() != null ? petNameMap.getOrDefault(m.getFemalePetId(), "외부") : "외부";
-            String petName = maleName + " × " + femaleName;
-            // 대표 petId: 소유 개체 중 하나
-            Long repPetId = (m.getMalePetId() != null && petIdSet.contains(m.getMalePetId()))
-                    ? m.getMalePetId() : m.getFemalePetId();
-            String colorCode = repPetId != null ? petColorMap.get(repPetId) : null;
-            all.add(RecentRecordResponse.of("MATING", m.getId(), repPetId,
-                    petName, colorCode, m.getTriedAt(), "교배", m.getMemo()));
+        // MATING: **내 개체마다 한 줄씩** — 이름 자리엔 그 개체, 요약엔 상대를 적는다.
+        //
+        // 전엔 한 교배를 'A × B' 한 줄로 내리고 petId 는 대표 하나만 실었다. 보기는 좋았지만
+        // 눌렀을 때 어느 개체로 가는지 알 수 없었다(2026-11-23 사용자 지적). 같은 기록이
+        // 두 줄이 되므로 id 가 겹친다 — 앱이 선택·삭제·날짜 변경에서 id 로 한 번만 다룬다.
+        List<MatingDtl> matings = matingRepository.findByPetIdsAndDateRange(petIds, from, to);
+        // 상대가 남의 개체(일련번호로 찾은)면 내 목록에 이름이 없다 — 한 번에 불러온다
+        Set<Long> foreignIds = matings.stream()
+                .flatMap(m -> java.util.stream.Stream.of(m.getMalePetId(), m.getFemalePetId()))
+                .filter(id -> id != null && !petIdSet.contains(id))
+                .collect(Collectors.toSet());
+        Map<Long, String> foreignNames = foreignIds.isEmpty() ? Map.of()
+                : petRepository.findAllById(foreignIds).stream()
+                        .collect(Collectors.toMap(PetMst::getId, PetMst::getName));
+        matings.forEach(m -> {
+            for (Long self : new Long[]{m.getMalePetId(), m.getFemalePetId()}) {
+                if (self == null || !petIdSet.contains(self)) continue;
+                Long other = self.equals(m.getMalePetId()) ? m.getFemalePetId() : m.getMalePetId();
+                String partner = other != null
+                        ? petNameMap.getOrDefault(other, foreignNames.get(other))
+                        : m.getExternalPartnerText();
+                String summary = partner == null || partner.isBlank()
+                        ? "교배" : "교배 · " + partner;
+                all.add(RecentRecordResponse.of("MATING", m.getId(), self,
+                        petNameMap.getOrDefault(self, ""), petColorMap.get(self),
+                        m.getTriedAt(), summary, m.getMemo()));
+            }
         });
 
         // LAYING
