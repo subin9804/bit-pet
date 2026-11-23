@@ -41,6 +41,21 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
   final _nickCtrl   = TextEditingController();
   final _emailCtrl  = TextEditingController();
+  // 이메일은 아이디 칸 + 도메인 콤보로 받는다 (2026-11-23 사용자 요청 — 직접입력 없음).
+  // 고른 결과를 _emailCtrl 에 합쳐 두어 확인·인증·가입은 전처럼 그 값 하나를 본다.
+  // ⚠️ 목록은 서버 `bitpet.signup.allowed-email-domains` 와 같아야 한다 (앞쪽은 많이 쓰는 순)
+  static const _emailDomains = [
+    'naver.com', 'gmail.com', 'daum.net', 'hanmail.net', 'kakao.com',
+    'nate.com', 'icloud.com', 'me.com', 'outlook.com', 'hotmail.com',
+    'outlook.kr', 'yahoo.com',
+  ];
+  final _emailIdCtrl = TextEditingController();
+  String _emailDomain = _emailDomains.first;
+
+  void _composeEmail() {
+    final id = _emailIdCtrl.text.trim();
+    _emailCtrl.text = id.isEmpty ? '' : '$id@$_emailDomain';
+  }
   final _pwCtrl     = TextEditingController();
   final _pw2Ctrl    = TextEditingController();
 
@@ -275,6 +290,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   void dispose() {
     _nickCtrl.dispose();
     _emailCtrl.dispose();
+    _emailIdCtrl.dispose();
     _codeCtrl.dispose();
     _pwCtrl.dispose();
     _pw2Ctrl.dispose();
@@ -558,18 +574,74 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             children: [
               SField(
                 label: '이메일',
-                hint: '네이버·카카오·다음(한메일)·네이트·지메일·iCloud·아웃룩 메일로 가입할 수 있어요',
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
                         Expanded(
+                          flex: 5,
                           child: PaleTextField(
-                            controller: _emailCtrl,
-                            placeholder: 'name@naver.com',
+                            controller: _emailIdCtrl,
+                            placeholder: '아이디',
                             keyboardType: TextInputType.emailAddress,
-                            onChanged: (_) => setState(() {}),
+                            onChanged: (_) => setState(_composeEmail),
+                          ),
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 4),
+                          child: Text('@',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.ink3,
+                              )),
+                        ),
+                        Expanded(
+                          flex: 6,
+                          child: DropdownButtonFormField<String>(
+                            initialValue: _emailDomain,
+                            isExpanded: true,
+                            items: [
+                              for (final d in _emailDomains)
+                                DropdownMenuItem(
+                                  value: d,
+                                  child: Text(d,
+                                      overflow: TextOverflow.ellipsis),
+                                ),
+                            ],
+                            onChanged: (d) {
+                              if (d == null) return;
+                              setState(() {
+                                _emailDomain = d;
+                                _composeEmail();
+                              });
+                            },
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primary,
+                            ),
+                            dropdownColor: AppColors.surface,
+                            iconEnabledColor: AppColors.ink3,
+                            // 옆 아이디 칸(PaleTextField)과 같은 밑줄 한 줄로 읽히게
+                            decoration: const InputDecoration(
+                              isDense: true,
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 4, vertical: 12),
+                              border: UnderlineInputBorder(
+                                borderSide:
+                                    BorderSide(color: AppColors.paleLine),
+                              ),
+                              enabledBorder: UnderlineInputBorder(
+                                borderSide:
+                                    BorderSide(color: AppColors.paleLine),
+                              ),
+                              focusedBorder: UnderlineInputBorder(
+                                borderSide: BorderSide(
+                                    color: AppColors.brandAction, width: 1.5),
+                              ),
+                            ),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -602,7 +674,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       Text(
                         _emailDomainAllowed
                             ? '✗ 이미 가입된 이메일입니다'
-                            : '✗ 지원하지 않는 메일이에요. 위 안내의 메일로 가입해 주세요',
+                            : '✗ 지원하지 않는 메일이에요',
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
