@@ -237,7 +237,8 @@ class PetListScreen extends ConsumerWidget {
           padding: const EdgeInsets.fromLTRB(
               AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.sm),
           child: Text(
-            '함께 키우거나 분양·삭제할 개체를 선택하세요',
+            // 공유받은 개체는 목록에 남되 흐리게 막혀 있다 — 왜 못 고르는지 맨 위에서 알린다 (2026-11-23)
+            '공유받은 개체는 다시 공유할 수 없습니다',
             style: AppTextStyles.caption,
           ),
         ),
@@ -439,11 +440,9 @@ class _PetTabState extends ConsumerState<_PetTab> {
                         .contains(_query.toLowerCase());
                 final matchCategory = _selectedSpeciesId == null ||
                     p.speciesId == _selectedSpeciesId;
-                // 공유·분양·삭제는 전부 소유자(OWNER) 전용이다.
-                // 선택 모드에서는 어차피 아무것도 할 수 없는 개체를 띄워
-                // 고르게 한 뒤 403을 돌려주느니, 처음부터 빼고 보여준다.
-                final selectable = !selecting || p.isOwner;
-                return matchQuery && matchCategory && selectable;
+                // 공유·분양·삭제는 전부 소유자(OWNER) 전용이지만, 공유받은 개체를
+                // 빼버리면 그냥 사라진 것처럼 보인다 — 남겨두고 타일에서 막는다 (2026-11-23 사용자 결정)
+                return matchQuery && matchCategory;
               }).toList();
 
               // 순서는 '전체'가 다 보일 때만 바꾼다 (_showReorderLocked 주석).
@@ -451,19 +450,12 @@ class _PetTabState extends ConsumerState<_PetTab> {
               final canReorder =
                   !selecting && _query.isEmpty && _selectedSpeciesId == null;
 
-              // 필터 때문이 아니라 '공유받아서' 사라진 개체는 이유를 알려준다
-              final hiddenShared = selecting
-                  ? allPets.where((p) => !p.isOwner).length
-                  : 0;
-
               if (pets.isEmpty) {
                 return selecting
                     ? const EmptyState(
-                        message: '분양·삭제할 수 있는 개체가 없어요',
-                        subMessage: '공유받은 개체는 소유자만 관리할 수 있습니다.',
-                        icon: Icons.group_outlined,
-                        // 여기서 사용자가 만들 것은 없다 — 연녹 원을 쓰면
-                        // "비었으니 채워보라"로 읽힌다.
+                        message: '조건에 맞는 개체가 없어요',
+                        subMessage: '검색어나 종 필터를 바꿔보세요.',
+                        icon: Icons.search_off,
                         tone: EmptyTone.neutral,
                       )
                     // 비어 있어도 개수 줄(보기 전환 토글 포함)은 남긴다 — 필터로 0마리가 된
@@ -513,7 +505,6 @@ class _PetTabState extends ConsumerState<_PetTab> {
                       onViewChanged: (v) =>
                           ref.read(petListGridProvider.notifier).set(v),
                     ),
-                    if (hiddenShared > 0) _SharedHiddenNotice(hiddenShared),
                     Expanded(
                       child: isGridView
                           ? _PetGrid(pets: pets, canReorder: canReorder)
@@ -659,45 +650,6 @@ class _PetCountLine extends StatelessWidget {
   }
 }
 
-/// 선택 모드에서 공유받은 개체가 목록에서 빠졌음을 알리는 한 줄 안내.
-/// 없으면 개체가 그냥 사라진 것처럼 보인다.
-class _SharedHiddenNotice extends StatelessWidget {
-  final int count;
-  const _SharedHiddenNotice(this.count);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(
-          AppSpacing.xl, AppSpacing.xs, AppSpacing.xl, 0),
-      padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-      // 연회색 바탕 위의 연회색 박스였다 — 아무 경계도 못 만든다.
-      // 앱 규칙대로 바탕은 canvas, 내용은 흰 카드.
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border.all(color: AppColors.line),
-        borderRadius: AppRadius.brMd,
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.info_outline,
-              size: AppIconSize.sm, color: AppColors.ink3),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
-              '공유받은 $count마리는 소유자만 관리할 수 있어 목록에서 뺐어요.',
-              style: AppTextStyles.caption
-                  .copyWith(color: AppColors.ink2, height: 1.3),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 /// 갤러리 — 3열, 길게 눌러 끌면 순서가 바뀐다.
 ///
 /// Flutter 에는 격자용 Reorderable 위젯이 없어 칸마다 [LongPressDraggable] +
@@ -835,9 +787,12 @@ class _PetCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final selecting = ref.watch(petSelectionModeProvider);
     final selected = ref.watch(selectedPetIdsProvider).contains(pet.id);
+    final locked = selecting && !pet.isOwner;
 
-    return GestureDetector(
-      onTap: selecting
+    final tile = GestureDetector(
+      onTap: locked
+          ? null
+          : selecting
           ? () => _togglePet(ref, pet.id)
           : () => context.push('/pets/${pet.id}'),
       onLongPress: selecting || canReorder
@@ -877,7 +832,7 @@ class _PetCard extends ConsumerWidget {
                                 placeholder: _spriteIcon())
                         : _spriteIcon(),
                   ),
-                  if (selecting)
+                  if (selecting && !locked)
                     Positioned(
                       top: 8,
                       left: 8,
@@ -923,6 +878,8 @@ class _PetCard extends ConsumerWidget {
         ),
       ),
     );
+    // 공유받은 개체 — 목록엔 남기되 흐리게, 탭은 막는다 (2026-11-23)
+    return locked ? Opacity(opacity: 0.4, child: tile) : tile;
   }
 
   // 사진 없는 카드는 그 개체의 종 실루엣으로 메운다. 전부 도마뱀이면
@@ -1044,13 +1001,14 @@ class _PetListTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final selecting = ref.watch(petSelectionModeProvider);
     final selected = ref.watch(selectedPetIdsProvider).contains(pet.id);
+    final locked = selecting && !pet.isOwner;
     final canReorder = reorderIndex != null;
 
     // ⚠️ `ListTile` 은 `tileColor` 를 자기가 칠하므로 **그림자를 넣을 자리가
     // 없다**(shape 의 border 까지가 한계였다). 그래서 카드 모양·그림자는 바깥
     // Container 가 그리고 타일은 투명하게 얹는다 — 2열 카드와 같은 무게로.
     // 모서리도 `borderRadius` 를 안 줘서 1열 모드만 각이 서 있었다.
-    return Container(
+    final tile = Container(
       // 타일의 잉크 효과가 둥근 모서리를 뚫고 네모로 번지지 않게 자른다.
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
@@ -1076,7 +1034,9 @@ class _PetListTile extends ConsumerWidget {
             ),
           Expanded(
             child: ListTile(
-              onTap: selecting
+              onTap: locked
+          ? null
+          : selecting
                   ? () => _togglePet(ref, pet.id)
                   : () => context.push('/pets/${pet.id}'),
               // 순서를 바꿀 수 있으면 길게 누르기는 바깥 ReorderableDelayedDragStartListener 몫
@@ -1090,7 +1050,7 @@ class _PetListTile extends ConsumerWidget {
                   bottom: AppSpacing.xs),
               shape: const RoundedRectangleBorder(borderRadius: AppRadius.brLg),
               tileColor: Colors.transparent,
-              leading: selecting
+              leading: selecting && !locked
                   ? _CheckBadge(selected: selected)
                   : _PetAvatarSmall(pet: pet),
               title: _PetName(pet: pet),
@@ -1104,6 +1064,8 @@ class _PetListTile extends ConsumerWidget {
         ],
       ),
     );
+    // 공유받은 개체 — 목록엔 남기되 흐리게, 탭은 막는다 (2026-11-23)
+    return locked ? Opacity(opacity: 0.4, child: tile) : tile;
   }
 }
 
