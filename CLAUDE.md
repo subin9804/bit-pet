@@ -1018,7 +1018,17 @@ SUPER_ADMIN 이라고 남의 개체 기록을 고칠 수 없다.
 ### 가계도 닉네임 공개 설정 (V54)
 - `user_mst.show_nickname_in_pedigree` (기본 true). `PATCH /api/v1/auth/me` 의 `showNicknameInPedigree`
 - false면 응답의 nickname 을 **'비공개'로 치환하고 `userId` 를 아예 내리지 않는다**(프로필 이동 불가).
-  `GET /users/{userId}/profile` 도 `USER_PROFILE_HIDDEN` 403. 단 **본인에게는 그대로 노출**한다
+  `GET /users/{userId}/profile` 은 열리되 **공개 개체를 비워** `petsHidden: true` 로 내린다 (2026-11-23 — 커뮤니티 닉네임으로도
+  프로필에 들어오게 되면서 403 에서 바뀜. `USER_PROFILE_HIDDEN` 코드는 남아 있지만 안 쓴다). 단 **본인에게는 그대로 노출**한다
+
+### 남의 프로필 — 닉네임 탭 (2026-11-23)
+- 커뮤니티 피드·글 상세·댓글·대댓글의 작성자 아바타/닉네임 → `/users/:userId` (`community/presentation/author_link.dart`).
+  ⛔ **내 닉네임은 눌리지 않는다** (사용자 결정 — 내 활동은 마이페이지에서)
+- 프로필 = 헤더 + 탭 `개체 | 작성한 글 | 작성한 댓글`. 글·댓글은 `GET /users/{id}/posts`·`/comments` (`UserActivityController`),
+  목록 위젯은 마이페이지 '내 게시글'의 `PostsListTab`/`CommentsListTab` 을 같이 쓴다
+- 서버는 **보는 사람 기준**으로 거른다: 차단 관계(방향 무관)면 프로필·글·댓글 전부 403 `USER_HIDDEN`, 어린이 게시판 규칙(`excludedCategoryIdFor`),
+  댓글은 **보는 사람이 열 수 있는 글**에 달린 것만(원글 삭제·KIDS·차단된 작성자의 글 제외), 블라인드는 `BlindMask`
+- 닉네임 변경: 마이 히어로의 닉네임(연필) → 시트 → `PATCH /auth/me {nickname}`. 앱이 2~20자·`[가-힣a-zA-Z0-9_]` 를 먼저 거르고 중복은 서버 409
 - **'정보 없음'(isOrphaned=주인 없음)과 '비공개'(주인은 있으나 숨김)는 다른 상태다.** 앱도 구분해 표시:
   `PedigreeParentCard`, `parent_pet_bottom_sheet`, `pet_form_screen`, `public_pet_screen` 네 곳이 같은 분기를 쓴다
 

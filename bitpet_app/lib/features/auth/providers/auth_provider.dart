@@ -224,6 +224,12 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
     state = AsyncValue.data(updated);
   }
 
+  /// 닉네임 변경 — 형식·중복 검사는 서버(NicknamePolicy)가 최종 판정한다
+  Future<void> updateNickname(String nickname) async {
+    final updated = await _repo.updateMe(nickname: nickname);
+    state = AsyncValue.data(updated);
+  }
+
   /// 탈퇴 전 미리보기 — 공동 사육자가 있는 개체 목록 (비면 선택지 없이 진행)
   Future<List<SharedPetPreview>> withdrawPreview() => _repo.getWithdrawPreview();
 

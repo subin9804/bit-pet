@@ -141,9 +141,10 @@ class WithdrawalPetPolicyIntegrationTest extends IntegrationTestBase {
         assertThat(parent.owner().isOrphaned()).isFalse();   // 주인은 있다. 밝히지 않을 뿐이다
         assertThat(parent.name()).isEqualTo("아빠");          // 개체명은 항상 노출
 
-        assertThatThrownBy(() -> petService.getUserProfile(breeder, owner))
-                .isInstanceOf(BusinessException.class)
-                .extracting("errorCode").isEqualTo(ErrorCode.USER_PROFILE_HIDDEN);
+        // 프로필은 열리지만(커뮤니티에선 닉네임이 보인다) 개체는 비운다 — 2026-11-23
+        var profile = petService.getUserProfile(breeder, owner);
+        assertThat(profile.petsHidden()).isTrue();
+        assertThat(profile.publicPets()).isEmpty();
     }
 
     @Test

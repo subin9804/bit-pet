@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/api/api_response.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -10,6 +11,7 @@ import '../../../core/widgets/confirm_modal.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../../../core/widgets/user_avatar.dart';
+import '../../../core/widgets/step_shell.dart';
 import '../../auth/data/models/auth_models.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../pet/share/providers/share_provider.dart';
@@ -67,10 +69,32 @@ class MyScreen extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(user?.name ?? '사용자',
-                            style: AppTextStyles.h3
-                                .copyWith(color: Colors.white),
-                            overflow: TextOverflow.ellipsis),
+                        // 닉네임을 누르면 바꾼다 (2026-11-23). 연필은 눌린다는 표시
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: user == null
+                              ? null
+                              : () => showAppSheet<void>(
+                                    context: context,
+                                    builder: (_) =>
+                                        _NicknameSheet(current: user.name),
+                                  ),
+                          child: Row(
+                            children: [
+                              Flexible(
+                                child: Text(user?.name ?? '사용자',
+                                    style: AppTextStyles.h3
+                                        .copyWith(color: Colors.white),
+                                    overflow: TextOverflow.ellipsis),
+                              ),
+                              if (user != null) ...[
+                                const SizedBox(width: AppSpacing.xs),
+                                const Icon(Icons.edit_outlined,
+                                    size: 16, color: AppColors.brand100),
+                              ],
+                            ],
+                          ),
+                        ),
                         const SizedBox(height: AppSpacing.xs),
                         Text(user?.displayEmail ?? '',
                             style: AppTextStyles.caption
@@ -601,6 +625,87 @@ class _MenuItem extends StatelessWidget {
             ),
             const AppIcon(AppIcons.chevronRight,
                 size: 20, color: AppColors.ink3),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 닉네임 변경 시트. 형식은 서버 `NicknamePolicy` 와 같은 규칙으로 먼저 거르고,
+/// 중복은 서버가 판정한다(409 메시지를 그대로 토스트로).
+class _NicknameSheet extends ConsumerStatefulWidget {
+  final String current;
+  const _NicknameSheet({required this.current});
+
+  @override
+  ConsumerState<_NicknameSheet> createState() => _NicknameSheetState();
+}
+
+class _NicknameSheetState extends ConsumerState<_NicknameSheet> {
+  static final _pattern = RegExp(r'^[가-힣a-zA-Z0-9_]+$');
+  late final _ctrl = TextEditingController(text: widget.current);
+  bool _busy = false;
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  String get _value => _ctrl.text.trim();
+
+  String? get _error {
+    final v = _value;
+    if (v.isEmpty) return null;
+    if (v.length < 2 || v.length > 20) return '2~20자로 입력해 주세요';
+    if (!_pattern.hasMatch(v)) return '한글·영문·숫자·밑줄(_)만 쓸 수 있어요';
+    return null;
+  }
+
+  bool get _canSave =>
+      !_busy && _value.isNotEmpty && _error == null && _value != widget.current;
+
+  Future<void> _save() async {
+    setState(() => _busy = true);
+    try {
+      await ref.read(authStateProvider.notifier).updateNickname(_value);
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      showToast(context, '닉네임을 바꿨어요', type: ToastType.success);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      showToast(context, serverMessageOf(e) ?? '닉네임을 바꾸지 못했어요',
+          type: ToastType.error);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final error = _error;
+    return AppSheet(
+      title: '닉네임 변경',
+      subtitle: '커뮤니티와 가계도에 보이는 이름이에요',
+      primaryLabel: '저장',
+      onPrimary: _canSave ? _save : null,
+      busy: _busy,
+      child: SheetCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            PaleTextField(
+              controller: _ctrl,
+              placeholder: '2~20자 · 한글, 영문, 숫자, _',
+              onChanged: (_) => setState(() {}),
+            ),
+            if (error != null) ...[
+              const SizedBox(height: AppSpacing.xs),
+              Text(error,
+                  style: AppTextStyles.caption
+                      .copyWith(color: AppColors.error)),
+            ],
           ],
         ),
       ),

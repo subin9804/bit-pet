@@ -13,6 +13,7 @@ import '../../notification/providers/notification_provider.dart';
 import '../data/models/post_models.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/post_provider.dart';
+import 'author_link.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/widgets/app_network_image.dart';
 
@@ -428,20 +429,31 @@ class _PostRow extends StatelessWidget {
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          _AuthorAvatar(
-                            imageUrl: post.authorImageUrl,
-                            size: 16,
-                          ),
-                          const SizedBox(width: 4),
-                          // 긴 닉네임이 카드 폭을 넘어 오버플로하지 않게
+                          // 긴 닉네임이 카드 폭을 넘어 오버플로하지 않게.
+                          // 아바타+닉네임을 누르면 카드(글 상세) 대신 프로필로 간다
                           Flexible(
-                            child: Text(
-                              post.authorName,
-                              style: AppTextStyles.caption.copyWith(
-                                fontSize: 12,
+                            child: AuthorLink(
+                              userId: post.userId,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  _AuthorAvatar(
+                                    imageUrl: post.authorImageUrl,
+                                    size: 16,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Flexible(
+                                    child: Text(
+                                      post.authorName,
+                                      style: AppTextStyles.caption.copyWith(
+                                        fontSize: 12,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           const SizedBox(width: 8),

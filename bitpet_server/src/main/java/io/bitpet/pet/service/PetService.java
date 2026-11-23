@@ -65,6 +65,7 @@ public class PetService {
     private final WeightDtlRepository weightRepository;
     private final PhotoDtlRepository photoRepository;
     private final S3Service s3Service;
+    private final io.bitpet.community.service.BlockService blockService;
 
     /** 대표 사진 id → 표시용 presigned URL (없으면 null) */
     private String resolveProfileImageUrl(PetMst pet) {
@@ -515,24 +516,33 @@ public class PetService {
     }
 
     /**
-     * 공개 프로필 — 가계도 카드의 '@닉네임' 탭. 공개 개체만 싣는다.
+     * 공개 프로필 — 가계도 카드의 '@닉네임', 커뮤니티 작성자 닉네임 탭. 공개 개체만 싣는다.
      *
-     * <p>닉네임을 비공개로 둔 사용자는 애초에 응답에 userId 가 실리지 않아 이 화면에 닿을 수
-     * 없지만, 아이디를 직접 찍어 넣는 우회를 막으려면 여기서도 한 번 더 잘라야 한다.
+     * <p>가계도 닉네임을 비공개로 둔 사람도 프로필은 열린다 — 커뮤니티에선 닉네임이 원래
+     * 보이기 때문이다(2026-11-23 전엔 403). 대신 <b>개체 목록을 비운다</b>. 여기서 개체를 보여주면
+     * 닉네임과 개체가 이어져 가계도에서 숨긴 의미가 사라진다.
+     *
+     * <p>차단 관계(어느 방향이든)면 프로필도 열지 않는다. 에러는 방향을 가리지 않는 하나.
      */
     public UserProfileResponse getUserProfile(Long requesterId, Long userId) {
         UserMst user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AUTH_USER_NOT_FOUND));
-        if (!user.isShowNicknameInPedigree() && !user.getId().equals(requesterId)) {
-            throw new BusinessException(ErrorCode.USER_PROFILE_HIDDEN);
+        boolean isMe = user.getId().equals(requesterId);
+        if (blockService.isHidden(requesterId, userId)) {
+            throw new BusinessException(ErrorCode.USER_HIDDEN);
         }
-        List<PetMst> publicPets = petRepository.findAllByUserIdAndPrivateYn(userId, "N");
+        boolean petsHidden = !isMe && !user.isShowNicknameInPedigree();
+        List<PetMst> publicPets = petsHidden
+                ? List.of()
+                : petRepository.findAllByUserIdAndPrivateYn(userId, "N");
         Map<Long, PetOwnerResponse> owners = resolveOwners(requesterId, publicPets);
         return new UserProfileResponse(
                 user.getId(),
                 user.getName(),
-                user.getProfileImageUrl(),
-                user.getId().equals(requesterId),
+                s3Service.resolveUrl(user.getProfileImageUrl()),
+                user.getProfileColor(),
+                isMe,
+                petsHidden,
                 publicPets.stream()
                         .map(p -> toCard(requesterId, p, null, null, owners))
                         .toList()

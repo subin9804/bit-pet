@@ -54,4 +54,7 @@ public interface PostMstRepository extends JpaRepository<PostMst, Long> {
                                            Pageable pageable);
 
     Page<PostMst> findByUserId(Long userId, Pageable pageable);
+
+    // 남의 프로필 > 작성한 글. 성인에게는 어린이 게시판 글을 뺀다 (제외할 게 없으면 -1 센티널).
+    Page<PostMst> findByUserIdAndCategoryIdNot(Long userId, Long excludeCategoryId, Pageable pageable);
 }

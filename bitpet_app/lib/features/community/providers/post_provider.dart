@@ -427,11 +427,17 @@ final myPostsProvider =
     StateNotifierProvider.autoDispose<MyPostsNotifier, MyPostsState>(
         (ref) => MyPostsNotifier(ref.watch(postRepositoryProvider)));
 
+/// 프로필 화면 > 작성한 글. 상태·페이지 규칙은 내 글과 같다.
+final userPostsProvider = StateNotifierProvider.autoDispose
+    .family<MyPostsNotifier, MyPostsState, int>((ref, userId) =>
+        MyPostsNotifier(ref.watch(postRepositoryProvider), userId: userId));
+
 class MyPostsNotifier extends StateNotifier<MyPostsState> {
   final PostRepository _repo;
+  final int? userId;
   int _page = 0;
 
-  MyPostsNotifier(this._repo) : super(const MyPostsState()) {
+  MyPostsNotifier(this._repo, {this.userId}) : super(const MyPostsState()) {
     refresh();
   }
 
@@ -439,7 +445,7 @@ class MyPostsNotifier extends StateNotifier<MyPostsState> {
     _page = 0;
     state = const MyPostsState(loading: true);
     try {
-      final p = await _repo.getMyPosts(page: 0);
+      final p = await _repo.getMyPosts(page: 0, userId: userId);
       state = MyPostsState(posts: p.items, loading: false, hasMore: !p.last);
     } catch (e) {
       state = MyPostsState(loading: false, hasMore: false, error: e);
@@ -451,7 +457,7 @@ class MyPostsNotifier extends StateNotifier<MyPostsState> {
     state = state.copyWith(loadingMore: true);
     try {
       final next = _page + 1;
-      final p = await _repo.getMyPosts(page: next);
+      final p = await _repo.getMyPosts(page: next, userId: userId);
       _page = next;
       state = state.copyWith(
         posts: [...state.posts, ...p.items],
@@ -498,11 +504,16 @@ final myCommentsProvider =
     StateNotifierProvider.autoDispose<MyCommentsNotifier, MyCommentsState>(
         (ref) => MyCommentsNotifier(ref.watch(postRepositoryProvider)));
 
+final userCommentsProvider = StateNotifierProvider.autoDispose
+    .family<MyCommentsNotifier, MyCommentsState, int>((ref, userId) =>
+        MyCommentsNotifier(ref.watch(postRepositoryProvider), userId: userId));
+
 class MyCommentsNotifier extends StateNotifier<MyCommentsState> {
   final PostRepository _repo;
+  final int? userId;
   int _page = 0;
 
-  MyCommentsNotifier(this._repo) : super(const MyCommentsState()) {
+  MyCommentsNotifier(this._repo, {this.userId}) : super(const MyCommentsState()) {
     refresh();
   }
 
@@ -510,7 +521,7 @@ class MyCommentsNotifier extends StateNotifier<MyCommentsState> {
     _page = 0;
     state = const MyCommentsState(loading: true);
     try {
-      final p = await _repo.getMyComments(page: 0);
+      final p = await _repo.getMyComments(page: 0, userId: userId);
       state =
           MyCommentsState(comments: p.items, loading: false, hasMore: !p.last);
     } catch (e) {
@@ -523,7 +534,7 @@ class MyCommentsNotifier extends StateNotifier<MyCommentsState> {
     state = state.copyWith(loadingMore: true);
     try {
       final next = _page + 1;
-      final p = await _repo.getMyComments(page: next);
+      final p = await _repo.getMyComments(page: next, userId: userId);
       _page = next;
       state = state.copyWith(
         comments: [...state.comments, ...p.items],

@@ -1,6 +1,7 @@
 package io.bitpet.community.dto;
 
 import io.bitpet.community.domain.PostCommentDtl;
+import io.bitpet.community.domain.PostMst;
 
 import java.time.Instant;
 
@@ -29,6 +30,23 @@ public record MyCommentResponse(
                 postTitle == null,
                 c.getParentCommentId(),
                 c.getContent(), c.getCreatedAt()
+        );
+    }
+
+    /**
+     * 남의 프로필 > 작성한 댓글 한 줄. 모양은 '내 댓글'과 같고, 블라인드만 가린다 —
+     * 댓글이 가려졌으면 본문을, 원글이 가려졌으면 제목을 ({@link BlindMask}).
+     * 원글이 지워진 댓글은 쿼리에서 이미 빠져 {@code post} 는 null 이 아니다.
+     */
+    public static MyCommentResponse ofOthers(PostCommentDtl c, PostMst post) {
+        return new MyCommentResponse(
+                c.getId(), c.getPostId(),
+                post.isBlinded() ? BlindMask.TITLE : post.getTitle(),
+                post.getCategoryId(),
+                false,
+                c.getParentCommentId(),
+                c.isBlinded() ? BlindMask.COMMENT : c.getContent(),
+                c.getCreatedAt()
         );
     }
 }

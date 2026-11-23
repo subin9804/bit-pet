@@ -56,7 +56,10 @@ class _MyActivityScreenState extends ConsumerState<MyActivityScreen>
       ),
       body: TabBarView(
         controller: _tab,
-        children: const [_MyPostsTab(), _MyCommentsTab()],
+        children: [
+          PostsListTab(provider: myPostsProvider),
+          CommentsListTab(provider: myCommentsProvider),
+        ],
       ),
     );
   }
@@ -68,13 +71,23 @@ bool _nearBottom(ScrollNotification n) =>
 
 // ── 작성한 글 ────────────────────────────────────────────────────────────────
 
-class _MyPostsTab extends ConsumerWidget {
-  const _MyPostsTab();
+/// 글 목록 탭. 내 게시글과 프로필 화면(남이 쓴 글)이 같이 쓴다 — 넘기는 provider 만 다르다.
+class PostsListTab extends ConsumerWidget {
+  final AutoDisposeStateNotifierProvider<MyPostsNotifier, MyPostsState> provider;
+  final String emptyMessage;
+  final String? emptySubMessage;
+
+  const PostsListTab({
+    super.key,
+    required this.provider,
+    this.emptyMessage = '작성한 글이 없어요',
+    this.emptySubMessage = '커뮤니티에 첫 글을 남겨 보세요.',
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(myPostsProvider);
-    final notifier = ref.read(myPostsProvider.notifier);
+    final state = ref.watch(provider);
+    final notifier = ref.read(provider.notifier);
 
     if (state.loading) {
       return const SkeletonCardList();
@@ -83,10 +96,10 @@ class _MyPostsTab extends ConsumerWidget {
       return _ErrorRetry(onRetry: notifier.refresh);
     }
     if (state.posts.isEmpty) {
-      return const EmptyState(
+      return EmptyState(
         icon: Icons.article_outlined,
-        message: '작성한 글이 없어요',
-        subMessage: '커뮤니티에 첫 글을 남겨 보세요.',
+        message: emptyMessage,
+        subMessage: emptySubMessage,
       );
     }
 
@@ -234,13 +247,24 @@ class _MyPostRow extends StatelessWidget {
 
 // ── 작성한 댓글 ──────────────────────────────────────────────────────────────
 
-class _MyCommentsTab extends ConsumerWidget {
-  const _MyCommentsTab();
+/// 댓글 목록 탭. [PostsListTab] 과 같은 이유로 provider 를 받는다.
+class CommentsListTab extends ConsumerWidget {
+  final AutoDisposeStateNotifierProvider<MyCommentsNotifier, MyCommentsState>
+      provider;
+  final String emptyMessage;
+  final String? emptySubMessage;
+
+  const CommentsListTab({
+    super.key,
+    required this.provider,
+    this.emptyMessage = '작성한 댓글이 없어요',
+    this.emptySubMessage = '다른 사육자의 글에 댓글을 남겨 보세요.',
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(myCommentsProvider);
-    final notifier = ref.read(myCommentsProvider.notifier);
+    final state = ref.watch(provider);
+    final notifier = ref.read(provider.notifier);
 
     if (state.loading) {
       return const SkeletonCardList();
@@ -249,10 +273,10 @@ class _MyCommentsTab extends ConsumerWidget {
       return _ErrorRetry(onRetry: notifier.refresh);
     }
     if (state.comments.isEmpty) {
-      return const EmptyState(
+      return EmptyState(
         icon: Icons.chat_bubble_outline,
-        message: '작성한 댓글이 없어요',
-        subMessage: '다른 사육자의 글에 댓글을 남겨 보세요.',
+        message: emptyMessage,
+        subMessage: emptySubMessage,
       );
     }
 

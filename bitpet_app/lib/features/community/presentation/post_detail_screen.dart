@@ -14,6 +14,7 @@ import '../data/models/post_models.dart';
 import '../data/models/report_models.dart';
 import '../data/post_repository.dart';
 import '../providers/post_provider.dart';
+import 'author_link.dart';
 import 'post_photo_carousel.dart';
 import 'report_actions.dart';
 import '../../../core/theme/app_dimens.dart';
@@ -268,16 +269,23 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                         // 작성자 행
                         Row(
                           children: [
-                            _Avatar(size: 36, imageUrl: post.authorImageUrl),
+                            AuthorLink(
+                              userId: post.userId,
+                              child: _Avatar(
+                                  size: 36, imageUrl: post.authorImageUrl),
+                            ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    post.authorName,
-                                    style: AppTextStyles.bodyBold.copyWith(
-                                      fontSize: 13,
+                                  AuthorLink(
+                                    userId: post.userId,
+                                    child: Text(
+                                      post.authorName,
+                                      style: AppTextStyles.bodyBold.copyWith(
+                                        fontSize: 13,
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(height: 1),
@@ -632,7 +640,10 @@ class _CommentItem extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _Avatar(size: 32, imageUrl: comment.authorImageUrl),
+          AuthorLink(
+            userId: comment.userId,
+            child: _Avatar(size: 32, imageUrl: comment.authorImageUrl),
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
@@ -642,9 +653,12 @@ class _CommentItem extends StatelessWidget {
                   crossAxisAlignment: WrapCrossAlignment.center,
                   spacing: 6,
                   children: [
-                    Text(
-                      comment.authorName,
-                      style: AppTextStyles.bodyBold.copyWith(fontSize: 12),
+                    AuthorLink(
+                      userId: comment.userId,
+                      child: Text(
+                        comment.authorName,
+                        style: AppTextStyles.bodyBold.copyWith(fontSize: 12),
+                      ),
                     ),
                     if (comment.isPostAuthor)
                       Container(
@@ -698,7 +712,10 @@ class _CommentItem extends StatelessWidget {
                               color: AppColors.ink3,
                             ),
                           ),
-                          _Avatar(size: 26, imageUrl: r.authorImageUrl),
+                          AuthorLink(
+                            userId: r.userId,
+                            child: _Avatar(size: 26, imageUrl: r.authorImageUrl),
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Column(
@@ -708,10 +725,13 @@ class _CommentItem extends StatelessWidget {
                                   crossAxisAlignment: WrapCrossAlignment.center,
                                   spacing: 6,
                                   children: [
-                                    Text(
-                                      r.authorName,
-                                      style: AppTextStyles.bodyBold.copyWith(
-                                        fontSize: 12,
+                                    AuthorLink(
+                                      userId: r.userId,
+                                      child: Text(
+                                        r.authorName,
+                                        style: AppTextStyles.bodyBold.copyWith(
+                                          fontSize: 12,
+                                        ),
                                       ),
                                     ),
                                     Text(

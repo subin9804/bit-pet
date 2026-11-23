@@ -73,8 +73,10 @@ class PostRepository {
   }
 
   // ── 마이페이지 > 내 게시글 ─────────────────────────────────
-  Future<PostPage> getMyPosts({int page = 0, int size = 20}) async {
-    final res = await _dio.get('/posts/mine',
+  /// [userId] 가 있으면 그 사람이 쓴 글(프로필 화면), 없으면 내 글.
+  Future<PostPage> getMyPosts({int page = 0, int size = 20, int? userId}) async {
+    final res = await _dio.get(
+        userId == null ? '/posts/mine' : '/users/$userId/posts',
         queryParameters: {'page': page, 'size': size});
     final apiRes = ApiResponse.fromJson(
       res.data as Map<String, dynamic>,
@@ -90,8 +92,13 @@ class PostRepository {
     );
   }
 
-  Future<MyCommentPage> getMyComments({int page = 0, int size = 20}) async {
-    final res = await _dio.get('/posts/comments/mine',
+  /// [userId] 가 있으면 그 사람이 쓴 댓글(보는 사람이 열 수 있는 글에 달린 것만).
+  Future<MyCommentPage> getMyComments(
+      {int page = 0, int size = 20, int? userId}) async {
+    final res = await _dio.get(
+        userId == null
+            ? '/posts/comments/mine'
+            : '/users/$userId/comments',
         queryParameters: {'page': page, 'size': size});
     final apiRes = ApiResponse.fromJson(
       res.data as Map<String, dynamic>,

@@ -452,14 +452,21 @@ class PublicUserProfile {
   final int userId;
   final String nickname;
   final String? profileImageUrl;
+  final String? profileColor;
   final bool isMe;
+
+  /// 가계도 닉네임을 비공개로 둔 사람 — 프로필은 열리지만 개체 목록은 비어 온다.
+  /// '공개 개체 없음'과 구분해 안내하려고 받는다.
+  final bool petsHidden;
   final List<PetCard> publicPets;
 
   const PublicUserProfile({
     required this.userId,
     required this.nickname,
     this.profileImageUrl,
+    this.profileColor,
     this.isMe = false,
+    this.petsHidden = false,
     this.publicPets = const [],
   });
 
@@ -468,7 +475,9 @@ class PublicUserProfile {
         userId: (json['userId'] as num).toInt(),
         nickname: json['nickname'] as String? ?? '',
         profileImageUrl: json['profileImageUrl'] as String?,
+        profileColor: json['profileColor'] as String?,
         isMe: json['isMe'] as bool? ?? false,
+        petsHidden: json['petsHidden'] as bool? ?? false,
         publicPets: (json['publicPets'] as List<dynamic>? ?? [])
             .map((e) => PetCard.fromJson(e as Map<String, dynamic>))
             .toList(),

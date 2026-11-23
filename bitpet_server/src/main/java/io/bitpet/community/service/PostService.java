@@ -191,6 +191,57 @@ public class PostService {
         return new PageImpl<>(content, page.getPageable(), page.getTotalElements());
     }
 
+    // -------------------------------------------------------------------------
+    // 남의 프로필 > 작성한 글·댓글 (2026-11-23)
+    // -------------------------------------------------------------------------
+    //
+    // 커뮤니티에서 작성자 닉네임을 누르면 들어오는 화면. 피드와 같은 규칙을 그대로 건다 —
+    // 차단 관계면 막고(방향 구분 없는 에러 하나), 성인에게는 어린이 게시판 글을 빼고,
+    // 커뮤니티가 꺼진 자녀 계정은 읽지 못한다(excludedCategoryIdFor 가 먼저 막는다).
+    // 블라인드는 DTO 가 가린다. 본인이면 '내 글'과 같은 목록이 된다.
+
+    public Page<PostSummaryResponse> listUserPosts(Long viewerId, Long targetUserId, Pageable pageable) {
+        long excludeId = excludedCategoryOrSentinel(viewerId);
+        assertNotBlockedUser(viewerId, targetUserId);
+        return toSummaryPage(viewerId,
+                postRepository.findByUserIdAndCategoryIdNot(targetUserId, excludeId, pageable));
+    }
+
+    public Page<MyCommentResponse> listUserComments(Long viewerId, Long targetUserId, Pageable pageable) {
+        long excludeId = excludedCategoryOrSentinel(viewerId);
+        assertNotBlockedUser(viewerId, targetUserId);
+        Set<Long> hiddenSet = blockService.hiddenUserIds(viewerId);
+        Collection<Long> hidden = hiddenSet.isEmpty() ? List.of(-1L) : hiddenSet;
+
+        Page<PostCommentDtl> page =
+                commentRepository.findVisibleByUserId(targetUserId, excludeId, hidden, pageable);
+        List<PostCommentDtl> comments = page.getContent();
+        Map<Long, PostMst> posts = comments.isEmpty()
+                ? Map.of()
+                : postRepository.findAllById(comments.stream()
+                                .map(PostCommentDtl::getPostId).collect(Collectors.toSet()))
+                        .stream()
+                        .collect(Collectors.toMap(PostMst::getId, p -> p));
+
+        // 쿼리가 원글 있는 댓글만 고르지만, 그 사이 원글이 지워졌을 수 있어 한 번 더 거른다
+        List<MyCommentResponse> content = comments.stream()
+                .filter(c -> posts.containsKey(c.getPostId()))
+                .map(c -> MyCommentResponse.ofOthers(c, posts.get(c.getPostId())))
+                .toList();
+        return new PageImpl<>(content, page.getPageable(), page.getTotalElements());
+    }
+
+    private long excludedCategoryOrSentinel(Long viewerId) {
+        Long excluded = kidsBoardPolicy.excludedCategoryIdFor(viewerId);
+        return excluded == null ? -1L : excluded;
+    }
+
+    private void assertNotBlockedUser(Long viewerId, Long targetUserId) {
+        if (blockService.isHidden(viewerId, targetUserId)) {
+            throw new BusinessException(ErrorCode.USER_HIDDEN);
+        }
+    }
+
     private Page<PostSummaryResponse> toSummaryPage(Long userId, Page<PostMst> page) {
         return new PageImpl<>(toSummaries(userId, page.getContent()),
                 page.getPageable(), page.getTotalElements());
