@@ -92,6 +92,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   /// 소셜 로그인 브라우저가 떠 있는 동안. 연타로 창이 여러 개 뜨지 않게 막는다.
   bool _socialBusy = false;
+  // 이메일 로그인 진행 중 — 전역 authState 의 loading 을 쓰면 라우터가 스플래시로 보낸다
+  bool _submitting = false;
 
   /// 이메일 폼을 펼쳤는지. 소셜 버튼이 없으면 접어 둘 이유가 없다.
   bool _emailOpen = !kSocialLoginEnabled;
@@ -133,12 +135,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    await ref.read(authStateProvider.notifier).login(
-      _emailCtrl.text.trim(),
-      _pwCtrl.text,
-      keepLoggedIn: _keepLoggedIn,
-    );
+    if (_submitting || !_formKey.currentState!.validate()) return;
+    setState(() => _submitting = true);
+    try {
+      await ref.read(authStateProvider.notifier).login(
+        _emailCtrl.text.trim(),
+        _pwCtrl.text,
+        keepLoggedIn: _keepLoggedIn,
+      );
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
     if (!mounted) return;
     ref.read(authStateProvider).whenOrNull(
       error: (e, _) {
@@ -197,7 +204,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isLoading = ref.watch(authStateProvider).isLoading;
+    final isLoading = _submitting;
 
     return Scaffold(
       backgroundColor: AppColors.canvas,

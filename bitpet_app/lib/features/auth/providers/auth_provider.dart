@@ -91,7 +91,9 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
   }
 
   Future<void> login(String email, String password, {bool keepLoggedIn = true}) async {
-    state = const AsyncValue.loading();
+    // ⛔ 여기서 state 를 loading 으로 두지 말 것 — 라우터가 loading 을 '토큰 확인 중'으로 보고
+    // 스플래시로 보낸다. 비번이 틀리면 스플래시를 찍고 로그인으로 돌아와 화면이 번쩍이고
+    // 입력한 이메일도 날아갔다 (2026-11-23 사용자 지적). 버튼의 로딩은 화면이 따로 든다.
     state = await AsyncValue.guard(
       () => _checkAgreement(_repo.login(
         LoginRequest(email: email, password: password),
@@ -122,7 +124,6 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
       if (grant == null) return null;
       exchange = () => _repo.exchangeSocial(grant, onLinked: (p) => linked = p);
     }
-    state = const AsyncValue.loading();
     state = await AsyncValue.guard(() => _checkAgreement(exchange()));
     if (state.hasValue && state.value != null) {
       await _setUpPush();
@@ -154,7 +155,7 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
     String profileColor = 'peach',
     PickedImage? profileImage,
   }) async {
-    state = const AsyncValue.loading();
+    // loading 을 두지 않는다 — login 과 같은 이유 (실패하면 가입 폼 입력이 통째로 날아갔다)
     state = await AsyncValue.guard(
       () => _repo.signup(
         SignupRequest(
