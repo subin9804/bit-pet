@@ -7,6 +7,14 @@ class AuthInterceptor extends Interceptor {
 
   AuthInterceptor(this._dio, this._tokenStorage);
 
+  /// 진행 중인 토큰 갱신. 401 이 여러 개 동시에 나도 갱신은 **한 번만** 보내고 나머지는 이걸 기다린다.
+  ///
+  /// 서버는 갱신할 때마다 refresh 토큰을 새로 바꾼다(이전 것은 무효). 예전엔 요청마다 따로 갱신해서
+  /// 첫 갱신이 토큰을 바꾸고 → 둘째가 옛 토큰으로 갱신하다 거부당해 → [TokenStorage.expireSession]
+  /// 으로 **방금 받은 새 토큰까지 지우고 로그아웃**됐다. 배경에 있던 앱을 NFC 태그로 깨우면
+  /// 태그 조회와 다른 화면 요청이 함께 401 을 받아 그대로 재현됐다 (2026-11-23 사용자 지적).
+  Future<bool>? _refreshing;
+
   @override
   void onRequest(
       RequestOptions options, RequestInterceptorHandler handler) async {
@@ -26,8 +34,7 @@ class AuthInterceptor extends Interceptor {
 
     if (err.response?.statusCode == 401 && !isAuthEndpoint) {
       try {
-        final refreshed = await _refreshToken();
-        if (refreshed) {
+        if (await _ensureFreshToken(err.requestOptions)) {
           final token = await _tokenStorage.getAccessToken();
           err.requestOptions.headers['Authorization'] = 'Bearer $token';
           final response = await _dio.fetch(err.requestOptions);
@@ -39,6 +46,19 @@ class AuthInterceptor extends Interceptor {
       await _tokenStorage.expireSession();
     }
     handler.next(err);
+  }
+
+  /// 이 요청이 실어 보낸 토큰보다 새 토큰이 이미 있으면(다른 요청이 갱신을 끝냄) 그걸로 다시 보내고,
+  /// 아니면 갱신을 하나로 묶어 기다린다.
+  Future<bool> _ensureFreshToken(RequestOptions options) async {
+    final current = await _tokenStorage.getAccessToken();
+    if (current != null &&
+        options.headers['Authorization'] != 'Bearer $current') {
+      return true;
+    }
+    final inFlight = _refreshing ??=
+        _refreshToken().whenComplete(() => _refreshing = null);
+    return inFlight;
   }
 
   Future<bool> _refreshToken() async {
