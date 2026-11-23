@@ -25,6 +25,9 @@ import java.util.Optional;
  * <p><b>노출 범위</b> — 이름·종·모프·성별·대표 사진까지. 이름표에 이미 적혀 있을 법한 것들이다.
  * 체중·급여 같은 사육 기록, 생일·입양일, 주인 정보는 절대 내려주지 않는다.
  *
+ * <p><b>모양은 앱 이름표 화면(NfcPetProfileView)을 따른다</b> (2026-11-23) — 연민트 밴드 위 히어로, 그 아래 흰 카드.
+ * 웹과 앱이 따로 놀지 않게. 색 값은 앱 토큰에서 옮겨 왔다.
+ *
  * <p><b>설치 유도는 아주 약하게.</b> 이 페이지의 주인공은 개체다. 설치 링크는 맨 아래 작은
  * 한 줄로만 둔다 — 광고처럼 보이는 순간 이름표의 신뢰가 깎인다.
  */
@@ -70,69 +73,84 @@ public class TagLandingController {
     private String petPage(TagLandingPet pet, String tagCd) {
         String name = escape(pet.name());
 
-        // 종 · 모프 · 성별 — 있는 것만 가운뎃점으로 잇는다
-        StringBuilder meta = new StringBuilder();
-        if (pet.speciesName() != null) meta.append(escape(pet.speciesName()));
-        if (pet.genderLabel() != null) {
-            if (meta.length() > 0) meta.append(" · ");
-            meta.append(escape(pet.genderLabel()));
-        }
+        // 이름 옆 성별 기호 — 앱 히어로 카드의 SexIcon 과 같은 색
+        String sex = switch (pet.genderLabel() == null ? "" : pet.genderLabel()) {
+            case "수컷" -> "<span class=\"sex male\" title=\"수컷\">♂</span>";
+            case "암컷" -> "<span class=\"sex female\" title=\"암컷\">♀</span>";
+            default -> "";
+        };
 
-        StringBuilder morphs = new StringBuilder();
+        StringBuilder chips = new StringBuilder();
         for (String m : pet.morphNames()) {
-            morphs.append("<span class=\"chip\">").append(escape(m)).append("</span>");
+            chips.append("<span class=\"chip\">").append(escape(m)).append("</span>");
         }
 
         String photo = pet.imageUrl() != null
-                ? "<img class=\"photo\" src=\"" + escape(pet.imageUrl()) + "\" alt=\"\">"
-                : "<div class=\"photo placeholder\"><img src=\"/brand/icon-512.png\" alt=\"\"></div>";
+                ? "<img class=\"avatar\" src=\"" + escape(pet.imageUrl()) + "\" alt=\"\">"
+                : "<div class=\"avatar placeholder\"><img src=\"/brand/icon-512.png\" alt=\"\"></div>";
 
-        // 주인 · 마지막 기록 — 개체 정보 아래 작은 두 줄. 기록은 종류와 시점만이다
-        StringBuilder facts = new StringBuilder();
+        // 사육자 · 마지막 기록 — 앱 이름표 화면의 '사육자' 줄과 같은 카드. 기록은 종류와 시점만이다
+        StringBuilder rows = new StringBuilder();
         if (pet.ownerName() != null) {
-            facts.append("<div class=\"fact\"><span>주인</span><b>")
-                 .append(escape(pet.ownerName())).append("</b></div>");
+            rows.append(row("사육자", escape(pet.ownerName())));
         }
         if (pet.lastRecordLabel() != null) {
-            facts.append("<div class=\"fact\"><span>마지막 기록</span><b>")
-                 .append(escape(pet.lastRecordLabel())).append(" · ")
-                 .append(escape(relativeDay(pet.lastRecordAt()))).append("</b></div>");
+            rows.append(row("마지막 기록",
+                    escape(pet.lastRecordLabel()) + " · " + escape(relativeDay(pet.lastRecordAt()))));
         }
 
         // 부모 — 이름이 주인공이고 모프는 있을 때만 작게 뒤에 붙는다
         StringBuilder parents = new StringBuilder();
         for (var p : pet.parents()) {
-            parents.append("<div class=\"parent\"><span>").append(escape(p.roleLabel()))
-                   .append("</span><b>").append(escape(p.name())).append("</b>");
+            parents.append("<div class=\"row parent\"><span>").append(escape(p.roleLabel()))
+                   .append("</span><b>").append(escape(p.name()));
             if (!p.morphNames().isEmpty()) {
                 parents.append("<i>").append(escape(String.join(" · ", p.morphNames()))).append("</i>");
             }
-            parents.append("</div>");
+            parents.append("</b></div>");
         }
 
         String body = """
-                  <header><img class="wordmark" src="/brand/logo.svg" alt="TAILOG"></header>
+                  <section class="band">
+                    %s
+                    <div class="hero">
+                      %s
+                      <div class="hero-text">
+                        <h1><span class="name">%s</span>%s</h1>
+                        %s
+                        %s
+                      </div>
+                    </div>
+                  </section>
                   <main>
                     %s
-                    <h1>%s</h1>
                     %s
-                    %s
-                    %s
-                    %s
+                    <p class="note">사육 기록은 사육자만 볼 수 있어요.</p>
                     <p class="code">%s</p>
                   </main>
                 """.formatted(
+                topBar(),
                 photo,
-                name,
-                meta.length() > 0 ? "<p class=\"meta\">" + meta + "</p>" : "",
-                morphs.length() > 0 ? "<div class=\"chips\">" + morphs + "</div>" : "",
-                facts.length() > 0 ? "<div class=\"facts\">" + facts + "</div>" : "",
+                name, sex,
+                pet.speciesName() != null ? "<p class=\"species\">" + escape(pet.speciesName()) + "</p>" : "",
+                chips.length() > 0 ? "<div class=\"chips\">" + chips + "</div>" : "",
+                rows.length() > 0 ? "<div class=\"card\">" + rows + "</div>" : "",
                 parents.length() > 0
-                        ? "<div class=\"parents\"><p class=\"parents-title\">부모</p>" + parents + "</div>"
+                        ? "<p class=\"section\">부모</p><div class=\"card\">" + parents + "</div>"
                         : "",
                 tagCd);
 
         return page(name + " 의 이름표", body);
+    }
+
+    private static String row(String label, String value) {
+        return "<div class=\"row\"><span>" + label + "</span><b>" + value + "</b></div>";
+    }
+
+    /** 앱 AppBar 자리 — 왼쪽 워드마크, 가운데 '이름표' */
+    private static String topBar() {
+        return "<div class=\"topbar\"><img class=\"wordmark\" src=\"/brand/logo.svg\" alt=\"TAILOG\">"
+                + "<span>이름표</span></div>";
     }
 
     /** "오늘 / 어제 / N일 전 / yyyy.MM.dd" — 30일이 넘으면 상대 표현이 오히려 안 읽힌다 */
@@ -149,18 +167,28 @@ public class TagLandingController {
 
     private String emptyPage(String headline, String subline, String tagCd) {
         String body = """
-                  <header><img class="wordmark" src="/brand/logo.svg" alt="TAILOG"></header>
+                  <section class="band">
+                    %s
+                  </section>
                   <main>
-                    <div class="photo placeholder"><img src="/brand/icon-512.png" alt=""></div>
-                    <h1>%s</h1>
-                    <p class="meta">%s</p>
+                    <div class="card empty">
+                      <div class="avatar placeholder"><img src="/brand/icon-512.png" alt=""></div>
+                      <h1>%s</h1>
+                      <p class="species">%s</p>
+                    </div>
                     %s
                   </main>
-                """.formatted(headline, subline,
+                """.formatted(topBar(), headline, subline,
                 tagCd.isEmpty() ? "" : "<p class=\"code\">" + tagCd + "</p>");
         return page(headline, body);
     }
 
+    /**
+     * 공통 틀. <b>앱 이름표 화면(NfcPetProfileView)과 같은 모양</b>으로 맞췄다 (2026-11-23 사용자 요청 —
+     * 웹과 앱이 따로 노는 느낌). 색·글꼴·둥글기·그림자는 앱 토큰(AppColors / AppRadius / AppShadows)
+     * 값을 그대로 옮긴 것이다 — 앱 쪽 토큰을 바꾸면 여기도 같이 볼 것.
+     * 연민트 밴드 위 히어로(원형 사진 + 이름·성별 + 종 + 모프 칩) → 회색 캔버스 위 흰 카드.
+     */
     private String page(String title, String body) {
         String store = escape(deeplinkProperties.playStoreUrl());
         return """
@@ -170,51 +198,67 @@ public class TagLandingController {
                   <meta charset="utf-8">
                   <meta name="viewport" content="width=device-width,initial-scale=1">
                   <meta name="robots" content="noindex">
+                  <meta name="theme-color" content="#EDFBF4">
                   <link rel="icon" href="/brand/favicon.png">
+                  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
                   <title>%s · 테일로그</title>
                   <style>
-                    :root { color-scheme: light; }
+                    :root { color-scheme: light;
+                            --brand50:#EDFBF4; --brand700:#0B7A4B;
+                            --canvas:#F4F6F5; --line:#E6EBE7; --ink:#121A15; --ink2:#5B665F; --ink3:#909A94;
+                            --male:#3E9BDE; --female:#D95F8B; }
                     * { box-sizing: border-box; }
-                    body { margin:0; min-height:100vh; display:flex; flex-direction:column;
-                           align-items:center; justify-content:center; padding:32px 20px;
-                           background:#F4FBF6; color:#2B2A26;
-                           font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,
-                                       "Apple SD Gothic Neo","Noto Sans KR",sans-serif; }
-                    header { margin-bottom:18px; }
-                    .wordmark { height:22px; opacity:.5; }
-                    main { width:min(400px,100%%); background:#fff; border:1px solid #E4EFE8;
-                           padding:32px 24px 26px; text-align:center; }
-                    .photo { width:132px; height:132px; object-fit:cover; border-radius:50%%;
-                             display:block; margin:0 auto 18px; background:#F4FBF6; }
-                    .photo.placeholder { display:flex; align-items:center; justify-content:center; }
-                    .photo.placeholder img { width:76px; height:76px; opacity:.85; }
-                    h1 { font-size:24px; margin:0 0 6px; letter-spacing:-.02em; }
-                    .meta { font-size:14px; line-height:1.6; color:#6B7A70; margin:0; }
-                    .chips { margin-top:12px; display:flex; flex-wrap:wrap; gap:6px;
-                             justify-content:center; }
-                    .chip { font-size:12px; padding:5px 10px; background:#F0F8F3;
-                            color:#3E7A5E; }
-                    /* 주인 · 마지막 기록 — 기록의 '내용'은 여기 절대 넣지 말 것 (공개 URL 이다) */
-                    .facts { margin-top:18px; padding-top:14px; border-top:1px solid #EFF5F1;
-                             display:flex; flex-direction:column; gap:7px; }
-                    .fact { display:flex; justify-content:space-between; font-size:13px; }
-                    .fact span { color:#9AA8A0; }
-                    .fact b { font-weight:600; color:#3E4B44; }
-                    /* 부모 — 남의 개체가 섞이는 자리라 이름(+공개 조건 만족 시 모프)만 */
-                    .parents { margin-top:14px; padding-top:14px; border-top:1px solid #EFF5F1;
-                               display:flex; flex-direction:column; gap:8px; text-align:left; }
-                    .parents-title { font-size:11px; font-weight:700; letter-spacing:.08em;
-                                     color:#9AA8A0; }
-                    .parent { display:flex; align-items:baseline; gap:8px; font-size:13px; }
-                    .parent span { flex:none; width:28px; color:#9AA8A0; }
-                    .parent b { font-weight:600; color:#3E4B44; }
-                    .parent i { font-style:normal; font-size:12px; color:#9AA8A0;
-                                overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-                    .code { margin-top:20px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
-                            font-size:11px; letter-spacing:.14em; color:#B6C4BC; }
+                    html, body { margin:0; background:var(--canvas); }
+                    body { color:var(--ink); min-height:100vh;
+                           font-family:Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",
+                                       "Noto Sans KR","Segoe UI",Roboto,sans-serif;
+                           -webkit-font-smoothing:antialiased; }
+                    .band, main, footer { width:min(480px,100%%); margin:0 auto; }
+                    /* 상단 민트 밴드 — 앱 brandTintSoft */
+                    .band { background:var(--brand50); padding:0 24px 28px; }
+                    @media (min-width:481px) { .band { border-radius:0 0 16px 16px; } }
+                    .topbar { height:56px; display:flex; align-items:center; position:relative; }
+                    .topbar .wordmark { height:18px; opacity:.55; }
+                    .topbar span { position:absolute; left:50%%; transform:translateX(-50%%);
+                                   font-size:17px; font-weight:700; }
+                    .hero { display:flex; align-items:center; gap:24px; padding-top:8px; }
+                    .avatar { flex:none; width:88px; height:88px; border-radius:50%%; object-fit:cover;
+                              background:#fff; display:block; }
+                    .avatar.placeholder { display:flex; align-items:center; justify-content:center; overflow:hidden; }
+                    .avatar.placeholder img { width:100%%; height:100%%; object-fit:cover; }
+                    .hero-text { min-width:0; }
+                    h1 { margin:0; font-size:24px; font-weight:800; letter-spacing:-.4px; line-height:1.3;
+                         display:flex; align-items:center; gap:8px; }
+                    .name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+                    .sex { font-size:18px; font-weight:700; }
+                    .sex.male { color:var(--male); } .sex.female { color:var(--female); }
+                    .species { margin:4px 0 0; font-size:14px; line-height:1.5; color:var(--ink2); }
+                    .chips { margin-top:12px; display:flex; flex-wrap:wrap; gap:6px 8px; }
+                    .chip { font-size:12px; font-weight:700; padding:5px 12px; border-radius:999px;
+                            background:#fff; color:var(--ink2); }
+                    main { padding:16px 24px 8px; }
+                    /* 흰 카드 — 앱 AppDecor.cardRaised */
+                    .card { background:#fff; border:1px solid var(--line); border-radius:16px;
+                            box-shadow:0 1px 2px rgba(15,21,18,.05), 0 2px 10px rgba(15,21,18,.04);
+                            margin-bottom:12px; }
+                    .row { display:flex; align-items:baseline; gap:12px; padding:14px 16px; font-size:13px; }
+                    .row + .row { border-top:1px solid var(--line); }
+                    .row span { flex:none; min-width:64px; color:var(--ink2); }
+                    .row b { min-width:0; font-size:15px; font-weight:600; color:var(--ink);
+                             overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+                    .row.parent span { min-width:32px; }
+                    .row.parent i { font-style:normal; font-size:12px; font-weight:400; color:var(--ink3);
+                                    margin-left:8px; }
+                    .section { margin:20px 4px 8px; font-size:12px; font-weight:700; color:var(--ink3); }
+                    .card.empty { padding:32px 24px; text-align:center; }
+                    .card.empty .avatar { margin:0 auto 16px; background:var(--brand50); }
+                    .card.empty h1 { justify-content:center; font-size:20px; font-weight:700; }
+                    .note { margin:16px 4px 0; font-size:13px; color:var(--ink3); }
+                    .code { margin:24px 0 0; text-align:center; font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+                            font-size:11px; font-weight:700; letter-spacing:.14em; color:#B6C4BC; }
                     /* 설치 유도는 여기 한 줄뿐 — 버튼으로 키우지 말 것 */
-                    footer { margin-top:16px; font-size:12px; color:#9AA8A0; text-align:center; }
-                    footer a { color:#6B7A70; }
+                    footer { padding:12px 24px 32px; font-size:12px; color:var(--ink3); text-align:center; }
+                    footer a { color:var(--brand700); font-weight:600; text-decoration:none; }
                   </style>
                 </head>
                 <body>
