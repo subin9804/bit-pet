@@ -14,8 +14,6 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -31,6 +29,11 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @EnableWebSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
+
+    // ⛔ `AuthenticationManager` 빈(`configuration.getAuthenticationManager()`)을 다시 만들지 말 것.
+    //    쓰는 곳이 없었고, 등록된 provider 가 없어 **자기 자신을 parent 로** 물었다. 소셜 로그인이
+    //    실패하는 순간 ProviderManager 가 parent 로 넘기며 무한 재귀(StackOverflowError) → /error →
+    //    "Full authentication is required" 로 진짜 원인이 가려졌다 (2026-11-23 구글 로그인 장애).
 
     private final SecurityProperties securityProperties;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -70,11 +73,6 @@ public class SecurityConfig {
         }
 
         return http.build();
-    }
-
-    @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
-        return configuration.getAuthenticationManager();
     }
 
     @Bean
