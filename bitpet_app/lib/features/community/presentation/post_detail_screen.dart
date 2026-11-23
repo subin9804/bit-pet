@@ -371,6 +371,11 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                           ),
                       ],
                     ),
+                    // 댓글이 없으면 카드째 숨긴다 — '첫 댓글을 남겨보세요'만 든 빈 상자가
+                    // 자리만 차지했다 (2026-11-23 사용자 결정). 불러오기 전엔 글의 댓글 수로 판단해
+                    // 상자가 떴다 사라지지 않게 한다.
+                    if (!(commentsAsync.valueOrNull?.isEmpty ??
+                        post.commentCount == 0)) ...[
                     const SizedBox(height: AppSpacing.md),
                     _SectionCard(
                       children: [
@@ -412,21 +417,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                               ),
                             ),
                           ),
-                          data: (comments) => comments.isEmpty
-                              ? Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 24,
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      readOnly ? '아직 댓글이 없어요' : '첫 댓글을 남겨보세요',
-                                      style: AppTextStyles.caption.copyWith(
-                                        color: AppColors.ink3,
-                                      ),
-                                    ),
-                                  ),
-                                )
-                              : Column(
+                          data: (comments) => Column(
                                   children: comments
                                       .map(
                                         (c) => _CommentItem(
@@ -444,6 +435,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                         ),
                       ],
                     ),
+                    ],
                   ],
                 ),
               ),
