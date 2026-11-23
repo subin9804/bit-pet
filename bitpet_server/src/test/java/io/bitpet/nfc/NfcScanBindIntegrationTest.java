@@ -46,6 +46,7 @@ class NfcScanBindIntegrationTest extends IntegrationTestBase {
     @Autowired private AuthService authService;
     @Autowired private PetService petService;
     @Autowired private NfcTagService nfcTagService;
+    @Autowired private io.bitpet.community.service.BlockService blockService;
     @Autowired private PetKeeperRlsRepository keeperRepository;
     @Autowired private io.bitpet.record.repository.WeightDtlRepository weightRepository;
 
@@ -105,6 +106,30 @@ class NfcScanBindIntegrationTest extends IntegrationTestBase {
         assertThat(res.pet().name()).isEqualTo("비공개레오");
         assertThat(res.pet().owner()).isNull();
         assertThat(res.latestWeightG()).isEqualTo(52.5);
+    }
+
+    @Test
+    void 이름표_프로필에_소유자가_실리고_닉네임_비공개나_차단이면_감춘다() {
+        Long owner    = signup();
+        Long stranger = signup();
+        Long petId    = createPet(owner, "주인있는레오", PetGender.MALE);
+        String tagCd  = issueTag();
+        nfcTagService.bind(owner, tagCd, petId, false);
+
+        var shown = nfcTagService.profile(stranger, tagCd).owner();
+        assertThat(shown.userId()).isEqualTo(owner);
+        assertThat(shown.nickname()).isNotBlank();
+        assertThat(shown.isMe()).isFalse();
+
+        // 가계도 닉네임을 감춘 사람 — userId 가 남으면 앱이 프로필로 가 버린다
+        authService.updateMe(owner, new io.bitpet.auth.dto.UpdateMeRequest(null, null, null, false));
+        var hidden = nfcTagService.profile(stranger, tagCd).owner();
+        assertThat(hidden.userId()).isNull();
+        assertThat(hidden.nickname()).isEqualTo("비공개");
+
+        authService.updateMe(owner, new io.bitpet.auth.dto.UpdateMeRequest(null, null, null, true));
+        blockService.block(owner, stranger);
+        assertThat(nfcTagService.profile(stranger, tagCd).owner().userId()).isNull();
     }
 
     @Test

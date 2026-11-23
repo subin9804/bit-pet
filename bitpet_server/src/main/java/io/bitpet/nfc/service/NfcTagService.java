@@ -10,6 +10,7 @@ import io.bitpet.nfc.dto.NfcPetProfileResponse;
 import io.bitpet.nfc.dto.NfcScanResponse;
 import io.bitpet.nfc.dto.TagLandingPet;
 import io.bitpet.nfc.dto.TagResolveResponse;
+import io.bitpet.pet.dto.PetOwnerResponse;
 import io.bitpet.photo.repository.PhotoDtlRepository;
 import io.bitpet.storage.S3Service;
 import io.bitpet.nfc.repository.NfcTagBindHstRepository;
@@ -57,6 +58,7 @@ public class NfcTagService {
     private final io.bitpet.record.repository.WeightDtlRepository weightRepository;  // 이름표 프로필 최신 체중
     private final io.bitpet.auth.repository.UserMstRepository userRepository;  // 랜딩 페이지 주인 닉네임
     private final io.bitpet.pet.repository.PetRelationRlsRepository relationRepository;  // 랜딩 페이지 부모
+    private final io.bitpet.community.service.BlockService blockService;          // 이름표 프로필 소유자 — 차단 관계면 감춘다
     private final org.springframework.jdbc.core.JdbcTemplate jdbc;             // 랜딩 페이지 마지막 기록
 
     // -------------------------------------------------------------------------
@@ -141,7 +143,23 @@ public class NfcTagService {
         // 체중은 최신 값 하나만 — 이력은 기록이라 이 경로로 내보내지 않는다
         Double latestWeight = weightRepository.findLatestByPetIds(List.of(pet.getId()))
                 .stream().findFirst().map(r -> r.getWeightG().doubleValue()).orElse(null);
-        return new NfcPetProfileResponse(petService.cardOf(userId, pet, keeper), latestWeight);
+        return new NfcPetProfileResponse(petService.cardOf(userId, pet, keeper), latestWeight,
+                ownerOf(userId, pet.getId()));
+    }
+
+    /**
+     * 이름표 프로필의 소유자 — 가계도 카드와 같은 규칙({@link PetOwnerResponse#of}).
+     * 차단 관계면 닉네임을 감춘 것과 똑같이 내린다. 눌러도 프로필이 열리지 않을 사람이고,
+     * "차단했음"을 따로 드러낼 이유도 없다.
+     */
+    private PetOwnerResponse ownerOf(Long requesterId, Long petId) {
+        return petKeeperService.ownerIdOf(petId)
+                .flatMap(userRepository::findById)
+                .map(u -> blockService.isHidden(requesterId, u.getId())
+                        ? PetOwnerResponse.hidden()
+                        : PetOwnerResponse.of(u.getId(), u.getName(), requesterId,
+                                u.isShowNicknameInPedigree()))
+                .orElse(PetOwnerResponse.orphaned());
     }
 
     /**
