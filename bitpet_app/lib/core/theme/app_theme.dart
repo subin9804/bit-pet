@@ -91,6 +91,20 @@ abstract final class AppTheme {
                     : null),
           ),
         ),
+        // FilledButton 도 ElevatedButton 과 같은 모양으로. 테마가 없을 땐 머티리얼 기본
+        // 알약(Stadium)·높이 40 이라, 옆에 놓인 OutlinedButton(네모·52)과 짝이 안 맞았다
+        // (받은 공유 초대의 거절/수락 — 2026-11-23 사용자 지적).
+        filledButtonTheme: FilledButtonThemeData(
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.brandAction,
+            foregroundColor: Colors.white,
+            disabledBackgroundColor: AppColors.line,
+            disabledForegroundColor: AppColors.ink3,
+            minimumSize: const Size.fromHeight(52),
+            shape: const RoundedRectangleBorder(borderRadius: AppRadius.brMd),
+            textStyle: AppTextStyles.button,
+          ),
+        ),
         textButtonTheme: TextButtonThemeData(
           style: TextButton.styleFrom(
             foregroundColor: AppColors.brandAction,
