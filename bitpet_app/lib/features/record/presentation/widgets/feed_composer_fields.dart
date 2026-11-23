@@ -425,8 +425,10 @@ class _VolumeInput extends StatelessWidget {
   );
 }
 
-// ── 직접입력 (이름 + 사이즈 + 마릿수) ──────────────────────────────────────────
-/// 카탈로그에 없는 먹이. 이름만 직접 적을 뿐 사이즈·마릿수는 다른 먹이와 똑같이 받는다.
+// ── 직접입력 (이름 + 급여량) ──────────────────────────────────────────────────
+/// 카탈로그에 없는 먹이. 메추리알·바나나·닭가슴살처럼 곤충이 아닌 경우가 대부분이라
+/// 사이즈(극소~대)·마릿수를 묻지 않고, 급여량을 단위까지 한 칸에 적게 한다 (2026-11-23 사용자 결정).
+/// 저장 위치는 사료·야채의 '직접입력' 급여량과 같은 `sizeLabel` 이다.
 class _CustomTextInput extends StatelessWidget {
   final FeedFormData form;
   final ValueChanged<FeedFormData> onChanged;
@@ -435,7 +437,6 @@ class _CustomTextInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final sizes = form.foodType!.sizeOptions ?? [];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -445,37 +446,51 @@ class _CustomTextInput extends StatelessWidget {
           initialValue: form.customText,
           onChanged: (v) => onChanged(form.copyWith(customText: v)),
           // 자동 포커스를 주지 않는다. '직접입력' 칩을 누른 순간 키보드가 올라오면
-          // 화면이 절반으로 접히면서 방금 고른 칩도, 아래 사이즈·마릿수도 밀려나
+          // 화면이 절반으로 접히면서 방금 고른 칩도, 아래 급여량 칸도 밀려나
           // 시점이 통째로 바뀐다. 칩을 고르는 것과 이름을 적는 것은 별개의 동작이라
           // 사용자가 입력란을 직접 누를 때 키보드가 올라오는 편이 덜 어지럽다.
-          maxLength: 50,
+          // 서버 food_type 이 VARCHAR(50) · @Size(max = 50)
+          inputFormatters: [_Utf16LengthLimit(kFoodNameMaxLength)],
           style: AppTextStyles.body,
-          decoration: AppInputStyles.textarea(hintText: '이름 직접 입력')
-              .copyWith(counterText: ''),
+          decoration: AppInputStyles.textarea(hintText: '이름 직접 입력'),
         ),
         const SizedBox(height: 12),
-        FeedFieldLabel('사이즈', optional: true),
+        FeedFieldLabel('급여량', optional: true),
         const SizedBox(height: 8),
-        Wrap(spacing: 7, children: sizes.map((s) {
-          final sel = form.sizeLabel == s;
-          return GestureDetector(
-            onTap: () => onChanged(form.copyWith(sizeLabel: sel ? null : s)),
-            child: AppChip(
-                label: s,
-                selected: sel,
-                selectedColor: AppColors.brandTint,
-                selectedTextColor: AppColors.brandTintInk),
-          );
-        }).toList()),
-        const SizedBox(height: 12),
-        FeedFieldLabel('마릿수', optional: true),
-        const SizedBox(height: 8),
-        _CountStepper(
-          count: form.count ?? 0,
-          bandColor: bandColor,
-          onChanged: (v) => onChanged(form.copyWith(count: v == 0 ? null : v)),
+        _AmountTextInput(
+          key: const ValueKey('amt-custom'),
+          initial: form.sizeLabel,
+          hintText: '예: 1개, 반 스푼, 5g',
+          onChanged: (v) => onChanged(form.copyWith(sizeLabel: v.isEmpty ? null : v)),
         ),
       ],
+    );
+  }
+}
+
+/// 글자 수를 **UTF-16 길이**로 자른다. `maxLength` 는 이모지 하나를 1자로 세지만
+/// 서버 `@Size` 는 2자 이상으로 세서, 칸이 허락한 글자를 서버가 400 으로 거절할 수 있다.
+/// 더 엄격한 쪽(UTF-16)에 맞춰 두면 서버를 넘는 값은 아예 입력되지 않는다.
+class _Utf16LengthLimit extends TextInputFormatter {
+  final int max;
+  const _Utf16LengthLimit(this.max);
+
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    if (newValue.text.length <= max) return newValue;
+    // 한글 조합 중(composing)에 자르면 글자가 깨진다 — 조합이 끝난 뒤 자른다
+    if (newValue.composing.isValid) return newValue;
+    // 이모지 반쪽(서로게이트 한쪽)이 남지 않게 문자 단위로 잘라 붙인다
+    final buf = StringBuffer();
+    for (final r in newValue.text.runes) {
+      final ch = String.fromCharCode(r);
+      if (buf.length + ch.length > max) break;
+      buf.write(ch);
+    }
+    final text = buf.toString();
+    return TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
     );
   }
 }
@@ -491,7 +506,8 @@ class _AmountTextInput extends StatelessWidget {
   Widget build(BuildContext context) => TextFormField(
     initialValue: initial,
     onChanged: onChanged,
-    maxLength: kAmountTextMaxLength,
+    // 서버 feeding_dtl.size_label 이 VARCHAR(10) · @Size(max = 10)
+    inputFormatters: [_Utf16LengthLimit(kAmountTextMaxLength)],
     style: AppTextStyles.body,
     decoration: AppInputStyles.textarea(hintText: hintText)
         .copyWith(counterText: ''),

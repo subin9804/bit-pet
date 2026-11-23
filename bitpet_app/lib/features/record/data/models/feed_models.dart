@@ -55,8 +55,11 @@ class FeedItem {
     final isCustom = ft.isCustom;
     return FeedFormData(
       foodType: ft,
-      count: amt > 0 ? amt : null,
-      sizeLabel: sizeLabel,
+      // 직접입력은 마릿수 칸이 없다 — 예전 기록의 사이즈·마릿수는 급여량 글로 합친다
+      count: isCustom ? null : (amt > 0 ? amt : null),
+      sizeLabel: isCustom
+          ? FeedFormData.customAmountText(sizeLabel, amt > 0 ? amt : null)
+          : sizeLabel,
       mlAmount: mlAmount,
       useMl: mlAmount != null,
       // 저장된 급여량이 칩 목록에 없으면 직접 적은 값 → 직접입력 모드로 되살린다

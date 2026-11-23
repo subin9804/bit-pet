@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 // ── 입력 모드 ────────────────────────────────────────────────────────────────
-// custom = 이름을 직접 적는 먹이. 이름만 다를 뿐 사이즈·마릿수는 sizeCount 와 똑같이 받는다.
+// custom = 이름을 직접 적는 먹이. 사이즈·마릿수 대신 급여량을 글로 적는다 (2026-11-23).
 enum FoodInputMode { sizeCount, mlOrVolume, volume, custom }
 
 // ── 먹이 종류 ────────────────────────────────────────────────────────────────
@@ -36,7 +36,7 @@ class FoodType {
   static const frozenVege  = FoodType._(code:'FROZEN_VEGE',  label:'냉짱',      inputMode:FoodInputMode.volume,     volumeOptions:_volLabels);
   static const frozenMouse = FoodType._(code:'FROZEN_MOUSE', label:'마우스',    inputMode:FoodInputMode.sizeCount,  sizeOptions:_mouseSizes);
   static const frozenRat   = FoodType._(code:'FROZEN_RAT',   label:'래트',      inputMode:FoodInputMode.sizeCount,  sizeOptions:_mouseSizes);
-  static const custom      = FoodType._(code:'CUSTOM',       label:'직접입력',  inputMode:FoodInputMode.custom,     sizeOptions:_insectSizes);
+  static const custom      = FoodType._(code:'CUSTOM',       label:'직접입력',  inputMode:FoodInputMode.custom);
 
   static const all = [cricket,mealworm,fruitFly,superfood,pellet,vegetables,frozenVege,frozenMouse,frozenRat,custom];
 
@@ -76,10 +76,13 @@ const _nil = Object();
 /// 급여량 자유 입력 최대 길이 — 서버 `feeding_dtl.size_label` 이 VARCHAR(10) 이다.
 const int kAmountTextMaxLength = 10;
 
+/// 직접입력 먹이 이름 최대 길이 — 서버 `feeding_dtl.food_type` 이 VARCHAR(50) 이다.
+const int kFoodNameMaxLength = 50;
+
 @immutable
 class FeedFormData {
   final FoodType? foodType;
-  final int?    count;       // sizeCount / custom: 마릿수
+  final int?    count;       // sizeCount: 마릿수
   final String? sizeLabel;   // sizeCount / volume / mlOrVolume(volume sub) / 자유 입력 급여량
   final double? mlAmount;    // mlOrVolume (ml sub)
   final bool    useMl;       // mlOrVolume 모드 전환 플래그
@@ -107,7 +110,7 @@ class FeedFormData {
   String get summary {
     if (isRefused) return '거식';
     if (foodType == null) return '';
-    // 직접입력도 이름만 다를 뿐 사이즈·마릿수는 똑같이 붙는다
+    // 직접입력은 이름 뒤에 적은 급여량(sizeLabel)이 붙는다
     final head = foodType!.isCustom ? (customText?.trim() ?? '') : foodType!.label;
     if (head.isEmpty) return '';
     final p = <String>[head];
@@ -153,10 +156,12 @@ class FeedFormData {
     final isMl   = unit == 'ML';
     final size   = m['sizeLabel'] as String?;
     final supRaw = m['supplement'] as String?;
+    final isCustom = ft != null && ft.isCustom;
+    final count = (!isMl && amount != null) ? amount.toInt() : null;
     return FeedFormData(
       foodType:   ft,
-      count:      (!isMl && amount != null) ? amount.toInt() : null,
-      sizeLabel:  size,
+      count:      isCustom ? null : count,
+      sizeLabel:  isCustom ? customAmountText(size, count) : size,
       mlAmount:   isMl ? amount : null,
       useMl:      isMl,
       // 저장된 급여량이 칩 목록에 없으면 직접 적은 값이다 → 직접입력 모드로 되살린다
@@ -174,6 +179,19 @@ class FeedFormData {
     );
   }
 
+  /// 예전 직접입력 기록(사이즈 칩 + 마릿수)을 급여량 글 한 줄로 합친다 — "소 3마리".
+  /// 지금 화면엔 마릿수 칸이 없어서, 그대로 두면 고칠 때 마릿수를 지울 방법이 없다.
+  /// 서버 길이(10자)를 넘으면 자른다.
+  static String? customAmountText(String? size, int? count) {
+    final parts = [
+      if (size != null && size.trim().isNotEmpty) size.trim(),
+      if (count != null && count > 0) '$count마리',
+    ];
+    if (parts.isEmpty) return null;
+    final s = parts.join(' ');
+    return s.length > kAmountTextMaxLength ? s.substring(0, kAmountTextMaxLength) : s;
+  }
+
   Map<String, dynamic> toApiMap({DateTime? fedAt}) {
     final m = <String, dynamic>{};
     // 거식은 먹이 정보 없이 메모만 — 서버도 food_type 이 NULL 인 행만 받는다
@@ -188,11 +206,12 @@ class FeedFormData {
     m['foodType'] = foodType!.isCustom ? (customText?.trim() ?? '') : foodType!.code;
 
     switch (foodType!.inputMode) {
-      // 직접입력도 사이즈·마릿수를 그대로 받는다 (이름만 사용자가 적는 것)
       case FoodInputMode.sizeCount:
-      case FoodInputMode.custom:
         if (count != null && count! > 0) { m['amount'] = count!.toDouble(); m['unit'] = 'PIECE'; }
         if (sizeLabel != null) m['sizeLabel'] = sizeLabel;
+      // 직접입력은 적은 급여량만 — 마릿수(amount)는 보내지 않는다
+      case FoodInputMode.custom:
+        if (sizeLabel != null && sizeLabel!.trim().isNotEmpty) m['sizeLabel'] = sizeLabel!.trim();
       case FoodInputMode.mlOrVolume:
         if (useMl && mlAmount != null && mlAmount! > 0) { m['amount'] = mlAmount; m['unit'] = 'ML'; }
         else if (!useMl && sizeLabel != null) m['sizeLabel'] = sizeLabel;

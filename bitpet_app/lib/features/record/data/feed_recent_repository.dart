@@ -92,16 +92,22 @@ class FeedRecentRepository {
     await (_db.delete(_db.feedRecentTable)..where((t) => t.id.isIn(doomed))).go();
   }
 
-  FeedFormData _toForm(FeedRecentTableData r) => FeedFormData(
-        foodType: FoodType.byCodeOrCustom(r.foodType),
-        count: r.feedCount,
-        sizeLabel: r.sizeLabel,
+  FeedFormData _toForm(FeedRecentTableData r) {
+    final ft = FoodType.byCodeOrCustom(r.foodType);
+    // 직접입력은 마릿수 칸이 없어졌다 (2026-11-23) — 예전 캐시의 사이즈·마릿수는 급여량 글로 합친다
+    return FeedFormData(
+        foodType: ft,
+        count: ft.isCustom ? null : r.feedCount,
+        sizeLabel: ft.isCustom
+            ? FeedFormData.customAmountText(r.sizeLabel, r.feedCount)
+            : r.sizeLabel,
         mlAmount: r.mlAmount,
         useMl: r.useMl,
         useCustomAmount: r.useCustomAmount,
         customText: r.customText,
         supplement: _supplementOf(r.supplement),
       );
+  }
 
   /// 모르는 이름이면 null. 영양제 enum 이 줄어드는 일은 없겠지만, 캐시는 앱보다
   /// 오래 살아남는 데이터라 옛 값이 들어 있어도 터지지 않아야 한다.
