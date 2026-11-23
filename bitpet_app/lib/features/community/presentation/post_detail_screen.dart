@@ -112,7 +112,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                 authorName: post.authorName,
                 onDone: () {
                   // 차단·신고 후에는 이 글이 더는 보이면 안 된다 → 목록으로 되돌린다
-                  ref.invalidate(feedProvider);
+                  invalidateFeed(ref);
                   if (mounted) context.pop();
                 },
               ),
@@ -146,7 +146,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
         );
         if (ok && context.mounted) {
           await ref.read(postRepositoryProvider).deletePost(post.id);
-          ref.invalidate(feedProvider);
+          invalidateFeed(ref);
           if (context.mounted) context.pop();
         }
       },
@@ -169,7 +169,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
           authorName: comment.authorName,
           onDone: () {
             ref.invalidate(commentsProvider(widget.postId));
-            ref.invalidate(feedProvider);
+            invalidateFeed(ref);
           },
         ),
       ),

@@ -103,47 +103,100 @@ class FeedState {
       );
 }
 
+/// 게시판별로 마지막에 받은 피드 (2026-11-23). 칩을 바꿀 때 서버 응답을 기다리는 동안
+/// 이 목록을 먼저 보여준다 — 매번 스켈레톤이 깜빡이던 것.
+///
+/// ⛔ 받은 목록을 클라이언트에서 거르는 것으로 **대체하지 말 것.** 전체 피드는 앞 20개뿐이라
+/// 그 안에 해당 게시판 글이 없으면 "글이 없어요"가 된다. 캐시는 첫 화면용이고, 정답은 항상 서버 응답이다.
+// 계정이 바뀌면 새 맵 — 차단 목록·어린이 게시판 여부가 사람마다 다르다
+final feedCacheProvider = Provider<Map<int?, List<Post>>>((ref) {
+  ref.watch(authStateProvider.select((s) => s.valueOrNull?.id));
+  return {};
+});
+
+/// 글 작성·수정·삭제·차단 뒤 피드를 다시 받게 한다. 캐시도 같이 비워야 지운 글이
+/// 응답 전까지 잠깐 되살아나지 않는다.
+void invalidateFeed(WidgetRef ref) {
+  ref.read(feedCacheProvider).clear();
+  ref.invalidate(feedProvider);
+}
+
 final feedProvider =
     StateNotifierProvider<FeedNotifier, FeedState>((ref) {
   final categoryId = ref.watch(categoryFilterProvider);
-  return FeedNotifier(ref.watch(postRepositoryProvider), categoryId);
+  return FeedNotifier(
+    ref.watch(postRepositoryProvider),
+    categoryId,
+    ref.watch(feedCacheProvider),
+  );
 });
 
 class FeedNotifier extends StateNotifier<FeedState> {
   final PostRepository _repo;
   final int? _categoryId;
+  final Map<int?, List<Post>> _cache;
   /// 다음 묶음을 받을 기준 — 지금까지 받은 마지막 일반 글의 id (서버가 알려준다)
   int? _cursor;
+  /// 첫 묶음을 받는 중. 미리 보여준 목록 위에서 loadMore 가 먼저 돌면
+  /// cursor 없이 첫 묶음을 또 받아 글이 두 번 붙는다
+  bool _refreshing = false;
 
-  FeedNotifier(this._repo, this._categoryId) : super(const FeedState()) {
+  FeedNotifier(this._repo, this._categoryId, this._cache)
+      : super(const FeedState()) {
+    final seed = _seed();
+    if (seed.isNotEmpty) state = FeedState(posts: seed, loading: false);
     refresh();
   }
 
+  /// 이 게시판을 본 적이 있으면 그 목록, 없으면 전체 목록에서 이 게시판 글만
+  List<Post> _seed() {
+    final own = _cache[_categoryId];
+    if (own != null) return own;
+    if (_categoryId == null) return const [];
+    return (_cache[null] ?? const [])
+        .where((p) => p.categoryId == _categoryId && !p.isPinned)
+        .toList();
+  }
+
+  /// 보여줄 글이 있으면 비우지 않고 뒤에서 갈아끼운다 (당겨서 새로고침도 같다 — 인디케이터가 따로 돈다)
   Future<void> refresh() async {
+    _refreshing = true;
     _cursor = null;
-    state = const FeedState(loading: true);
+    final hadPosts = state.posts.isNotEmpty;
+    if (!hadPosts) state = const FeedState(loading: true);
     try {
       final p = await _repo.getFeed(categoryId: _categoryId);
+      if (!mounted) return;
       _cursor = p.nextCursor;
+      _cache[_categoryId] = p.items;
       state = FeedState(posts: p.items, loading: false, hasMore: p.hasMore);
     } catch (e) {
-      state = FeedState(loading: false, hasMore: false, error: e);
+      if (!mounted) return;
+      // 미리 보여준 목록이 있으면 그대로 둔다 — 오류 화면으로 덮으면 보던 글이 사라진다
+      if (!hadPosts) state = FeedState(loading: false, hasMore: false, error: e);
+    } finally {
+      _refreshing = false;
     }
   }
 
   Future<void> loadMore() async {
-    if (state.loading || state.loadingMore || !state.hasMore) return;
+    if (_refreshing || state.loading || state.loadingMore || !state.hasMore) {
+      return;
+    }
     state = state.copyWith(loadingMore: true);
     try {
       final p = await _repo.getFeed(categoryId: _categoryId, cursor: _cursor);
+      if (!mounted) return;
       _cursor = p.nextCursor;
+      final posts = [...state.posts, ...p.items];
+      _cache[_categoryId] = posts;
       state = state.copyWith(
-        posts: [...state.posts, ...p.items],
+        posts: posts,
         loadingMore: false,
         hasMore: p.hasMore,
       );
     } catch (_) {
-      state = state.copyWith(loadingMore: false);
+      if (mounted) state = state.copyWith(loadingMore: false);
     }
   }
 }

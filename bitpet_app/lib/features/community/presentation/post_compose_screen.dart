@@ -90,13 +90,13 @@ class _PostComposeScreenState extends ConsumerState<PostComposeScreen> {
         final post = await notifier.update(widget.postId!);
         if (post != null && mounted) {
           ref.invalidate(postDetailProvider(widget.postId!));
-          ref.invalidate(feedProvider);
+          invalidateFeed(ref);
           context.pop();
         }
       } else {
         final post = await notifier.submit();
         if (post != null && mounted) {
-          ref.invalidate(feedProvider);
+          invalidateFeed(ref);
           context.go('/community');
         }
       }
