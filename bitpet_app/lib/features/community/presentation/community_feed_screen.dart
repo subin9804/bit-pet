@@ -387,129 +387,136 @@ class _PostRow extends StatelessWidget {
           borderRadius: AppRadius.brLg,
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.lg),
-            child: Row(
+            // 맨 윗줄(분류·시간)은 카드 폭 전체를 쓰고, 썸네일은 그 **아래** 오른쪽에 둔다.
+            // 전엔 썸네일이 맨 오른쪽 기둥을 차지해 시간을 안쪽으로 밀어냈다 (2026-11-23 사용자 지적).
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          _CategoryPill(code: code, label: label),
-                          if (post.isPinned) ...[
-                            const SizedBox(width: 4),
-                            const Icon(
-                              Icons.push_pin,
-                              size: 16,
-                              color: AppColors.ink2,
-                            ),
-                          ],
-                          const Spacer(),
-                          Text(
-                            _relativeTime(post.createdAt),
-                            style: AppTextStyles.monoXs.copyWith(
-                              color: AppColors.ink3,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        post.title,
-                        style: AppTextStyles.bodyBold.copyWith(
-                          fontSize: 14,
-                          color: AppColors.ink,
-                          letterSpacing: -0.2,
-                          height: 1.4,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          // 긴 닉네임이 카드 폭을 넘어 오버플로하지 않게.
-                          // 아바타+닉네임을 누르면 카드(글 상세) 대신 프로필로 간다
-                          Flexible(
-                            child: AuthorLink(
-                              userId: post.userId,
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  _AuthorAvatar(
-                                    imageUrl: post.authorImageUrl,
-                                    size: 16,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Flexible(
-                                    child: Text(
-                                      post.authorName,
-                                      style: AppTextStyles.caption.copyWith(
-                                        fontSize: 12,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '·',
-                            style: AppTextStyles.caption.copyWith(
-                              color: AppColors.ink3,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          _MetaIcon(
-                            icon: AppIcons.likeLine,
-                            value: post.likeCount,
-                          ),
-                          const SizedBox(width: 8),
-                          _MetaIcon(
-                            icon: AppIcons.comment,
-                            value: post.commentCount,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '조회 ${post.viewCount}',
-                            style: AppTextStyles.monoXs.copyWith(
-                              color: AppColors.ink3,
-                            ),
-                          ),
-                        ],
+                Row(
+                  children: [
+                    _CategoryPill(code: code, label: label),
+                    if (post.isPinned) ...[
+                      const SizedBox(width: 4),
+                      const Icon(
+                        Icons.push_pin,
+                        size: 16,
+                        color: AppColors.ink2,
                       ),
                     ],
-                  ),
-                ),
-                // 썸네일 — 사진이 있는 게시글만 표시
-                if (post.thumbnailUrl != null) ...[
-                  const SizedBox(width: 12),
-                  Container(
-                    width: 64,
-                    height: 64,
-                    decoration: BoxDecoration(
-                      color: _catBg(code).withAlpha(216),
-                      borderRadius: AppRadius.brMd,
-                    ),
-                    clipBehavior: Clip.hardEdge,
-                    child: AppNetworkImage(
-                      post.thumbnailUrl,
-                      fit: BoxFit.cover,
-                      memWidth: 300,
-                      placeholder: const Center(
-                        child: Icon(
-                          Icons.image_outlined,
-                          size: 28,
-                          color: AppColors.ink3,
-                        ),
+                    const Spacer(),
+                    Text(
+                      _relativeTime(post.createdAt),
+                      style: AppTextStyles.monoXs.copyWith(
+                        color: AppColors.ink3,
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            post.title,
+                            style: AppTextStyles.bodyBold.copyWith(
+                              fontSize: 14,
+                              color: AppColors.ink,
+                              letterSpacing: -0.2,
+                              height: 1.4,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              // 긴 닉네임이 카드 폭을 넘어 오버플로하지 않게.
+                              // 아바타+닉네임을 누르면 카드(글 상세) 대신 프로필로 간다
+                              Flexible(
+                                child: AuthorLink(
+                                  userId: post.userId,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      _AuthorAvatar(
+                                        imageUrl: post.authorImageUrl,
+                                        size: 16,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Flexible(
+                                        child: Text(
+                                          post.authorName,
+                                          style: AppTextStyles.caption.copyWith(
+                                            fontSize: 12,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '·',
+                                style: AppTextStyles.caption.copyWith(
+                                  color: AppColors.ink3,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              _MetaIcon(
+                                icon: AppIcons.likeLine,
+                                value: post.likeCount,
+                              ),
+                              const SizedBox(width: 8),
+                              _MetaIcon(
+                                icon: AppIcons.comment,
+                                value: post.commentCount,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '조회 ${post.viewCount}',
+                                style: AppTextStyles.monoXs.copyWith(
+                                  color: AppColors.ink3,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    // 썸네일 — 사진이 있는 게시글만 표시
+                    if (post.thumbnailUrl != null) ...[
+                      const SizedBox(width: 12),
+                      Container(
+                        width: 64,
+                        height: 64,
+                        decoration: BoxDecoration(
+                          color: _catBg(code).withAlpha(216),
+                          borderRadius: AppRadius.brMd,
+                        ),
+                        clipBehavior: Clip.hardEdge,
+                        child: AppNetworkImage(
+                          post.thumbnailUrl,
+                          fit: BoxFit.cover,
+                          memWidth: 300,
+                          placeholder: const Center(
+                            child: Icon(
+                              Icons.image_outlined,
+                              size: 28,
+                              color: AppColors.ink3,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ],
             ),
           ),
