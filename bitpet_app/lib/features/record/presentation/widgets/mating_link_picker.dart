@@ -5,16 +5,16 @@
 // 지금까지 한 번도 채워진 적이 없었다 (2026-11-13 실기기 점검에서 발견).
 //
 // 산란 폼(FAB · 개체 상세)과 클러치 상세의 '메이팅' 시트가 이 칸 하나를 같이 쓴다.
+//
+// 2026-11-24: 칩 나열 → 메이팅 '파트너' 고르는 칸과 같은 테두리 목록(최대 높이 안에서 스크롤).
+// 메이팅이 많으면 칩이 줄줄이 늘어 폼이 길어졌다 (사용자: "괜히 부피 늘어난다").
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_dimens.dart';
 import '../../../../core/theme/app_text_styles.dart';
-import '../../../../core/widgets/app_chip.dart';
 import '../../data/models/record_models.dart';
 import '../../providers/record_provider.dart';
-
-/// 화면에 늘어놓는 최근 메이팅 수. 그보다 오래된 건 지금 고른 것만 덧붙인다.
-const _kVisible = 5;
 
 /// 이 암컷의 산란에 걸 수 있는 메이팅 — 최근순.
 ///
@@ -103,31 +103,47 @@ class MatingLinkPicker extends ConsumerWidget {
         if (list.isEmpty) {
           return Text('이 개체의 메이팅 기록이 없어요', style: AppTextStyles.caption);
         }
-        final shown = list.take(_kVisible).toList();
         final picked = list.where((m) => m.id == current).firstOrNull;
-        if (picked != null && !shown.contains(picked)) shown.add(picked);
-        // 연결돼 있던 메이팅이 지워졌으면 칩이 없다 — '연결 안 함'이 아니라는 걸 알린다.
+        // 연결돼 있던 메이팅이 지워졌으면 목록에 없다 — '연결 안 함'이 아니라는 걸 알린다.
         final missing = current != null && picked == null;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final m in shown)
-                  AppChip(
-                    label: matingLinkLabel(m),
-                    selected: m.id == current,
-                    onTap: () => onChanged(m.id),
-                  ),
-                AppChip(
-                  label: '연결 안 함',
-                  selected: current == null,
-                  onTap: () => onChanged(null),
+            // 파트너 고르는 칸(fab_record_sheet '파트너')과 같은 모양 — 최근순, 넘치면 안에서 스크롤
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.card,
+                border: Border.all(color: AppColors.line),
+                borderRadius: AppRadius.brMd,
+              ),
+              constraints: const BoxConstraints(maxHeight: 180),
+              child: ClipRRect(
+                borderRadius: AppRadius.brMd,
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  padding: EdgeInsets.zero,
+                  itemCount: list.length + 1,
+                  separatorBuilder: (_, _) =>
+                      const Divider(height: 1, color: AppColors.line),
+                  itemBuilder: (_, i) {
+                    if (i == list.length) {
+                      return _Row(
+                        title: '연결 안 함',
+                        selected: current == null,
+                        onTap: () => onChanged(null),
+                      );
+                    }
+                    final m = list[i];
+                    return _Row(
+                      title: m.malePetName ?? m.externalPartnerText ?? '상대 미입력',
+                      sub: _sub(m),
+                      selected: m.id == current,
+                      onTap: () => onChanged(m.id),
+                    );
+                  },
                 ),
-              ],
+              ),
             ),
             if (missing) ...[
               const SizedBox(height: 6),
@@ -137,6 +153,75 @@ class MatingLinkPicker extends ConsumerWidget {
           ],
         );
       },
+    );
+  }
+}
+
+/// 목록 둘째 줄 — `6월 2일 · 성공`. 올해가 아니면 연도를 붙인다.
+String _sub(MatingRecord m) {
+  final d = m.triedAt.toLocal();
+  final date = d.year == DateTime.now().year
+      ? '${d.month}월 ${d.day}일'
+      : '${d.year}년 ${d.month}월 ${d.day}일';
+  final result = switch (m.isSuccessful) {
+    true => '성공',
+    false => '실패',
+    null => '결과 미정',
+  };
+  return '$date · $result';
+}
+
+class _Row extends StatelessWidget {
+  final String title;
+  final String? sub;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _Row({
+    required this.title,
+    this.sub,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+        color: selected ? AppColors.brandTintSoft : Colors.transparent,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: sub == null ? FontWeight.w500 : FontWeight.w700,
+                          color: sub == null ? AppColors.ink2 : AppColors.ink)),
+                  if (sub != null)
+                    Text(sub!,
+                        style: const TextStyle(fontSize: 12, color: AppColors.ink2)),
+                ],
+              ),
+            ),
+            if (selected)
+              Container(
+                width: 20,
+                height: 20,
+                decoration: const BoxDecoration(
+                    color: AppColors.brandAction, shape: BoxShape.circle),
+                child: const Icon(Icons.check, size: 16, color: Colors.white),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }
