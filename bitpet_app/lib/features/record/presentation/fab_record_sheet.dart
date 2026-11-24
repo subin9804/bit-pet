@@ -2742,8 +2742,7 @@ class _MemoLabel extends StatelessWidget {
               fontSize: 13, fontWeight: FontWeight.w700,
               color: AppColors.ink)),
       const SizedBox(width: 8),
-      Text('OPTIONAL', style: AppTextStyles.mono(9, FontWeight.w700,
-          color: AppColors.ink3)),
+      Text('(선택)', style: AppTextStyles.label),
     ],
   );
 }
@@ -2769,8 +2768,7 @@ class _FieldLabel extends StatelessWidget {
               fontWeight: FontWeight.w700, color: AppColors.error)),
         ] else ...[
           const SizedBox(width: 8),
-          Text('선택', style: AppTextStyles.mono(9, FontWeight.w700,
-              color: AppColors.ink3)),
+          Text('(선택)', style: AppTextStyles.label),
         ],
       ],
     );

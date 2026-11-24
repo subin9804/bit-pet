@@ -284,7 +284,7 @@ class FeedFieldLabel extends StatelessWidget {
         style: AppTextStyles.label.copyWith(color: AppColors.ink2)),
     if (optional) ...[
       const SizedBox(width: AppSpacing.sm),
-      Text('선택', style: AppTextStyles.label),
+      Text('(선택)', style: AppTextStyles.label),
     ],
   ]);
 }

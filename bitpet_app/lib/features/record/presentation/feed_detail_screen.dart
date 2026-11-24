@@ -870,7 +870,7 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
                                 fontSize: 12, fontWeight: FontWeight.w700,
                                 color: AppColors.primary)),
                         const SizedBox(width: 8),
-                        Text('OPTIONAL', style: AppTextStyles.monoXxs),
+                        Text('(선택)', style: AppTextStyles.label),
                       ],
                     ),
                     const SizedBox(height: 8),

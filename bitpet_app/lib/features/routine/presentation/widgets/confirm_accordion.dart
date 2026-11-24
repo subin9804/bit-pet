@@ -64,7 +64,7 @@ class ConfirmAccordion extends StatelessWidget {
                       const SizedBox(width: AppSpacing.sm),
                       // 'OPTIONAL' 9px mono 였다. 9px 는 본문 최소(12px)에 한참
                       // 못 미치고, 한글 화면에 영문 라벨만 섞여 튀었다.
-                      Text('선택', style: AppTextStyles.label),
+                      Text('(선택)', style: AppTextStyles.label),
                     ],
                   ],
                   const Spacer(),
