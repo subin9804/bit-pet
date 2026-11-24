@@ -136,7 +136,7 @@ class MyTag {
 
 /// 이름표로 찍은 남의 개체 프로필 (`GET /nfc/tags/{tagCd}/profile`).
 ///
-/// 카드·최근 체중·소유자뿐이다 (갤러리는 넣었다가 뺐다). 기록·체중 이력은 서버가 애초에 담지 않는다 —
+/// 카드·최근 체중·소유자·부모 카드뿐이다 (갤러리는 넣었다가 뺐다). 기록·체중 이력은 서버가 애초에 담지 않는다 —
 /// 비공개 개체도 열리는 경로라 무엇을 내보낼지는 서버가 정한다.
 class NfcPetProfile {
   final PetCard pet;
@@ -148,8 +148,22 @@ class NfcPetProfile {
   /// 예전 서버 응답엔 없어서 null 일 수 있다.
   final PetOwner? owner;
 
+  /// 부모 카드 (2026-11-24). 가계도 부모 줄과 같은 카드다 — relationType 으로 부·모를 가른다.
+  /// 예전 서버 응답엔 없어서 빈 목록일 수 있다.
+  final List<PetCard> parents;
+
   const NfcPetProfile(
-      {required this.pet, this.latestWeightG, this.owner});
+      {required this.pet, this.latestWeightG, this.owner, this.parents = const []});
+
+  PetCard? get father => _parentOf('FATHER');
+  PetCard? get mother => _parentOf('MOTHER');
+
+  PetCard? _parentOf(String type) {
+    for (final p in parents) {
+      if (p.relationType == type) return p;
+    }
+    return null;
+  }
 
   factory NfcPetProfile.fromJson(Map<String, dynamic> json) => NfcPetProfile(
         pet: PetCard.fromJson(json['pet'] as Map<String, dynamic>),
@@ -157,5 +171,8 @@ class NfcPetProfile {
         owner: json['owner'] == null
             ? null
             : PetOwner.fromJson(json['owner'] as Map<String, dynamic>),
+        parents: (json['parents'] as List? ?? const [])
+            .map((e) => PetCard.fromJson(e as Map<String, dynamic>))
+            .toList(),
       );
 }
