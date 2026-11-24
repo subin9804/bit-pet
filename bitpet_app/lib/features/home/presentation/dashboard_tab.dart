@@ -30,6 +30,8 @@ import '../../routine/presentation/per_pet_confirm_sheet.dart';
 import '../../routine/presentation/routine_postpone_sheet.dart';
 import '../../../core/widgets/user_avatar.dart';
 import '../../record/record_detail_path.dart';
+import '../../../core/constants/external_links.dart';
+import '../data/home_banner_repository.dart';
 import 'widgets/home_banner.dart';
 
 // ignore_for_file: prefer_const_constructors_in_immutables
@@ -73,6 +75,7 @@ class _DashboardTabState extends ConsumerState<DashboardTab>
 
     final todayAsync   = ref.watch(todayRoutinesProvider);
     final unread       = ref.watch(unreadNotificationCountProvider);
+    final banners      = ref.watch(homeBannersProvider).valueOrNull ?? const [];
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
@@ -96,6 +99,7 @@ class _DashboardTabState extends ConsumerState<DashboardTab>
               color: AppColors.primary,
               onRefresh: () async {
                 ref.invalidate(todayRoutinesProvider);
+                ref.invalidate(homeBannersProvider);
                 // 당겨서 새로고침인데 캘린더만 옛 값으로 남아 있으면 새로고침이
                 // 안 먹은 것처럼 보인다
                 ref.invalidate(homeCalendarProvider);
@@ -111,13 +115,24 @@ class _DashboardTabState extends ConsumerState<DashboardTab>
                     const SizedBox(height: 8),
 
                     // ── 배너 (공지·이벤트·홍보) ──────────────────
-                    // ⚠️ 내용은 아직 하드코딩이다 (`home_banner.dart`).
+                    // 서버가 준다 (웹 관리 페이지). 비었거나 못 받았으면 자리째 없다.
                     // 히어로 **위**에 두되 높이는 화면의 1/7~1/8 로 묶어,
                     // 홈을 열었을 때 '오늘 할 일'이 접히지 않게 한다.
-                    const Padding(
-                      padding: EdgeInsets.fromLTRB(20, 0, 20, AppSpacing.lg),
-                      child: HomeBanner(),
-                    ),
+                    if (banners.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                            20, 0, 20, AppSpacing.lg),
+                        child: HomeBanner(
+                          items: banners,
+                          onTap: (item) {
+                            if (item.route != null) {
+                              context.push(item.route!);
+                            } else if (item.url != null) {
+                              openExternalLink(context, item.url!);
+                            }
+                          },
+                        ),
+                      ),
 
                     // ── 오늘 할 일 ──────────────────────────────
                     //

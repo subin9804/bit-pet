@@ -1,8 +1,7 @@
 // 홈 상단 배너 — 공지·이벤트·홍보물이 들어갈 자리.
 //
-// ⚠️ **지금은 임시다.** 내용은 아래 [kHomeBanners] 에 하드코딩돼 있고 서버 연동이 없다.
-// 연동할 때 바꿀 곳은 그 상수 하나이고, 위젯은 `List<HomeBannerItem>` 만 받으므로
-// provider 로 갈아끼우면 끝이다 (`HomeBanner(items: ref.watch(...))`).
+// 내용은 서버가 준다 (2026-11-24, `homeBannersProvider`). 운영자가 웹 관리 페이지
+// (tailog.me/admin/banners)에서 바꾸므로, 배너 문구 때문에 스토어 심사를 기다리지 않는다.
 //
 // 설계상 지킬 것 두 가지:
 //   • **비면 자리도 사라진다** — 배너가 없는 날 빈 박스가 남으면 레이아웃이 고장 난 것처럼
@@ -17,7 +16,7 @@ import '../../../../core/theme/app_dimens.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/app_network_image.dart';
 
-/// 배너 한 장. 서버 연동 시 이 모양 그대로 DTO 에서 만들면 된다.
+/// 배너 한 장. 서버 `HomeBannerResponse` 에서 만든다 (`home_banner_repository.dart`).
 class HomeBannerItem {
   final String title;
 
@@ -27,11 +26,14 @@ class HomeBannerItem {
   /// 왼쪽 작은 꼬리표 ('이벤트', '공지'…). 없으면 안 그린다.
   final String? badge;
 
-  /// 탭했을 때 갈 앱 내부 경로. null 이면 **탭이 아예 안 먹는다**(눌리는 것처럼
-  /// 보이면서 아무 일도 안 일어나는 게 제일 나쁘다).
+  /// 탭했을 때 갈 앱 내부 경로. 이것도 [url] 도 null 이면 **탭이 아예 안 먹는다**
+  /// (눌리는 것처럼 보이면서 아무 일도 안 일어나는 게 제일 나쁘다).
   final String? route;
 
-  /// 채울 이미지. 연동 전에는 null → 글자만 있는 틴트 카드로 그린다.
+  /// 탭했을 때 열 외부 주소(https). 자녀 계정에는 서버가 이런 배너를 내려주지 않는다.
+  final String? url;
+
+  /// 채울 이미지. null 이면 글자만 있는 틴트 카드로 그린다.
   final String? imageUrl;
 
   const HomeBannerItem({
@@ -39,18 +41,13 @@ class HomeBannerItem {
     this.body,
     this.badge,
     this.route,
+    this.url,
     this.imageUrl,
   });
-}
 
-/// 연동 전 임시 내용. ⛔ 여기에 실제 홍보 문구를 쌓지 말 것 — 스토어 심사를 기다려야 한다.
-const kHomeBanners = <HomeBannerItem>[
-  HomeBannerItem(
-    badge: '공지',
-    title: '배너 자리입니다',
-    body: '이벤트·공지·홍보물이 여기 들어갑니다',
-  ),
-];
+  /// 눌리는 배너인가 — 갈 곳이 있어야 눌린다.
+  bool get hasLink => route != null || url != null;
+}
 
 const double _kHeightDivisor = 7.5; // 1/7 ~ 1/8 사이
 const double _kMinHeight = 96;
@@ -62,7 +59,7 @@ class HomeBanner extends StatefulWidget {
   /// 탭 처리는 바깥에 맡긴다 — 라우팅을 이 위젯이 알면 테스트가 어려워진다.
   final void Function(HomeBannerItem item)? onTap;
 
-  const HomeBanner({super.key, this.items = kHomeBanners, this.onTap});
+  const HomeBanner({super.key, required this.items, this.onTap});
 
   @override
   State<HomeBanner> createState() => _HomeBannerState();
@@ -132,7 +129,7 @@ class _Card extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tappable = item.route != null && onTap != null;
+    final tappable = item.hasLink && onTap != null;
 
     return GestureDetector(
       onTap: tappable ? () => onTap!(item) : null,
@@ -204,7 +201,7 @@ class _Card extends StatelessWidget {
                 ],
               ),
             ),
-            if (item.route != null)
+            if (item.hasLink)
               const Icon(Icons.chevron_right,
                   size: AppIconSize.md, color: AppColors.brandIcon),
           ],

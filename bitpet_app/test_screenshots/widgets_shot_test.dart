@@ -29,6 +29,12 @@ void main() {
       const HomeBanner(items: [
         HomeBannerItem(title: 'tailog 정식 오픈', body: '이름표를 붙이고 기록을 시작해 보세요', badge: '공지'),
       ]),
+      const SizedBox(height: 24),
+      // 링크가 있는 배너 여러 장 — 오른쪽 꺾쇠 + 아래 점
+      HomeBanner(onTap: (_) {}, items: const [
+        HomeBannerItem(title: '커뮤니티가 열렸어요', body: '내 개체를 자랑해 보세요', badge: '이벤트', route: '/community'),
+        HomeBannerItem(title: '이름표 주문하기', url: 'https://smartstore.naver.com/tailog_factory'),
+      ]),
     ]));
   });
 }
