@@ -96,21 +96,20 @@ class _SimpleDraft {
 class _RecordType {
   final String id;
   final String ko;
-  final String en;
   final String ex;
-  /// [AppIcons] 의 SVG 경로. `en` 이 CLEAN/NOTE 라 코드로 되짚을 수 없어 직접 건다.
+  /// [AppIcons] 의 SVG 경로. 종류 id 로 되짚을 수 없어 직접 건다.
   final String icon;
   final Color color;
-  const _RecordType(this.id, this.ko, this.en, this.ex, this.icon, this.color);
+  const _RecordType(this.id, this.ko, this.ex, this.icon, this.color);
 }
 
 const _recordTypes = [
-  _RecordType('feed',  '급여',   'FEEDING', '종류·시간·양',     AppIcons.feeding,  AppColors.catFeed),
-  _RecordType('scale', '몸무게', 'WEIGHT',  '측정 기록',        AppIcons.weight,   AppColors.catWeight),
-  _RecordType('clean', '청소',   'CLEAN',   '바닥재·환기',       AppIcons.cleaning, AppColors.catClean),
-  _RecordType('note',  '메모',   'NOTE',    '병원·관찰·증상',    AppIcons.memo,     AppColors.catMemo),
-  _RecordType('mate',  '메이팅', 'MATING',  '합방·관찰',        AppIcons.mating,   AppColors.catMating),
-  _RecordType('lay',   '산란',   'LAYING',  '알 수·인큐베이션', AppIcons.laying,   AppColors.catLaying),
+  _RecordType('feed',  '급여',   '종류·시간·양',     AppIcons.feeding,  AppColors.catFeed),
+  _RecordType('scale', '몸무게', '측정 기록',        AppIcons.weight,   AppColors.catWeight),
+  _RecordType('clean', '청소',   '바닥재·환기',       AppIcons.cleaning, AppColors.catClean),
+  _RecordType('note',  '메모',   '병원·관찰·증상',    AppIcons.memo,     AppColors.catMemo),
+  _RecordType('mate',  '메이팅', '합방·관찰',        AppIcons.mating,   AppColors.catMating),
+  _RecordType('lay',   '산란',   '알 수·인큐베이션', AppIcons.laying,   AppColors.catLaying),
 ];
 
 // ── 메인 위젯 ──────────────────────────────────────────────────
@@ -741,10 +740,6 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 헤더
-          Text('NEW RECORD',
-              style: AppTextStyles.mono(11, FontWeight.w700,
-                  color: AppColors.ink2)),
-          const SizedBox(height: 4),
           Text(
             lockedPet == null ? '무엇을 기록할까요?' : '${lockedPet.name} · 무엇을 기록할까요?',
             maxLines: 1,
@@ -874,10 +869,6 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(children: [
-                Text('NEW ${rt.en}',
-                    style: AppTextStyles.mono(11, FontWeight.w700,
-                        color: AppColors.ink2)),
-                const SizedBox(width: 8),
                 const StepDots(step: 2),
               ]),
               const SizedBox(height: 8),
@@ -955,12 +946,6 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(children: [
-                Text(
-                  _typeId == 'feed' ? 'FEEDING · BULK' : _typeId.toUpperCase(),
-                  style: AppTextStyles.mono(11, FontWeight.w700,
-                      color: AppColors.ink2),
-                ),
-                const SizedBox(width: 8),
                 const StepDots(step: 3),
               ]),
               const SizedBox(height: 8),
@@ -1067,10 +1052,6 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(children: [
-                      Text(isFeed ? 'FEEDING · PER-PET' : '${rt.en} · PER-PET',
-                          style: AppTextStyles.mono(11, FontWeight.w700,
-                              color: AppColors.ink2)),
-                      const SizedBox(width: 8),
                       const StepDots(step: 3),
                     ]),
                     const SizedBox(height: 8),
@@ -1578,10 +1559,6 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(children: [
-                Text(rt.en,
-                    style: AppTextStyles.mono(11, FontWeight.w700,
-                        color: AppColors.ink2)),
-                const SizedBox(width: 8),
                 const StepDots(step: 3),
               ]),
               const SizedBox(height: 8),
@@ -2249,9 +2226,6 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
 
     final allSelected  = filtered.isNotEmpty && filtered.every((p) => _selected.contains(p.id));
 
-    final rt = _recordTypes.firstWhere((r) => r.id == widget.typeId,
-        orElse: () => _recordTypes.first);
-
     // 왜 안 보이는지 말해준다 — 그냥 빼버리면 "내 개체가 없어졌다"가 된다.
     // 제외 사유가 둘(수컷 / 다른 카테고리)이라 각각 적는다.
     final excludedNote = [
@@ -2277,10 +2251,6 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(children: [
-                Text('NEW ${rt.en}',
-                    style: AppTextStyles.mono(11, FontWeight.w700,
-                        color: AppColors.ink2)),
-                const SizedBox(width: AppSpacing.sm),
                 const StepDots(step: 1),
               ]),
               const SizedBox(height: AppSpacing.sm),
