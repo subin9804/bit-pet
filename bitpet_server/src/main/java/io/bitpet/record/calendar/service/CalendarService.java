@@ -105,7 +105,7 @@ public class CalendarService {
                 SELECT DATE(t.%s AT TIME ZONE 'Asia/Seoul') AS day, COUNT(*) AS cnt
                 FROM %s t
                 JOIN pet_mst p ON p.id = t.pet_id
-                WHERE p.user_id = ?
+                WHERE p.id IN (SELECT k.pet_id FROM pet_keeper_rls k WHERE k.user_id = ?)
                   AND DATE(t.%s AT TIME ZONE 'Asia/Seoul') BETWEEN ? AND ?
                   AND t.deleted_at IS NULL
                   AND p.deleted_at IS NULL
@@ -229,7 +229,7 @@ public class CalendarService {
                 SELECT DATE(t.logged_at AT TIME ZONE 'Asia/Seoul') AS day, COUNT(*) AS cnt
                 FROM memo_dtl t
                 JOIN pet_mst p ON p.id = t.pet_id
-                WHERE p.user_id = ?
+                WHERE p.id IN (SELECT k.pet_id FROM pet_keeper_rls k WHERE k.user_id = ?)
                   AND DATE(t.logged_at AT TIME ZONE 'Asia/Seoul') BETWEEN ? AND ?
                   AND t.deleted_at IS NULL AND p.deleted_at IS NULL
                 GROUP BY day

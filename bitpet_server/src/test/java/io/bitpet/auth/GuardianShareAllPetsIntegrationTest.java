@@ -9,6 +9,8 @@ import io.bitpet.pet.domain.PetGender;
 import io.bitpet.pet.dto.PetCreateRequest;
 import io.bitpet.pet.service.PetKeeperService;
 import io.bitpet.pet.service.PetService;
+import io.bitpet.record.calendar.service.CalendarService;
+import io.bitpet.record.service.RecordService;
 import io.bitpet.support.IntegrationTestBase;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,6 +30,8 @@ class GuardianShareAllPetsIntegrationTest extends IntegrationTestBase {
     @Autowired private AuthService authService;
     @Autowired private PetService petService;
     @Autowired private PetKeeperService petKeeper;
+    @Autowired private CalendarService calendarService;
+    @Autowired private RecordService recordService;
 
     @Test
     void share_all_is_idempotent_and_picks_up_new_pets() {
@@ -59,6 +63,22 @@ class GuardianShareAllPetsIntegrationTest extends IntegrationTestBase {
         assertThat(guardianService.shareAllPetsToChild(guardian, child)).isZero();
     }
 
+    /** 공유받은 개체의 기록도 홈 캘린더·날짜 시트에 보인다 (2026-11-25 — 소유자 기준이라 빠지던 버그) */
+    @Test
+    void shared_pet_records_show_on_child_home_calendar() {
+        Long guardian = signup();
+        Long child = createChild(guardian);
+        createPet(guardian, "루나"); // 첫 체중 120g 이 오늘 기록으로 남는다
+        guardianService.shareAllPetsToChild(guardian, child);
+
+        LocalDate today = LocalDate.now(java.time.ZoneId.of("Asia/Seoul"));
+        String month = java.time.YearMonth.from(today).toString();
+        assertThat(calendarService.getUserCalendar(child, month).days())
+                .anySatisfy(d -> assertThat(d.date()).isEqualTo(today));
+        assertThat(recordService.getRecordsByDate(child, today)).isNotEmpty();
+        assertThat(recordService.getRecentRecords(child, 10)).isNotEmpty();
+    }
+
     @Test
     void only_my_own_child() {
         Long guardian = signup();
@@ -84,7 +104,7 @@ class GuardianShareAllPetsIntegrationTest extends IntegrationTestBase {
         int n = SEQ.incrementAndGet();
         return guardianService.createChild(guardian, new ChildCreateRequest(
                 "gsharekid" + n + "@example.com", "Passw0rd!23", "gsharekid" + n, null,
-                LocalDate.now().minusYears(10), true, false, null)).id();
+                LocalDate.now().minusYears(10), true, false, null, null)).id();
     }
 
     private Long createPet(Long userId, String name) {

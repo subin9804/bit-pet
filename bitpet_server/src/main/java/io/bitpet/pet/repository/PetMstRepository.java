@@ -23,6 +23,10 @@ public interface PetMstRepository extends JpaRepository<PetMst, Long>,
 
     List<PetMst> findAllByUserId(Long userId);
 
+    /** 내가 사육하는(OWNER + KEEPER) 개체. 홈 캘린더·최근 기록처럼 "내 개체 전체"를 보는 곳은 이걸 쓴다. */
+    @Query("SELECT p FROM PetMst p WHERE p.id IN (SELECT k.id.petId FROM PetKeeperRls k WHERE k.id.userId = :userId)")
+    List<PetMst> findAllKeptBy(@Param("userId") Long userId);
+
     /** 공개 프로필용 — private_yn = 'N' 인 개체만 */
     List<PetMst> findAllByUserIdAndPrivateYn(Long userId, String privateYn);
 

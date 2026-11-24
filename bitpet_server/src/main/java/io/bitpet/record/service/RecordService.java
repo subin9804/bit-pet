@@ -272,7 +272,8 @@ public class RecordService {
     // -------------------------------------------------------------------------
 
     public List<RecentRecordResponse> getRecentRecords(Long userId, int limit) {
-        List<PetMst> pets = petRepository.findAllByUserId(userId);
+        // 공유받은 개체(KEEPER)도 내 개체다 — 소유자(pet_mst.user_id)로 보면 빠진다 (2026-11-25)
+        List<PetMst> pets = petRepository.findAllKeptBy(userId);
         if (pets.isEmpty()) return List.of();
 
         List<Long> petIds = pets.stream().map(PetMst::getId).toList();
@@ -314,7 +315,8 @@ public class RecordService {
     }
 
     public List<RecentRecordResponse> getRecordsByDate(Long userId, LocalDate date) {
-        List<PetMst> pets = petRepository.findAllByUserId(userId);
+        // 공유받은 개체(KEEPER)도 내 개체다 — 소유자(pet_mst.user_id)로 보면 빠진다 (2026-11-25)
+        List<PetMst> pets = petRepository.findAllKeptBy(userId);
         if (pets.isEmpty()) return List.of();
 
         List<Long> petIds = pets.stream().map(PetMst::getId).toList();
