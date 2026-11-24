@@ -48,3 +48,7 @@ app.*.map.json
 /android/app/google-services.json
 /ios/Runner/GoogleService-Info.plist
 /lib/firebase_options.dart
+
+# 스크린샷 검수 출력 (flutter test test_screenshots --update-goldens)
+/test_screenshots/out/
+/test_screenshots/failures/
