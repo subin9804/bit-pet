@@ -24,7 +24,10 @@ import '../providers/notification_provider.dart';
 /// - ⋮ 메뉴: 모두 읽음 · 전체 삭제(확인 모달 없음) · 알림 설정
 ///
 /// 2026-11-03: '바로가기' 버튼·카드 탭 이동은 뺐다(사용자: "그냥 읽음처리나 삭제처리만").
-/// 서버 응답의 `postId` 는 남아 있다 — 다시 이동을 붙일 때 쓴다.
+///
+/// 2026-11-24: 카드 탭 이동을 다시 붙였다(사용자: "루틴이면 홈, 좋아요·댓글이면 그 글로").
+/// 버튼 없이 카드를 누르면 읽음 처리 + [_open]. 루틴은 홈, 커뮤니티는 서버가 풀어 준 `postId` 글,
+/// 컨설팅은 개체 상세, 공지는 이동 없이 읽음만. 글·댓글이 지워져 `postId` 가 없으면 토스트.
 ///
 /// 지우기·읽음은 **화면부터 바꾸고** 서버에 보낸다. 특히 밀어서 지우기는 [Dismissible] 이
 /// 사라진 뒤에도 같은 키로 다시 그려지면 예외가 나서, 서버 응답을 기다릴 수 없다.
@@ -97,6 +100,27 @@ class _NotificationListScreenState
         .markRead(n.id)
         .then((_) => ref.invalidate(notificationListProvider))
         .catchError((_) {});
+  }
+
+  /// 알림이 가리키는 곳으로. 알림함으로 돌아올 수 있게 push — 루틴만 홈 탭으로 go.
+  void _open(NotificationLog n) {
+    _markRead(n);
+    switch (n.notificationType) {
+      case NotificationType.ROUTINE_ALARM:
+        context.go('/home');
+      case NotificationType.COMMUNITY_COMMENT:
+      case NotificationType.COMMUNITY_LIKE:
+        final postId = n.postId;
+        if (postId == null) {
+          showToast(context, '삭제된 글이에요');
+        } else {
+          context.push('/community/$postId');
+        }
+      case NotificationType.AI_CONSULTING:
+        if (n.petId != null) context.push('/pets/${n.petId}');
+      case NotificationType.SYSTEM:
+        break; // 공지는 알림 본문이 전부다
+    }
   }
 
   Future<void> _onMenu(_MenuAction action, List<NotificationLog> visible) async {
@@ -226,7 +250,7 @@ class _NotificationListScreenState
                       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                       child: _NotificationCard(
                         item: n,
-                        onTap: () => _markRead(n),
+                        onTap: () => _open(n),
                         onDelete: collapsing
                             ? () {}
                             : () => _delete(n, animate: true),
