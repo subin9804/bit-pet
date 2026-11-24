@@ -1165,9 +1165,9 @@ OAuth 토큰 AES-256-GCM 암호화 (`BITPET_TOKEN_ENC_KEY` 환경변수).
 
 ### 관리자 웹 페이지 — tailog.me/admin/* (2026-11-24)
 
-입구 없이 **링크로만** 들어간다. 이메일 로그인(`/api/v1/auth/login`) → 토큰은 sessionStorage. 어드민 판정은 서버가 매 요청 한다.
+입구 없이 **링크로만** 들어간다. 시작 주소는 **`tailog.me/admin`** (홈: 각 페이지 카드 + 대기 신고·정지·문의 수, 헤더 'tailog 관리'·'홈' 로 복귀). 이메일 로그인(`/api/v1/auth/login`) → 토큰은 sessionStorage. 어드민 판정은 서버가 매 요청 한다.
 - `static/admin/{banners|reports|inquiries|push}.html` + 공통 `admin.css`·`admin.js`(로그인·헤더 메뉴·`Admin.api`). 주소는 `AdminPageController` 하나가 `/admin/{page}` → `.html` 로 forward
-- 공개 경로는 `/admin/**` 하나 — 페이지는 껍데기일 뿐이고 데이터는 전부 `/api/v1/admin/**` 가드 뒤에 있다. 새 페이지는 html 추가 + 컨트롤러 정규식·`admin.js` PAGES 에 한 줄
+- 공개 경로는 `/admin/**` 하나 — 페이지는 껍데기일 뿐이고 데이터는 전부 `/api/v1/admin/**` 가드 뒤에 있다. 새 페이지는 html 추가 + 컨트롤러 정규식·`admin.js` PAGES 에 한 줄 + `index.html` 카드 (banners.html 은 admin.js 를 안 써서 메뉴가 하드코딩 — 거기도 한 줄)
 - **신고·정지**(SUPER_ADMIN·MODERATOR): 신고 큐 처리(위반 인정/아님 × 조치 없음·가리기·삭제·작성자 정지) · 가림 해제 · 정지 중 목록·해제
 - **문의함**(SUPER_ADMIN·MODERATOR): `GET /admin/inquiries?category=` **읽기 전용**. 답장 기능 없음
 - **전체 푸시**(SUPER_ADMIN 만): `SYSTEM` 알림으로 알림함 + 푸시 (`BroadcastSender` ). **마케팅 토글**을 켜면 서버가 정보통신망법 규칙을 붙인다 —

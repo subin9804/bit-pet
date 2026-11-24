@@ -13,6 +13,12 @@ import org.springframework.web.bind.annotation.PathVariable;
 @Controller
 public class AdminPageController {
 
+    /** 관리 홈 — 각 페이지로 들어가는 카드 */
+    @GetMapping({"/admin", "/admin/"})
+    public String home() {
+        return "forward:/admin/index.html";
+    }
+
     @GetMapping("/admin/{page:banners|reports|inquiries|push}")
     public String page(@PathVariable String page) {
         return "forward:/admin/" + page + ".html";

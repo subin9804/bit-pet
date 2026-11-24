@@ -191,6 +191,11 @@ class ModerationAdminIntegrationTest extends IntegrationTestBase {
                     .andExpect(status().isOk())
                     .andExpect(forwardedUrl("/admin/" + page + ".html"));
         }
+        for (String home : new String[]{"/admin", "/admin/"}) {
+            mockMvc.perform(get(home))
+                    .andExpect(status().isOk())
+                    .andExpect(forwardedUrl("/admin/index.html"));
+        }
         mockMvc.perform(get("/admin/admin.js")).andExpect(status().isOk());
         mockMvc.perform(get("/admin/admin.css")).andExpect(status().isOk());
     }

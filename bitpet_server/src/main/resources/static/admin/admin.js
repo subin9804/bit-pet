@@ -5,11 +5,13 @@
 
   페이지는 <header data-page="reports"> 같은 빈 자리와 #login, #app 을 두고
   Admin.boot(async () => { 첫 로딩 }) 을 부른다.
+  /admin (index.html) 이 홈 — 각 페이지로 들어가는 카드. 헤더의 'tailog 관리' 를 누르면 홈으로.
 */
 (() => {
   const $ = (id) => document.getElementById(id);
   const TOKEN_KEY = 'tailog.admin.token';
   const PAGES = [
+    ['home', '홈'],
     ['banners', '배너'],
     ['reports', '신고·정지'],
     ['inquiries', '문의함'],
@@ -73,8 +75,8 @@
   function renderHeader() {
     const h = document.querySelector('header[data-page]');
     const cur = h.dataset.page;
-    h.innerHTML = `<h1>tailog 관리</h1>
-      <nav>${PAGES.map(([p, n]) => `<a href="/admin/${p}" class="${p === cur ? 'on' : ''}">${n}</a>`).join('')}</nav>
+    h.innerHTML = `<h1><a href="/admin">tailog 관리</a></h1>
+      <nav>${PAGES.map(([p, n]) => `<a href="/admin${p === 'home' ? '' : '/' + p}" class="${p === cur ? 'on' : ''}">${n}</a>`).join('')}</nav>
       <span class="who" id="who"></span><button id="logout" class="small">로그아웃</button>`;
     $('logout').addEventListener('click', () => showLogin(''));
   }
@@ -114,6 +116,7 @@
 
   window.Admin = {
     api, report, esc, fmt, pager,
+    token: () => token,
     boot(ready) {
       onReady = ready;
       renderHeader();

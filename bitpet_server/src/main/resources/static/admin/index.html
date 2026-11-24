@@ -1,0 +1,98 @@
+<!doctype html>
+<!--
+  관리 홈 (2026-11-24) — https://tailog.me/admin
+  각 관리 페이지로 들어가는 입구. 처리할 신고·정지 중 계정·문의 수를 함께 보여준다.
+  전체 푸시는 SUPER_ADMIN 전용이라 운영자(MODERATOR)에겐 잠긴 카드로 보인다.
+-->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>tailog 관리</title>
+<link rel="icon" href="/favicon.ico">
+<link rel="stylesheet" href="/admin/admin.css">
+<style>
+  .grid { display:grid; grid-template-columns:repeat(2, 1fr); gap:14px; }
+  .tile { display:block; text-decoration:none; color:inherit; background:var(--bg); border-radius:var(--r-lg);
+    box-shadow:var(--shadow1); padding:20px; border:1px solid transparent; transition:border-color .12s; }
+  .tile:hover { border-color:var(--brand500); }
+  .tile h3 { margin:0 0 6px; font-size:17px; display:flex; align-items:center; gap:8px; }
+  .tile h3 .go { margin-left:auto; color:var(--ink3); font-weight:400; }
+  .tile p { margin:0; color:var(--ink2); font-size:13px; line-height:1.6; }
+  .tile .stat { margin-top:14px; font-size:13px; color:var(--ink3); min-height:20px; }
+  .tile .stat b { color:var(--ink); font-size:20px; margin-right:2px; }
+  .tile .stat b.hot { color:var(--danger); }
+  .tile.locked { opacity:.55; pointer-events:none; }
+  @media (max-width: 640px) { .grid { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+
+<section id="login" class="card hidden">
+  <h2>tailog 관리</h2>
+  <p>tailog 관리자 계정으로 로그인하세요.</p>
+  <form id="loginForm">
+    <div class="field"><label for="email">이메일</label><input id="email" type="email" autocomplete="username" required></div>
+    <div class="field"><label for="pw">비밀번호</label><input id="pw" type="password" autocomplete="current-password" required></div>
+    <button class="primary" type="submit">로그인</button>
+    <div class="err" id="loginErr"></div>
+  </form>
+</section>
+
+<div id="app" class="hidden">
+  <header data-page="home"></header>
+  <main>
+    <div class="grid">
+      <a class="tile" href="/admin/reports">
+        <h3>신고·정지 <span class="go">›</span></h3>
+        <p>신고를 처리하고(가리기·삭제·작성자 정지) 정지 중인 계정을 풀어요.</p>
+        <div class="stat" id="stReports"></div>
+      </a>
+      <a class="tile" href="/admin/inquiries">
+        <h3>문의함 <span class="go">›</span></h3>
+        <p>앱 '개발자에게 문의하기'로 들어온 오류 제보·제안을 읽어요.</p>
+        <div class="stat" id="stInquiries"></div>
+      </a>
+      <a class="tile" href="/admin/banners">
+        <h3>홈 배너 <span class="go">›</span></h3>
+        <p>앱 홈 화면 배너를 등록·수정해요. 스토어 심사 없이 바로 바뀌어요.</p>
+        <div class="stat"></div>
+      </a>
+      <a class="tile" href="/admin/push" id="tilePush">
+        <h3>전체 푸시 <span class="go">›</span></h3>
+        <p>모든 회원에게 공지나 마케팅 알림을 보내요.</p>
+        <div class="stat" id="stPush"></div>
+      </a>
+    </div>
+  </main>
+</div>
+
+<script src="/admin/admin.js"></script>
+<script>
+(() => {
+  const { api } = Admin;
+  const $ = (id) => document.getElementById(id);
+  const n = (v) => Number(v).toLocaleString('ko-KR');
+
+  async function load() {
+    // 신고 목록은 운영자도 볼 수 있다 — 여기서 403 이면 관리자가 아니다 (admin.js 가 로그인 화면으로)
+    const [pending, suspensions, inquiries] = await Promise.all([
+      api('/api/v1/admin/reports?status=PENDING&page=0&size=1'),
+      api('/api/v1/admin/suspensions'),
+      api('/api/v1/admin/inquiries?page=0&size=1'),
+    ]);
+    $('stReports').innerHTML = `처리 대기 <b class="${pending.totalElements ? 'hot' : ''}">${n(pending.totalElements)}</b>건 · 정지 중 ${n(suspensions.length)}명`;
+    $('stInquiries').innerHTML = `전체 <b>${n(inquiries.totalElements)}</b>건`;
+    // 푸시는 최고 관리자만 — 운영자면 403 이 오므로 admin.js 를 거치지 않고 직접 확인한다
+    fetch('/api/v1/admin/push/preview', { headers: { Authorization: 'Bearer ' + Admin.token() } })
+      .then((r) => r.ok ? r.json() : Promise.reject(r.status))
+      .then((p) => { $('stPush').innerHTML = `받을 수 있는 회원 <b>${n(p.data.allCount)}</b>명`; })
+      .catch(() => { $('tilePush').classList.add('locked'); $('stPush').textContent = '최고 관리자만 쓸 수 있어요'; });
+  }
+
+  Admin.boot(load);
+})();
+</script>
+</body>
+</html>
