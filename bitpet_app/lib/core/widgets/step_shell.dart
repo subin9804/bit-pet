@@ -465,6 +465,10 @@ class StepSummary extends StatelessWidget {
           decoration: const BoxDecoration(
             borderRadius: AppRadius.brLg,
             color: AppColors.surface,
+          ),
+          // 테두리는 내용 위에 — decoration 에 두면 헤더 띠가 위·옆 선을 덮는다 (2026-11-24)
+          foregroundDecoration: const BoxDecoration(
+            borderRadius: AppRadius.brLg,
             border: Border.fromBorderSide(BorderSide(color: AppColors.paleLine)),
           ),
           child: Column(

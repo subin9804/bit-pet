@@ -144,6 +144,10 @@ class _Card extends StatelessWidget {
           // 흐려진다. 브랜드 틴트로 깔아 "서비스가 하는 말"로 구분한다.
           color: AppColors.brandTintSoft,
           borderRadius: AppRadius.brLg,
+        ),
+        // 테두리는 내용 위에 — decoration 에 두면 이미지 배너가 선을 덮는다 (2026-11-24)
+        foregroundDecoration: BoxDecoration(
+          borderRadius: AppRadius.brLg,
           border: Border.all(color: AppColors.brandTint),
         ),
         child: item.imageUrl != null
