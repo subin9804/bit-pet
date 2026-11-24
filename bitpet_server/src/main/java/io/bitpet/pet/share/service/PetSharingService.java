@@ -72,7 +72,10 @@ public class PetSharingService {
         Set<Long> owned = petKeeper.ownedPetIds(ownerUserId);
         // 소유 행은 남아 있어도 삭제된 개체(@SQLRestriction 으로 안 읽힘)는 뺀다
         Set<Long> alive = new LinkedHashSet<>();
-        petRepository.findAllById(owned).forEach(p -> alive.add(p.getId()));
+        // 이별한 개체도 뺀다 — 새 공유는 안 되고, 이미 공유된 건 그대로 둔다 (invite 와 같은 규칙)
+        petRepository.findAllById(owned).forEach(p -> {
+            if (!p.isDeceased()) alive.add(p.getId());
+        });
 
         List<Long> ordered = new ArrayList<>(petKeeper.keptPetIdsOrdered(ownerUserId).stream()
                 .filter(alive::contains)
@@ -89,7 +92,7 @@ public class PetSharingService {
 
     @Transactional
     public ShareInvitationResponse invite(Long ownerUserId, Long petId, ShareInviteRequest req) {
-        petKeeper.assertOwner(ownerUserId, petId);
+        assertNotDeceased(petKeeper.assertOwner(ownerUserId, petId));
 
         UserMst invitee = userRepository.findByShareCode(req.shareCode().toUpperCase())
                 .orElseThrow(() -> new BusinessException(ErrorCode.SHARE_CODE_INVALID));
@@ -132,7 +135,10 @@ public class PetSharingService {
         UUID batchId = UUID.randomUUID();
         List<PetShareInvitation> created = new ArrayList<>();
         for (Long petId : new LinkedHashSet<>(req.petIds())) {   // 중복 제거, 순서 보존
-            petKeeper.assertOwner(ownerUserId, petId);           // 소유권 — 하나라도 아니면 403
+            PetMst pet = petKeeper.assertOwner(ownerUserId, petId);   // 소유권 — 하나라도 아니면 403
+            if (pet.isDeceased()) {
+                continue;   // 이별한 개체 — 건너뜀 (앱 선택 목록에서도 빠진다)
+            }
 
             if (req.inviteType() == ShareInviteType.SHARE
                     && keeperRepository.existsByIdPetIdAndIdUserId(petId, invitee.getId())) {
@@ -213,6 +219,12 @@ public class PetSharingService {
     @Transactional
     public void accept(Long userId, Long invitationId) {
         PetShareInvitation inv = loadPendingForInvitee(userId, invitationId);
+        if (isPetDeceased(inv.getPetId())) {
+            // 초대를 보낸 뒤 이별한 개체. 예외를 던지면 트랜잭션이 롤백돼 CANCELED 가
+            // 안 남는다 — 상태만 닫고 끝낸다. 앱은 목록을 새로 받아 초대가 사라진다.
+            inv.cancel();
+            return;
+        }
         applyAccept(inv);
     }
 
@@ -235,6 +247,10 @@ public class PetSharingService {
                 inv.expire();
                 continue;
             }
+            if (isPetDeceased(inv.getPetId())) {
+                inv.cancel();   // 초대 뒤 이별한 개체 — 이 건만 닫는다
+                continue;
+            }
             applyAccept(inv);
         }
     }
@@ -250,6 +266,20 @@ public class PetSharingService {
         for (PetShareInvitation inv : items) {
             inv.reject();
         }
+    }
+
+    /**
+     * 이별한 개체는 새로 공유·분양하지 않는다. 이미 함께 키우던 사람은 그대로 둔다 —
+     * 같이 키운 기록·사진을 계속 볼 수 있어야 한다. 이별 취소하면 다시 가능.
+     */
+    private static void assertNotDeceased(PetMst pet) {
+        if (pet.isDeceased()) {
+            throw new BusinessException(ErrorCode.SHARE_PET_DECEASED);
+        }
+    }
+
+    private boolean isPetDeceased(Long petId) {
+        return petRepository.findById(petId).map(PetMst::isDeceased).orElse(false);
     }
 
     /** 단건 수락 실행 (accept/acceptBatch 공용) */

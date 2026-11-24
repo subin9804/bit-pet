@@ -189,6 +189,8 @@ public class PetMst extends BaseSyncEntity {
         this.deceasedAt = date != null ? date : LocalDate.now();
     }
 
+    public boolean isDeceased() { return deceasedAt != null; }
+
     public void revertDeceased() {
         this.deceasedAt = null;
     }
