@@ -805,13 +805,18 @@ class _PetCard extends ConsumerWidget {
         decoration: BoxDecoration(
           borderRadius: AppRadius.brLg,
           color: AppColors.surface,
+          // 선으로만 나눠서 카드가 바탕에 눌려 있었다. elev1 — 있는 줄 모를
+          // 만큼 옅고, 없으면 허전한 정도의 그림자다.
+          boxShadow: AppShadows.elev1,
+        ),
+        // 테두리는 내용 **위에** 그린다. decoration 에 두면 사진 칸(bgAlt)이 선을 덮어
+        // 위쪽·사진 옆 테두리가 사라지고 선택 테두리도 아래 정보칸에만 보였다 (2026-11-24).
+        foregroundDecoration: BoxDecoration(
+          borderRadius: AppRadius.brLg,
           border: Border.all(
             color: selected ? AppColors.brandAction : AppColors.border,
             width: selected ? 2 : 1,
           ),
-          // 선으로만 나눠서 카드가 바탕에 눌려 있었다. elev1 — 있는 줄 모를
-          // 만큼 옅고, 없으면 허전한 정도의 그림자다.
-          boxShadow: AppShadows.elev1,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
