@@ -23,35 +23,12 @@ List<MatingRecord> linkableMatings(List<MatingRecord> all, int petId) =>
     all.where((m) => m.femalePetId == null || m.femalePetId == petId).toList()
       ..sort((a, b) => b.triedAt.compareTo(a.triedAt));
 
-/// 아무것도 고르지 않았을 때 미리 골라 둘 메이팅.
+/// 저장 시점에 보낼 matingId. [chosen] 이 false 면 연결 안 함.
 ///
-/// 산란일 **이전**의 가장 최근 것. 뒤에 한 메이팅은 이 알의 부모일 수 없고,
-/// '실패'로 적은 메이팅도 건너뛴다 (고르면 그대로 걸 수는 있다).
-int? defaultMatingId(List<MatingRecord> all, int petId, DateTime laidAt) {
-  final cutoff = DateTime(laidAt.year, laidAt.month, laidAt.day + 1);
-  for (final m in linkableMatings(all, petId)) {
-    if (m.isSuccessful == false) continue;
-    if (m.triedAt.toLocal().isBefore(cutoff)) return m.id;
-  }
-  return null;
-}
-
-/// 저장 시점에 보낼 matingId. [chosen] 이 false 면 기본값(최근)을 따른다.
-Future<int?> resolveMatingLink(
-  WidgetRef ref, {
-  required int petId,
-  required DateTime laidAt,
-  required bool chosen,
-  int? selectedId,
-}) async {
-  if (chosen) return selectedId;
-  try {
-    final all = await ref.read(matingListProvider(petId).future);
-    return defaultMatingId(all, petId, laidAt);
-  } catch (_) {
-    return null; // 못 불러오면 연결 없이 저장한다 — 산란 기록 자체를 막지 않는다
-  }
-}
+/// 2026-11-25: 예전엔 산란일 이전 가장 최근 메이팅을 미리 골라 두고 그대로 걸었다.
+/// 사용자가 모르는 사이에 아비가 정해지는 게 문제라 기본은 '연결 안 함'으로 바꿨다.
+int? resolveMatingLink({required bool chosen, int? selectedId}) =>
+    chosen ? selectedId : null;
 
 /// 메이팅 한 건을 한 줄로 — `6/2 · 레오`. 올해가 아니면 연도를 붙인다.
 String matingLinkLabel(MatingRecord m) {
@@ -68,7 +45,7 @@ class MatingLinkPicker extends ConsumerWidget {
   final int petId;
   final DateTime laidAt;
 
-  /// false 면 [defaultMatingId] 를 고른 것으로 보여 준다.
+  /// false 면 '연결 안 함'을 고른 것으로 보여 준다.
   final bool chosen;
   final int? selectedId;
   final ValueChanged<int?> onChanged;
@@ -98,8 +75,7 @@ class MatingLinkPicker extends ConsumerWidget {
           Text('메이팅 기록을 불러오지 못했어요', style: AppTextStyles.caption),
       data: (all) {
         final list = linkableMatings(all, petId);
-        final current =
-            chosen ? selectedId : defaultMatingId(all, petId, laidAt);
+        final current = chosen ? selectedId : null;
         if (list.isEmpty) {
           return Text('이 개체의 메이팅 기록이 없어요', style: AppTextStyles.caption);
         }
@@ -121,20 +97,24 @@ class MatingLinkPicker extends ConsumerWidget {
               child: ClipRRect(
                 borderRadius: AppRadius.brMd,
                 child: ListView.separated(
+                  // 시트(AppSheet)의 스크롤바가 PrimaryScrollController 를 쓴다 — 이 목록까지
+                  // 붙으면 컨트롤러 하나에 위치가 둘이라 스크롤바가 assert 로 죽는다.
+                  primary: false,
                   shrinkWrap: true,
                   padding: EdgeInsets.zero,
                   itemCount: list.length + 1,
                   separatorBuilder: (_, _) =>
                       const Divider(height: 1, color: AppColors.line),
+                  // '연결 안 함'이 맨 위 — 기본값이라 먼저 보이게.
                   itemBuilder: (_, i) {
-                    if (i == list.length) {
+                    if (i == 0) {
                       return _Row(
                         title: '연결 안 함',
                         selected: current == null,
                         onTap: () => onChanged(null),
                       );
                     }
-                    final m = list[i];
+                    final m = list[i - 1];
                     return _Row(
                       title: m.malePetName ?? m.externalPartnerText ?? '상대 미입력',
                       sub: _sub(m),

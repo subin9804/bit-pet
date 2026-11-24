@@ -107,7 +107,11 @@ class AppSheet extends StatelessWidget {
           const _Handle(),
           Padding(
             padding: const EdgeInsets.fromLTRB(
-                AppSpacing.xxl, 0, AppSpacing.xxl, AppSpacing.lg),
+              AppSpacing.xxl,
+              0,
+              AppSpacing.xxl,
+              AppSpacing.lg,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -128,26 +132,34 @@ class AppSheet extends StatelessWidget {
           // 그냥 누락된 것처럼 보인다(2026-10-15 사용자 지적: "스크롤이
           // 비가시적이라 그냥 정보가 누락되어보여"). 넘치지 않으면 막대는
           // 애초에 그려지지 않으므로 짧은 시트는 전과 똑같다.
+          // 막대·스크롤뷰는 시트 전용 컨트롤러를 쓴다([_OwnScrollController]). 상세 화면처럼
+          // 같은 라우트에 오버레이로 띄우면 뒤 화면 목록도 PrimaryScrollController 에 붙어
+          // 위치가 둘이 되고, 막대가 assert 로 죽는다 (2026-11-25).
           Flexible(
-            child: Scrollbar(
-              thumbVisibility: true,
-              child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (petSelector != null) ...[
-                    petSelector!,
-                    const SizedBox(height: AppSpacing.xl),
-                  ],
-                  child,
-                  if (dateField != null) ...[
-                    const SizedBox(height: AppSpacing.xl),
-                    dateField!,
-                  ],
-                  const SizedBox(height: AppSpacing.xxl),
-                ],
-              ),
+            child: _OwnScrollController(
+              child: Scrollbar(
+                thumbVisibility: true,
+                child: SingleChildScrollView(
+                  primary: true,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.xxl,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (petSelector != null) ...[
+                        petSelector!,
+                        const SizedBox(height: AppSpacing.xl),
+                      ],
+                      child,
+                      if (dateField != null) ...[
+                        const SizedBox(height: AppSpacing.xl),
+                        dateField!,
+                      ],
+                      const SizedBox(height: AppSpacing.xxl),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
@@ -176,7 +188,9 @@ class AppSheet extends StatelessWidget {
                           width: 20,
                           height: 20,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2, color: AppColors.bg),
+                            strokeWidth: 2,
+                            color: AppColors.bg,
+                          ),
                         )
                       : Text(primaryLabel!),
                 ),
@@ -200,7 +214,10 @@ class _Handle extends StatelessWidget {
       child: Container(
         width: 40,
         height: 4,
-        margin: const EdgeInsets.only(top: AppSpacing.md, bottom: AppSpacing.lg),
+        margin: const EdgeInsets.only(
+          top: AppSpacing.md,
+          bottom: AppSpacing.lg,
+        ),
         decoration: const BoxDecoration(
           color: AppColors.border,
           borderRadius: AppRadius.brPill,
@@ -232,16 +249,14 @@ class SheetCard extends StatelessWidget {
 
   /// 행이 제 여백을 들고 있는 목록용 — 좌우만 주고 위아래는 거의 두지 않는다.
   const SheetCard.list({super.key, required this.child})
-      : padding = const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg, vertical: AppSpacing.xs);
+    : padding = const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.xs,
+      );
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: AppDecor.card,
-      padding: padding,
-      child: child,
-    );
+    return Container(decoration: AppDecor.card, padding: padding, child: child);
   }
 }
 
@@ -270,4 +285,27 @@ Future<T?> showAppSheet<T>({
     // 하단 인셋은 AppSheet 가 직접 다룬다 (useSafeArea 를 켜면 이중으로 띄워진다).
     useSafeArea: false,
   );
+}
+
+/// 자식에게 **이 시트만의** PrimaryScrollController 를 준다 — [AppSheet] 의 막대 참고.
+class _OwnScrollController extends StatefulWidget {
+  final Widget child;
+  const _OwnScrollController({required this.child});
+
+  @override
+  State<_OwnScrollController> createState() => _OwnScrollControllerState();
+}
+
+class _OwnScrollControllerState extends State<_OwnScrollController> {
+  final _controller = ScrollController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      PrimaryScrollController(controller: _controller, child: widget.child);
 }

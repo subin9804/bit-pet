@@ -271,9 +271,7 @@ class _RecordDetailScreenState extends ConsumerState<RecordDetailScreen> {
           showToast(context, '유정란 수가 총 개수보다 많아요', type: ToastType.error);
           return;
         }
-        final matingId = await resolveMatingLink(ref,
-            petId: widget.petId,
-            laidAt: DateTime.parse(e.dateStr),
+        final matingId = resolveMatingLink(
             chosen: e.form['matingChosen'] == true,
             selectedId: e.form['matingId'] as int?);
         final data = {
@@ -1098,21 +1096,36 @@ class _EditorSheetState extends State<_EditorSheet> {
     ));
   }
 
+  /// FAB `_FieldLabel` 과 같은 모양 — 필수는 빨간 *, 선택은 '(선택)'.
   Widget _eggLabel(String text, {required bool required}) => Row(
         children: [
           Text(text,
               style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.primary)),
-          if (required)
-            const Text(' *',
-                style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.error)),
+                  fontSize: 13, fontWeight: FontWeight.w700,
+                  color: AppColors.ink)),
+          if (required) ...[
+            const SizedBox(width: 4),
+            const Text('*', style: TextStyle(fontSize: 12,
+                fontWeight: FontWeight.w700, color: AppColors.error)),
+          ] else ...[
+            const SizedBox(width: 8),
+            Text('(선택)', style: AppTextStyles.label),
+          ],
         ],
       );
+
+  /// FAB 기록 시트(`_buildSimpleFields`)의 박스 입력칸.
+  static const _boxSide = BorderSide(color: AppColors.line);
+  static final _boxDec = InputDecoration(
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    border: const OutlineInputBorder(
+        borderRadius: AppRadius.brMd, borderSide: _boxSide),
+    enabledBorder: const OutlineInputBorder(
+        borderRadius: AppRadius.brMd, borderSide: _boxSide),
+    focusedBorder: const OutlineInputBorder(
+        borderRadius: AppRadius.brMd,
+        borderSide: BorderSide(color: AppColors.brandAction, width: 1.5)),
+  );
 
   void _updateForm(String key, dynamic value) {
     widget.onChanged(widget.editor.copyWith(
@@ -1416,12 +1429,12 @@ class _EditorSheetState extends State<_EditorSheet> {
                           style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
-                              color: AppColors.primary),
-                          decoration: InputDecoration(
+                              color: AppColors.ink),
+                          decoration: _boxDec.copyWith(
                             hintText: '0',
                             suffixText: widget.terms.eggUnit,
                             suffixStyle: const TextStyle(
-                                fontSize: 14, color: AppColors.paleInk2),
+                                fontSize: 14, color: AppColors.ink2),
                           ),
                           onChanged: (v) => setState(() => _updateForm(
                               'totalCount', int.tryParse(v.trim()) ?? 0)),
@@ -1435,19 +1448,19 @@ class _EditorSheetState extends State<_EditorSheet> {
                             controller: _fertileCtrl,
                             keyboardType: TextInputType.number,
                             style: const TextStyle(
-                                fontSize: 14, color: AppColors.primary),
-                            decoration: const InputDecoration(
+                                fontSize: 14, color: AppColors.ink),
+                            decoration: _boxDec.copyWith(
                               hintText: '미확인 시 비워두세요',
                               suffixText: '개',
-                              suffixStyle: TextStyle(
-                                  fontSize: 14, color: AppColors.paleInk2),
+                              suffixStyle: const TextStyle(
+                                  fontSize: 14, color: AppColors.ink2),
                             ),
                             // 비우면 null — '전부 무정(0)'과 구별해야 한다.
                             onChanged: (v) => _updateForm('fertileCount',
                                 v.trim().isEmpty ? null : int.tryParse(v.trim())),
                           ),
                         ],
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 20),
                         _eggLabel('메이팅 기록', required: false),
                         const SizedBox(height: 8),
                         MatingLinkPicker(
@@ -1466,7 +1479,17 @@ class _EditorSheetState extends State<_EditorSheet> {
                       ],
 
                       // ── 공통 메모 (memo 타입 제외) ─────────
-                      if (widget.recordType != 'memo') ...[
+                      if (widget.recordType == 'laying') ...[
+                        // 산란은 FAB 산란 폼과 같은 모양으로 (2026-11-25).
+                        const SizedBox(height: 20),
+                        _eggLabel('메모', required: false),
+                        const SizedBox(height: 8),
+                        AppMemoField(
+                          controller: _memoCtrl,
+                          onChanged: (v) => _updateForm('memo', v),
+                          hintText: '특이사항 (선택)',
+                        ),
+                      ] else if (widget.recordType != 'memo') ...[
                         const SizedBox(height: 16),
                         Row(children: [
                           const Text('메모',

@@ -258,7 +258,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
   final _eggTotalCtrl   = TextEditingController();
   final _eggFertileCtrl = TextEditingController();
   // 이 산란을 낳게 한 메이팅. [_layMatingFor] 가 지금 개체일 때만 사용자가 고른 값이고,
-  // 아니면 그 개체의 가장 최근 메이팅을 따른다 ([resolveMatingLink]). 개체 id 를 같이
+  // 아니면 연결 안 함 ([resolveMatingLink]). 개체 id 를 같이
   // 들고 있는 건 개체를 바꿨을 때 남의 메이팅이 실려 가지 않게 하려는 것이다.
   int? _layMatingId;
   int? _layMatingFor;
@@ -1526,9 +1526,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
             final fertile = pet.terms.isMammal
                 ? null
                 : int.tryParse(_eggFertileCtrl.text.trim());
-            final matingId = await resolveMatingLink(ref,
-                petId: pet.id,
-                laidAt: now,
+            final matingId = resolveMatingLink(
                 chosen: _layMatingFor == pet.id,
                 selectedId: _layMatingId);
             final layData = <String, dynamic>{
@@ -2052,7 +2050,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
             _FieldLabel('메이팅 기록', required: false),
             const SizedBox(height: 8),
             // 여러 마리 일괄이면 개체마다 메이팅이 달라 한 칸으로 고를 수 없다 —
-            // 각자 가장 최근 것에 걸고, 바꾸려면 개별 입력이나 클러치 상세에서.
+            // 연결 없이 저장하고, 걸려면 클러치 상세에서.
             if (pets.length == 1)
               MatingLinkPicker(
                 petId: pets.first.id,
@@ -2065,7 +2063,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                 }),
               )
             else
-              Text('개체마다 가장 최근 메이팅 기록에 연결돼요',
+              Text('여러 마리는 메이팅 연결 없이 저장돼요. 클러치 상세에서 연결할 수 있어요',
                   style: AppTextStyles.caption),
             const SizedBox(height: 20),
             _FieldLabel('메모', required: false),
