@@ -1,0 +1,407 @@
+<!doctype html>
+<!--
+  홈 배너 관리 (2026-11-24) — https://tailog.me/admin/banners
+
+  앱에 입구가 없고 이 주소로만 들어온다. 페이지 자체는 공개 경로인 빈 껍데기이고,
+  로그인은 앱과 같은 /api/v1/auth/login, 어드민 판정은 /api/v1/admin/banners 가 한다 (아니면 403).
+  토큰은 sessionStorage 에만 둔다 — 탭을 닫으면 로그아웃. 갱신은 하지 않고 만료되면 다시 로그인.
+-->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>배너 관리 · tailog</title>
+<link rel="icon" href="/favicon.ico">
+<style>
+  :root {
+    --brand50:#EDFBF4; --brand500:#16B26A; --brand600:#0E9B5B; --brand700:#0B7A4B;
+    --bg:#FFFFFF; --bgAlt:#F4F7F5; --canvas:#F4F6F5; --line:#E6EBE7;
+    --ink:#121A15; --ink2:#5B665F; --ink3:#909A94; --danger:#D93A3A;
+    --r-sm:10px; --r-md:12px; --r-lg:16px;
+    --shadow1: 0 1px 2px rgba(15,21,18,.04), 0 2px 8px rgba(15,21,18,.05);
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--canvas); color:var(--ink);
+    font-family:Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Segoe UI",sans-serif;
+    font-size:14px; }
+  header { background:var(--bg); border-bottom:1px solid var(--line); padding:14px 24px;
+    display:flex; align-items:center; gap:12px; }
+  header h1 { font-size:17px; margin:0; flex:1; }
+  header .who { color:var(--ink2); font-size:13px; }
+  main { max-width:1080px; margin:0 auto; padding:24px 16px 64px; }
+  .card { background:var(--bg); border-radius:var(--r-lg); box-shadow:var(--shadow1); padding:20px; }
+  button { font:inherit; cursor:pointer; border-radius:var(--r-sm); border:1px solid var(--line);
+    background:var(--bg); color:var(--ink); padding:8px 14px; }
+  button.primary { background:var(--brand500); border-color:var(--brand500); color:#fff; font-weight:600; }
+  button.primary:hover { background:var(--brand600); }
+  button.danger { color:var(--danger); }
+  button:disabled { opacity:.5; cursor:default; }
+  input, select, textarea { font:inherit; width:100%; padding:9px 11px; border:1px solid var(--line);
+    border-radius:var(--r-sm); background:var(--bg); color:var(--ink); }
+  input:focus, select:focus { outline:2px solid var(--brand500); outline-offset:-1px; }
+  label { display:block; font-size:12px; font-weight:600; color:var(--ink2); margin:0 0 6px; }
+  .hint { font-size:12px; color:var(--ink3); margin-top:4px; }
+  .err { color:var(--danger); font-size:13px; min-height:18px; margin-top:8px; }
+  .hidden { display:none !important; }
+
+  /* 로그인 */
+  #login { max-width:360px; margin:12vh auto 0; }
+  #login h2 { margin:0 0 4px; font-size:20px; }
+  #login p { margin:0 0 20px; color:var(--ink2); }
+  #login .field { margin-bottom:12px; }
+  #login button { width:100%; padding:11px; margin-top:4px; }
+
+  /* 목록 */
+  .toolbar { display:flex; align-items:center; gap:8px; margin-bottom:12px; }
+  .toolbar h2 { flex:1; margin:0; font-size:16px; }
+  .list { display:flex; flex-direction:column; gap:10px; }
+  .row { display:grid; grid-template-columns: 340px 1fr auto; gap:16px; align-items:center;
+    background:var(--bg); border-radius:var(--r-lg); box-shadow:var(--shadow1); padding:12px; }
+  .row .meta { font-size:13px; color:var(--ink2); line-height:1.6; min-width:0; }
+  .row .meta b { color:var(--ink); }
+  .row .meta .link { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .row .acts { display:flex; gap:6px; }
+  .pill { display:inline-block; font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; margin-right:4px; }
+  .pill.live { background:var(--brand50); color:var(--brand700); }
+  .pill.off { background:var(--bgAlt); color:var(--ink3); }
+  .pill.wait { background:#F6ECD3; color:#765710; }
+  .empty { text-align:center; color:var(--ink3); padding:48px 0; }
+
+  /* 앱 배너 미리보기 — 앱 home_banner.dart 와 비슷한 비율 (폭 340 기준 높이 ~100) */
+  .banner { position:relative; height:100px; border-radius:var(--r-lg); overflow:hidden;
+    background:linear-gradient(135deg, var(--brand50), #DDEAF3); display:flex; align-items:center; padding:0 18px; }
+  .banner img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  .banner .txt { position:relative; min-width:0; }
+  .banner .badge { display:inline-block; font-size:10px; font-weight:700; background:var(--bg); color:var(--brand700);
+    padding:2px 7px; border-radius:999px; margin-bottom:4px; }
+  .banner .t { font-weight:700; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .banner .b { font-size:12px; color:var(--ink2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .banner.has-img .txt { display:none; }
+
+  /* 편집 */
+  dialog { border:0; border-radius:var(--r-lg); padding:0; width:min(720px, 94vw); box-shadow:0 12px 40px rgba(0,0,0,.18); }
+  dialog::backdrop { background:rgba(18,26,21,.35); }
+  .dlg { padding:22px; }
+  .dlg h3 { margin:0 0 16px; font-size:17px; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .grid .full { grid-column:1 / -1; }
+  .check { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:500; color:var(--ink); }
+  .check input { width:auto; }
+  .dlg .foot { display:flex; gap:8px; justify-content:flex-end; margin-top:18px; }
+  .imgrow { display:flex; gap:8px; align-items:center; }
+  .imgrow input[type=file] { flex:1; }
+
+  @media (max-width: 760px) {
+    .row { grid-template-columns:1fr; }
+    .grid { grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+
+<section id="login" class="card hidden">
+  <h2>배너 관리</h2>
+  <p>tailog 관리자 계정으로 로그인하세요.</p>
+  <form id="loginForm">
+    <div class="field"><label for="email">이메일</label><input id="email" type="email" autocomplete="username" required></div>
+    <div class="field"><label for="pw">비밀번호</label><input id="pw" type="password" autocomplete="current-password" required></div>
+    <button class="primary" type="submit">로그인</button>
+    <div class="err" id="loginErr"></div>
+  </form>
+</section>
+
+<div id="app" class="hidden">
+  <header>
+    <h1>tailog 홈 배너</h1>
+    <span class="who" id="who"></span>
+    <button id="logout">로그아웃</button>
+  </header>
+  <main>
+    <div class="toolbar">
+      <h2>배너 <span id="count" style="color:var(--ink3);font-weight:500"></span></h2>
+      <button class="primary" id="add">+ 새 배너</button>
+    </div>
+    <p class="hint" style="margin:0 0 14px">앱 홈에는 <b>켜짐 + 기간 안</b>인 배너만 순서대로 보입니다. 자녀 계정(만 14세 미만)에는 외부 링크 배너가 보이지 않아요. 앱은 홈을 열 때 새로 받아옵니다.</p>
+    <div class="list" id="list"></div>
+  </main>
+</div>
+
+<dialog id="dlg">
+  <form class="dlg" id="form" method="dialog">
+    <h3 id="dlgTitle">새 배너</h3>
+    <div class="banner" id="preview" style="margin-bottom:16px"></div>
+    <div class="grid">
+      <div class="full">
+        <label>이미지 (선택)</label>
+        <div class="imgrow">
+          <input type="file" id="file" accept="image/png,image/jpeg,image/webp,image/gif">
+          <button type="button" id="clearImg">이미지 빼기</button>
+        </div>
+        <div class="hint">가로로 긴 이미지 권장 (약 1020×300). 이미지가 있으면 아래 글자는 앱에 안 보이고 이미지만 나옵니다 — 글자는 이미지 안에 넣어 주세요. 5MB 까지.</div>
+      </div>
+      <div><label for="title">제목 *</label><input id="title" maxlength="40" required></div>
+      <div><label for="badge">배지</label><input id="badge" maxlength="10" placeholder="공지 / 이벤트"></div>
+      <div class="full"><label for="body">설명</label><input id="body" maxlength="60"></div>
+      <div>
+        <label for="linkType">누르면</label>
+        <select id="linkType">
+          <option value="NONE">아무 일 없음</option>
+          <option value="ROUTE">앱 안 화면으로</option>
+          <option value="URL">외부 링크 열기</option>
+        </select>
+      </div>
+      <div>
+        <label for="linkValue">링크</label>
+        <input id="linkValue" maxlength="500">
+        <div class="hint" id="linkHint"></div>
+      </div>
+      <div><label for="startAt">노출 시작</label><input id="startAt" type="datetime-local"><div class="hint">비우면 바로</div></div>
+      <div><label for="endAt">노출 끝</label><input id="endAt" type="datetime-local"><div class="hint">비우면 계속</div></div>
+      <div><label for="sortOrder">순서</label><input id="sortOrder" type="number" value="0"><div class="hint">작을수록 먼저</div></div>
+      <div style="display:flex;align-items:flex-end"><label class="check"><input type="checkbox" id="active" checked> 켜짐</label></div>
+    </div>
+    <div class="err" id="formErr"></div>
+    <div class="foot">
+      <button type="button" id="cancel">취소</button>
+      <button type="submit" class="primary" id="save">저장</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const TOKEN_KEY = 'tailog.admin.token';
+  let token = null;
+  try { token = sessionStorage.getItem(TOKEN_KEY); } catch (_) {}
+  let banners = [];
+  let editing = null;            // 수정 중인 배너 id (새 배너면 null)
+  let imageKey = null, imageUrl = null;
+
+  const LINK_HINT = {
+    NONE: '',
+    ROUTE: '예: /community, /routines, /records — / 로 시작',
+    URL: '예: https://tailog.me/... — https:// 로 시작. 자녀 계정에는 안 보입니다',
+  };
+
+  function setToken(t) {
+    token = t;
+    try { t ? sessionStorage.setItem(TOKEN_KEY, t) : sessionStorage.removeItem(TOKEN_KEY); } catch (_) {}
+  }
+
+  async function api(path, opts = {}) {
+    const headers = { ...(opts.headers || {}) };
+    if (token) headers.Authorization = 'Bearer ' + token;
+    if (opts.json !== undefined) {
+      headers['Content-Type'] = 'application/json';
+      opts.body = JSON.stringify(opts.json);
+    }
+    const res = await fetch(path, { method: opts.method || 'GET', headers, body: opts.body });
+    let payload = null;
+    try { payload = await res.json(); } catch (_) {}
+    if (res.status === 401) { showLogin('로그인이 만료됐어요. 다시 로그인해 주세요.'); throw new Error('401'); }
+    if (res.status === 403) { showLogin('관리자 계정이 아니에요.'); throw new Error('403'); }
+    if (!res.ok || !payload || payload.success === false) {
+      throw new Error((payload && payload.error && payload.error.message) || ('요청 실패 (' + res.status + ')'));
+    }
+    return payload.data;
+  }
+
+  // ── 로그인 ─────────────────────────────────────────
+  function showLogin(msg) {
+    setToken(null);
+    $('app').classList.add('hidden');
+    $('login').classList.remove('hidden');
+    $('loginErr').textContent = msg || '';
+  }
+
+  $('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    $('loginErr').textContent = '';
+    const btn = e.submitter; btn.disabled = true;
+    try {
+      const res = await fetch('/api/v1/auth/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: $('email').value.trim(), password: $('pw').value }),
+      });
+      const p = await res.json().catch(() => null);
+      if (!res.ok || !p || !p.success) throw new Error((p && p.error && p.error.message) || '로그인에 실패했어요');
+      setToken(p.data.accessToken);
+      $('pw').value = '';
+      await start();
+    } catch (err) {
+      if (err.message !== '401' && err.message !== '403') $('loginErr').textContent = err.message;
+    } finally { btn.disabled = false; }
+  });
+
+  $('logout').addEventListener('click', () => showLogin(''));
+
+  async function start() {
+    banners = await api('/api/v1/admin/banners');   // 어드민이 아니면 여기서 403 → 로그인 화면
+    $('login').classList.add('hidden');
+    $('app').classList.remove('hidden');
+    try {
+      const me = await api('/api/v1/auth/me');
+      $('who').textContent = (me && (me.nickname || me.email)) || '';
+    } catch (_) {}
+    render();
+  }
+
+  // ── 목록 ───────────────────────────────────────────
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+  const fmt = (iso) => iso ? new Date(iso).toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' }) : '';
+
+  function bannerHtml(b) {
+    const img = b.imageUrl ? `<img src="${esc(b.imageUrl)}" alt="">` : '';
+    return `<div class="banner ${b.imageUrl ? 'has-img' : ''}">${img}<div class="txt">
+      ${b.badge ? `<span class="badge">${esc(b.badge)}</span>` : ''}
+      <div class="t">${esc(b.title)}</div>${b.body ? `<div class="b">${esc(b.body)}</div>` : ''}</div></div>`;
+  }
+
+  function status(b) {
+    if (b.live) return '<span class="pill live">노출 중</span>';
+    if (!b.active) return '<span class="pill off">꺼짐</span>';
+    if (b.startAt && new Date(b.startAt) > new Date()) return '<span class="pill wait">예약</span>';
+    return '<span class="pill off">기간 끝</span>';
+  }
+
+  function linkText(b) {
+    if (b.linkType === 'ROUTE') return '앱 화면 ' + esc(b.linkValue);
+    if (b.linkType === 'URL') return '외부 ' + esc(b.linkValue);
+    return '링크 없음';
+  }
+
+  function render() {
+    $('count').textContent = banners.length ? `${banners.length}개` : '';
+    if (!banners.length) {
+      $('list').innerHTML = '<div class="empty card">아직 배너가 없어요. 비어 있으면 앱 홈에 배너 자리가 안 보입니다.</div>';
+      return;
+    }
+    $('list').innerHTML = banners.map((b) => `
+      <div class="row">
+        ${bannerHtml(b)}
+        <div class="meta">
+          <div>${status(b)} <b>${esc(b.title)}</b> · 순서 ${b.sortOrder}</div>
+          <div class="link">${linkText(b)}</div>
+          <div>${b.startAt || b.endAt ? `${fmt(b.startAt) || '바로'} ~ ${fmt(b.endAt) || '계속'}` : '기간 제한 없음'}</div>
+        </div>
+        <div class="acts">
+          <button data-edit="${b.id}">수정</button>
+          <button class="danger" data-del="${b.id}">삭제</button>
+        </div>
+      </div>`).join('');
+  }
+
+  $('list').addEventListener('click', async (e) => {
+    const editId = e.target.dataset.edit, delId = e.target.dataset.del;
+    if (editId) openForm(banners.find((b) => String(b.id) === editId));
+    if (delId) {
+      const b = banners.find((x) => String(x.id) === delId);
+      if (!confirm(`"${b.title}" 배너를 지울까요?\n잠깐 내리기만 하려면 수정에서 '켜짐'을 끄세요.`)) return;
+      try { await api('/api/v1/admin/banners/' + delId, { method: 'DELETE' }); await reload(); }
+      catch (err) { if (err.message !== '401' && err.message !== '403') alert(err.message); }
+    }
+  });
+
+  async function reload() { banners = await api('/api/v1/admin/banners'); render(); }
+
+  // ── 편집 ───────────────────────────────────────────
+  // datetime-local 은 시간대 없는 현지 시각 — ISO(UTC) 와 서로 바꾼다
+  function toLocalInput(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const p = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+  }
+  const fromLocalInput = (v) => v ? new Date(v).toISOString() : null;
+
+  function openForm(b) {
+    editing = b ? b.id : null;
+    $('dlgTitle').textContent = b ? '배너 수정' : '새 배너';
+    $('title').value = b?.title || '';
+    $('badge').value = b?.badge || '';
+    $('body').value = b?.body || '';
+    $('linkType').value = b?.linkType || 'NONE';
+    $('linkValue').value = b?.linkValue || '';
+    $('startAt').value = toLocalInput(b?.startAt);
+    $('endAt').value = toLocalInput(b?.endAt);
+    $('sortOrder').value = b?.sortOrder ?? 0;
+    $('active').checked = b ? b.active : true;
+    imageKey = b?.imageKey || null;
+    imageUrl = b?.imageUrl || null;
+    $('file').value = '';
+    $('formErr').textContent = '';
+    syncLink(); syncPreview();
+    $('dlg').showModal();
+  }
+
+  function syncLink() {
+    const t = $('linkType').value;
+    $('linkValue').disabled = t === 'NONE';
+    if (t === 'NONE') $('linkValue').value = '';
+    $('linkValue').placeholder = t === 'ROUTE' ? '/community' : t === 'URL' ? 'https://' : '';
+    $('linkHint').textContent = LINK_HINT[t];
+  }
+
+  function syncPreview() {
+    $('preview').outerHTML = bannerHtml({
+      title: $('title').value || '제목', body: $('body').value, badge: $('badge').value, imageUrl,
+    }).replace('class="banner', 'id="preview" style="margin-bottom:16px" class="banner');
+    $('clearImg').disabled = !imageKey;
+  }
+
+  ['title', 'badge', 'body'].forEach((id) => $(id).addEventListener('input', syncPreview));
+  $('linkType').addEventListener('change', syncLink);
+  $('add').addEventListener('click', () => openForm(null));
+  $('cancel').addEventListener('click', () => $('dlg').close());
+  $('clearImg').addEventListener('click', () => { imageKey = null; imageUrl = null; $('file').value = ''; syncPreview(); });
+
+  $('file').addEventListener('change', async () => {
+    const f = $('file').files[0];
+    if (!f) return;
+    $('formErr').textContent = '';
+    if (f.size > 5 * 1024 * 1024) { $('formErr').textContent = '이미지는 5MB 까지 올릴 수 있어요'; $('file').value = ''; return; }
+    $('save').disabled = true;
+    try {
+      const fd = new FormData(); fd.append('file', f);
+      const r = await api('/api/v1/admin/banners/image', { method: 'POST', body: fd });
+      imageKey = r.imageKey; imageUrl = r.imageUrl;
+      syncPreview();
+    } catch (err) {
+      if (err.message !== '401' && err.message !== '403') $('formErr').textContent = err.message;
+      $('file').value = '';
+    } finally { $('save').disabled = false; }
+  });
+
+  $('form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    $('formErr').textContent = '';
+    const body = {
+      title: $('title').value.trim(),
+      body: $('body').value.trim() || null,
+      badge: $('badge').value.trim() || null,
+      imageKey,
+      linkType: $('linkType').value,
+      linkValue: $('linkValue').value.trim() || null,
+      startAt: fromLocalInput($('startAt').value),
+      endAt: fromLocalInput($('endAt').value),
+      sortOrder: parseInt($('sortOrder').value || '0', 10),
+      active: $('active').checked,
+    };
+    $('save').disabled = true;
+    try {
+      await api('/api/v1/admin/banners' + (editing ? '/' + editing : ''), { method: editing ? 'PUT' : 'POST', json: body });
+      $('dlg').close();
+      await reload();
+    } catch (err) {
+      if (err.message !== '401' && err.message !== '403') $('formErr').textContent = err.message;
+    } finally { $('save').disabled = false; }
+  });
+
+  // ── 시작 ───────────────────────────────────────────
+  if (token) start().catch(() => {}); else showLogin('');
+})();
+</script>
+</body>
+</html>

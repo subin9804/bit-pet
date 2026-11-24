@@ -48,6 +48,19 @@ public class S3Service {
                 .build());
     }
 
+    /**
+     * 서버가 직접 올린다 — 웹 관리 페이지의 배너 이미지용. 앱 사진은 presigned PUT 으로 기기가 직접 올리지만,
+     * 브라우저에서 그렇게 하려면 버킷 CORS 를 열어야 해서 관리자 업로드만 서버를 거친다.
+     */
+    public void putObject(String s3Key, byte[] bytes, String contentType) {
+        s3Client.putObject(PutObjectRequest.builder()
+                        .bucket(s3Properties.bucket())
+                        .key(s3Key)
+                        .contentType(contentType)
+                        .build(),
+                software.amazon.awssdk.core.sync.RequestBody.fromBytes(bytes));
+    }
+
     public void deleteObject(String s3Key) {
         s3Client.deleteObject(DeleteObjectRequest.builder()
                 .bucket(s3Properties.bucket())
