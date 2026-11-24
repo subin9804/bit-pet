@@ -75,7 +75,7 @@ class _HatchRegisterSheetState extends ConsumerState<HatchRegisterSheet> {
   void _resetForm() {
     _name.text = widget.laying.petName == null
         ? ''
-        : '${widget.laying.petName} #${_hatch.eggIndex}';
+        : '${widget.laying.petName}-${_hatch.eggIndex}';
     _weight.clear();
     _gender = 'UNKNOWN';
   }
@@ -113,7 +113,7 @@ class _HatchRegisterSheetState extends ConsumerState<HatchRegisterSheet> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('이름 *', style: AppTextStyles.label),
+                Text('이름 *', style: _fieldLabel),
                 const SizedBox(height: AppSpacing.xs + 2),
                 TextField(
                   controller: _name,
@@ -121,11 +121,8 @@ class _HatchRegisterSheetState extends ConsumerState<HatchRegisterSheet> {
                   textInputAction: TextInputAction.done,
                   decoration: const InputDecoration(hintText: '개체 이름'),
                 ),
-                const SizedBox(height: AppSpacing.xs + 2),
-                Text('어미 이름 + 알 번호로 미리 채워 뒀어요',
-                    style: AppTextStyles.label),
                 const SizedBox(height: AppSpacing.lg),
-                Text('성별', style: AppTextStyles.label),
+                Text('성별', style: _fieldLabel),
                 const SizedBox(height: AppSpacing.sm + 2),
                 Row(
                   children: [
@@ -150,7 +147,7 @@ class _HatchRegisterSheetState extends ConsumerState<HatchRegisterSheet> {
                 const SizedBox(height: AppSpacing.lg),
                 Row(
                   children: [
-                    Text('첫 몸무게', style: AppTextStyles.label),
+                    Text('첫 몸무게', style: _fieldLabel),
                     const SizedBox(width: AppSpacing.xs),
                     Text('(선택)', style: AppTextStyles.label),
                   ],
@@ -267,6 +264,9 @@ class _HatchRegisterSheetState extends ConsumerState<HatchRegisterSheet> {
           );
       invalidatePetRecords(ref, widget.laying.petId);
       ref.invalidate(petListProvider);
+      // 어미·아비(메이팅 수컷) 가계도에 자식이 새로 생긴다. 이미 열어 본 개체는
+      // 캐시가 남아 있어 안 지우면 자식 줄이 안 뜬다 — 아비 id 를 여기선 몰라 통째로.
+      ref.invalidate(genealogyProvider);
 
       if (!mounted) return;
       showToast(context, '$name 개체로 등록했어요', type: ToastType.success);
@@ -295,3 +295,7 @@ class _HatchRegisterSheetState extends ConsumerState<HatchRegisterSheet> {
     }
   }
 }
+
+/// 입력칸 라벨 — 안내 문구(`AppTextStyles.label`, ink3)보다 진하게.
+final _fieldLabel =
+    AppTextStyles.label.copyWith(fontSize: 13, color: AppColors.ink, letterSpacing: 0);
