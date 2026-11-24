@@ -13,6 +13,7 @@ import com.google.firebase.messaging.Notification;
 import com.google.firebase.messaging.SendResponse;
 import io.bitpet.common.config.FcmProperties;
 import io.bitpet.notification.domain.NotificationLogDtl;
+import io.bitpet.notification.domain.NotificationType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
@@ -44,6 +45,12 @@ public class FcmSender {
      * @return 발송 성공 건수. 비활성화·토큰 없음·실패 시 0
      */
     public int send(NotificationLogDtl notificationLog) {
+        return send(notificationLog, null);
+    }
+
+    /** @param postId 탭하면 열 게시글. 댓글 알림은 referenceId 가 commentId 라 호출부가 넘겨 준다 — 댓글은
+     *               아직 커밋 전(알림은 REQUIRES_NEW)이라 여기서 다시 조회하면 안 보인다. */
+    public int send(NotificationLogDtl notificationLog, Long postId) {
         FirebaseMessaging messaging = firebaseMessagingProvider.getIfAvailable();
         if (messaging == null) {
             return 0;
@@ -60,7 +67,7 @@ public class FcmSender {
                         .setTitle(notificationLog.getTitle())
                         .setBody(notificationLog.getBody())
                         .build())
-                .putAllData(buildData(notificationLog))
+                .putAllData(buildData(notificationLog, postId))
                 .setAndroidConfig(AndroidConfig.builder()
                         .setPriority(AndroidConfig.Priority.HIGH)
                         .setNotification(AndroidNotification.builder()
@@ -85,7 +92,7 @@ public class FcmSender {
     }
 
     /** 앱이 알림을 탭했을 때 어디로 보낼지 판단할 수 있도록 타입·참조 ID 를 data 로 함께 전달 */
-    private Map<String, String> buildData(NotificationLogDtl notificationLog) {
+    private Map<String, String> buildData(NotificationLogDtl notificationLog, Long postId) {
         Map<String, String> data = new HashMap<>();
         data.put("notificationId", String.valueOf(notificationLog.getId()));
         data.put("type", notificationLog.getNotificationType().name());
@@ -93,6 +100,9 @@ public class FcmSender {
         putIfNotNull(data, "routineId", notificationLog.getRoutineId());
         putIfNotNull(data, "referenceId", notificationLog.getReferenceId());
         putIfNotNull(data, "petCount", notificationLog.getPetCount());
+        putIfNotNull(data, "postId", postId != null ? postId
+                : notificationLog.getNotificationType() == NotificationType.COMMUNITY_LIKE
+                        ? notificationLog.getReferenceId() : null);
         return data;
     }
 

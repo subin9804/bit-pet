@@ -434,7 +434,7 @@ public class PostService {
 
         // 내 글에 내가 단 댓글은 알리지 않는다.
         if (!userId.equals(post.getUserId())) {
-            notificationService.createCommentNotification(post.getUserId(), saved.getId(),
+            notificationService.createCommentNotification(post.getUserId(), post.getId(), saved.getId(),
                     "새 댓글", nameOf(author) + "님이 회원님의 글에 댓글을 남겼어요");
         }
 

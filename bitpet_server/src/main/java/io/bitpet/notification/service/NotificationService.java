@@ -110,7 +110,7 @@ public class NotificationService {
     // -------------------------------------------------------------------------
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void createCommentNotification(Long userId, Long commentId, String title, String body) {
+    public void createCommentNotification(Long userId, Long postId, Long commentId, String title, String body) {
         save(NotificationLogDtl.builder()
                 .userId(userId)
                 .referenceId(commentId)
@@ -118,7 +118,7 @@ public class NotificationService {
                 .title(title)
                 .body(body)
                 .status(NotificationStatus.SENT)
-                .build());
+                .build(), postId);
     }
 
     // -------------------------------------------------------------------------
@@ -185,6 +185,11 @@ public class NotificationService {
      * 나중에 확인할 방법이 없어진다. 발송을 안 했으므로 status 는 SENT 가 아니라 SKIPPED 다.
      */
     private void save(NotificationLogDtl notificationLog) {
+        save(notificationLog, null);
+    }
+
+    /** @param postId 푸시 탭으로 열 게시글 — {@link FcmSender#send(NotificationLogDtl, Long)} */
+    private void save(NotificationLogDtl notificationLog, Long postId) {
         if (isUndeliverableRoutineAlarm(notificationLog)) {
             return;
         }
@@ -197,7 +202,7 @@ public class NotificationService {
         }
 
         try {
-            fcmSender.send(notificationLog);
+            fcmSender.send(notificationLog, postId);
         } catch (Exception e) {
             log.warn("[FCM] 푸시 발송 중 예외 (userId={}): {}", notificationLog.getUserId(), e.getMessage());
             notificationLog.markFailed(e.getMessage());
