@@ -27,9 +27,11 @@ class ChildCreateScreen extends ConsumerStatefulWidget {
 class _ChildCreateScreenState extends ConsumerState<ChildCreateScreen> {
   final _emailCtrl = TextEditingController();
   final _pwCtrl = TextEditingController();
+  final _pw2Ctrl = TextEditingController();
   final _nickCtrl = TextEditingController();
 
   bool _obscurePw = true;
+  bool _obscurePw2 = true;
   DateTime? _birthDate;
   bool _agreeGuardian = false;
   bool _agreeMarketing = false;
@@ -47,25 +49,32 @@ class _ChildCreateScreenState extends ConsumerState<ChildCreateScreen> {
   void dispose() {
     _emailCtrl.dispose();
     _pwCtrl.dispose();
+    _pw2Ctrl.dispose();
     _nickCtrl.dispose();
     super.dispose();
   }
 
-  bool get _emailValid =>
-      RegExp(r'^[\w.+\-]+@[\w\-]+\.[a-zA-Z]{2,}$').hasMatch(_emailCtrl.text.trim());
+  bool get _emailValid => RegExp(
+    r'^[\w.+\-]+@[\w\-]+\.[a-zA-Z]{2,}$',
+  ).hasMatch(_emailCtrl.text.trim());
 
   bool get _pwValid =>
       _pwCtrl.text.length >= 10 &&
       [
-        RegExp(r'[a-zA-Z]').hasMatch(_pwCtrl.text),
-        RegExp(r'[0-9]').hasMatch(_pwCtrl.text),
-        RegExp(r'[^A-Za-z0-9]').hasMatch(_pwCtrl.text),
-      ].where((e) => e).length >= 2;
+            RegExp(r'[a-zA-Z]').hasMatch(_pwCtrl.text),
+            RegExp(r'[0-9]').hasMatch(_pwCtrl.text),
+            RegExp(r'[^A-Za-z0-9]').hasMatch(_pwCtrl.text),
+          ].where((e) => e).length >=
+          2;
+
+  bool get _pw2Match =>
+      _pwCtrl.text.isNotEmpty && _pwCtrl.text == _pw2Ctrl.text;
 
   bool get _canSubmit =>
       !_submitting &&
       _emailValid &&
       _pwValid &&
+      _pw2Match &&
       _nickCtrl.text.trim().length >= 2 &&
       _birthDate != null &&
       _agreeGuardian;
@@ -88,7 +97,9 @@ class _ChildCreateScreenState extends ConsumerState<ChildCreateScreen> {
     if (!_canSubmit) return;
     setState(() => _submitting = true);
     try {
-      await ref.read(guardianRepositoryProvider).createChild(
+      await ref
+          .read(guardianRepositoryProvider)
+          .createChild(
             email: _emailCtrl.text.trim(),
             password: _pwCtrl.text,
             nickname: _nickCtrl.text.trim(),
@@ -129,7 +140,10 @@ class _ChildCreateScreenState extends ConsumerState<ChildCreateScreen> {
               '자녀가 쓸 계정 정보를 보호자가 입력합니다.\n'
               '자녀는 이 이메일과 비밀번호로 직접 로그인해요.',
               style: TextStyle(
-                  fontSize: 13, height: 1.6, color: AppColors.ink3),
+                fontSize: 13,
+                height: 1.6,
+                color: AppColors.ink3,
+              ),
             ),
             const SizedBox(height: 20),
 
@@ -143,27 +157,72 @@ class _ChildCreateScreenState extends ConsumerState<ChildCreateScreen> {
                 onChanged: (_) => setState(() {}),
               ),
             ),
+
             SField(
               label: '비밀번호',
               hint: '10자 이상, 2종류 이상 조합',
-              child: PaleTextField(
-                controller: _pwCtrl,
-                placeholder: '비밀번호',
-                obscureText: _obscurePw,
-                onChanged: (_) => setState(() {}),
-                suffixIcon: GestureDetector(
-                  onTap: () => setState(() => _obscurePw = !_obscurePw),
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 12),
-                    child: Icon(
-                      _obscurePw
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
-                      color: AppColors.ink3,
-                      size: 20,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  PaleTextField(
+                    controller: _pwCtrl,
+                    placeholder: '비밀번호',
+                    obscureText: _obscurePw,
+                    onChanged: (_) => setState(() {}),
+                    suffixIcon: GestureDetector(
+                      onTap: () => setState(() => _obscurePw = !_obscurePw),
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 12),
+                        child: Icon(
+                          _obscurePw
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          color: AppColors.ink3,
+                          size: 20,
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                  if (_pwCtrl.text.isNotEmpty)
+                    _CheckLine(
+                      ok: _pwValid,
+                      okText: '사용할 수 있어요',
+                      ngText: '10자 이상, 영문·숫자·특수문자 중 2종류 이상',
+                    ),
+                ],
+              ),
+            ),
+            SField(
+              label: '비밀번호 확인',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  PaleTextField(
+                    controller: _pw2Ctrl,
+                    placeholder: '비밀번호 다시 입력',
+                    obscureText: _obscurePw2,
+                    onChanged: (_) => setState(() {}),
+                    suffixIcon: GestureDetector(
+                      onTap: () => setState(() => _obscurePw2 = !_obscurePw2),
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 12),
+                        child: Icon(
+                          _obscurePw2
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          color: AppColors.ink3,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (_pw2Ctrl.text.isNotEmpty)
+                    _CheckLine(
+                      ok: _pw2Match,
+                      okText: '일치합니다',
+                      ngText: '비밀번호가 다릅니다',
+                    ),
+                ],
               ),
             ),
             SField(
@@ -182,8 +241,10 @@ class _ChildCreateScreenState extends ConsumerState<ChildCreateScreen> {
                 onTap: _pickBirthDate,
                 child: Container(
                   width: double.infinity,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
                   decoration: BoxDecoration(
                     borderRadius: AppRadius.brLg,
                     color: AppColors.card,
@@ -204,8 +265,11 @@ class _ChildCreateScreenState extends ConsumerState<ChildCreateScreen> {
                           ),
                         ),
                       ),
-                      const Icon(Icons.calendar_today_outlined,
-                          size: 16, color: AppColors.ink3),
+                      const Icon(
+                        Icons.calendar_today_outlined,
+                        size: 16,
+                        color: AppColors.ink3,
+                      ),
                     ],
                   ),
                 ),
@@ -257,15 +321,19 @@ class _ChildCreateScreenState extends ConsumerState<ChildCreateScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('커뮤니티 사용 허용',
-                            style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.ink)),
+                        Text(
+                          '커뮤니티 사용 허용',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.ink,
+                          ),
+                        ),
                         SizedBox(height: 4),
-                        Text('끄면 커뮤니티 글을 읽거나 쓸 수 없어요',
-                            style: TextStyle(
-                                fontSize: 12, color: AppColors.ink3)),
+                        Text(
+                          '끄면 커뮤니티 글을 읽거나 쓸 수 없어요',
+                          style: TextStyle(fontSize: 12, color: AppColors.ink3),
+                        ),
                       ],
                     ),
                   ),
@@ -281,7 +349,10 @@ class _ChildCreateScreenState extends ConsumerState<ChildCreateScreen> {
               '커뮤니티를 허용해도 글·댓글은 어린이 게시판에서만 남길 수 있어요.\n'
               '허용 여부는 자녀 계정 목록에서 언제든 바꿀 수 있어요.',
               style: TextStyle(
-                  fontSize: 12, height: 1.6, color: AppColors.ink3),
+                fontSize: 12,
+                height: 1.6,
+                color: AppColors.ink3,
+              ),
             ),
             const SizedBox(height: 24),
 
@@ -327,8 +398,7 @@ class _ConsentRow extends StatelessWidget {
         decoration: isLast
             ? null
             : const BoxDecoration(
-                border:
-                    Border(bottom: BorderSide(color: AppColors.line)),
+                border: Border(bottom: BorderSide(color: AppColors.line)),
               ),
         child: Row(
           children: [
@@ -339,41 +409,74 @@ class _ConsentRow extends StatelessWidget {
                 borderRadius: AppRadius.brLg,
                 color: checked ? AppColors.brandAction : AppColors.card,
                 border: Border.all(
-                    color: checked ? AppColors.brandAction : AppColors.line),
+                  color: checked ? AppColors.brandAction : AppColors.line,
+                ),
               ),
               child: checked
                   ? const Icon(Icons.check, size: 16, color: AppColors.card)
                   : null,
             ),
             const SizedBox(width: 8),
-            Text('[$badge] ',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: badge == '필수'
-                      ? AppColors.brandAction
-                      : AppColors.ink3,
-                )),
+            Text(
+              '[$badge] ',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: badge == '필수' ? AppColors.brandAction : AppColors.ink3,
+              ),
+            ),
             Expanded(
-              child: Text(label,
-                  style: const TextStyle(
-                      fontSize: 13, color: AppColors.ink)),
+              child: Text(
+                label,
+                style: const TextStyle(fontSize: 13, color: AppColors.ink),
+              ),
             ),
             if (onView != null)
               GestureDetector(
                 onTap: onView,
                 child: const Padding(
                   padding: EdgeInsets.only(left: 8),
-                  child: Text('보기',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.ink2,
-                        decoration: TextDecoration.underline,
-                        decorationColor: AppColors.ink3,
-                      )),
+                  child: Text(
+                    '보기',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.ink2,
+                      decoration: TextDecoration.underline,
+                      decorationColor: AppColors.ink3,
+                    ),
+                  ),
                 ),
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── 입력 확인 한 줄 — 가입 화면 '비밀번호 확인'과 같은 ✓/✗ ─────────────────────
+
+class _CheckLine extends StatelessWidget {
+  final bool ok;
+  final String okText;
+  final String ngText;
+
+  const _CheckLine({
+    required this.ok,
+    required this.okText,
+    required this.ngText,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Text(
+        ok ? '✓ $okText' : '✗ $ngText',
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: ok ? AppColors.success : AppColors.error,
         ),
       ),
     );
