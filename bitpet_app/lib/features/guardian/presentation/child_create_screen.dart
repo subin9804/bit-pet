@@ -5,6 +5,7 @@
 // 적게 하는 방식은 아무 주소나 적어도 통과해서 동의한 척한 기록만 남는다.
 //
 // 성공하면 `Navigator.pop(context, true)` 로 목록에 알린다.
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_response.dart';
@@ -15,6 +16,7 @@ import '../../../core/widgets/app_buttons.dart';
 import '../../../core/widgets/step_shell.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../data/guardian_repository.dart';
+import '../../auth/data/auth_repository.dart';
 import '../../../core/theme/app_dimens.dart';
 
 class ChildCreateScreen extends ConsumerStatefulWidget {
@@ -29,6 +31,18 @@ class _ChildCreateScreenState extends ConsumerState<ChildCreateScreen> {
   final _pwCtrl = TextEditingController();
   final _pw2Ctrl = TextEditingController();
   final _nickCtrl = TextEditingController();
+
+  // 자녀 주소 인증 (2026-11-25) — 가입 화면과 같은 흐름. 결과마다 "어느 주소에 대한
+  // 것인가"를 들고 있어서 주소를 고치면 이전 인증이 저절로 무효가 된다.
+  final _codeCtrl = TextEditingController();
+  bool _emailChecking = false;
+  bool? _emailAvailable;
+  bool _emailDomainAllowed = true;
+  String? _emailCheckedFor;
+  String? _codeSentFor;
+  bool _codeVerifying = false;
+  String? _verifyToken;
+  String? _verifiedFor;
 
   bool _obscurePw = true;
   bool _obscurePw2 = true;
@@ -51,12 +65,20 @@ class _ChildCreateScreenState extends ConsumerState<ChildCreateScreen> {
     _pwCtrl.dispose();
     _pw2Ctrl.dispose();
     _nickCtrl.dispose();
+    _codeCtrl.dispose();
     super.dispose();
   }
 
-  bool get _emailValid => RegExp(
-    r'^[\w.+\-]+@[\w\-]+\.[a-zA-Z]{2,}$',
-  ).hasMatch(_emailCtrl.text.trim());
+  String get _emailText => _emailCtrl.text.trim();
+
+  bool get _emailValid =>
+      RegExp(r'^[\w.+\-]+@[\w\-]+\.[a-zA-Z]{2,}$').hasMatch(_emailText);
+
+  bool get _emailVerified =>
+      _verifyToken != null && _verifiedFor == _emailText;
+
+  bool get _codeSentForCurrent =>
+      _codeSentFor != null && _codeSentFor == _emailText;
 
   bool get _pwValid =>
       _pwCtrl.text.length >= 10 &&
@@ -72,7 +94,7 @@ class _ChildCreateScreenState extends ConsumerState<ChildCreateScreen> {
 
   bool get _canSubmit =>
       !_submitting &&
-      _emailValid &&
+      _emailVerified &&
       _pwValid &&
       _pw2Match &&
       _nickCtrl.text.trim().length >= 2 &&
@@ -83,14 +105,89 @@ class _ChildCreateScreenState extends ConsumerState<ChildCreateScreen> {
     final now = DateTime.now();
     // 만 14세가 되는 생일의 다음 날부터는 자녀 계정 대상이 아니다.
     final first = DateTime(now.year - _consentAge, now.month, now.day + 1);
+    // 오늘은 고를 수 없다 — 서버가 생년월일을 지난 날짜로만 받는다(@Past).
+    final last = DateTime(now.year, now.month, now.day - 1);
     final picked = await showDatePicker(
       context: context,
       initialDate: _birthDate ?? DateTime(now.year - 8, now.month, now.day),
       firstDate: first,
-      lastDate: now,
+      lastDate: last,
       helpText: '자녀의 생년월일',
     );
     if (picked != null) setState(() => _birthDate = picked);
+  }
+
+  /// 서버 안내 문구를 그대로 쓴다 (인증·도메인 문구는 한국어로 온다).
+  String _serverMessage(Object e, String fallback) {
+    if (e is DioException) {
+      if (e.response?.statusCode == 409) return '이미 가입된 이메일입니다';
+      final data = e.response?.data;
+      if (data is Map<String, dynamic>) {
+        final msg = (data['error'] as Map<String, dynamic>?)?['message'];
+        if (msg is String) return msg;
+      }
+    }
+    if (e is ApiException) return e.message;
+    return fallback;
+  }
+
+  /// 인증요청 — 중복·도메인을 먼저 보고, 통과하면 자녀 주소로 코드를 보낸다.
+  Future<void> _requestEmailCode() async {
+    if (!_emailValid || _emailChecking || _emailVerified) return;
+    final email = _emailText;
+    setState(() {
+      _emailChecking = true;
+      _emailAvailable = null;
+    });
+    final repo = ref.read(authRepositoryProvider);
+    try {
+      final result = await repo.checkEmailAvailable(email);
+      if (!mounted) return;
+      setState(() {
+        _emailAvailable = result.available;
+        _emailDomainAllowed = result.domainAllowed;
+        _emailCheckedFor = email;
+      });
+      if (!result.available) return;
+
+      await repo.sendSignupEmailCode(email);
+      if (!mounted) return;
+      setState(() {
+        _codeSentFor = email;
+        _codeCtrl.clear();
+      });
+      showToast(context, '인증 코드를 보냈어요. 자녀 메일함을 확인해 주세요');
+    } catch (e) {
+      if (!mounted) return;
+      showToast(context, _serverMessage(e, '인증 코드 발송에 실패했습니다'),
+          type: ToastType.error);
+    } finally {
+      if (mounted) setState(() => _emailChecking = false);
+    }
+  }
+
+  Future<void> _verifyEmailCode() async {
+    final code = _codeCtrl.text.trim();
+    if (code.length != 6 || _codeVerifying || !_codeSentForCurrent) return;
+    final email = _emailText;
+    setState(() => _codeVerifying = true);
+    try {
+      final token = await ref
+          .read(authRepositoryProvider)
+          .verifySignupEmailCode(email, code);
+      if (!mounted) return;
+      setState(() {
+        _verifyToken = token;
+        _verifiedFor = email;
+      });
+      FocusScope.of(context).unfocus();
+    } catch (e) {
+      if (!mounted) return;
+      showToast(context, _serverMessage(e, '인증 코드 확인에 실패했습니다'),
+          type: ToastType.error);
+    } finally {
+      if (mounted) setState(() => _codeVerifying = false);
+    }
   }
 
   Future<void> _submit() async {
@@ -100,7 +197,8 @@ class _ChildCreateScreenState extends ConsumerState<ChildCreateScreen> {
       await ref
           .read(guardianRepositoryProvider)
           .createChild(
-            email: _emailCtrl.text.trim(),
+            email: _emailText,
+            emailVerificationToken: _verifyToken!,
             password: _pwCtrl.text,
             nickname: _nickCtrl.text.trim(),
             birthDate: _birthDate!,
@@ -150,11 +248,74 @@ class _ChildCreateScreenState extends ConsumerState<ChildCreateScreen> {
             SField(
               label: '이메일',
               hint: '자녀가 로그인할 주소',
-              child: PaleTextField(
-                controller: _emailCtrl,
-                placeholder: 'name@example.com',
-                keyboardType: TextInputType.emailAddress,
-                onChanged: (_) => setState(() {}),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: PaleTextField(
+                          controller: _emailCtrl,
+                          placeholder: 'name@example.com',
+                          keyboardType: TextInputType.emailAddress,
+                          onChanged: (_) => setState(() {}),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      _SmallButton(
+                        label: _emailVerified
+                            ? '인증완료'
+                            : _codeSentForCurrent
+                            ? '재전송'
+                            : '인증요청',
+                        loading: _emailChecking,
+                        enabled: _emailValid && !_emailVerified,
+                        onTap: _requestEmailCode,
+                      ),
+                    ],
+                  ),
+                  if (_emailVerified)
+                    const _CheckLine(
+                      ok: true,
+                      okText: '이메일 인증이 완료되었습니다',
+                      ngText: '',
+                    )
+                  else if (_emailCheckedFor == _emailText &&
+                      _emailAvailable == false)
+                    _CheckLine(
+                      ok: false,
+                      okText: '',
+                      ngText: _emailDomainAllowed
+                          ? '이미 가입된 이메일입니다'
+                          : '지원하지 않는 메일이에요',
+                    )
+                  else if (_codeSentForCurrent) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: PaleTextField(
+                            controller: _codeCtrl,
+                            placeholder: '인증 코드 6자리',
+                            keyboardType: TextInputType.number,
+                            onChanged: (_) => setState(() {}),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        _SmallButton(
+                          label: '확인',
+                          loading: _codeVerifying,
+                          enabled: _codeCtrl.text.trim().length == 6,
+                          onTap: _verifyEmailCode,
+                        ),
+                      ],
+                    ),
+                    const _HintLine(
+                      '자녀 메일로 받은 6자리 코드를 입력해 주세요 (10분 안에). 안 보이면 스팸함도 확인해 주세요',
+                    ),
+                  ] else if (_emailValid)
+                    const _HintLine('인증요청을 눌러 자녀 메일로 코드를 받아 주세요'),
+                ],
               ),
             ),
 
@@ -478,6 +639,69 @@ class _CheckLine extends StatelessWidget {
           fontWeight: FontWeight.w600,
           color: ok ? AppColors.success : AppColors.error,
         ),
+      ),
+    );
+  }
+}
+
+/// 입력칸 아래 회색 안내 한 줄.
+class _HintLine extends StatelessWidget {
+  final String text;
+  const _HintLine(this.text);
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: Text(
+          text,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppColors.ink3,
+          ),
+        ),
+      );
+}
+
+/// 가입 화면의 인증요청·확인 버튼과 같은 모양.
+class _SmallButton extends StatelessWidget {
+  final String label;
+  final bool loading;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  const _SmallButton({
+    required this.label,
+    required this.loading,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: enabled && !loading ? onTap : null,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: AppRadius.brLg,
+          border: Border.all(color: AppColors.line),
+        ),
+        child: loading
+            ? const SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Text(
+                label,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                  color: enabled ? AppColors.brandAction : AppColors.ink3,
+                ),
+              ),
       ),
     );
   }

@@ -42,7 +42,14 @@ public record ChildCreateRequest(
          * 커뮤니티 이용 허용 (V2, Play 가족 정책). 안 보내면 꺼짐 —
          * 보호자가 고르지 않은 채로 아이가 남들과 글을 주고받으면 안 된다.
          */
-        Boolean communityEnabled
+        Boolean communityEnabled,
+
+        /**
+         * 자녀 이메일 인증 토큰 — 가입과 같은 `/auth/signup/email-code` 흐름으로 받는다 (2026-11-25).
+         * 주소를 잘못 적으면 비밀번호 재설정 메일이 엉뚱한 곳으로 가고, 남의 주소를 쓰면
+         * 그 사람이 나중에 가입할 수 없게 된다.
+         */
+        @Size(max = 64) String emailVerificationToken
 ) {
     @AssertTrue(message = "법정대리인 동의가 있어야 자녀 계정을 만들 수 있습니다")
     public boolean isGuardianAgreed() {

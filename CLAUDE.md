@@ -392,6 +392,9 @@ features/
   - **날짜만 바꾸고 시각(한국시간)은 유지** — `RecordDates.onDate`. 메이팅 `season_label` 은 기본값(연도)일 때만 따라간다
 - 시트는 넘겨받은 리스트가 아니라 `homeDayRecordsProvider` 를 **직접 본다** — 옮긴 기록이 그 날에서 빠져야 해서
 
+**캘린더·날짜 시트·최근 기록은 사육하는 개체 전체(OWNER+KEEPER)** (2026-11-25). `pet_mst.user_id`(소유자)로 보던 탓에
+공유받은 개체(자녀 '내 개체 전체 공유' 포함)의 기록이 홈에 안 떴다. ⚠️ sync pull 은 아직 소유자 기준이다
+
 **하루치 조회는 반열린 구간 [00:00, 다음날 00:00)** (2026-11-03). 개체 상세(`record_detail_screen`)는 날짜만 골라
 기록을 **그날 00:00 KST** 로 저장하는데, `getRecordsByDate` 가 파생 쿼리 `...Between`(양끝 포함)을 써서
 11/2 00:00 메모가 11/1 시트에도 떴다. 급여·체중·청소·메모 repo 의 `findDay`(JPQL `>= :from AND < :to`)로 교체.
@@ -904,7 +907,8 @@ SUPER_ADMIN 이라고 남의 개체 기록을 고칠 수 없다.
   - 자녀 목록·자녀 수 제한·보호자 탈퇴 차단은 모두 `findChildrenUnderGuardian` 하나를 쓴다. 기준이 갈라지면
     "목록엔 없는데 탈퇴는 막힌다"가 된다
   - 알림은 해제 트랜잭션 **커밋 뒤에** 보낸다 (롤백돼도 알림이 나가 다음 날 중복되는 걸 막는다)
-- `MAX_CHILDREN = 5`. 자녀 계정은 이메일 인증 없이 발급되므로 무제한이면 계정 발급 통로가 된다
+- `MAX_CHILDREN = 5` — 보호자 한 명이 계정을 무한히 찍어내는 통로가 되지 않게.
+  자녀 이메일도 가입과 같은 코드 인증을 거친다 (2026-11-25). 생년월일은 앱이 만 14세 미만 + 어제까지만 고르게 한다 (서버 `@Past`)
 - 남의 자녀 조회는 403 이 아니라 **404**(`CHILD_NOT_FOUND`) — 403 이면 "그 id 가 누군가의 자녀"라는 사실이 샌다
 - 자녀 삭제는 `AuthService.withdraw` 를 그대로 탄다 (개체·기록·사진 정리가 전부 거기 있다)
 - **내 개체 전체 공유** (2026-11-18): `POST /guardian/children/{id}/share-all-pets` → 보호자 소유(삭제 안 된) 개체를 자녀에게 KEEPER 로 **초대·수락 없이** 바로 붙인다.
@@ -1127,7 +1131,8 @@ OAuth 토큰 AES-256-GCM 암호화 (`BITPET_TOKEN_ENC_KEY` 환경변수).
 - 코드 10분 · 인증 후 30분 안에 가입 · 재발송 60초 대기(429) · 오답 5회면 코드 폐기
 - 토큰은 **같은 주소**로 발급된 것만 통과하고, 가입 후 지운다 (재사용·주소 바꿔치기 차단)
 - `check-email` 응답에 `domainAllowed` 추가 — false 면 '이미 가입됨'이 아니라 받지 않는 메일
-- **소셜 로그인·자녀 계정에는 안 걸린다** (자녀는 인증된 보호자가 만들고, 아이에게 메일함이 없을 수 있음)
+- **소셜 로그인에는 안 걸린다.** **자녀 계정은 2026-11-25 부터 같은 인증을 거친다** (`ChildCreateRequest.emailVerificationToken`) —
+  오타 주소는 비밀번호 재설정으로도 못 살리고, 남의 주소를 선점할 수 있었다
 - ⚠️ 테스트는 `application-test.yml` 에서 인증을 끄고 example.com 을 허용한다. 인증 규칙 자체는 `SignupEmailVerificationIntegrationTest` 가 켜서 본다.
   `SignupRequest` 를 직접 만드는 픽스처는 마지막 인자(`emailVerificationToken`)에 null 을 넣는다
 

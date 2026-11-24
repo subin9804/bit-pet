@@ -82,6 +82,7 @@ class GuardianRepository {
   /// 계정만 먼저 만들고 동의를 나중에 받는 경로를 만들지 말 것.
   Future<ChildAccount> createChild({
     required String email,
+    required String emailVerificationToken,
     required String password,
     required String nickname,
     required DateTime birthDate,
@@ -93,6 +94,8 @@ class GuardianRepository {
     try {
       res = await _dio.post('/guardian/children', data: {
         'email': email,
+        // 자녀 주소도 가입과 같은 코드 인증을 거친다 (2026-11-25)
+        'emailVerificationToken': emailVerificationToken,
         'password': password,
         'nickname': nickname,
         'birthDate': _yyyyMMdd(birthDate),

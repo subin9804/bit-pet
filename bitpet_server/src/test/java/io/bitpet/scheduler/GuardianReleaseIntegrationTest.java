@@ -99,6 +99,6 @@ class GuardianReleaseIntegrationTest extends IntegrationTestBase {
         int n = SEQ.incrementAndGet();
         return guardianService.createChild(guardian, new ChildCreateRequest(
                 "grelkid" + n + "@example.com", "Passw0rd!23", "grelkid" + n, null,
-                birthDate, true, false, null)).id();
+                birthDate, true, false, null, null)).id();
     }
 }

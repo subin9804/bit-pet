@@ -1,7 +1,11 @@
 package io.bitpet.auth;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.bitpet.auth.dto.ChildCreateRequest;
 import io.bitpet.auth.mail.MailSender;
+import io.bitpet.auth.service.GuardianService;
+import io.bitpet.common.exception.BusinessException;
+import io.bitpet.common.exception.ErrorCode;
 import io.bitpet.support.IntegrationTestBase;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -11,10 +15,13 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.ResultActions;
 
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -34,6 +41,7 @@ class SignupEmailVerificationIntegrationTest extends IntegrationTestBase {
 
     @Autowired private ObjectMapper objectMapper;
     @MockitoBean private MailSender mailSender;
+    @Autowired private GuardianService guardianService;
 
     @Test
     void code_then_token_then_signup_succeeds_and_token_is_single_use() throws Exception {
@@ -110,6 +118,44 @@ class SignupEmailVerificationIntegrationTest extends IntegrationTestBase {
 
         post("/api/v1/auth/signup/email-code", Map.of("email", email.toUpperCase()))
                 .andExpect(status().isConflict());
+    }
+
+    // ── 자녀 계정도 같은 인증을 거친다 (2026-11-25) ──
+
+    @Test
+    void child_without_token_is_rejected() throws Exception {
+        Long guardian = guardian();
+        assertThatThrownBy(() -> guardianService.createChild(guardian, child(unique("naver.com"), null)))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.SIGNUP_EMAIL_NOT_VERIFIED);
+    }
+
+    @Test
+    void child_with_token_is_created_and_token_is_single_use() throws Exception {
+        Long guardian = guardian();
+        String email = unique("naver.com");
+        String token = verifiedToken(email);
+
+        assertThat(guardianService.createChild(guardian, child(email, token)).id()).isNotNull();
+
+        assertThatThrownBy(() -> guardianService.createChild(guardian, child(unique("naver.com"), token)))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .isEqualTo(ErrorCode.SIGNUP_EMAIL_NOT_VERIFIED);
+    }
+
+    private Long guardian() throws Exception {
+        String email = unique("naver.com");
+        String body = signup(email, verifiedToken(email))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        return objectMapper.readTree(body).at("/data/id").asLong();
+    }
+
+    private ChildCreateRequest child(String email, String token) {
+        return new ChildCreateRequest(email, "Passw0rd!23", "k" + SEQ.incrementAndGet(), null,
+                LocalDate.now().minusYears(10), true, false, null, token);
     }
 
     private String unique(String domain) {

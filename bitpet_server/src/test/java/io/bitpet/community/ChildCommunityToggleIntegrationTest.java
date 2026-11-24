@@ -108,6 +108,6 @@ class ChildCommunityToggleIntegrationTest extends IntegrationTestBase {
         int n = SEQ.incrementAndGet();
         return guardianService.createChild(guardian, new ChildCreateRequest(
                 "ccomkid" + n + "@example.com", "Passw0rd!23", "ccomkid" + n, null,
-                LocalDate.now().minusYears(10), true, false, communityEnabled)).id();
+                LocalDate.now().minusYears(10), true, false, communityEnabled, null)).id();
     }
 }

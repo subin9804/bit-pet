@@ -104,7 +104,7 @@ class ChildrenScreen extends ConsumerWidget {
             padding: const EdgeInsets.only(top: AppSpacing.sm, bottom: 40),
             children: [
               intro,
-              MenuCard(children: [
+              MenuCard(dividerIndent: AppSpacing.lg, children: [
                 for (final c in children) ...[
                   _ChildRow(child: c, onDelete: () => _delete(context, ref, c)),
                   // 만 14세가 지난 계정엔 스위치가 의미 없다 (서버가 성인으로 본다)
@@ -142,9 +142,8 @@ class _Intro extends StatelessWidget {
       );
 }
 
-/// 자녀 한 명. 아바타 40 + 닉네임/이메일 + 삭제. 구분선 들여쓰기(52)는
-/// [MenuCard] 기본값이 아이콘 20 기준이라 아바타 폭과는 다르지만, 줄 높이가 커서
-/// 카드 왼쪽 끝까지 긋지 않는 정도면 충분하다.
+/// 자녀 한 명. 아바타 40 + 닉네임/이메일 + 삭제. 아래 스위치·공유 줄은 아바타 밑으로
+/// 들여 쓰지 않고 카드 왼쪽에 붙인다 (2026-11-25 — 좁은 폭에서 아바타 아래가 비어 낭비였다).
 class _ChildRow extends StatelessWidget {
   final ChildAccount child;
   final VoidCallback onDelete;
@@ -241,7 +240,7 @@ class _CommunityToggleState extends ConsumerState<_CommunityToggle> {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg + 40 + AppSpacing.md, 0, AppSpacing.sm, AppSpacing.sm),
+          AppSpacing.lg, 0, AppSpacing.sm, AppSpacing.sm),
       child: Row(
         children: [
           Expanded(
@@ -301,7 +300,7 @@ class _ShareAllPetsRowState extends ConsumerState<_ShareAllPetsRow> {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg + 40 + AppSpacing.md, 0, AppSpacing.sm, AppSpacing.sm),
+          AppSpacing.lg, 0, AppSpacing.sm, AppSpacing.sm),
       child: Row(
         children: [
           Expanded(

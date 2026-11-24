@@ -20,8 +20,8 @@ import java.util.UUID;
  * check-email 로 중복 여부를 보여 주므로 숨겨도 얻는 게 없고, 이미 가입한 사람에게
  * 가입 코드 메일을 보내는 쪽이 더 이상하다.
  *
- * <p>자녀 계정({@code GuardianService#createChild})은 대상이 아니다 — 인증된 보호자가 만들고,
- * 아이에게 메일함이 없을 수 있다.
+ * <p>자녀 계정({@code GuardianService#createChild})도 같은 흐름을 탄다 (2026-11-25) —
+ * 보호자가 자녀 주소로 코드를 받아 확인한다. 소셜 로그인만 대상이 아니다.
  */
 @Slf4j
 @Service

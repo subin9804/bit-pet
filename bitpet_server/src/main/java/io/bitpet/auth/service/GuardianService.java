@@ -6,6 +6,7 @@ import io.bitpet.auth.domain.UserMst;
 import io.bitpet.auth.dto.ChildCreateRequest;
 import io.bitpet.auth.dto.ChildResponse;
 import io.bitpet.auth.repository.UserMstRepository;
+import io.bitpet.auth.signup.SignupEmailVerificationService;
 import io.bitpet.common.exception.BusinessException;
 import io.bitpet.common.exception.ErrorCode;
 import io.bitpet.pet.share.service.PetSharingService;
@@ -41,12 +42,13 @@ public class GuardianService {
     private final AgreementService agreementService;
     private final AuthService authService;
     private final PetSharingService petSharingService;
+    private final SignupEmailVerificationService signupEmailVerificationService;
 
     /**
      * 한 보호자가 만들 수 있는 자녀 계정 수.
      *
      * <p>형제가 여럿인 집을 막지 않을 만큼은 넉넉하되, 무제한으로 두면 이 경로가
-     * <b>이메일 인증 없이 계정을 찍어내는 통로</b>가 된다(자녀 계정은 보호자 동의만으로 생긴다).
+     * <b>계정을 찍어내는 통로</b>가 된다 (자녀 주소도 인증을 거치지만, 주소만 있으면 계속 만들 수 있다).
      */
     public static final int MAX_CHILDREN = 5;
 
@@ -74,6 +76,11 @@ public class GuardianService {
         if (userRepository.existsByEmailIgnoreCase(request.email())) {
             throw new BusinessException(ErrorCode.AUTH_EMAIL_ALREADY_EXISTS);
         }
+        // 자녀 주소도 가입과 같은 인증을 거친다 (2026-11-25). 보호자가 인증된 사람이어도
+        // 적은 주소가 진짜 자녀 것인지는 별개다 — 오타면 비밀번호를 되찾을 길이 없고,
+        // 남의 주소면 그 사람이 영영 가입하지 못한다.
+        signupEmailVerificationService.requireVerified(
+                EmailPolicy.normalize(request.email()), request.emailVerificationToken());
         String nickname = authService.requireAvailableNickname(request.nickname(), null);
 
         UserMst child = UserMst.createChild(
@@ -85,6 +92,7 @@ public class GuardianService {
                 guardianUserId);
         child.changeCommunityEnabled(request.communityAllowed());
         UserMst saved = userRepository.save(child);
+        signupEmailVerificationService.consume(request.emailVerificationToken());
 
         // 동의 기록은 계정 생성과 같은 트랜잭션이다. 기록이 실패하면 계정도 없던 일이 되어야
         // 한다 — 법정대리인 동의 근거가 없는 아동 계정이 남는 쪽이 훨씬 나쁘다.

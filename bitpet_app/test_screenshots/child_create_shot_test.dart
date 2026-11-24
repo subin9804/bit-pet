@@ -15,6 +15,13 @@ void main() {
       await t.pump();
     });
   });
+  testWidgets('이메일 입력 — 인증요청 안내', (t) async {
+    await shot(t, 'child_create_email', const ChildCreateScreen(), pushed: true,
+        before: (t) async {
+      await t.enterText(find.byType(PaleTextField).at(0), 'kid@naver.com');
+      await t.pump();
+    });
+  });
   testWidgets('비밀번호 통과 / 확인 일치', (t) async {
     await shot(t, 'child_create_pw_ok', const ChildCreateScreen(), pushed: true,
         before: (t) async {
