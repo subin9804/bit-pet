@@ -325,7 +325,7 @@ public class PostService {
     // -------------------------------------------------------------------------
 
     public PostPhotoPresignResponse generatePhotoPresignedUrl(Long userId, Long postId, String filename) {
-        kidsBoardPolicy.assertCommunityAllowed(userId);
+        kidsBoardPolicy.assertWritable(userId);
         PostMst post = findPost(postId);
         verifyPostOwner(post, userId);
 
@@ -341,7 +341,7 @@ public class PostService {
 
     @Transactional
     public PostPhotoResponse registerPhoto(Long userId, Long postId, PostPhotoRegisterRequest req) {
-        kidsBoardPolicy.assertCommunityAllowed(userId);
+        kidsBoardPolicy.assertWritable(userId);
         PostMst post = findPost(postId);
         verifyPostOwner(post, userId);
 
@@ -444,7 +444,7 @@ public class PostService {
 
     @Transactional
     public CommentResponse updateComment(Long userId, Long postId, Long commentId, CommentUpdateRequest req) {
-        kidsBoardPolicy.assertCommunityAllowed(userId);
+        kidsBoardPolicy.assertWritable(userId);
         PostMst post = findPost(postId);
         PostCommentDtl comment = findComment(commentId, postId);
         verifyCommentOwner(comment, userId);

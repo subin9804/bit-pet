@@ -26,8 +26,12 @@
     font-family:Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Segoe UI",sans-serif;
     font-size:14px; }
   header { background:var(--bg); border-bottom:1px solid var(--line); padding:14px 24px;
-    display:flex; align-items:center; gap:12px; }
-  header h1 { font-size:17px; margin:0; flex:1; }
+    display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+  header h1 { font-size:16px; margin:0; }
+  header nav { display:flex; gap:4px; flex:1; flex-wrap:wrap; }
+  header nav a { color:var(--ink2); text-decoration:none; padding:6px 12px; border-radius:999px; font-weight:600; font-size:13px; }
+  header nav a:hover { background:var(--bgAlt); }
+  header nav a.on { background:var(--brand50); color:var(--brand700); }
   header .who { color:var(--ink2); font-size:13px; }
   main { max-width:1080px; margin:0 auto; padding:24px 16px 64px; }
   .card { background:var(--bg); border-radius:var(--r-lg); box-shadow:var(--shadow1); padding:20px; }
@@ -113,7 +117,10 @@
 
 <div id="app" class="hidden">
   <header>
-    <h1>tailog 홈 배너</h1>
+    <h1>tailog 관리</h1>
+    <nav>
+      <a href="/admin/banners" class="on">배너</a><a href="/admin/reports">신고·정지</a><a href="/admin/inquiries">문의함</a><a href="/admin/push">전체 푸시</a>
+    </nav>
     <span class="who" id="who"></span>
     <button id="logout">로그아웃</button>
   </header>

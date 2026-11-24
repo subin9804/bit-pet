@@ -39,6 +39,7 @@ public enum ErrorCode {
     CHILD_BOARD_ONLY(HttpStatus.FORBIDDEN, "어린이 회원은 어린이 게시판에서만 글과 댓글을 남길 수 있습니다."),
     KIDS_BOARD_FORBIDDEN(HttpStatus.FORBIDDEN, "어린이 게시판입니다."),
     CHILD_COMMUNITY_DISABLED(HttpStatus.FORBIDDEN, "보호자가 커뮤니티를 허용하면 이용할 수 있어요."),
+    COMMUNITY_SUSPENDED(HttpStatus.FORBIDDEN, "커뮤니티 이용이 정지된 계정입니다."),
 
     // --- 가입 이메일 인증 (2026-11-06) ---
     SIGNUP_CODE_NOT_FOUND(HttpStatus.BAD_REQUEST, "인증 코드가 없거나 만료되었어요. 코드를 다시 받아 주세요."),
@@ -156,6 +157,8 @@ public enum ErrorCode {
     REPORT_DUPLICATE(HttpStatus.CONFLICT, "이미 신고한 내용입니다."),
     REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "신고를 찾을 수 없습니다."),
     REPORT_ALREADY_HANDLED(HttpStatus.CONFLICT, "이미 처리된 신고입니다."),
+    SUSPENSION_NOT_FOUND(HttpStatus.NOT_FOUND, "정지 기록을 찾을 수 없습니다."),
+    BROADCAST_QUIET_HOURS(HttpStatus.BAD_REQUEST, "광고성 푸시는 밤 9시부터 아침 8시 사이에 보낼 수 없어요."),
     BLOCK_SELF(HttpStatus.BAD_REQUEST, "자기 자신은 차단할 수 없습니다."),
     BLOCK_NOT_FOUND(HttpStatus.NOT_FOUND, "차단하지 않은 사용자입니다."),
     // 차단 관계는 양방향으로 가린다 — '차단당한 쪽'에게 이유를 알리지 않기 위해 메시지를 뭉뚱그린다

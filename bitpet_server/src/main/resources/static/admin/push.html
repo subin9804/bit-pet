@@ -1,0 +1,149 @@
+<!doctype html>
+<!--
+  전체 푸시 (2026-11-24) — https://tailog.me/admin/push   SUPER_ADMIN 전용
+  API: /api/v1/admin/push/preview · /broadcast · /broadcasts
+  알림함에 SYSTEM(공지) 알림으로 남고 푸시가 간다. 공지는 사용자가 끌 수 없는 종류라
+  광고성이면 반드시 '마케팅' 을 켠다 — 그러면 서버가 정보통신망법 규칙을 붙인다:
+  수신 동의자(만 14세 이상)에게만 · 제목 앞 (광고) · 본문 끝 수신거부 방법 · 밤 9시~아침 8시 발송 금지.
+-->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>전체 푸시 · tailog</title>
+<link rel="icon" href="/favicon.ico">
+<link rel="stylesheet" href="/admin/admin.css">
+<style>
+  .compose { display:grid; grid-template-columns: 1fr 300px; gap:20px; align-items:start; }
+  .compose .field { margin-bottom:14px; }
+  .switch { display:flex; align-items:center; gap:10px; padding:12px 14px; border:1px solid var(--line); border-radius:var(--r-md); cursor:pointer; }
+  .switch input { width:auto; margin:0; }
+  .switch b { display:block; font-size:14px; }
+  .switch span { font-size:12px; color:var(--ink3); }
+  .switch:has(input:checked) { border-color:#E3C77E; background:#FBF5E6; }
+  .warn { margin-top:10px; padding:10px 12px; border-radius:var(--r-sm); background:#FBE4E4; color:#A82727; font-size:13px; }
+  .noti { background:var(--bgAlt); border-radius:var(--r-md); padding:12px 14px; }
+  .noti .app { font-size:11px; color:var(--ink3); margin-bottom:4px; }
+  .noti .t { font-weight:700; margin-bottom:2px; word-break:break-word; }
+  .noti .b { font-size:13px; color:var(--ink2); white-space:pre-wrap; word-break:break-word; }
+  .target { margin-top:12px; font-size:13px; color:var(--ink2); }
+  .target b { color:var(--ink); font-size:18px; }
+  @media (max-width: 760px) { .compose { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+
+<section id="login" class="card hidden">
+  <h2>전체 푸시</h2>
+  <p>tailog 최고 관리자 계정으로 로그인하세요.</p>
+  <form id="loginForm">
+    <div class="field"><label for="email">이메일</label><input id="email" type="email" autocomplete="username" required></div>
+    <div class="field"><label for="pw">비밀번호</label><input id="pw" type="password" autocomplete="current-password" required></div>
+    <button class="primary" type="submit">로그인</button>
+    <div class="err" id="loginErr"></div>
+  </form>
+</section>
+
+<div id="app" class="hidden">
+  <header data-page="push"></header>
+  <main>
+    <section class="card">
+      <div class="compose">
+        <form id="form">
+          <div class="field"><label for="title">제목 *</label><input id="title" maxlength="90" required></div>
+          <div class="field"><label for="body">내용 *</label><textarea id="body" maxlength="400" required></textarea></div>
+          <label class="switch"><input type="checkbox" id="marketing">
+            <div><b>마케팅(광고성) 알림</b><span>이벤트·프로모션·제휴 홍보처럼 영리 목적이면 반드시 켜세요. 공지·점검·약관 변경은 끈 채로.</span></div>
+          </label>
+          <div class="warn hidden" id="quiet">지금은 밤 9시~아침 8시라 광고성 푸시를 보낼 수 없어요 (정보통신망법).</div>
+          <div class="err" id="formErr"></div>
+          <div style="display:flex;justify-content:flex-end;margin-top:8px">
+            <button type="submit" class="primary" id="send">보내기</button>
+          </div>
+        </form>
+        <div>
+          <label>받는 화면 미리보기</label>
+          <div class="noti"><div class="app">tailog · 지금</div><div class="t" id="pvTitle"></div><div class="b" id="pvBody"></div></div>
+          <div class="target">받는 사람 <b id="pvCount">-</b>명</div>
+          <div class="hint" id="pvHint"></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="toolbar"><h2>보낸 기록</h2></div>
+      <div class="list" id="history"></div>
+      <div class="pager" id="pager"></div>
+    </section>
+  </main>
+</div>
+
+<script src="/admin/admin.js"></script>
+<script>
+(() => {
+  const { api, report, esc, fmt, pager } = Admin;
+  const $ = (id) => document.getElementById(id);
+  // 서버 BroadcastService 의 AD_PREFIX · OPT_OUT 과 같은 문구 (미리보기용 — 실제로 붙이는 건 서버)
+  const AD_PREFIX = '(광고) ';
+  const OPT_OUT = '\n\n수신거부: 앱 > 마이 > 알림 설정에서 마케팅 알림을 끌 수 있어요.';
+  let preview = null, page = 0;
+
+  async function loadPreview() {
+    preview = await api('/api/v1/admin/push/preview');
+    sync();
+  }
+
+  function sync() {
+    const m = $('marketing').checked;
+    $('pvTitle').textContent = (m ? AD_PREFIX : '') + ($('title').value.trim() || '제목');
+    $('pvBody').textContent = ($('body').value.trim() || '내용') + (m ? OPT_OUT : '');
+    if (preview) {
+      $('pvCount').textContent = (m ? preview.marketingCount : preview.allCount).toLocaleString('ko-KR');
+      $('pvHint').textContent = m
+        ? '마케팅 수신에 동의한 만 14세 이상 회원만 받아요.'
+        : '모든 회원의 알림함에 공지로 남아요. 공지 알림은 사용자가 끌 수 없어요.';
+      const blocked = m && preview.marketingQuietHours;
+      $('quiet').classList.toggle('hidden', !blocked);
+      $('send').disabled = blocked;
+    }
+  }
+
+  async function loadHistory() {
+    const p = await api(`/api/v1/admin/push/broadcasts?page=${page}&size=20`);
+    $('history').innerHTML = p.content.length ? p.content.map((b) => `<div class="item">
+      <div class="top">${b.marketing ? '<span class="pill amber">마케팅</span>' : '<span class="pill gray">공지</span>'}
+        <b style="color:var(--ink)">${esc(b.title)}</b><span class="sp"></span>${b.targetCount.toLocaleString('ko-KR')}명 · ${fmt(b.createdAt)}</div>
+      <div class="body" style="color:var(--ink2)">${esc(b.body)}</div>
+    </div>`).join('') : '<div class="empty card">아직 보낸 푸시가 없어요.</div>';
+    pager($('pager'), p, (n) => { page = n; loadHistory().catch((e) => report(e)); });
+  }
+
+  ['title', 'body'].forEach((id) => $(id).addEventListener('input', sync));
+  $('marketing').addEventListener('change', () => loadPreview().catch((e) => report(e, $('formErr'))));
+
+  $('form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    $('formErr').textContent = '';
+    const m = $('marketing').checked;
+    const n = $('pvCount').textContent;
+    const kind = m ? '마케팅(광고) 푸시' : '공지 푸시';
+    if (!confirm(`${n}명에게 ${kind}를 보낼까요?\n\n보내면 취소할 수 없어요.`)) return;
+    $('send').disabled = true;
+    try {
+      const r = await api('/api/v1/admin/push/broadcast', {
+        method: 'POST', json: { title: $('title').value.trim(), body: $('body').value.trim(), marketing: m },
+      });
+      alert(`${r.targetCount.toLocaleString('ko-KR')}명에게 보내는 중이에요. 인원이 많으면 몇 분 걸릴 수 있어요.`);
+      $('title').value = ''; $('body').value = ''; $('marketing').checked = false;
+      page = 0;
+      await Promise.all([loadPreview(), loadHistory()]);
+    } catch (err) { report(err, $('formErr')); }
+    finally { $('send').disabled = false; sync(); }
+  });
+
+  Admin.boot(() => Promise.all([loadPreview(), loadHistory()]));
+})();
+</script>
+</body>
+</html>

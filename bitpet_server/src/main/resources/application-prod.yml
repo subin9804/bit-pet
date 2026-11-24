@@ -21,6 +21,13 @@ spring:
       hibernate:
         physical_naming_strategy: org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy
 
+# 운영에선 API 문서를 열지 않는다 (2026-11-24) — 관리 API 목록까지 드러난다. 로컬 /swagger-ui.html 은 그대로
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
 logging:
   level:
     root: INFO

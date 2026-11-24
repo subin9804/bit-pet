@@ -1,0 +1,237 @@
+<!doctype html>
+<!--
+  신고 처리 · 커뮤니티 정지 (2026-11-24) — https://tailog.me/admin/reports
+  API: /api/v1/admin/reports (목록·처리·가림 해제), /api/v1/admin/suspensions (정지 중·해제). SUPER_ADMIN·MODERATOR.
+  정지는 '커뮤니티 쓰기'만 막는다(글·댓글·좋아요·신고). 개체 기록·루틴은 그대로.
+-->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>신고 처리 · tailog</title>
+<link rel="icon" href="/favicon.ico">
+<link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body>
+
+<section id="login" class="card hidden">
+  <h2>신고 처리</h2>
+  <p>tailog 관리자 계정으로 로그인하세요.</p>
+  <form id="loginForm">
+    <div class="field"><label for="email">이메일</label><input id="email" type="email" autocomplete="username" required></div>
+    <div class="field"><label for="pw">비밀번호</label><input id="pw" type="password" autocomplete="current-password" required></div>
+    <button class="primary" type="submit">로그인</button>
+    <div class="err" id="loginErr"></div>
+  </form>
+</section>
+
+<div id="app" class="hidden">
+  <header data-page="reports"></header>
+  <main>
+    <section>
+      <div class="toolbar">
+        <h2>신고 <span id="count" style="color:var(--ink3);font-weight:500"></span></h2>
+        <select id="status">
+          <option value="PENDING">대기 (오래된 순)</option>
+          <option value="RESOLVED">위반 인정</option>
+          <option value="REJECTED">위반 아님</option>
+          <option value="">전체 (최신순)</option>
+        </select>
+      </div>
+      <p class="hint" style="margin:0 0 14px">신고 수가 많다고 자동으로 가리지 않아요 — 우선순위 참고용입니다. 가림은 내용을 지우지 않아 '가림 해제'로 되돌릴 수 있어요.</p>
+      <div class="list" id="reports"></div>
+      <div class="pager" id="pager"></div>
+    </section>
+
+    <section>
+      <div class="toolbar">
+        <h2>정지 중인 계정 <span id="sCount" style="color:var(--ink3);font-weight:500"></span></h2>
+      </div>
+      <p class="hint" style="margin:0 0 14px">기간이 끝나면 저절로 풀려요. 해제해도 함께 가려진 글·댓글은 그대로라, 필요하면 위 신고에서 '가림 해제'를 누르세요.</p>
+      <div class="list" id="suspensions"></div>
+    </section>
+  </main>
+</div>
+
+<dialog id="dlg">
+  <form class="dlg" id="form" method="dialog">
+    <h3>신고 처리</h3>
+    <div class="item" id="dlgTarget" style="box-shadow:none;background:var(--bgAlt);margin-bottom:16px"></div>
+    <div class="field">
+      <label>판단</label>
+      <div class="seg">
+        <label><input type="radio" name="st" value="RESOLVED" checked> 위반 인정</label>
+        <label><input type="radio" name="st" value="REJECTED"> 위반 아님</label>
+      </div>
+    </div>
+    <div class="field">
+      <label>조치</label>
+      <div class="seg" id="actions">
+        <label><input type="radio" name="act" value="NONE"> 조치 없음</label>
+        <label><input type="radio" name="act" value="BLIND" checked> 가리기</label>
+        <label><input type="radio" name="act" value="DELETE"> 삭제</label>
+        <label><input type="radio" name="act" value="SUSPEND"> 작성자 정지</label>
+      </div>
+      <div class="hint" id="actHint"></div>
+    </div>
+    <div class="field hidden" id="durField">
+      <label>정지 기간</label>
+      <div class="seg">
+        <label><input type="radio" name="dur" value="DAY_1"> 1일</label>
+        <label><input type="radio" name="dur" value="DAY_7" checked> 7일</label>
+        <label><input type="radio" name="dur" value="DAY_30"> 30일</label>
+        <label><input type="radio" name="dur" value="PERMANENT"> 영구</label>
+      </div>
+    </div>
+    <div class="field">
+      <label for="memo">메모</label>
+      <textarea id="memo" maxlength="500" placeholder="처리 사유 (운영자만 봄 — 정지면 정지 사유로도 남아요)"></textarea>
+    </div>
+    <div class="err" id="formErr"></div>
+    <div class="foot">
+      <button type="button" id="cancel">취소</button>
+      <button type="submit" class="primary" id="save">처리</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="/admin/admin.js"></script>
+<script>
+(() => {
+  const { api, report, esc, fmt, pager } = Admin;
+  const $ = (id) => document.getElementById(id);
+  const TYPE = { POST: '글', COMMENT: '댓글', USER: '계정' };
+  const STATUS = {
+    PENDING: '<span class="pill amber">대기</span>',
+    RESOLVED: '<span class="pill red">위반 인정</span>',
+    REJECTED: '<span class="pill gray">위반 아님</span>',
+  };
+  const ACTION = { NONE: '조치 없음', BLIND: '가림', DELETE: '삭제', SUSPEND: '작성자 정지' };
+  const ACT_HINT = {
+    NONE: '내용은 그대로 둡니다.',
+    BLIND: '내용을 지우지 않고 가립니다. 나중에 되돌릴 수 있어요.',
+    DELETE: '작성자가 지운 것처럼 지웁니다. 되돌릴 수 없어요.',
+    SUSPEND: '작성자의 커뮤니티 쓰기(글·댓글·좋아요·신고)를 막고, 신고된 글·댓글은 가립니다.',
+  };
+  let page = 0, rows = [], handling = null;
+
+  async function loadReports() {
+    const st = $('status').value;
+    const p = await api(`/api/v1/admin/reports?page=${page}&size=20` + (st ? '&status=' + st : ''));
+    rows = p.content;
+    $('count').textContent = p.totalElements ? `${p.totalElements}건` : '';
+    $('reports').innerHTML = rows.length ? rows.map(item).join('')
+      : '<div class="empty card">해당하는 신고가 없어요.</div>';
+    pager($('pager'), p, (n) => { page = n; loadReports().catch((e) => report(e)); });
+  }
+
+  function item(r) {
+    const target = r.targetType === 'USER' ? '' : r.targetPreview == null
+      ? '<span style="color:var(--ink3)">(작성자가 지운 내용)</span>' : esc(r.targetPreview);
+    const handled = r.status !== 'PENDING'
+      ? `<div class="sub">처리 ${fmt(r.handledAt)} · ${ACTION[r.actionTaken] || '-'}${r.handlerMemo ? ' · ' + esc(r.handlerMemo) : ''}</div>` : '';
+    const acts = [];
+    if (r.status === 'PENDING') acts.push(`<button class="primary small" data-handle="${r.id}">처리</button>`);
+    if (r.targetBlinded) acts.push(`<button class="small" data-unblind="${r.id}">가림 해제</button>`);
+    return `<div class="item">
+      <div class="top">${STATUS[r.status]} <b style="color:var(--ink)">${TYPE[r.targetType]}</b>
+        · ${esc(r.targetUserNickname)} (#${r.targetUserId})
+        ${r.targetBlinded ? '<span class="pill gray">가려짐</span>' : ''}
+        <span class="sp"></span>${r.reportCount > 1 ? `<span class="pill amber">신고 ${r.reportCount}건</span>` : ''}</div>
+      ${target ? `<div class="body">${target}</div>` : ''}
+      <div class="sub">사유 <b>${esc(r.reasonLabel)}</b>${r.detail ? ' — ' + esc(r.detail) : ''} · 신고자 #${r.reporterUserId} · ${fmt(r.createdAt)}</div>
+      ${handled}
+      ${acts.length ? `<div class="acts">${acts.join('')}</div>` : ''}
+    </div>`;
+  }
+
+  async function loadSuspensions() {
+    const list = await api('/api/v1/admin/suspensions');
+    $('sCount').textContent = list.length ? `${list.length}명` : '';
+    $('suspensions').innerHTML = list.length ? list.map((s) => `<div class="item">
+      <div class="top"><span class="pill red">${s.endsAt ? '~ ' + fmt(s.endsAt) : '영구'}</span>
+        <b style="color:var(--ink)">${esc(s.nickname)}</b> (#${s.userId})<span class="sp"></span>
+        <button class="small danger" data-release="${s.id}" data-name="${esc(s.nickname)}">정지 해제</button></div>
+      <div class="sub">${fmt(s.createdAt)} 정지${s.reportId ? ' · 신고 #' + s.reportId : ''}${s.reason ? ' · ' + esc(s.reason) : ''}</div>
+    </div>`).join('') : '<div class="empty card">정지 중인 계정이 없어요.</div>';
+  }
+
+  $('status').addEventListener('change', () => { page = 0; loadReports().catch((e) => report(e)); });
+
+  $('reports').addEventListener('click', async (e) => {
+    const h = e.target.dataset.handle, u = e.target.dataset.unblind;
+    if (h) openForm(rows.find((r) => String(r.id) === h));
+    if (u) {
+      if (!confirm('가린 내용을 다시 보이게 할까요? 신고 처리 기록은 그대로 남아요.')) return;
+      try { await api(`/api/v1/admin/reports/${u}/unblind`, { method: 'POST' }); await loadReports(); }
+      catch (err) { report(err); }
+    }
+  });
+
+  $('suspensions').addEventListener('click', async (e) => {
+    const id = e.target.dataset.release;
+    if (!id) return;
+    if (!confirm(`${e.target.dataset.name} 님의 정지를 지금 풀까요?`)) return;
+    try { await api(`/api/v1/admin/suspensions/${id}/release`, { method: 'POST' }); await loadSuspensions(); }
+    catch (err) { report(err); }
+  });
+
+  // ── 처리 대화상자 ─────────────────────────────────
+  const radio = (name) => document.querySelector(`input[name=${name}]:checked`)?.value;
+
+  function openForm(r) {
+    handling = r;
+    $('dlgTarget').innerHTML = `<div class="top"><b style="color:var(--ink)">${TYPE[r.targetType]}</b> · ${esc(r.targetUserNickname)} · ${esc(r.reasonLabel)}</div>
+      ${r.targetPreview ? `<div class="body">${esc(r.targetPreview)}</div>` : ''}`;
+    document.querySelector('input[name=st][value=RESOLVED]').checked = true;
+    document.querySelector(`input[name=act][value=${r.targetType === 'USER' ? 'SUSPEND' : 'BLIND'}]`).checked = true;
+    document.querySelector('input[name=dur][value=DAY_7]').checked = true;
+    $('memo').value = '';
+    $('formErr').textContent = '';
+    sync();
+    $('dlg').showModal();
+  }
+
+  // 위반 아님 → 조치 없음만. 계정 신고는 가리거나 지울 내용이 없다
+  function sync() {
+    const rejected = radio('st') === 'REJECTED';
+    const user = handling && handling.targetType === 'USER';
+    document.querySelectorAll('input[name=act]').forEach((i) => {
+      i.disabled = (rejected && i.value !== 'NONE') || (user && (i.value === 'BLIND' || i.value === 'DELETE'));
+    });
+    if (document.querySelector('input[name=act]:checked').disabled) {
+      document.querySelector('input[name=act][value=NONE]').checked = true;
+    }
+    const act = radio('act');
+    $('durField').classList.toggle('hidden', act !== 'SUSPEND');
+    $('actHint').textContent = ACT_HINT[act];
+    $('save').textContent = act === 'SUSPEND' ? '정지하기' : '처리';
+  }
+  document.querySelectorAll('input[name=st], input[name=act]').forEach((i) => i.addEventListener('change', sync));
+  $('cancel').addEventListener('click', () => $('dlg').close());
+
+  $('form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    $('formErr').textContent = '';
+    const body = { status: radio('st'), action: radio('act'), memo: $('memo').value.trim() || null };
+    if (body.action === 'SUSPEND') {
+      body.suspendDuration = radio('dur');
+      const label = { DAY_1: '1일', DAY_7: '7일', DAY_30: '30일', PERMANENT: '영구' }[body.suspendDuration];
+      if (!confirm(`${handling.targetUserNickname} 님을 ${label} 정지할까요?`)) return;
+    }
+    if (body.action === 'DELETE' && !confirm('삭제는 되돌릴 수 없어요. 지울까요?')) return;
+    $('save').disabled = true;
+    try {
+      await api(`/api/v1/admin/reports/${handling.id}/handle`, { method: 'POST', json: body });
+      $('dlg').close();
+      await Promise.all([loadReports(), loadSuspensions()]);
+    } catch (err) { report(err, $('formErr')); }
+    finally { $('save').disabled = false; }
+  });
+
+  Admin.boot(() => Promise.all([loadReports(), loadSuspensions()]));
+})();
+</script>
+</body>
+</html>

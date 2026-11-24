@@ -54,8 +54,9 @@ public class ReportAdminController {
     }
 
     @Operation(summary = "신고 처리",
-            description = "RESOLVED(위반 인정) 또는 REJECTED(위반 아님) + 조치(NONE/BLIND/DELETE). "
-                    + "BLIND 는 내용을 지우지 않고 가리기만 하므로 오판이어도 되돌릴 수 있다.")
+            description = "RESOLVED(위반 인정) 또는 REJECTED(위반 아님) + 조치(NONE/BLIND/DELETE/SUSPEND). "
+                    + "BLIND 는 내용을 지우지 않고 가리기만 하므로 오판이어도 되돌릴 수 있다. "
+                    + "SUSPEND 는 RESOLVED 에서만 — suspendDuration(DAY_1/DAY_7/DAY_30/PERMANENT) 필수, 작성자 커뮤니티 쓰기 정지 + 글·댓글 가림.")
     @PostMapping("/{reportId}/handle")
     public ApiResponse<ReportResponse> handle(
             @AuthenticationPrincipal AuthPrincipal principal,
@@ -63,5 +64,14 @@ public class ReportAdminController {
             @Valid @RequestBody ReportHandleRequest request) {
         adminGuard.assertAnyRole(principal.userId(), AdminRole.SUPER_ADMIN, AdminRole.MODERATOR);
         return ApiResponse.ok(reportService.handle(principal.userId(), reportId, request));
+    }
+
+    @Operation(summary = "가림 해제", description = "BLIND·SUSPEND 로 가린 글·댓글을 다시 보이게 한다 (오판 정정). 신고 처리 이력은 그대로")
+    @PostMapping("/{reportId}/unblind")
+    public ApiResponse<ReportResponse> unblind(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @PathVariable Long reportId) {
+        adminGuard.assertAnyRole(principal.userId(), AdminRole.SUPER_ADMIN, AdminRole.MODERATOR);
+        return ApiResponse.ok(reportService.unblind(reportId));
     }
 }

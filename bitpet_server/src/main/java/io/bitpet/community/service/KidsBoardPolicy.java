@@ -42,6 +42,7 @@ public class KidsBoardPolicy {
     private final UserMstRepository userRepository;
     private final PostCategoryCdRepository categoryRepository;
     private final AdminGuard adminGuard;
+    private final SuspensionService suspensionService;
 
     public boolean isChild(Long userId) {
         return userId != null && userRepository.findById(userId)
@@ -64,6 +65,15 @@ public class KidsBoardPolicy {
         if (blocked) throw new BusinessException(ErrorCode.CHILD_COMMUNITY_DISABLED);
     }
 
+    /**
+     * 커뮤니티에 무언가를 남길 수 있는 계정인가 — 카테고리와 무관한 쓰기(사진·댓글 수정·신고)용.
+     * 허용 스위치 + 이용 정지(V5) 둘 다 본다. 카테고리가 있는 쓰기는 {@link #assertCanWrite} 가 이걸 포함한다.
+     */
+    public void assertWritable(Long userId) {
+        assertCommunityAllowed(userId);
+        suspensionService.assertNotSuspended(userId);
+    }
+
     public boolean isKidsCategory(Long categoryId) {
         return categoryId != null && categoryRepository.findById(categoryId)
                 .map(c -> KIDS_CATEGORY_CODE.equals(c.getCode()))
@@ -76,7 +86,7 @@ public class KidsBoardPolicy {
      * <p>두 방향을 한 메서드에서 본다 — 나눠두면 호출부가 한쪽만 부르고 다른 쪽을 빠뜨린다.
      */
     public void assertCanWrite(Long userId, Long categoryId) {
-        assertCommunityAllowed(userId);
+        assertWritable(userId);
         boolean kids = isKidsCategory(categoryId);
         boolean child = isChild(userId);
 

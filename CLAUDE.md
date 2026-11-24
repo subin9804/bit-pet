@@ -43,7 +43,7 @@
 - **ERD v3**: (Notion — ERD v3)
 - **API 정의서 v2**: (Notion — API 정의서 v2)
 - **Notion 진행상황 홈**: https://www.notion.so/Bit-pet-358dadff16ba805aaa90f9f4764c26bf
-- **Swagger (로컬)**: http://localhost:8080/swagger-ui.html
+- **Swagger (로컬)**: http://localhost:8080/swagger-ui.html — 운영(prod 프로필)에선 꺼져 있다 (2026-11-24)
 
 ---
 
@@ -212,7 +212,7 @@ features/
   → ③ `spring.flyway.ignore-migration-patterns: "*:missing"` (히스토리엔 있고 파일은 없는 버전 허용).
   ⚠️ `repair` 는 **운영 히스토리 테이블을 수정**한다 → 실행 전 Lightsail 스냅샷 필수, 배포와 겹치지 않게.
   검증은 같은 방식 — 빈 DB에 새 베이스라인만 적용해 덤프 뜨고 순차 적용 결과와 diff.
-- **2차 스쿼시 이후 추가된 마이그레이션**: V2(`user_mst.community_enabled` — 보호자의 자녀 커뮤니티 허용 스위치, 기본 false), V3(`inquiry_dtl` — 개발자에게 문의하기. 답장 없는 일방향 건의함, 운영자는 DB 로 직접 본다 · 메일 알림 없음 · 24시간 10건 · 탈퇴 시 `AuthService.withdraw` 가 삭제). **다음은 V4.**
+- **2차 스쿼시 이후 추가된 마이그레이션**: V2(`user_mst.community_enabled` — 보호자의 자녀 커뮤니티 허용 스위치, 기본 false), V3(`inquiry_dtl` — 개발자에게 문의하기. 답장 없는 일방향 건의함, 운영자는 `/admin/inquiries` 에서 본다 · 메일 알림 없음 · 24시간 10건 · 탈퇴 시 `AuthService.withdraw` 가 삭제). V4(`home_banner_mst` — 서버가 관리하는 홈 배너), V5(`user_suspension_dtl` 커뮤니티 정지 · `push_broadcast_dtl` 전체 푸시 이력). **다음은 V6.**
 - 코드성 시드(`memo_tag_cd`, `post_category_cd`, `serial_pool_stat_mst`)는 베이스라인 하단에 들어 있다.
   종·모프 마스터는 그대로 `R__01`/`R__02` 담당.
 - ⚠️ **`R__02` 는 파일에 없는 공식 모프를 매 실행마다 지운다** (개체가 물고 있으면 FK RESTRICT 라
@@ -859,8 +859,11 @@ SUPER_ADMIN 이라고 남의 개체 기록을 고칠 수 없다.
     블라인드된 댓글은 자리를 남긴다 — 대댓글이 달려 있으면 부모가 사라질 때 대화가 통째로 무너진다
 - **운영자 큐**: `GET/POST /api/v1/admin/reports/**`. 🚨 URL 로 보호되지 않으므로
   메서드마다 `adminGuard.assertAnyRole(SUPER_ADMIN, MODERATOR)` 를 직접 호출한다
-- `ReportAction.SUSPEND` 는 **enum 에 자리만 있고 아직 거부한다**(계정 정지 상태를 들고 있을 곳이 없다).
-  조용히 아무것도 안 하는 대신 명시적으로 400 — 2단계
+- **`SUSPEND` = 커뮤니티 정지 (V5 `user_suspension_dtl`, 2026-11-24)**. 막는 건 **커뮤니티 쓰기뿐**(글·댓글·좋아요·사진·신고) —
+  개체 기록·루틴은 그대로 (사용자 결정). 기간 1일/7일/30일/영구(`SuspensionDuration`), `RESOLVED` 일 때만, 기간 필수(없으면 400).
+  신고된 글·댓글도 **같이 가린다**(이미 지워졌으면 건너뛰고 정지만).
+  - 판정은 `SuspensionService.assertNotSuspended` → 403 `COMMUNITY_SUSPENDED`(메시지에 언제까지인지). **만료는 행의 `ends_at` 으로 계산** — 풀어 주는 배치 없음
+  - 해제 `POST /admin/suspensions/{id}/release` 는 정지만 푼다. 가린 글은 `POST /admin/reports/{id}/unblind` 로 따로 되돌린다
 - 만 14세 미만 가입은 이것이 붙은 뒤 V12 에서 처리했다 (아래 '만 14세 미만 아동 계정' 항목)
 
 **앱 쪽 (`features/community`)**
@@ -1159,6 +1162,17 @@ OAuth 토큰 AES-256-GCM 암호화 (`BITPET_TOKEN_ENC_KEY` 환경변수).
 - 빌드: 레포 루트 `codemagic.yaml` — 맥 없이 TestFlight 업로드. 수동 실행, Firebase 파일은 Codemagic 환경변수 그룹 `firebase`
 - 푸시: Firebase 에 iOS 앱 등록 → `GoogleService-Info.plist` + `firebase_options.dart` iOS 항목 + APNs 키(.p8) 업로드가 남았다.
   그 전까지 iOS 는 푸시 없이 뜬다 (main 이 UnsupportedError 를 잡는다)
+
+### 관리자 웹 페이지 — tailog.me/admin/* (2026-11-24)
+
+입구 없이 **링크로만** 들어간다. 이메일 로그인(`/api/v1/auth/login`) → 토큰은 sessionStorage. 어드민 판정은 서버가 매 요청 한다.
+- `static/admin/{banners|reports|inquiries|push}.html` + 공통 `admin.css`·`admin.js`(로그인·헤더 메뉴·`Admin.api`). 주소는 `AdminPageController` 하나가 `/admin/{page}` → `.html` 로 forward
+- 공개 경로는 `/admin/**` 하나 — 페이지는 껍데기일 뿐이고 데이터는 전부 `/api/v1/admin/**` 가드 뒤에 있다. 새 페이지는 html 추가 + 컨트롤러 정규식·`admin.js` PAGES 에 한 줄
+- **신고·정지**(SUPER_ADMIN·MODERATOR): 신고 큐 처리(위반 인정/아님 × 조치 없음·가리기·삭제·작성자 정지) · 가림 해제 · 정지 중 목록·해제
+- **문의함**(SUPER_ADMIN·MODERATOR): `GET /admin/inquiries?category=` **읽기 전용**. 답장 기능 없음
+- **전체 푸시**(SUPER_ADMIN 만): `SYSTEM` 알림으로 알림함 + 푸시 (`BroadcastSender` ). **마케팅 토글**을 켜면 서버가 정보통신망법 규칙을 붙인다 —
+  수신 동의자(`user_agreement_dtl` MARKETING, 만 14세 미만 제외)에게만 · 제목 `(광고) ` · 본문 끝 수신거부 안내 · **21:00~08:00 KST 발송 거부**(`BROADCAST_QUIET_HOURS`).
+  ⛔ 광고성인데 토글을 끄고 보내지 말 것 — 공지는 사용자가 끌 수 없는 종류다
 
 ### 약관 공개 페이지 — tailog.me/legal (2026-10-26)
 - 스토어 심사용 **앱 밖 URL**. `GET /legal`(목록) · `/legal/{tos|privacy|age|guardian|marketing}` — `common/legal/LegalPageController`, 공개 경로

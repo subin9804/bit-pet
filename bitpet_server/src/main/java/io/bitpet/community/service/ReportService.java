@@ -7,7 +7,6 @@ import io.bitpet.common.exception.ErrorCode;
 import io.bitpet.community.domain.PostCommentDtl;
 import io.bitpet.community.domain.PostMst;
 import io.bitpet.community.domain.PostReportDtl;
-import io.bitpet.community.domain.ReportAction;
 import io.bitpet.community.domain.ReportReason;
 import io.bitpet.community.domain.ReportStatus;
 import io.bitpet.community.domain.ReportTargetType;
@@ -49,6 +48,7 @@ public class ReportService {
     private final PostCommentDtlRepository commentRepository;
     private final UserMstRepository userRepository;
     private final BlockService blockService;
+    private final SuspensionService suspensionService;
 
     /** 신고 사유 목록 — 앱의 사유 선택 시트가 이걸 그린다 */
     public List<ReportReasonResponse> listReasons() {
@@ -57,6 +57,7 @@ public class ReportService {
 
     @Transactional
     public void report(Long reporterUserId, ReportCreateRequest req) {
+        suspensionService.assertNotSuspended(reporterUserId);
         Long targetUserId = resolveTargetUserId(req.targetType(), req.targetId());
 
         if (reporterUserId.equals(targetUserId)) {
@@ -106,22 +107,16 @@ public class ReportService {
             throw new BusinessException(ErrorCode.REPORT_ALREADY_HANDLED);
         }
 
-        applyAction(report, req.action(), adminUserId);
+        applyAction(report, req, adminUserId);
         report.handle(req.status(), req.action(), adminUserId, req.memo());
         return toResponse(report);
     }
 
-    private void applyAction(PostReportDtl report, ReportAction action, Long adminUserId) {
-        switch (action) {
+    private void applyAction(PostReportDtl report, ReportHandleRequest req, Long adminUserId) {
+        switch (req.action()) {
             case NONE -> { /* 위반 아님 — 대상은 그대로 둔다 */ }
-            case BLIND -> {
-                if (report.getTargetType() == ReportTargetType.POST) {
-                    findPost(report.getTargetId()).setBlinded(true, adminUserId);
-                } else if (report.getTargetType() == ReportTargetType.COMMENT) {
-                    findComment(report.getTargetId()).setBlinded(true, adminUserId);
-                }
-                // USER 신고에는 가릴 '내용'이 없다 — 계정 조치는 SUSPEND 의 몫이다
-            }
+            case BLIND -> blindTarget(report, adminUserId);
+            // USER 신고에는 가릴 '내용'이 없다 — 계정 조치는 SUSPEND 의 몫이다
             case DELETE -> {
                 if (report.getTargetType() == ReportTargetType.POST) {
                     findPost(report.getTargetId()).softDelete();
@@ -129,10 +124,41 @@ public class ReportService {
                     findComment(report.getTargetId()).softDelete();
                 }
             }
-            // 계정 일시정지는 2단계다. enum 에는 자리를 만들어 뒀지만 정지 상태를 들고 있을 곳이
-            // 아직 없어서, 조용히 아무것도 안 하는 대신 명시적으로 거부한다.
-            case SUSPEND -> throw new BusinessException(
-                    ErrorCode.INVALID_INPUT, "계정 정지는 아직 지원하지 않습니다.");
+            // 정지(V5)는 작성자의 커뮤니티 쓰기를 막고, 신고된 글·댓글은 가린다 — 정지할 만큼의
+            // 위반이면 그 내용이 계속 보일 이유가 없다. 가림이라 정지를 풀 때 운영자가 되돌릴 수 있다.
+            case SUSPEND -> {
+                if (req.status() != ReportStatus.RESOLVED) {
+                    throw new BusinessException(ErrorCode.INVALID_INPUT, "정지는 위반 인정(RESOLVED)일 때만 할 수 있어요.");
+                }
+                blindTarget(report, adminUserId);
+                suspensionService.suspend(report.getTargetUserId(), req.suspendDuration(),
+                        report.getId(), req.memo(), adminUserId);
+            }
+        }
+    }
+
+    /** 가림 해제 — 오판 정정. 신고의 처리 상태·조치 기록은 그대로 둔다(무슨 일이 있었는지는 남아야 한다) */
+    @Transactional
+    public ReportResponse unblind(Long reportId) {
+        PostReportDtl report = reportRepository.findById(reportId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.REPORT_NOT_FOUND));
+        setTargetBlinded(report, false, null);
+        return toResponse(report);
+    }
+
+    private void blindTarget(PostReportDtl report, Long adminUserId) {
+        setTargetBlinded(report, true, adminUserId);
+    }
+
+    /**
+     * 작성자가 이미 지운 글·댓글은 조용히 건너뛴다 — 신고 후 글을 지웠다고 정지를 못 하면
+     * "지우면 그만"이 된다. 가릴 내용이 없을 뿐 계정 조치는 그대로 간다.
+     */
+    private void setTargetBlinded(PostReportDtl report, boolean blinded, Long adminUserId) {
+        if (report.getTargetType() == ReportTargetType.POST) {
+            postRepository.findById(report.getTargetId()).ifPresent(p -> p.setBlinded(blinded, adminUserId));
+        } else if (report.getTargetType() == ReportTargetType.COMMENT) {
+            commentRepository.findById(report.getTargetId()).ifPresent(c -> c.setBlinded(blinded, adminUserId));
         }
     }
 

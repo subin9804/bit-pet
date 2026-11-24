@@ -1,0 +1,82 @@
+<!doctype html>
+<!--
+  문의함 (읽기 전용, 2026-11-24) — https://tailog.me/admin/inquiries
+  앱 '개발자에게 문의하기'는 답장 없는 일방향 건의함이라 여기도 보기만 한다. API: GET /api/v1/admin/inquiries
+-->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>문의함 · tailog</title>
+<link rel="icon" href="/favicon.ico">
+<link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body>
+
+<section id="login" class="card hidden">
+  <h2>문의함</h2>
+  <p>tailog 관리자 계정으로 로그인하세요.</p>
+  <form id="loginForm">
+    <div class="field"><label for="email">이메일</label><input id="email" type="email" autocomplete="username" required></div>
+    <div class="field"><label for="pw">비밀번호</label><input id="pw" type="password" autocomplete="current-password" required></div>
+    <button class="primary" type="submit">로그인</button>
+    <div class="err" id="loginErr"></div>
+  </form>
+</section>
+
+<div id="app" class="hidden">
+  <header data-page="inquiries"></header>
+  <main>
+    <div class="toolbar">
+      <h2>문의 <span id="count" style="color:var(--ink3);font-weight:500"></span></h2>
+      <select id="category">
+        <option value="">전체</option>
+        <option value="BUG">오류 제보</option>
+        <option value="SUGGESTION">기능 제안</option>
+        <option value="ACCOUNT">계정</option>
+        <option value="ETC">기타</option>
+      </select>
+    </div>
+    <p class="hint" style="margin:0 0 14px">답장 기능은 없어요. 탈퇴한 회원의 문의는 탈퇴와 함께 지워집니다.</p>
+    <div class="list" id="list"></div>
+    <div class="pager" id="pager"></div>
+  </main>
+</div>
+
+<script src="/admin/admin.js"></script>
+<script>
+(() => {
+  const { api, report, esc, fmt, pager } = Admin;
+  const $ = (id) => document.getElementById(id);
+  const CAT = {
+    BUG: '<span class="pill red">오류</span>',
+    SUGGESTION: '<span class="pill green">제안</span>',
+    ACCOUNT: '<span class="pill amber">계정</span>',
+    ETC: '<span class="pill gray">기타</span>',
+  };
+  let page = 0;
+
+  async function load() {
+    const c = $('category').value;
+    const p = await api(`/api/v1/admin/inquiries?page=${page}&size=20` + (c ? '&category=' + c : ''));
+    $('count').textContent = p.totalElements ? `${p.totalElements}건` : '';
+    $('list').innerHTML = p.content.length ? p.content.map((q) => {
+      const who = q.nickname ? `<b style="color:var(--ink)">${esc(q.nickname)}</b> (#${q.userId})${q.email ? ' · ' + esc(q.email) : ''}`
+        : `<span>탈퇴한 회원 (#${q.userId})</span>`;
+      const env = [q.platform, q.osVersion, q.appVersion && 'v' + q.appVersion].filter(Boolean).map(esc).join(' · ');
+      return `<div class="item">
+        <div class="top">${CAT[q.category] || ''} ${who}<span class="sp"></span>${fmt(q.createdAt)}</div>
+        <div class="body">${esc(q.content)}</div>
+        ${env ? `<div class="sub">${env}</div>` : ''}
+      </div>`;
+    }).join('') : '<div class="empty card">문의가 없어요.</div>';
+    pager($('pager'), p, (n) => { page = n; load().catch((e) => report(e)); window.scrollTo(0, 0); });
+  }
+
+  $('category').addEventListener('change', () => { page = 0; load().catch((e) => report(e)); });
+  Admin.boot(load);
+})();
+</script>
+</body>
+</html>

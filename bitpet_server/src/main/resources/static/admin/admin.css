@@ -1,0 +1,75 @@
+/* 관리 페이지 공통 (신고·문의·푸시). 토큰은 앱 app_colors.dart 와 같은 값 */
+:root {
+  --brand50:#EDFBF4; --brand500:#16B26A; --brand600:#0E9B5B; --brand700:#0B7A4B;
+  --bg:#FFFFFF; --bgAlt:#F4F7F5; --canvas:#F4F6F5; --line:#E6EBE7;
+  --ink:#121A15; --ink2:#5B665F; --ink3:#909A94; --danger:#D93A3A;
+  --r-sm:10px; --r-md:12px; --r-lg:16px;
+  --shadow1: 0 1px 2px rgba(15,21,18,.04), 0 2px 8px rgba(15,21,18,.05);
+}
+* { box-sizing: border-box; }
+body { margin:0; background:var(--canvas); color:var(--ink);
+  font-family:Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Segoe UI",sans-serif;
+  font-size:14px; }
+header { background:var(--bg); border-bottom:1px solid var(--line); padding:12px 24px;
+  display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+header h1 { font-size:16px; margin:0; }
+header nav { display:flex; gap:4px; flex:1; flex-wrap:wrap; }
+header nav a { color:var(--ink2); text-decoration:none; padding:6px 12px; border-radius:999px; font-weight:600; font-size:13px; }
+header nav a:hover { background:var(--bgAlt); }
+header nav a.on { background:var(--brand50); color:var(--brand700); }
+header .who { color:var(--ink2); font-size:13px; }
+main { max-width:1080px; margin:0 auto; padding:24px 16px 64px; }
+.card { background:var(--bg); border-radius:var(--r-lg); box-shadow:var(--shadow1); padding:20px; }
+button { font:inherit; cursor:pointer; border-radius:var(--r-sm); border:1px solid var(--line);
+  background:var(--bg); color:var(--ink); padding:8px 14px; }
+button.primary { background:var(--brand500); border-color:var(--brand500); color:#fff; font-weight:600; }
+button.primary:hover { background:var(--brand600); }
+button.danger { color:var(--danger); }
+button.small { padding:5px 10px; font-size:13px; }
+button:disabled { opacity:.5; cursor:default; }
+input, select, textarea { font:inherit; width:100%; padding:9px 11px; border:1px solid var(--line);
+  border-radius:var(--r-sm); background:var(--bg); color:var(--ink); }
+textarea { resize:vertical; min-height:90px; }
+input:focus, select:focus, textarea:focus { outline:2px solid var(--brand500); outline-offset:-1px; }
+label { display:block; font-size:12px; font-weight:600; color:var(--ink2); margin:0 0 6px; }
+.hint { font-size:12px; color:var(--ink3); margin-top:4px; }
+.err { color:var(--danger); font-size:13px; min-height:18px; margin-top:8px; }
+.hidden { display:none !important; }
+
+#login { max-width:360px; margin:12vh auto 0; }
+#login h2 { margin:0 0 4px; font-size:20px; }
+#login p { margin:0 0 20px; color:var(--ink2); }
+#login .field { margin-bottom:12px; }
+#login button { width:100%; padding:11px; margin-top:4px; }
+
+.toolbar { display:flex; align-items:center; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
+.toolbar h2 { flex:1; margin:0; font-size:16px; }
+.toolbar select { width:auto; }
+.list { display:flex; flex-direction:column; gap:10px; }
+.item { background:var(--bg); border-radius:var(--r-lg); box-shadow:var(--shadow1); padding:14px 16px; }
+.item .top { display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:13px; color:var(--ink2); }
+.item .top .sp { flex:1; }
+.item .body { margin-top:8px; line-height:1.6; white-space:pre-wrap; word-break:break-word; }
+.item .sub { margin-top:6px; font-size:12px; color:var(--ink3); line-height:1.6; }
+.item .acts { display:flex; gap:6px; margin-top:10px; }
+.pill { display:inline-block; font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+.pill.green { background:var(--brand50); color:var(--brand700); }
+.pill.gray { background:var(--bgAlt); color:var(--ink3); }
+.pill.amber { background:#F6ECD3; color:#765710; }
+.pill.red { background:#FBE4E4; color:#A82727; }
+.empty { text-align:center; color:var(--ink3); padding:48px 0; }
+.pager { display:flex; justify-content:center; align-items:center; gap:10px; margin-top:16px; color:var(--ink2); }
+section + section { margin-top:32px; }
+
+dialog { border:0; border-radius:var(--r-lg); padding:0; width:min(560px, 94vw); box-shadow:0 12px 40px rgba(0,0,0,.18); }
+dialog::backdrop { background:rgba(18,26,21,.35); }
+.dlg { padding:22px; }
+.dlg h3 { margin:0 0 16px; font-size:17px; }
+.dlg .field { margin-bottom:14px; }
+.dlg .foot { display:flex; gap:8px; justify-content:flex-end; margin-top:18px; }
+.seg { display:flex; gap:6px; flex-wrap:wrap; }
+.seg label { margin:0; display:flex; align-items:center; gap:6px; border:1px solid var(--line); border-radius:var(--r-sm);
+  padding:8px 12px; cursor:pointer; font-size:13px; color:var(--ink); font-weight:500; }
+.seg input { width:auto; margin:0; }
+.seg label:has(input:checked) { border-color:var(--brand500); background:var(--brand50); color:var(--brand700); font-weight:700; }
+.seg label:has(input:disabled) { opacity:.45; cursor:default; }
