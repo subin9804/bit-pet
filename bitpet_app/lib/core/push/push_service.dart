@@ -6,6 +6,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../firebase_options.dart';
 import '../router/app_router.dart';
@@ -217,19 +218,28 @@ class PushService {
     final router = _ref.read(routerProvider);
     final type = data['type'] as String?;
 
+    // 알림함(_open)과 같은 곳으로 보낸다. 상세는 홈 위에 push — go 로 바로 열면
+    // 뒤로가기 할 곳이 없어 앱이 닫힌다.
     switch (type) {
       case 'ROUTINE_ALARM':
-        router.go('/routines');
+        router.go('/home');
+      case 'COMMUNITY_COMMENT':
       case 'COMMUNITY_LIKE':
-        // referenceId = postId
-        final postId = data['referenceId'];
-        router.go(postId != null ? '/community/$postId' : '/notifications');
+        // 서버가 postId 를 풀어 보낸다(댓글은 referenceId 가 commentId). 이전 푸시엔 없다.
+        final postId = data['postId'] ??
+            (type == 'COMMUNITY_LIKE' ? data['referenceId'] : null);
+        _openOverHome(
+            router, postId != null ? '/community/$postId' : '/notifications');
       case 'AI_CONSULTING':
         final petId = data['petId'];
-        router.go(petId != null ? '/pets/$petId' : '/notifications');
-      // COMMUNITY_COMMENT 는 referenceId 가 commentId 라 게시글을 특정할 수 없음 → 알림함으로
+        _openOverHome(router, petId != null ? '/pets/$petId' : '/notifications');
       default:
-        router.go('/notifications');
+        _openOverHome(router, '/notifications');
     }
+  }
+
+  void _openOverHome(GoRouter router, String location) {
+    router.go('/home');
+    router.push(location);
   }
 }
