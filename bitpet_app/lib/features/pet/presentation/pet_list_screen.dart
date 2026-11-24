@@ -254,8 +254,22 @@ class _ShareActionBar extends ConsumerWidget {
 
   Future<void> _startShare(
       BuildContext context, WidgetRef ref, ShareInviteType type) async {
-    final ids = ref.read(selectedPetIdsProvider).toList();
-    if (ids.isEmpty) return;
+    final selectedIds = ref.read(selectedPetIdsProvider);
+    if (selectedIds.isEmpty) return;
+    // 이별한 개체는 새로 공유·분양하지 않는다 (서버도 건너뛴다). 선택 자체는 막지
+    // 않는다 — 같은 선택 모드의 삭제는 이별한 개체에도 돼야 해서 타일을 잠글 수 없다.
+    final deceased = {
+      for (final p in ref.read(petListProvider).valueOrNull ?? const <Pet>[])
+        if (p.isDeceased) p.id,
+    };
+    final ids = selectedIds.where((id) => !deceased.contains(id)).toList();
+    if (ids.isEmpty) {
+      showToast(context, '이별한 개체는 공유·분양할 수 없어요', type: ToastType.warning);
+      return;
+    }
+    if (ids.length < selectedIds.length) {
+      showToast(context, '이별한 ${selectedIds.length - ids.length}마리는 빼고 보낼게요');
+    }
     final ok = await showBulkShareSheet(context, petIds: ids, inviteType: type);
     if (ok == true) {
       _exitSelection(ref);

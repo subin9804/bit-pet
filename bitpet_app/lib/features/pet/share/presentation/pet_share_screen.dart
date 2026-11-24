@@ -8,6 +8,7 @@ import '../../../../core/widgets/toast_message.dart';
 import '../data/models/share_models.dart';
 import '../data/share_repository.dart';
 import '../providers/share_provider.dart';
+import '../../providers/pet_provider.dart';
 import '../../../../core/theme/app_dimens.dart';
 
 /// 개체별 공유 관리 (소유자 전용).
@@ -22,6 +23,10 @@ class PetShareScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final keepersAsync = ref.watch(petKeepersProvider(petId));
     final sentAsync = ref.watch(petSentInvitationsProvider(petId));
+    // 이별한 개체는 새로 초대(공유·입분양)하지 않는다 — 서버도 막는다.
+    // 이미 함께 키우는 사람·보낸 초대는 그대로 보여 주고 해제·취소도 된다.
+    final deceased =
+        ref.watch(petDetailProvider(petId)).valueOrNull?.isDeceased ?? false;
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
@@ -34,7 +39,7 @@ class PetShareScreen extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            _InviteBox(petId: petId),
+            deceased ? const _DeceasedNotice() : _InviteBox(petId: petId),
             const SizedBox(height: 32),
 
             // 현재 사육자
@@ -343,6 +348,33 @@ class _SentInvitationRow extends ConsumerWidget {
             },
             child: const Text('취소'),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 이별한 개체 — 초대 칸 자리에 둔다. 이별 취소하면 다시 초대할 수 있다.
+class _DeceasedNotice extends StatelessWidget {
+  const _DeceasedNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: AppRadius.brLg,
+        color: AppColors.card,
+        border: Border.all(color: AppColors.paleLine),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('🌈 이별한 개체예요', style: AppTextStyles.h3),
+          const SizedBox(height: 4),
+          Text('새로 공유하거나 입분양할 수 없어요. 이미 함께 키우던 분은 그대로 기록을 볼 수 있어요.',
+              style: AppTextStyles.caption),
         ],
       ),
     );
