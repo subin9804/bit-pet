@@ -88,29 +88,16 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
         loading: () => const _LoadingSkeleton(),
         error:   (e, _) => Center(child: Text(e.toString())),
         data:    (pet) {
-          return Column(
+          // TopBar 는 배경 없이 본문 위에 떠 있다 (2026-11-24 사용자 요청).
+          // 예전엔 바에 연녹을 깔아 밴드와 이어 붙였는데, 스크롤하면 밴드만
+          // 빠져나가고 연녹 띠가 혼자 남아 이질적이었다. 이제 밴드가 상태바
+          // 밑까지 올라가 바 자리를 채우고, 스크롤하면 바 아래로 본문이 지나간다.
+          // 버튼은 흰 채움 + 그림자라 무엇 위에서도 보인다.
+          final barSpace = MediaQuery.paddingOf(context).top + _TopBar.height;
+          return Stack(
             children: [
-              // ── TopBar (SafeArea 포함) ──────────────────────
-              //
-              // ⚠️ 바가 연회색 바탕 위에 떠 있고 그 **아래**에서 연녹 밴드가
-              // 시작했다. 색이 두 번 바뀌니(회색 → 연녹 → 흰 카드) 머리가
-              // 어디까지인지 알 수 없었다. 바도 밴드와 같은 색을 깔아
-              // 헤더 하나로 이어 붙인다 — 스크롤하면 밴드만 이 바 아래로
-              // 빠져나가고 색은 그대로 남는다.
-              Container(
-                color: AppColors.brandTintSoft,
-                child: SafeArea(
-                bottom: false,
-                child: _TopBar(
-                  onBack: () => context.pop(),
-                  onEdit: () => context.push('/pets/${widget.petId}/edit'),
-                  onMore: (anchorContext) => _showMoreMenu(anchorContext, pet),
-                ),
-                ),
-              ),
-
               // ── 스크롤 본문 ─────────────────────────────────
-              Expanded(
+              Positioned.fill(
                 child: SingleChildScrollView(
                   // 하단 내비 바가 자리를 차지하므로 예전의 110 은 과하다.
                   padding: const EdgeInsets.only(bottom: 20),
@@ -129,8 +116,8 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
                         // 히어로는 이제 카드가 아니라 밴드 위에 바로 놓인다
                         // (아래 통계 카드 하나만 밴드에 걸치게 하려고).
                         // 카드가 만들어 주던 안쪽 여백을 밴드가 대신 든다.
-                        padding: const EdgeInsets.fromLTRB(
-                            AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, 44),
+                        padding: EdgeInsets.fromLTRB(AppSpacing.xl,
+                            barSpace + AppSpacing.lg, AppSpacing.xl, 44),
                         child: PetHeroCard(pet: pet),
                       ),
 
@@ -251,6 +238,21 @@ class _PetDetailScreenState extends ConsumerState<PetDetailScreen> {
                         ),
                       ),
                     ],
+                  ),
+                ),
+              ),
+
+              // ── TopBar (SafeArea 포함, 배경 없음) ─────────────
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: SafeArea(
+                  bottom: false,
+                  child: _TopBar(
+                    onBack: () => context.pop(),
+                    onEdit: () => context.push('/pets/${widget.petId}/edit'),
+                    onMore: (anchorContext) => _showMoreMenu(anchorContext, pet),
                   ),
                 ),
               ),
@@ -488,6 +490,9 @@ class _TopBar extends StatelessWidget {
     required this.onEdit,
     required this.onMore,
   });
+
+  /// 위 lg + 버튼 36 + 아래 md. 본문이 이만큼 비워 두고 시작한다.
+  static const height = AppSpacing.lg + 36 + AppSpacing.md;
 
   @override
   Widget build(BuildContext context) {
