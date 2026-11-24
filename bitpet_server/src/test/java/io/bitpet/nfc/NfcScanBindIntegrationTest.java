@@ -133,6 +133,26 @@ class NfcScanBindIntegrationTest extends IntegrationTestBase {
     }
 
     @Test
+    void 이름표_프로필에_부모_카드가_실린다() {
+        Long owner    = signup();
+        Long stranger = signup();
+        Long father   = createPet(owner, "아빠레오", PetGender.MALE);
+        Long child    = createPet(owner, "아기레오", PetGender.FEMALE);
+        petService.addRelation(owner, new io.bitpet.pet.dto.PetRelationRequest(
+                father, child, io.bitpet.pet.domain.RelationType.FATHER));
+        String tagCd  = issueTag();
+        nfcTagService.bind(owner, tagCd, child, false);
+
+        var parents = nfcTagService.profile(stranger, tagCd).parents();
+
+        assertThat(parents).hasSize(1);
+        assertThat(parents.get(0).name()).isEqualTo("아빠레오");
+        assertThat(parents.get(0).relationType()).isEqualTo(io.bitpet.pet.domain.RelationType.FATHER);
+        // 남이 본 부모 카드 — 사육자 아님
+        assertThat(parents.get(0).isKeeper()).isFalse();
+    }
+
+    @Test
     void 연결되지_않은_이름표는_프로필이_없다() {
         Long stranger = signup();
         String tagCd  = issueTag();

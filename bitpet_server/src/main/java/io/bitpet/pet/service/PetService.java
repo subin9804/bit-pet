@@ -594,6 +594,19 @@ public class PetService {
                 petKeeper.isKeeper(requesterId, pet.getId()), owner);
     }
 
+    /**
+     * 부모 카드만 — 이름표 프로필용 (2026-11-24). 가계도 응답의 {@code parents} 와 같은 카드다.
+     * 사육자 확인을 하지 않는다: 이름표를 찍은 사람이 남이어도 부모 줄까지는 보여준다.
+     */
+    public List<PetCardResponse> parentCardsOf(Long userId, Long petId) {
+        List<PetRelationRls> rels = relationRepository.findAllByChildPetId(petId);
+        Map<Long, PetOwnerResponse> owners = resolveOwners(userId,
+                rels.stream().map(PetRelationRls::getParentPet).toList());
+        return rels.stream()
+                .map(r -> toCard(userId, r.getParentPet(), r.getId(), r.getRelationType(), owners))
+                .toList();
+    }
+
     private PetCardResponse toCard(Long userId, PetMst pet, Long relationId,
                                    RelationType relationType,
                                    Map<Long, PetOwnerResponse> owners) {

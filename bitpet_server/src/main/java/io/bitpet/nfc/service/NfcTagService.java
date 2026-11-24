@@ -144,7 +144,8 @@ public class NfcTagService {
         Double latestWeight = weightRepository.findLatestByPetIds(List.of(pet.getId()))
                 .stream().findFirst().map(r -> r.getWeightG().doubleValue()).orElse(null);
         return new NfcPetProfileResponse(petService.cardOf(userId, pet, keeper), latestWeight,
-                ownerOf(userId, pet.getId()));
+                ownerOf(userId, pet.getId()),
+                petService.parentCardsOf(userId, pet.getId()));
     }
 
     /**
