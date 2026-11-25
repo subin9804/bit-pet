@@ -218,7 +218,7 @@ class PushService {
     final router = _ref.read(routerProvider);
     final type = data['type'] as String?;
 
-    // 알림함(_open)과 같은 곳으로 보낸다. 상세는 홈 위에 push — go 로 바로 열면
+    // 알림함(_open)과 같은 곳으로 보낸다. 상세는 홈(글은 커뮤니티 목록) 위에 push — go 로 바로 열면
     // 뒤로가기 할 곳이 없어 앱이 닫힌다.
     switch (type) {
       case 'ROUTINE_ALARM':
@@ -228,8 +228,13 @@ class PushService {
         // 서버가 postId 를 풀어 보낸다(댓글은 referenceId 가 commentId). 이전 푸시엔 없다.
         final postId = data['postId'] ??
             (type == 'COMMUNITY_LIKE' ? data['referenceId'] : null);
-        _openOverHome(
-            router, postId != null ? '/community/$postId' : '/notifications');
+        // 글은 커뮤니티 목록 위에 연다 — 뒤로가기가 홈보다 목록으로 가는 게
+        // 자연스럽다 (2026-11-26 사용자 지적).
+        if (postId != null) {
+          _openOver(router, '/community/$postId', base: '/community');
+        } else {
+          _openOverHome(router, '/notifications');
+        }
       case 'AI_CONSULTING':
         final petId = data['petId'];
         _openOverHome(router, petId != null ? '/pets/$petId' : '/notifications');
@@ -238,8 +243,11 @@ class PushService {
     }
   }
 
-  void _openOverHome(GoRouter router, String location) {
-    router.go('/home');
+  void _openOverHome(GoRouter router, String location) =>
+      _openOver(router, location, base: '/home');
+
+  void _openOver(GoRouter router, String location, {required String base}) {
+    router.go(base);
     router.push(location);
   }
 }
