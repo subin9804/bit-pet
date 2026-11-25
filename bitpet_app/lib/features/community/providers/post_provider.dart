@@ -220,6 +220,15 @@ class PostDetailNotifier extends StateNotifier<AsyncValue<Post?>> {
     state = await AsyncValue.guard(() => _repo.getPost(_id));
   }
 
+  /// 당겨서 새로고침. 로딩 상태로 바꾸지 않아 읽던 글이 스켈레톤으로 깜빡이지 않는다.
+  /// 실패하면 보던 글을 그대로 둔다 — 새로고침 실패로 화면 전체를 에러로 덮을 이유는 없다.
+  Future<void> refresh() async {
+    final next = await AsyncValue.guard(() => _repo.getPost(_id));
+    if (!mounted) return;
+    if (next.hasError && state.hasValue) return;
+    state = next;
+  }
+
   Future<void> toggleLike() async {
     final post = state.valueOrNull;
     if (post == null) return;

@@ -244,8 +244,18 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
           return Column(
             children: [
               Expanded(
-                child: ListView(
+                // 맨 위에서 당기면 글·댓글을 다시 받는다 (2026-11-25 사용자 요청)
+                child: RefreshIndicator(
+                  color: AppColors.brandAction,
+                  onRefresh: () => Future.wait([
+                    ref.read(postDetailProvider(widget.postId).notifier).refresh(),
+                    ref.refresh(commentsProvider(widget.postId).future)
+                        .then((_) {}, onError: (_) {}),
+                  ]),
+                  child: ListView(
                   controller: _scrollCtrl,
+                  // 글이 짧아 스크롤할 게 없어도 당길 수 있게
+                  physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(
                     AppSpacing.lg,
                     AppSpacing.xs,
@@ -437,6 +447,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                     ),
                     ],
                   ],
+                ),
                 ),
               ),
 

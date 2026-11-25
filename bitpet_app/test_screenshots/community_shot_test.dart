@@ -62,4 +62,24 @@ void main() {
       )),
     ]);
   });
+
+  testWidgets('글 상세 — 당겨서 새로고침', (t) async {
+    await shot(t, 'post_detail_pull_refresh', const PostDetailScreen(postId: 3), pushed: true, overrides: [
+      ...loggedIn(),
+      postRepositoryProvider.overrideWithValue(FakePostRepo(
+        categories: _cats,
+        posts: {
+          3: _post(3, 2, '크레스티드 게코 슈푸 급여 주기 질문드려요', '초보집사',
+              views: 97, ago: const Duration(hours: 2), content: '짧은 글'),
+        },
+      )),
+    ], before: (t) async {
+      // 짧은 글이라도 당겨지는지 — 손을 떼지 않은 채 찍는다
+      final g = await t.startGesture(t.getCenter(find.text('짧은 글')));
+      for (var i = 0; i < 10; i++) {
+        await g.moveBy(const Offset(0, 20));
+        await t.pump(const Duration(milliseconds: 16));
+      }
+    });
+  });
 }
