@@ -9,7 +9,7 @@ import '../../../core/theme/app_input_styles.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_buttons.dart';
 import '../../../core/widgets/app_sheet.dart';
-import '../../../core/widgets/app_chip.dart';
+import '../../../core/widgets/overlay_sheet.dart';
 import '../../../core/widgets/confirm_modal.dart';
 import '../../../core/widgets/month_grid_calendar.dart';
 import '../../../core/widgets/selected_day_card.dart';
@@ -22,12 +22,12 @@ import '../providers/record_invalidation.dart';
 import '../providers/record_provider.dart';
 import 'widgets/memo_tag_pill.dart';
 import 'widgets/mating_link_picker.dart';
+import 'widgets/record_form_parts.dart';
 import '../../pet/providers/pet_provider.dart';
 import '../../pet/data/pet_repository.dart';
 import '../../pet/data/models/pet_models.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/widgets/pet_avatar.dart';
-import '../../../core/widgets/sex_icon.dart';
 
 const _weekKo = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -1096,24 +1096,6 @@ class _EditorSheetState extends State<_EditorSheet> {
     ));
   }
 
-  /// FAB `_FieldLabel` 과 같은 모양 — 필수는 빨간 *, 선택은 '(선택)'.
-  Widget _eggLabel(String text, {required bool required}) => Row(
-        children: [
-          Text(text,
-              style: const TextStyle(
-                  fontSize: 13, fontWeight: FontWeight.w700,
-                  color: AppColors.ink)),
-          if (required) ...[
-            const SizedBox(width: 4),
-            const Text('*', style: TextStyle(fontSize: 12,
-                fontWeight: FontWeight.w700, color: AppColors.error)),
-          ] else ...[
-            const SizedBox(width: 8),
-            Text('(선택)', style: AppTextStyles.label),
-          ],
-        ],
-      );
-
   /// FAB 기록 시트(`_buildSimpleFields`)의 박스 입력칸.
   static const _boxSide = BorderSide(color: AppColors.line);
   static final _boxDec = InputDecoration(
@@ -1158,22 +1140,10 @@ class _EditorSheetState extends State<_EditorSheet> {
 
     // 급여 편집 시트(feed_detail_screen)와 같은 이유로 오버레이로 띄우되 겉모양은
     // 공용 [AppSheet] — X·'취소' 없이 주 버튼 하나, 날짜는 맨 아래 (2026-10-30).
-    return Material(
-      color: Colors.transparent,
-      child: Stack(children: [
-        GestureDetector(
-          onTap: widget.onClose,
-          child: Container(color: AppColors.scrim),
-        ),
-        Align(
-          alignment: Alignment.bottomCenter,
-          child: TweenAnimationBuilder<double>(
-            tween: Tween<double>(begin: 1, end: 0),
-            duration: const Duration(milliseconds: 260),
-            curve: Curves.easeOutCubic,
-            builder: (context, t, child) =>
-                FractionalTranslation(translation: Offset(0, t), child: child),
-            child: AppSheet(
+    // 끌어내려 닫기는 [OverlaySheet] 가 준다.
+    return OverlaySheet(
+      onClose: widget.onClose,
+      child: AppSheet(
               title: title,
               primaryLabel: e.isEdit ? '수정 완료' : '저장',
               onPrimary: _canSave ? widget.onSave : null,
@@ -1369,49 +1339,28 @@ class _EditorSheetState extends State<_EditorSheet> {
                             }));
                           },
                         ),
-                        const SizedBox(height: 16),
-                        const Text('결과',
-                            style: TextStyle(fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.primary)),
+                        // FAB 메이팅 폼과 같은 토글 (2026-11-26).
+                        const SizedBox(height: 20),
+                        const RecordFieldLabel('결과'),
                         const SizedBox(height: 8),
                         Row(
                           children: [
-                            Expanded(
-                              child: AppChip(
-                                label: '미정',
-                                selected: e.form['isSuccessful'] == null,
-                                selectedColor: AppColors.paleBgAlt,
-                                selectedBorderColor: AppColors.paleLine,
-                                selectedTextColor: AppColors.paleInk2,
-                                centered: true,
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                onTap: () => _updateForm('isSuccessful', null),
-                              ),
+                            RecordToggle(
+                              label: '결과 미정',
+                              active: e.form['isSuccessful'] == null,
+                              onTap: () => _updateForm('isSuccessful', null),
                             ),
                             const SizedBox(width: 8),
-                            Expanded(
-                              child: AppChip(
-                                label: '성공',
-                                selected: e.form['isSuccessful'] == true,
-                                selectedColor: AppColors.petClay,
-                                selectedTextColor: AppColors.primary,
-                                centered: true,
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                onTap: () => _updateForm('isSuccessful', true),
-                              ),
+                            RecordToggle(
+                              label: '성공',
+                              active: e.form['isSuccessful'] == true,
+                              onTap: () => _updateForm('isSuccessful', true),
                             ),
                             const SizedBox(width: 8),
-                            Expanded(
-                              child: AppChip(
-                                label: '실패',
-                                selected: e.form['isSuccessful'] == false,
-                                selectedColor: AppColors.petCoral,
-                                selectedTextColor: AppColors.primary,
-                                centered: true,
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                onTap: () => _updateForm('isSuccessful', false),
-                              ),
+                            RecordToggle(
+                              label: '실패',
+                              active: e.form['isSuccessful'] == false,
+                              onTap: () => _updateForm('isSuccessful', false),
                             ),
                           ],
                         ),
@@ -1421,7 +1370,7 @@ class _EditorSheetState extends State<_EditorSheet> {
                       // FAB 산란 폼(`fab_record_sheet.dart` 의 'lay')과 같은
                       // 칸·같은 순서다. 한쪽만 고치지 말 것.
                       if (widget.recordType == 'laying') ...[
-                        _eggLabel(widget.terms.eggCountLabel, required: true),
+                        RecordFieldLabel(widget.terms.eggCountLabel, required: true),
                         const SizedBox(height: 8),
                         TextField(
                           controller: _totalCtrl,
@@ -1442,7 +1391,7 @@ class _EditorSheetState extends State<_EditorSheet> {
                         // 포유류(출산)에는 유정란이 없다. 서버도 값을 버린다.
                         if (!widget.terms.isMammal) ...[
                           const SizedBox(height: 16),
-                          _eggLabel('유정란 수', required: false),
+                          RecordFieldLabel('유정란 수'),
                           const SizedBox(height: 8),
                           TextField(
                             controller: _fertileCtrl,
@@ -1461,7 +1410,7 @@ class _EditorSheetState extends State<_EditorSheet> {
                           ),
                         ],
                         const SizedBox(height: 20),
-                        _eggLabel('메이팅 기록', required: false),
+                        RecordFieldLabel('메이팅 기록'),
                         const SizedBox(height: 8),
                         MatingLinkPicker(
                           petId: widget.petId,
@@ -1479,10 +1428,11 @@ class _EditorSheetState extends State<_EditorSheet> {
                       ],
 
                       // ── 공통 메모 (memo 타입 제외) ─────────
-                      if (widget.recordType == 'laying') ...[
-                        // 산란은 FAB 산란 폼과 같은 모양으로 (2026-11-25).
+                      if (widget.recordType == 'laying' ||
+                          widget.recordType == 'mating') ...[
+                        // 산란·메이팅은 FAB 폼과 같은 모양으로 (2026-11-25).
                         const SizedBox(height: 20),
-                        _eggLabel('메모', required: false),
+                        RecordFieldLabel('메모'),
                         const SizedBox(height: 8),
                         AppMemoField(
                           controller: _memoCtrl,
@@ -1536,9 +1486,6 @@ class _EditorSheetState extends State<_EditorSheet> {
                     ],
                   ),
             ),
-          ),
-        ),
-      ]),
     );
   }
 }
@@ -1568,16 +1515,60 @@ class _MatingPartnerField extends ConsumerStatefulWidget {
       _MatingPartnerFieldState();
 }
 
+// 겉모양은 FAB 메이팅 폼(`fab_record_sheet.dart` 의 'mate')과 같다 (2026-11-26).
+// 다른 점은 후보뿐이다 — 여기선 이 개체가 이미 정해져 있으니 **반대 성별**만 보인다.
 class _MatingPartnerFieldState extends ConsumerState<_MatingPartnerField> {
   final _serialCtrl = TextEditingController();
-  bool _external = false;
+  late bool _external;
   bool _searching = false;
   String? _searchError;
+
+  /// 일련번호로 찾은 개체 — 카드에 종·일련번호를 보여주려고 들고 있는다.
+  /// 저장돼 있던 외부 파트너를 수정으로 열면 이름(partnerLabel)만 있다.
+  Pet? _found;
+
+  static const _side = BorderSide(color: AppColors.line);
+  static final _inputDec = InputDecoration(
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    border: const OutlineInputBorder(
+        borderRadius: AppRadius.brMd, borderSide: _side),
+    enabledBorder: const OutlineInputBorder(
+        borderRadius: AppRadius.brMd, borderSide: _side),
+    focusedBorder: const OutlineInputBorder(
+        borderRadius: AppRadius.brMd,
+        borderSide: BorderSide(color: AppColors.brandAction, width: 1.5)),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    // 이미 고른 파트너가 내 개체 목록에 없으면 외부 개체다.
+    final id = widget.partnerPetId;
+    final mine = ref.read(petListProvider).valueOrNull ?? const <Pet>[];
+    _external = id != null && !mine.any((p) => p.id == id);
+  }
 
   @override
   void dispose() {
     _serialCtrl.dispose();
     super.dispose();
+  }
+
+  void _setExternal(bool v) {
+    if (_external == v) return;
+    setState(() {
+      _external = v;
+      _found = null;
+      _searchError = null;
+    });
+    // 모드를 바꾸면 고른 파트너는 버린다 (FAB 와 같음)
+    if (widget.partnerPetId != null) widget.onPicked(null, null);
+  }
+
+  void _clearExternal() {
+    _serialCtrl.clear();
+    setState(() => _found = null);
+    widget.onPicked(null, null);
   }
 
   // 일련번호로 남의 개체 찾기 — 정확히 일치해야만 열린다 (목록 열람은 없다)
@@ -1592,11 +1583,12 @@ class _MatingPartnerFieldState extends ConsumerState<_MatingPartnerField> {
       final found = await ref.read(petRepositoryProvider).findBySerial(q);
       if (!mounted) return;
       if (found == null) {
-        setState(() => _searchError = '검색 결과 없음 (비공개이거나 없는 일련번호)');
+        setState(() => _searchError = '검색 결과 없음 (비공개이거나 존재하지 않는 일련번호)');
       } else if (speciesName.isNotEmpty && found.speciesName != speciesName) {
-        setState(() =>
-            _searchError = '같은 종만 파트너로 지정할 수 있어요 (${found.speciesName})');
+        setState(() => _searchError =
+            '같은 종의 개체만 메이팅 파트너로 선택할 수 있어요 (${found.speciesName})');
       } else {
+        setState(() => _found = found);
         widget.onPicked(found.id, found.name);
       }
     } catch (_) {
@@ -1639,181 +1631,181 @@ class _MatingPartnerFieldState extends ConsumerState<_MatingPartnerField> {
             (self == null || p.speciesName == self.speciesName) &&
             p.gender == (wantMale ? 'MALE' : 'FEMALE'))
         .toList();
+    final speciesName = self?.speciesName ?? '';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(children: [
-          const Text('파트너',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700,
-                  color: AppColors.primary)),
-          const SizedBox(width: 8),
-          Text('(선택)', style: AppTextStyles.label),
-        ]),
+        const RecordFieldLabel('파트너'),
         const SizedBox(height: 8),
-
-        // 이미 고른 파트너 — 한 줄로 보여주고 해제만 시킨다
-        if (widget.partnerPetId != null)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: AppColors.card,
-              border: Border.all(color: AppColors.paleLine),
-              borderRadius: AppRadius.brMd,
-            ),
-            child: Row(children: [
-              const Icon(Icons.favorite, size: 14, color: AppColors.primary),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  widget.partnerLabel ?? '개체 #${widget.partnerPetId}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 13,
-                      fontWeight: FontWeight.w700, color: AppColors.primary),
-                ),
-              ),
-              GestureDetector(
-                onTap: () {
-                  _serialCtrl.clear();
-                  widget.onPicked(null, null);
-                },
-                child: const Icon(Icons.close, size: 16,
-                    color: AppColors.paleInk2),
-              ),
-            ]),
-          )
-        else ...[
-          Row(children: [
-            Expanded(
-              child: AppChip(
-                label: '내 개체',
-                selected: !_external,
-                centered: true,
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                onTap: () => setState(() {
-                  _external = false;
-                  _searchError = null;
-                }),
-              ),
+        Row(
+          children: [
+            RecordToggle(
+              label: '내 개체',
+              active: !_external,
+              onTap: () => _setExternal(false),
             ),
             const SizedBox(width: 8),
-            Expanded(
-              child: AppChip(
-                label: '외부 개체',
-                selected: _external,
-                centered: true,
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                onTap: () => setState(() {
-                  _external = true;
-                  _searchError = null;
-                }),
-              ),
+            RecordToggle(
+              label: '외부 개체',
+              active: _external,
+              onTap: () => _setExternal(true),
             ),
-          ]),
-          const SizedBox(height: 8),
-          if (_external) ...[
-            Row(children: [
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (_external) ...[
+          Row(
+            children: [
               Expanded(
                 child: TextField(
                   controller: _serialCtrl,
+                  style: const TextStyle(fontSize: 14, color: AppColors.ink),
                   textCapitalization: TextCapitalization.characters,
-                  style: const TextStyle(fontSize: 14, color: AppColors.primary),
-                  decoration:
-                      AppInputStyles.textarea(hintText: '일련번호 (예: AB12CD34)'),
+                  decoration: _inputDec.copyWith(
+                    hintText: '일련번호 입력 (예: AB12CD34)',
+                    prefixIcon: const Icon(Icons.search,
+                        size: 20, color: AppColors.ink2),
+                  ),
                   onChanged: (_) => setState(() => _searchError = null),
-                  onSubmitted: (_) => _search(self?.speciesName ?? ''),
+                  onSubmitted: (_) => _search(speciesName),
                 ),
               ),
               const SizedBox(width: 8),
-              GestureDetector(
-                onTap: _searching ? null : () => _search(self?.speciesName ?? ''),
+              // QR 버튼 (준비 중) — FAB 와 같은 자리
+              Tooltip(
+                message: '준비 중',
                 child: Container(
-                  width: 48,
-                  height: 48,
+                  width: 44, height: 44,
                   decoration: BoxDecoration(
-                    // ⚠️ 먹색(`primary`) 로 칠해 둬서 **검정 버튼**이었다 — 눌리는 것은
-              // 브랜드색이다. 다른 화면 추가 버튼(내 개체·루틴)과 같은 색.
-              color: AppColors.brandAction,
+                    color: AppColors.line,
                     borderRadius: AppRadius.brMd,
                   ),
-                  child: _searching
-                      ? const Padding(
-                          padding: EdgeInsets.all(16),
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white))
-                      : const Icon(Icons.search, size: 20, color: Colors.white),
+                  child: const Icon(Icons.qr_code_scanner,
+                      size: 20, color: AppColors.ink3),
                 ),
               ),
-            ]),
-            if (_searchError != null) ...[
-              const SizedBox(height: 6),
-              Text(_searchError!,
-                  style: const TextStyle(fontSize: 12,
-                      color: AppColors.warning)),
             ],
-          ] else
-            Container(
-              constraints: const BoxConstraints(maxHeight: 168),
-              decoration: BoxDecoration(
-                color: AppColors.card,
-                border: Border.all(color: AppColors.paleLine),
-                borderRadius: AppRadius.brMd,
+          ),
+          const SizedBox(height: 8),
+          ElevatedButton.icon(
+            onPressed: _searching ? null : () => _search(speciesName),
+            icon: _searching
+                ? const SizedBox(
+                    width: 14, height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.search, size: 16),
+            label: const Text('검색'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.brandAction,
+              foregroundColor: Colors.white,
+              minimumSize: const Size(double.infinity, 42),
+              shape: RoundedRectangleBorder(borderRadius: AppRadius.brMd),
+              textStyle: const TextStyle(
+                  fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+          ),
+          if (_searchError != null) ...[
+            const SizedBox(height: 8),
+            Text(_searchError!,
+                style: const TextStyle(fontSize: 12, color: AppColors.warning)),
+          ],
+          if (widget.partnerPetId != null) ...[
+            const SizedBox(height: 8),
+            if (_found != null && _found!.id == widget.partnerPetId)
+              PartnerResultCard.pet(pet: _found!, onClear: _clearExternal)
+            else
+              PartnerResultCard(
+                name: widget.partnerLabel ?? '개체 #${widget.partnerPetId}',
+                onClear: _clearExternal,
               ),
-              child: candidates.isEmpty
-                  ? const Padding(
-                      padding: EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 14),
-                      child: Center(
-                        child: Text('같은 종의 반대 성별 개체가 없어요',
-                            style: TextStyle(fontSize: 12,
-                                color: AppColors.paleInk3)),
-                      ),
-                    )
-                  : ListView.separated(
-                      shrinkWrap: true,
-                      // ⚠️ padding 을 안 주면 주변 MediaQuery 의 패딩(바텀시트 하단
-                      // safe-area)을 그대로 먹어서, 항목이 한둘이어도 박스 아래가 붕 뜬다.
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      physics: const ClampingScrollPhysics(),
-                      itemCount: candidates.length,
-                      separatorBuilder: (_, __) => const Divider(
-                          height: 1, color: AppColors.paleLineSoft),
-                      itemBuilder: (_, i) {
-                        final p = candidates[i];
-                        return GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: () => widget.onPicked(p.id, p.name),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 8),
-                            child: Row(children: [
+          ],
+        ] else
+          // 내 개체 목록 (같은 종 · 반대 성별)
+          Container(
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              border: Border.all(color: AppColors.line),
+              borderRadius: AppRadius.brMd,
+            ),
+            constraints: const BoxConstraints(maxHeight: 180),
+            child: candidates.isEmpty
+                ? const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Center(
+                      child: Text('같은 종의 반대 성별 개체가 없어요',
+                          style: TextStyle(fontSize: 12, color: AppColors.ink3)),
+                    ),
+                  )
+                : ListView.separated(
+                    shrinkWrap: true,
+                    // ⚠️ padding 을 안 주면 주변 MediaQuery 의 패딩(바텀시트 하단
+                    // safe-area)을 그대로 먹어서, 항목이 한둘이어도 박스 아래가 붕 뜬다.
+                    padding: EdgeInsets.zero,
+                    physics: const ClampingScrollPhysics(),
+                    itemCount: candidates.length,
+                    separatorBuilder: (_, _) =>
+                        const Divider(height: 1, color: AppColors.line),
+                    itemBuilder: (_, i) {
+                      final p = candidates[i];
+                      final sel = widget.partnerPetId == p.id;
+                      return GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => sel
+                            ? widget.onPicked(null, null)
+                            : widget.onPicked(p.id, p.name),
+                        child: Container(
+                          color: sel
+                              ? AppColors.brandTintSoft
+                              : Colors.transparent,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
+                          child: Row(
+                            children: [
                               PetAvatar(
                                 imageUrl: p.profileImageUrl,
-                                size: 30,
-                                background: AppColors.paleBgAlt,
-                                iconColor: AppColors.paleInk2,
+                                size: 32,
+                                background: AppColors.bgAlt,
+                                iconColor: AppColors.ink2,
                                 subcategory: p.speciesSubcategory,
                               ),
                               const SizedBox(width: 8),
                               Expanded(
-                                child: Text(p.name,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(fontSize: 13,
-                                        fontWeight: FontWeight.w700,
-                                        color: AppColors.primary)),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(p.name,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.ink)),
+                                    Text(
+                                      '${p.speciesName} · ${p.gender == 'MALE' ? '수컷' : '암컷'}',
+                                      style: const TextStyle(
+                                          fontSize: 12, color: AppColors.ink2),
+                                    ),
+                                  ],
+                                ),
                               ),
-                              SexIcon.fromCode(p.gender, size: 13),
-                            ]),
+                              if (sel)
+                                Container(
+                                  width: 20, height: 20,
+                                  decoration: const BoxDecoration(
+                                      color: AppColors.brandAction,
+                                      shape: BoxShape.circle),
+                                  child: const Icon(Icons.check,
+                                      size: 16, color: Colors.white),
+                                ),
+                            ],
                           ),
-                        );
-                      },
-                    ),
-            ),
-        ],
+                        ),
+                      );
+                    },
+                  ),
+          ),
       ],
     );
   }
 }
-

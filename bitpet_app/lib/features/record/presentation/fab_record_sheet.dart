@@ -26,6 +26,7 @@ import '../providers/record_provider.dart';
 import '../providers/record_invalidation.dart';
 import 'widgets/feed_items_editor.dart';
 import 'widgets/mating_link_picker.dart';
+import 'widgets/record_form_parts.dart';
 import 'widgets/selected_pet_row.dart';
 import '../../../core/theme/app_icons.dart';
 import '../../../core/theme/app_dimens.dart';
@@ -1630,7 +1631,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _FieldLabel('체중 (g)', required: true),
+            RecordFieldLabel('체중 (g)', required: true),
             const SizedBox(height: 8),
             TextField(
               controller: _weightCtrl,
@@ -1645,7 +1646,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 20),
-            _FieldLabel('메모', required: false),
+            RecordFieldLabel('메모', required: false),
             const SizedBox(height: 8),
             AppMemoField(
               controller: _simpleMemoCtrl,
@@ -1664,7 +1665,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _FieldLabel('청소 종류', required: false),
+            RecordFieldLabel('청소 종류', required: false),
             const SizedBox(height: 8),
             Row(
               children: types.map((t) {
@@ -1706,7 +1707,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
               }).toList(),
             ),
             const SizedBox(height: 20),
-            _FieldLabel('메모', required: false),
+            RecordFieldLabel('메모', required: false),
             const SizedBox(height: 8),
             AppMemoField(
               controller: _simpleMemoCtrl,
@@ -1721,7 +1722,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // 분류 (병원/탈피/배변/행동/기타 — 서버 제공 목록, 단일 선택 라디오)
-            _FieldLabel('분류', required: false),
+            RecordFieldLabel('분류', required: false),
             const SizedBox(height: 8),
             Builder(builder: (context) {
               final tags = ref.watch(memoTagsProvider).valueOrNull ??
@@ -1778,7 +1779,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
               );
             }),
             const SizedBox(height: 16),
-            _FieldLabel('내용', required: false),
+            RecordFieldLabel('내용', required: false),
             const SizedBox(height: 8),
             AppMemoField(
               controller: _simpleMemoCtrl,
@@ -1804,12 +1805,12 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _FieldLabel('파트너', required: false),
+            RecordFieldLabel('파트너', required: false),
             const SizedBox(height: 8),
             // 내 개체 / 외부 개체 토글
             Row(
               children: [
-                _TypeToggle(
+                RecordToggle(
                   label: '내 개체',
                   active: !_partnerExternal,
                   onTap: () => setState(() {
@@ -1819,7 +1820,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
                   }),
                 ),
                 const SizedBox(width: 8),
-                _TypeToggle(
+                RecordToggle(
                   label: '외부 개체',
                   active: _partnerExternal,
                   onTap: () => setState(() {
@@ -1893,7 +1894,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
               ],
               if (_searchedPartner != null) ...[
                 const SizedBox(height: 8),
-                _PartnerResultCard(pet: _searchedPartner!,
+                PartnerResultCard.pet(pet: _searchedPartner!,
                     onClear: () => setState(() { _searchedPartner = null; _partnerExtCtrl.clear(); })),
               ],
             ] else ...[
@@ -1975,23 +1976,23 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
               ),
             ],
             const SizedBox(height: 20),
-            _FieldLabel('결과', required: false),
+            RecordFieldLabel('결과', required: false),
             const SizedBox(height: 8),
             Row(
               children: [
-                _TypeToggle(
+                RecordToggle(
                   label: '결과 미정',
                   active: _mateSuccess == null,
                   onTap: () => setState(() => _mateSuccess = null),
                 ),
                 const SizedBox(width: 8),
-                _TypeToggle(
+                RecordToggle(
                   label: '성공',
                   active: _mateSuccess == true,
                   onTap: () => setState(() => _mateSuccess = true),
                 ),
                 const SizedBox(width: 8),
-                _TypeToggle(
+                RecordToggle(
                   label: '실패',
                   active: _mateSuccess == false,
                   onTap: () => setState(() => _mateSuccess = false),
@@ -1999,7 +2000,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
               ],
             ),
             const SizedBox(height: 20),
-            _FieldLabel('메모', required: false),
+            RecordFieldLabel('메모', required: false),
             const SizedBox(height: 8),
             AppMemoField(
               controller: _simpleMemoCtrl,
@@ -2020,7 +2021,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _FieldLabel(terms.eggCountLabel, required: true),
+            RecordFieldLabel(terms.eggCountLabel, required: true),
             const SizedBox(height: 8),
             TextField(
               controller: _eggTotalCtrl,
@@ -2036,7 +2037,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
             ),
             if (!terms.isMammal) ...[
               const SizedBox(height: 16),
-              _FieldLabel('유정란 수', required: false),
+              RecordFieldLabel('유정란 수', required: false),
               const SizedBox(height: 8),
               TextField(
                 controller: _eggFertileCtrl,
@@ -2050,7 +2051,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
               ),
             ],
             const SizedBox(height: 20),
-            _FieldLabel('메이팅 기록', required: false),
+            RecordFieldLabel('메이팅 기록', required: false),
             const SizedBox(height: 8),
             // 여러 마리 일괄이면 개체마다 메이팅이 달라 한 칸으로 고를 수 없다 —
             // 연결 없이 저장하고, 걸려면 클러치 상세에서.
@@ -2069,7 +2070,7 @@ class _FabRecordSheetState extends ConsumerState<FabRecordSheet> {
               Text('여러 마리는 메이팅 연결 없이 저장돼요. 클러치 상세에서 연결할 수 있어요',
                   style: AppTextStyles.caption),
             const SizedBox(height: 20),
-            _FieldLabel('메모', required: false),
+            RecordFieldLabel('메모', required: false),
             const SizedBox(height: 8),
             AppMemoField(
               controller: _simpleMemoCtrl,
@@ -2749,113 +2750,6 @@ class _MemoLabel extends StatelessWidget {
   );
 }
 
-// ── 필드 레이블 ────────────────────────────────────────────────
-class _FieldLabel extends StatelessWidget {
-  final String label;
-  final bool required;
-
-  const _FieldLabel(this.label, {this.required = false});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Text(label,
-            style: const TextStyle(
-                fontSize: 13, fontWeight: FontWeight.w700,
-                color: AppColors.ink)),
-        if (required) ...[
-          const SizedBox(width: 4),
-          const Text('*', style: TextStyle(fontSize: 12,
-              fontWeight: FontWeight.w700, color: AppColors.error)),
-        ] else ...[
-          const SizedBox(width: 8),
-          Text('(선택)', style: AppTextStyles.label),
-        ],
-      ],
-    );
-  }
-}
-
-// ── 토글 버튼 ─────────────────────────────────────────────────
-class _TypeToggle extends StatelessWidget {
-  final String label;
-  final bool active;
-  final VoidCallback onTap;
-
-  const _TypeToggle({required this.label, required this.active, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 120),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: active ? AppColors.brandAction : AppColors.card,
-          border: Border.all(
-              color: active ? AppColors.brandAction : AppColors.line,
-              width: active ? 1.5 : 1),
-          borderRadius: AppRadius.brMd,
-        ),
-        child: Text(label,
-            style: TextStyle(
-                fontSize: 13, fontWeight: FontWeight.w700,
-                color: active ? AppColors.card : AppColors.ink2)),
-      ),
-    );
-  }
-}
-
-// ── 전체선택/해제 버튼 ─────────────────────────────────────────
-class _PartnerResultCard extends StatelessWidget {
-  final Pet pet;
-  final VoidCallback onClear;
-
-  const _PartnerResultCard({required this.pet, required this.onClear});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: AppDecor.cardSelected,
-      child: Row(
-        children: [
-          PetAvatar(
-            imageUrl: pet.profileImageUrl,
-            size: 36,
-            background: AppColors.bg,
-            iconColor: AppColors.brandAction,
-            subcategory: pet.speciesSubcategory,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(pet.name,
-                    style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.ink)),
-                Text(
-                  '${pet.speciesName} · ${pet.serialNo}',
-                  style: const TextStyle(fontSize: 12, color: AppColors.ink2),
-                ),
-              ],
-            ),
-          ),
-          GestureDetector(
-            onTap: onClear,
-            child: const Icon(Icons.close, size: 20, color: AppColors.ink3),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 // ── 기록 날짜 선택 줄 ──────────────────────────────────────────
 // 오늘이 기본값이라 **대개 건드리지 않는다** — 그래서 폼 맨 위에서 자리를 많이
 // 먹지 않도록 레이블과 값을 한 줄에 둔다.
@@ -2889,7 +2783,7 @@ class _DateRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _FieldLabel(label, required: true),
+        RecordFieldLabel(label, required: true),
         const Spacer(),
         GestureDetector(
           onTap: onTap,

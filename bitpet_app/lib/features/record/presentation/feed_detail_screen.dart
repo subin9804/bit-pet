@@ -6,6 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_buttons.dart';
 import '../../../core/widgets/app_sheet.dart';
+import '../../../core/widgets/overlay_sheet.dart';
 import '../../../core/widgets/confirm_modal.dart';
 import '../../../core/widgets/month_grid_calendar.dart';
 import '../../../core/widgets/selected_day_card.dart';
@@ -787,23 +788,9 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
     // 라우트 시트로 옮기면 입력할 때마다 부모 setState 가 시트에 닿지 않는다.
     // 대신 겉모양은 공용 [AppSheet] 그대로 쓴다: 제목 위치·주 버튼 하나·날짜는 맨 아래
     // (2026-10-30 — 이 시트만 X·'취소'·큰 제목이 따로 놀았다).
-    return Material(
-      color: Colors.transparent,
-      child: Stack(
-        children: [
-          GestureDetector(
-            onTap: widget.onClose,
-            child: Container(color: AppColors.scrim),
-          ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: TweenAnimationBuilder<double>(
-              tween: Tween<double>(begin: 1, end: 0),
-              duration: const Duration(milliseconds: 260),
-              curve: Curves.easeOutCubic,
-              builder: (context, t, child) =>
-                  FractionalTranslation(translation: Offset(0, t), child: child),
-              child: AppSheet(
+    return OverlaySheet(
+      onClose: widget.onClose,
+      child: AppSheet(
                 title: e.isEdit ? '급여 기록 수정' : '급여 기록 추가',
                 primaryLabel: e.isEdit ? '수정 완료' : '저장',
                 onPrimary: widget.onSave,
@@ -910,10 +897,6 @@ class _FeedEditorSheetState extends State<FeedEditorSheet> {
                   ],
                 ),
               ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
