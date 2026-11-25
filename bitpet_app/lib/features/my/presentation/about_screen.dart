@@ -1,3 +1,4 @@
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -8,6 +9,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimens.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/app_icons.dart';
+import '../../../core/widgets/confirm_modal.dart';
 import 'widgets/menu_group.dart';
 
 /// 앱 정보 — 버전·약관·문의처.
@@ -143,13 +145,29 @@ class _AppIdentity extends StatelessWidget {
         // ⚠️ 높이를 숫자로 박지 말 것 — 예전 SizedBox(height: 18) 은 caption 한 줄
         // (13 × 1.5 = 19.5) 보다 작아서 글자 아랫부분이 잘렸다(2026-10-19).
         // 빈 문자열 대신 공백 한 칸을 그려서 글자 높이만큼 자리를 잡는다.
-        Text(
-          (version == null || version!.isEmpty) ? ' ' : version!,
-          style: AppTextStyles.caption,
+        // ⚠️ 임시 — Crashlytics 대시보드 확인용 (2026-11-25). 버전 줄 길게 누르기 → 강제 종료.
+        // 확인 끝나면 이 GestureDetector 와 _testCrash 를 지울 것 (출시 전 필수).
+        GestureDetector(
+          onLongPress: () => _testCrash(context),
+          child: Text(
+            (version == null || version!.isEmpty) ? ' ' : version!,
+            style: AppTextStyles.caption,
+          ),
         ),
       ],
     );
   }
+}
+
+Future<void> _testCrash(BuildContext context) async {
+  final ok = await ConfirmModal.show(
+    context,
+    title: '테스트 강제 종료',
+    message: 'Crashlytics 확인용으로 앱을 일부러 종료해요. 다시 열면 기록이 전송돼요.',
+    confirmLabel: '종료',
+    isDangerous: true,
+  );
+  if (ok == true) FirebaseCrashlytics.instance.crash();
 }
 
 class _Row extends StatelessWidget {
