@@ -1,6 +1,9 @@
 // FAB 기록 바텀시트 — 급여 플로우 06 → 06b → 06c → 06d / 06e
 // 단일 모달 시트 안에서 단계를 전환해 슬라이드업 애니메이션을 1회만 발생.
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import '../../../core/widgets/app_memo_field.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -2315,9 +2318,10 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
           ),
         ),
 
-        // 개체 3열 그리드
+        // 개체 3열 그리드. 필터·검색으로 개체가 줄어도 이 칸은 줄지 않는다 —
+        // 칩 하나 누를 때마다 시트가 확 내려앉아 어지러웠다 (2026-11-25, [_HeightLatch]).
         Flexible(
-          child: filtered.isEmpty
+          child: _HeightLatch(child: filtered.isEmpty
               ? const Padding(
                   padding: EdgeInsets.symmetric(vertical: 40),
                   child: Center(
@@ -2423,7 +2427,7 @@ class _PetPickerContentState extends ConsumerState<_PetPickerContent> {
                       ),
                     );
                   }).toList(),
-                ),
+                )),
         ),
 
         // 푸터
@@ -2916,5 +2920,34 @@ class _DateRow extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+/// 지금까지 그려진 가장 큰 높이를 **최소 높이로 붙잡는** 상자. 개체 선택 단계에서
+/// 종 칩·검색으로 목록이 줄어들 때 시트가 따라 내려앉지 않게 한다.
+///
+/// 시트 전체를 고정 높이로 못 박지 않는 이유는 `build` 의 ⛔ 주석 참고 — 처음 열릴 때
+/// 높이는 여전히 내용이 정하고(개체가 적으면 낮게), 그 뒤로 줄어들지만 않는다.
+/// 단계를 벗어나면 위젯이 사라지므로 다음에 열 때 새로 잰다.
+class _HeightLatch extends SingleChildRenderObjectWidget {
+  const _HeightLatch({super.child});
+
+  @override
+  RenderObject createRenderObject(BuildContext context) => _RenderHeightLatch();
+}
+
+class _RenderHeightLatch extends RenderProxyBox {
+  double _tallest = 0;
+
+  @override
+  void performLayout() {
+    final c = child;
+    if (c == null) {
+      size = constraints.smallest;
+      return;
+    }
+    c.layout(constraints, parentUsesSize: true);
+    _tallest = math.max(_tallest, c.size.height);
+    size = constraints.constrain(Size(c.size.width, _tallest));
   }
 }
