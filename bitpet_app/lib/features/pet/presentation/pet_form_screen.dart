@@ -976,7 +976,7 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('메이팅 검색 허용',
+                      Text('검색 허용',
                           style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
@@ -1100,7 +1100,7 @@ class _PetFormScreenState extends ConsumerState<PetFormScreen> {
           ]),
           StepSummaryGroup(label: '메모', step: 4, rows: [
             StepSummaryRow(k: '메모', v: _memoCtrl.text, muted: _memoCtrl.text.isEmpty),
-            StepSummaryRow(k: '메이팅 검색', v: _isPublic ? '공개' : '비공개'),
+            StepSummaryRow(k: '검색', v: _isPublic ? '공개' : '비공개'),
             if (kShowLegalReportFields)
               StepSummaryRow(
                 k: '신고',
@@ -1782,7 +1782,7 @@ class _YearMonthPickerSheetState extends State<_YearMonthPickerSheet> {
 
 /// 신고 여부 한 줄 — 제목 + 설명 + 토글.
 ///
-/// 메모 스텝의 '메이팅 검색 허용' 줄과 같은 꼴이지만, 두 줄이 한 박스 안에
+/// 메모 스텝의 '검색 허용' 줄과 같은 꼴이지만, 두 줄이 한 박스 안에
 /// 들어가 구분선을 공유하므로 박스 장식은 부모가 들고 이 위젯은 내용만 그린다.
 class _ReportToggleRow extends StatelessWidget {
   final String title;
