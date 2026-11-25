@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../firebase_options.dart';
+import '../../features/notification/providers/notification_provider.dart';
 import '../router/app_router.dart';
 import 'device_token_repository.dart';
 
@@ -59,7 +60,11 @@ class PushService {
     await _setupLocalNotifications();
 
     // 포그라운드: OS가 알림을 띄우지 않으므로 로컬 알림으로 직접 표시
-    FirebaseMessaging.onMessage.listen(_showForegroundNotification);
+    // 알림함·빨간 점도 바로 갱신한다 — 안 하면 앱을 다시 열 때까지 새 알림이 안 보인다
+    FirebaseMessaging.onMessage.listen((m) {
+      _ref.invalidate(notificationListProvider);
+      _showForegroundNotification(m);
+    });
 
     // 백그라운드 상태에서 알림 탭으로 앱 복귀
     FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageTap);

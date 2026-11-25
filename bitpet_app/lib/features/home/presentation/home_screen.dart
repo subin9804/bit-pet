@@ -8,16 +8,13 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_sheet.dart';
 import '../../record/presentation/fab_record_sheet.dart';
 import '../../notification/providers/notification_provider.dart';
+import 'tab_refresher.dart';
 
 class HomeScreen extends ConsumerWidget {
   final Widget child;
   final String location;
 
-  const HomeScreen({
-    super.key,
-    required this.child,
-    required this.location,
-  });
+  const HomeScreen({super.key, required this.child, required this.location});
 
   /// 탭 활성 판정. 중앙 ＋ 는 화면이 아니라 **동작**이라 번호를 갖지 않는다 —
   /// 그래서 2번이 비어 있고 루틴이 3, 커뮤니티가 4다.
@@ -25,13 +22,7 @@ class HomeScreen extends ConsumerWidget {
   /// `/my` 는 더 이상 탭이 아니다 (홈 우상단 아바타로 들어간다). 설정 화면에
   /// 있을 때 어떤 탭도 켜지지 않는 건 의도한 것이다 — 없는 탭을 억지로
   /// 활성시키면 "마이가 홈인가?" 하게 된다.
-  int get _currentIndex {
-    if (location.startsWith('/home')) return 0;
-    if (location.startsWith('/pets')) return 1;
-    if (location.startsWith('/routines')) return 3;
-    if (location.startsWith('/community')) return 4;
-    return -1;
-  }
+  int get _currentIndex => tabIndexOf(location);
 
   // ── 떠 있는 FAB 을 없애고 내비 중앙으로 내렸다 ─────────────────
   //
@@ -66,53 +57,59 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final unreadCount = ref.watch(unreadNotificationCountProvider);
 
-    return Scaffold(
-      body: child,
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: AppColors.surface,
-          border: Border(top: BorderSide(color: AppColors.divider, width: 1)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: SizedBox(
-            // 58 = 세로 패딩 12 + 아이콘 20 + 간격 2 + 라벨 한 줄(약 12).
-            // 56 이던 시절엔 내용물 합이 55 라 여유가 1px 뿐이었고, 시스템 글자
-            // 크기를 한 단계만 올려도 바가 터졌다. 배율 상한은 아래 _NavBtn 에서 건다.
-            height: 58,
-            child: Row(
-              children: [
-                _NavBtn(
-                  icon: AppIcons.homeLine,
-                  activeIcon: AppIcons.homeFill,
-                  label: '홈',
-                  active: _currentIndex == 0,
-                  badge: unreadCount > 0 && _currentIndex == 0 ? unreadCount : 0,
-                  onTap: () => context.go('/home'),
-                ),
-                _NavBtn(
-                  icon: AppIcons.petLine,
-                  activeIcon: AppIcons.petFill,
-                  label: '내 개체',
-                  active: _currentIndex == 1,
-                  onTap: () => context.go('/pets'),
-                ),
-                _NavRecordBtn(onTap: () => _onRecordPressed(context)),
-                _NavBtn(
-                  icon: AppIcons.routineLine,
-                  activeIcon: AppIcons.routineFill,
-                  label: '루틴',
-                  active: _currentIndex == 3,
-                  onTap: () => context.go('/routines'),
-                ),
-                _NavBtn(
-                  icon: AppIcons.communityLine,
-                  activeIcon: AppIcons.communityFill,
-                  label: '커뮤니티',
-                  active: _currentIndex == 4,
-                  onTap: () => context.go('/community'),
-                ),
-              ],
+    // 탭을 옮기거나 앱이 돌아오면 그 탭 목록을 조용히 다시 받는다
+    return TabRefresher(
+      location: location,
+      child: Scaffold(
+        body: child,
+        bottomNavigationBar: Container(
+          decoration: const BoxDecoration(
+            color: AppColors.surface,
+            border: Border(top: BorderSide(color: AppColors.divider, width: 1)),
+          ),
+          child: SafeArea(
+            top: false,
+            child: SizedBox(
+              // 58 = 세로 패딩 12 + 아이콘 20 + 간격 2 + 라벨 한 줄(약 12).
+              // 56 이던 시절엔 내용물 합이 55 라 여유가 1px 뿐이었고, 시스템 글자
+              // 크기를 한 단계만 올려도 바가 터졌다. 배율 상한은 아래 _NavBtn 에서 건다.
+              height: 58,
+              child: Row(
+                children: [
+                  _NavBtn(
+                    icon: AppIcons.homeLine,
+                    activeIcon: AppIcons.homeFill,
+                    label: '홈',
+                    active: _currentIndex == 0,
+                    badge: unreadCount > 0 && _currentIndex == 0
+                        ? unreadCount
+                        : 0,
+                    onTap: () => context.go('/home'),
+                  ),
+                  _NavBtn(
+                    icon: AppIcons.petLine,
+                    activeIcon: AppIcons.petFill,
+                    label: '내 개체',
+                    active: _currentIndex == 1,
+                    onTap: () => context.go('/pets'),
+                  ),
+                  _NavRecordBtn(onTap: () => _onRecordPressed(context)),
+                  _NavBtn(
+                    icon: AppIcons.routineLine,
+                    activeIcon: AppIcons.routineFill,
+                    label: '루틴',
+                    active: _currentIndex == 3,
+                    onTap: () => context.go('/routines'),
+                  ),
+                  _NavBtn(
+                    icon: AppIcons.communityLine,
+                    activeIcon: AppIcons.communityFill,
+                    label: '커뮤니티',
+                    active: _currentIndex == 4,
+                    onTap: () => context.go('/community'),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -163,6 +160,7 @@ class _NavRecordBtn extends StatelessWidget {
 class _NavBtn extends StatelessWidget {
   /// 비활성 상태의 선 아이콘 (`AppIcons` 의 SVG 경로)
   final String icon;
+
   /// 활성 상태의 채움 아이콘
   final String activeIcon;
   final String label;

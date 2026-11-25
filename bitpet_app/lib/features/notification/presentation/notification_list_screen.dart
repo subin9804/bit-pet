@@ -59,6 +59,9 @@ class _NotificationListScreenState
     super.initState();
     // 알림함을 열었으면 폰 알림창의 푸시도 확인한 것 — 런처 아이콘 숫자가 남지 않게 걷는다
     ref.read(pushServiceProvider).clearTray();
+    // 열 때마다 새로 받는다 — 목록은 앱이 켜진 동안 캐시돼 있어 방금 온 알림이 안 보였다
+    // (2026-11-26). 보던 목록은 그대로 두고 응답이 오면 갈아끼운다 (skipLoadingOnRefresh)
+    Future.microtask(() => ref.invalidate(notificationListProvider));
   }
 
   NotificationRepository get _repo => ref.read(notificationRepositoryProvider);

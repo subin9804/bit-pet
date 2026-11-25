@@ -25,6 +25,15 @@ class PetListNotifier extends StateNotifier<AsyncValue<List<Pet>>> {
     state = await AsyncValue.guard(() async => _sorted(await _repo.getMyPets()));
   }
 
+  /// 탭 전환·앱 복귀 때의 조용한 갱신 — 보던 목록을 스켈레톤으로 비우지 않고 그 자리에서
+  /// 바꿔 끼운다. 실패하면 보던 목록을 그대로 둔다.
+  Future<void> refresh() async {
+    final next =
+        await AsyncValue.guard(() async => _sorted(await _repo.getMyPets()));
+    if (!mounted) return;
+    if (next.hasValue || !state.hasValue) state = next;
+  }
+
   /// 새 개체는 맨 위 — 서버도 그 사람 목록의 최솟값 - 1 로 넣는다(pet_keeper_rls.sort_order).
   Future<Pet> add(CreatePetRequest request) async {
     final pet = await _repo.createPet(request);

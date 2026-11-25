@@ -79,6 +79,16 @@ class TodayRoutinesNotifier extends StateNotifier<AsyncValue<List<TodayRoutine>>
     state = await AsyncValue.guard(() => _repo.getTodayRoutines());
   }
 
+  /// 탭 전환·앱 복귀 때의 조용한 갱신 — 카드를 스켈레톤으로 비우지 않는다. 실패하면 그대로 둔다.
+  Future<void> refresh() async {
+    final now = DateTime.now();
+    _loadedDate = DateTime(now.year, now.month, now.day);
+    _scheduleMidnightReload();
+    final next = await AsyncValue.guard(() => _repo.getTodayRoutines());
+    if (!mounted) return;
+    if (next.hasValue || !state.hasValue) state = next;
+  }
+
   /// 마지막 로드가 오늘이 아니면 다시 불러온다 (앱 백그라운드 복귀 시 호출)
   void reloadIfStale() {
     final now = DateTime.now();

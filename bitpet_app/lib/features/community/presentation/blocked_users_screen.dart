@@ -11,6 +11,7 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/toast_message.dart';
 import '../data/models/report_models.dart';
 import '../data/post_repository.dart';
+import '../providers/post_provider.dart';
 import '../../../core/widgets/app_network_image.dart';
 
 final blockedUsersProvider =
@@ -34,6 +35,8 @@ class BlockedUsersScreen extends ConsumerWidget {
     try {
       await ref.read(postRepositoryProvider).unblockUser(user.userId);
       ref.invalidate(blockedUsersProvider);
+      // 해제한 사람의 글이 피드에 다시 보여야 한다
+      invalidateFeed(ref);
     } catch (_) {
       if (!context.mounted) return;
       showToast(context, '차단 해제에 실패했어요. 잠시 후 다시 시도해주세요.',
