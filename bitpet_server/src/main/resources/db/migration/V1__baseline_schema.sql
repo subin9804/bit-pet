@@ -1,30 +1,27 @@
 -- =====================================================================
--- V1 — 베이스라인 스키마 (2차 스쿼시: 구 V1~V23 통합, 2026-11-09)
+-- V1 — 베이스라인 스키마 (3차 스쿼시: 2차 베이스라인 + 구 V2~V5 통합, 2026-11-26)
 -- =====================================================================
 --
--- 1차 스쿼시(2026-08-19, 구 V1~V55) 이후 다시 쌓인 V2~V23 을 하나로 합친 것이다.
--- 내용은 "구 V1~V23 을 전부 적용한 PostgreSQL 16 DB를 pg_dump 로 뽑은 최종 스키마"이므로
--- 순차 적용 결과와 동일하다. (빈 DB에 이 파일만 적용해 스키마·시드를 다시 덤프하고
--- 구 V1~V23 결과와 diff 로 검증했다)
+-- 출시 직전 마지막 정리. 2차 베이스라인(2026-11-09) 뒤에 쌓인 V2~V5 를 이 파일 끝에
+-- 원문 그대로 이어 붙였다 — 순서대로 적용한 결과와 같다 (빈 DB 두 개에 각각 적용해
+-- 스키마·시드 덤프 diff 0 으로 검증).
 --
--- CHECK 제약 일부가 `col IN (...)` 형태인 건 의도된 것이다. 덤프 형태를 그대로 넣으면
--- PostgreSQL 이 다른 모양으로 다시 저장해 덤프 diff 가 어긋나서, 구 V 파일이 쓰던 원래 표기로 되돌렸다.
+-- 합친 시점: 출시 전, 운영 DB를 백업 후 초기화하고 새로 시작하기로 한 때.
+-- 이전 스쿼시: 1차 2026-08-19 (구 V1~V55), 2차 2026-11-09 (구 V1~V23).
 --
--- 합친 시점: 출시 전, 운영 DB를 비우고 새로 시작하기로 한 때. 운영 DB에는 실사용자
--- 데이터가 없었고, 이 파일과 함께 운영 DB를 백업 후 초기화했다.
---
--- ⛔ 구 이력(V1~V23)을 가진 DB에는 적용할 수 없다.
---    Flyway validate 가 V1 체크섬 불일치로 기동을 거부한다. 로컬 DB는 초기화할 것
---    (CLAUDE.md "로컬 DB 초기화" 참고).
---
--- 📎 구 V1~V23 원본은 git 이력에 남아 있다. 어떤 컬럼이 왜 생겼는지 추적할 때 참고:
+-- ⛔ 구 이력을 가진 DB에는 적용할 수 없다 — V1 체크섬 불일치로 기동을 거부한다.
+--    로컬 DB는 초기화할 것 (CLAUDE.md "로컬 DB 초기화" 참고).
+-- 📎 합쳐진 원본은 git 이력에 남아 있다:
 --       git log --diff-filter=D --name-only -- 'bitpet_server/src/main/resources/db/migration/V*'
 --
 -- 다음 마이그레이션은 V2 부터 작성한다.
 --
 -- 이 파일 뒤에 R__01_species_cd_seed / R__02_morph_cd_seed 가 이어서 실행된다.
--- (종·모프 마스터는 여기 없음 — R__ 파일이 담당)
 -- =====================================================================
+
+-- ─────────────────────────────────────────────────────────────────────
+-- 2차 베이스라인 (2026-11-09, 구 V1~V23)
+-- ─────────────────────────────────────────────────────────────────────
 
 -- pg_trgm  |  EXTENSION
 CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public;
@@ -2457,9 +2454,7 @@ ALTER TABLE ONLY weight_dtl
 
 
 
--- =====================================================================
 -- 코드성 시드 데이터
--- =====================================================================
 -- 스키마 덤프에는 데이터가 안 들어가므로 여기에 따로 옮겨 적었다.
 --
 -- id 를 명시하는 이유: 이 값들은 코드에서 이름(code)으로 찾지만, 개발/운영 DB의
@@ -2469,7 +2464,6 @@ ALTER TABLE ONLY weight_dtl
 --
 -- ON CONFLICT DO NOTHING 은 붙이지 않는다. 이 파일은 빈 DB에만 적용되고,
 -- 조용히 넘어가면 시드 누락을 못 잡는다.
--- =====================================================================
 
 -- 메모 태그
 -- ⚠️ VET 는 memo_vet_ext_dtl(병원명·비용·다음 방문일)을 필수로 끌고 온다. 지우지 말 것.
@@ -2501,3 +2495,134 @@ INSERT INTO serial_pool_stat_mst (id, serial_length, total_capacity, is_current)
 SELECT setval('memo_tag_cd_id_seq',          5, TRUE);
 SELECT setval('post_category_cd_id_seq',     6, TRUE);
 SELECT setval('serial_pool_stat_mst_id_seq', 3, TRUE);
+
+-- ─────────────────────────────────────────────────────────────────────
+-- 구 V2__child_community_toggle
+-- ─────────────────────────────────────────────────────────────────────
+-- 자녀 계정 커뮤니티 이용 허용 (2026-11-10, Google Play 가족 정책)
+--
+-- 가족 정책은 아동이 자유 형식 콘텐츠를 주고받는 기능을 '성인이 켜고 끌 수 있게' 하라고 한다.
+-- 보호자가 자녀마다 켠다. 기본은 꺼짐 — 보호자가 고르기 전에 아이가 남들과 글을 주고받으면 안 된다.
+--
+-- 성인 계정에는 의미가 없는 컬럼이다 (판정은 만 14세 미만일 때만 이 값을 본다).
+-- 만 14세가 되면 값과 무관하게 일반 회원처럼 쓴다 — 지우지 않고 그대로 둔다.
+ALTER TABLE user_mst ADD COLUMN community_enabled boolean DEFAULT false NOT NULL;
+
+COMMENT ON COLUMN user_mst.community_enabled IS '자녀 계정 커뮤니티 이용 허용 (보호자가 켬). 만 14세 미만일 때만 판정에 쓰인다';
+
+-- ─────────────────────────────────────────────────────────────────────
+-- 구 V3__inquiry
+-- ─────────────────────────────────────────────────────────────────────
+-- 개발자에게 문의하기 (2026-11-14)
+--
+-- 답장이 없는 일방향 건의함이다. 운영자는 DB 를 직접 본다 — 메일 알림도, 관리자 화면도 없다.
+-- 앱 버전·OS 는 앱이 같이 보낸다. 버그 제보는 "어느 버전에서" 를 모르면 재현할 수 없다.
+--
+-- 탈퇴하면 함께 지운다 (AuthService.withdraw). 본문에 개인정보가 섞일 수 있는 자유 입력이다.
+CREATE TABLE inquiry_dtl (
+    id          bigserial PRIMARY KEY,
+    user_id     bigint        NOT NULL REFERENCES user_mst(id) ON DELETE CASCADE,
+    category    varchar(20)   NOT NULL,
+    content     varchar(2000) NOT NULL,
+    app_version varchar(30),
+    platform    varchar(10),
+    os_version  varchar(100),
+    created_at  timestamptz   NOT NULL DEFAULT now(),
+    updated_at  timestamptz   NOT NULL DEFAULT now(),
+    CONSTRAINT ck_inquiry_dtl_category CHECK (category IN ('BUG', 'SUGGESTION', 'ACCOUNT', 'ETC'))
+);
+
+CREATE INDEX idx_inquiry_dtl_user_created ON inquiry_dtl (user_id, created_at);
+
+COMMENT ON TABLE inquiry_dtl IS '개발자에게 문의하기 — 답장 없는 일방향 건의함. 운영자가 DB 로 직접 본다';
+COMMENT ON COLUMN inquiry_dtl.category IS 'BUG 오류 제보 / SUGGESTION 기능 제안 / ACCOUNT 계정 / ETC 기타';
+COMMENT ON COLUMN inquiry_dtl.app_version IS '보낸 앱 버전 (예: 1.0.0+3). 버그 재현용';
+
+-- ─────────────────────────────────────────────────────────────────────
+-- 구 V4__home_banner
+-- ─────────────────────────────────────────────────────────────────────
+-- 홈 상단 배너 (2026-11-24)
+--
+-- 앱에 하드코딩돼 있던 배너를 서버로 옮긴다. 배너를 바꿀 때마다 스토어 심사를 기다릴 수 없어서다.
+-- 운영자는 웹 관리 페이지(/admin/banners)에서 PC로 등록한다.
+--
+-- 링크는 셋 중 하나: NONE(눌리지 않음) / ROUTE(앱 내부 경로, '/' 로 시작) / URL(외부 https).
+-- 자녀 계정(만 14세 미만)에는 URL 배너를 내리지 않는다 — 가족 정책상 아동에게 외부 링크를 띄우지 않는다.
+-- 노출 기간은 둘 다 비우면 상시. 이미지는 S3 키(banners/...)를 저장한다.
+CREATE TABLE home_banner_mst (
+    id          bigserial PRIMARY KEY,
+    title       varchar(40)  NOT NULL,
+    body        varchar(60),
+    badge       varchar(10),
+    image_key   varchar(300),
+    link_type   varchar(10)  DEFAULT 'NONE' NOT NULL,
+    link_value  varchar(500),
+    start_at    timestamptz,
+    end_at      timestamptz,
+    sort_order  integer      DEFAULT 0 NOT NULL,
+    active_yn   varchar(1)   DEFAULT 'Y' NOT NULL,
+    created_at  timestamptz  NOT NULL DEFAULT now(),
+    updated_at  timestamptz  NOT NULL DEFAULT now(),
+    CONSTRAINT ck_home_banner_mst_link_type CHECK (link_type IN ('NONE', 'ROUTE', 'URL')),
+    CONSTRAINT ck_home_banner_mst_link_value CHECK ((link_type = 'NONE') = (link_value IS NULL)),
+    CONSTRAINT ck_home_banner_mst_active_yn CHECK (active_yn IN ('Y', 'N')),
+    CONSTRAINT ck_home_banner_mst_period CHECK (start_at IS NULL OR end_at IS NULL OR start_at < end_at)
+);
+
+COMMENT ON TABLE home_banner_mst IS '홈 상단 배너 — 웹 관리 페이지(/admin/banners)에서 등록';
+COMMENT ON COLUMN home_banner_mst.link_type IS 'NONE 눌리지 않음 / ROUTE 앱 내부 경로 / URL 외부 링크(자녀 계정엔 안 보임)';
+COMMENT ON COLUMN home_banner_mst.start_at IS '노출 시작. null 이면 즉시';
+COMMENT ON COLUMN home_banner_mst.end_at IS '노출 끝(미포함). null 이면 무기한';
+COMMENT ON COLUMN home_banner_mst.sort_order IS '작을수록 먼저';
+
+-- ─────────────────────────────────────────────────────────────────────
+-- 구 V5__suspension_and_broadcast
+-- ─────────────────────────────────────────────────────────────────────
+-- 커뮤니티 이용 정지 + 전체 푸시 발송 이력 (2026-11-24)
+--
+-- ① user_suspension_dtl — 신고 처리의 SUSPEND 조치가 남기는 정지 기록.
+--    정지는 **커뮤니티만** 막는다(글·댓글·좋아요·사진·신고 쓰기). 내 개체 기록·루틴은 그대로다 —
+--    사육 기록은 개인 데이터라 커뮤니티 위반으로 빼앗을 성질이 아니다 (사용자 결정).
+--    user_mst 에 '정지 끝 시각' 컬럼 하나를 두지 않고 행으로 남기는 이유: 몇 번 정지됐는지,
+--    누가 왜 풀었는지가 다음 판단의 근거다. 상태는 행에서 계산한다 —
+--    released_at IS NULL AND (ends_at IS NULL OR ends_at > now()) 이면 정지 중. ends_at NULL = 영구.
+--    기간이 지나면 저절로 풀린다(배치 없음).
+--
+-- ② push_broadcast_dtl — 운영자 전체 푸시 한 번 = 한 행. 받는 사람별 기록은 notification_log_dtl 에 쌓인다.
+--    marketing_yn = 'Y' 면 마케팅 수신 동의자에게만, 제목 앞에 '(광고)' 를 붙여 보냈다는 뜻이다 (정보통신망법 제50조).
+CREATE TABLE user_suspension_dtl (
+    id           bigserial PRIMARY KEY,
+    user_id      bigint       NOT NULL REFERENCES user_mst (id) ON DELETE CASCADE,
+    report_id    bigint       REFERENCES post_report_dtl (id) ON DELETE SET NULL,
+    reason       varchar(500),
+    ends_at      timestamptz,
+    created_by   bigint       NOT NULL,
+    released_at  timestamptz,
+    released_by  bigint,
+    created_at   timestamptz  NOT NULL DEFAULT now(),
+    updated_at   timestamptz  NOT NULL DEFAULT now(),
+    CONSTRAINT ck_user_suspension_released CHECK ((released_at IS NULL) = (released_by IS NULL))
+);
+
+CREATE INDEX idx_user_suspension_user ON user_suspension_dtl (user_id) WHERE released_at IS NULL;
+
+COMMENT ON TABLE user_suspension_dtl IS '커뮤니티 이용 정지 — 신고 처리 SUSPEND 조치. 커뮤니티 쓰기만 막는다';
+COMMENT ON COLUMN user_suspension_dtl.ends_at IS '정지 끝 시각. NULL = 영구. 지나면 저절로 풀린다';
+COMMENT ON COLUMN user_suspension_dtl.released_at IS '운영자가 기간 전에 푼 시각. 기간 만료로 풀린 건 비어 있다';
+
+CREATE TABLE push_broadcast_dtl (
+    id            bigserial PRIMARY KEY,
+    title         varchar(100) NOT NULL,
+    body          varchar(500) NOT NULL,
+    marketing_yn  varchar(1)   NOT NULL,
+    target_count  integer      NOT NULL,
+    created_by    bigint       NOT NULL,
+    created_at    timestamptz  NOT NULL DEFAULT now(),
+    updated_at    timestamptz  NOT NULL DEFAULT now(),
+    CONSTRAINT ck_push_broadcast_marketing_yn CHECK (marketing_yn IN ('Y', 'N'))
+);
+
+COMMENT ON TABLE push_broadcast_dtl IS '운영자 전체 푸시 발송 이력 (/admin/push). 받는 사람별 기록은 notification_log_dtl';
+COMMENT ON COLUMN push_broadcast_dtl.title IS '운영자가 입력한 제목 그대로 — 마케팅이면 실제 발송 제목엔 (광고) 가 붙는다';
+COMMENT ON COLUMN push_broadcast_dtl.marketing_yn IS 'Y = 마케팅 수신 동의자에게만, 제목 앞 (광고)';
+COMMENT ON COLUMN push_broadcast_dtl.target_count IS '발송 대상 수 (발송 시점 기준)';

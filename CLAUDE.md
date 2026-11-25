@@ -190,7 +190,11 @@ features/
 
 ## Flyway 마이그레이션 현황
 
-**2026-11-09 2차 스쿼시 — 구 V1~V23 은 `V1__baseline_schema.sql` 하나로 합쳐졌고 파일은 삭제됐다.**
+**2026-11-26 3차 스쿼시 (출시 직전 마지막) — 2차 베이스라인 + 구 V2~V5 가 `V1__baseline_schema.sql` 하나로 합쳐졌다.**
+구 V2~V5 는 파일 끝에 원문 그대로 이어 붙였고, 빈 DB 두 개(구 V1~V5 순차 / 새 V1)의 덤프 diff 0 으로 검증했다.
+운영 DB 는 이와 함께 백업 후 초기화했다 — NFC 이름표 코드(`nfc_tag_mst`)만 연결을 비운 채 복원.
+
+(2차: 2026-11-09, 구 V1~V23 → V1)
 (1차: 2026-08-19, 구 V1~V55 → V1)
 
 베이스라인은 구 V23까지 적용한 DB를 `pg_dump` 로 뽑은 것이라 순차 적용 결과와 동일하다.
@@ -212,7 +216,7 @@ features/
   → ③ `spring.flyway.ignore-migration-patterns: "*:missing"` (히스토리엔 있고 파일은 없는 버전 허용).
   ⚠️ `repair` 는 **운영 히스토리 테이블을 수정**한다 → 실행 전 Lightsail 스냅샷 필수, 배포와 겹치지 않게.
   검증은 같은 방식 — 빈 DB에 새 베이스라인만 적용해 덤프 뜨고 순차 적용 결과와 diff.
-- **2차 스쿼시 이후 추가된 마이그레이션**: V2(`user_mst.community_enabled` — 보호자의 자녀 커뮤니티 허용 스위치, 기본 false), V3(`inquiry_dtl` — 개발자에게 문의하기. 답장 없는 일방향 건의함, 운영자는 `/admin/inquiries` 에서 본다 · 메일 알림 없음 · 24시간 10건 · 탈퇴 시 `AuthService.withdraw` 가 삭제). V4(`home_banner_mst` — 서버가 관리하는 홈 배너), V5(`user_suspension_dtl` 커뮤니티 정지 · `push_broadcast_dtl` 전체 푸시 이력). **다음은 V6.**
+- **3차 스쿼시로 V1 에 합쳐진 것** (기록용): 구 V2(`user_mst.community_enabled` — 보호자의 자녀 커뮤니티 허용 스위치, 기본 false), V3(`inquiry_dtl` — 개발자에게 문의하기. 답장 없는 일방향 건의함, 운영자는 `/admin/inquiries` 에서 본다 · 메일 알림 없음 · 24시간 10건 · 탈퇴 시 `AuthService.withdraw` 가 삭제). V4(`home_banner_mst` — 서버가 관리하는 홈 배너), V5(`user_suspension_dtl` 커뮤니티 정지 · `push_broadcast_dtl` 전체 푸시 이력). **다음은 V2.**
 - 코드성 시드(`memo_tag_cd`, `post_category_cd`, `serial_pool_stat_mst`)는 베이스라인 하단에 들어 있다.
   종·모프 마스터는 그대로 `R__01`/`R__02` 담당.
 - ⚠️ **`R__02` 는 파일에 없는 공식 모프를 매 실행마다 지운다** (개체가 물고 있으면 FK RESTRICT 라
@@ -1249,7 +1253,7 @@ test → GHCR 이미지 빌드(**태그 = 커밋 SHA**) → SSH → `deploy/scri
 - 외부 시스템 영향(push·삭제·외부 API 호출)은 확인 후 진행
 - Flutter UI는 디자인 확정 전까지 **뼈대(Skeleton)만** 구현, 상세 UI는 별도 지시 대기
 - 새 Flyway 마이그레이션은 **push 된(= 운영에 적용된) 파일은 절대 수정 금지**, 항상 다음 버전으로 신규 작성
-  (2026-11-09 2차 스쿼시 이후 V2 추가, **다음은 V3**. `V1__baseline_schema.sql` 수정 = 모든 DB 기동 불가).
+  (2026-11-26 3차 스쿼시, **다음은 V2**. `V1__baseline_schema.sql` 수정 = 모든 DB 기동 불가).
   push 전이고 로컬에서만 돌린 파일은 고쳐도 된다 — 로컬 DB 만 초기화하면 된다 (Flyway 현황 섹션 참고)
 
 ---
