@@ -237,8 +237,9 @@ class PetListScreen extends ConsumerWidget {
           padding: const EdgeInsets.fromLTRB(
               AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.sm),
           child: Text(
-            // 공유받은 개체는 목록에 남되 흐리게 막혀 있다 — 왜 못 고르는지 맨 위에서 알린다 (2026-11-23)
-            '공유받은 개체는 다시 공유할 수 없습니다',
+            // 공유받은·이별한 개체는 목록에 남되 흐리게 막혀 있다 — 왜 못 고르는지 맨 위에서 알린다
+            // (공유받은 것 2026-11-23, 이별한 것 2026-11-26 — 섞어 고르면 헷갈린다는 사용자 결정)
+            '공유받은 개체·이별한 개체는 선택할 수 없어요',
             style: AppTextStyles.caption,
           ),
         ),
@@ -256,8 +257,8 @@ class _ShareActionBar extends ConsumerWidget {
       BuildContext context, WidgetRef ref, ShareInviteType type) async {
     final selectedIds = ref.read(selectedPetIdsProvider);
     if (selectedIds.isEmpty) return;
-    // 이별한 개체는 새로 공유·분양하지 않는다 (서버도 건너뛴다). 선택 자체는 막지
-    // 않는다 — 같은 선택 모드의 삭제는 이별한 개체에도 돼야 해서 타일을 잠글 수 없다.
+    // 이별한 개체는 새로 공유·분양하지 않는다 (서버도 건너뛴다). 타일에서 이미 못 고르게
+    // 막지만, 고른 뒤 다른 기기에서 이별 처리됐을 수 있어 여기서도 한 번 거른다.
     final deceased = {
       for (final p in ref.read(petListProvider).valueOrNull ?? const <Pet>[])
         if (p.isDeceased) p.id,
@@ -801,7 +802,7 @@ class _PetCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final selecting = ref.watch(petSelectionModeProvider);
     final selected = ref.watch(selectedPetIdsProvider).contains(pet.id);
-    final locked = selecting && !pet.isOwner;
+    final locked = selecting && (!pet.isOwner || pet.isDeceased);
 
     final tile = GestureDetector(
       onTap: locked
@@ -897,7 +898,7 @@ class _PetCard extends ConsumerWidget {
         ),
       ),
     );
-    // 공유받은 개체 — 목록엔 남기되 흐리게, 탭은 막는다 (2026-11-23)
+    // 공유받은·이별한 개체 — 목록엔 남기되 흐리게, 탭은 막는다
     return locked ? Opacity(opacity: 0.4, child: tile) : tile;
   }
 
@@ -1020,7 +1021,7 @@ class _PetListTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final selecting = ref.watch(petSelectionModeProvider);
     final selected = ref.watch(selectedPetIdsProvider).contains(pet.id);
-    final locked = selecting && !pet.isOwner;
+    final locked = selecting && (!pet.isOwner || pet.isDeceased);
     final canReorder = reorderIndex != null;
 
     // ⚠️ `ListTile` 은 `tileColor` 를 자기가 칠하므로 **그림자를 넣을 자리가
@@ -1083,7 +1084,7 @@ class _PetListTile extends ConsumerWidget {
         ],
       ),
     );
-    // 공유받은 개체 — 목록엔 남기되 흐리게, 탭은 막는다 (2026-11-23)
+    // 공유받은·이별한 개체 — 목록엔 남기되 흐리게, 탭은 막는다
     return locked ? Opacity(opacity: 0.4, child: tile) : tile;
   }
 }

@@ -7,11 +7,11 @@ import 'fakes.dart';
 import 'harness.dart';
 
 Pet _pet(int id, String name, String species, String sub, String gender,
-        {bool owner = true, double? w, List<String> morphs = const []}) =>
+        {bool owner = true, double? w, List<String> morphs = const [], DateTime? deceasedAt}) =>
     Pet(
       id: id, serialNo: 'K7M2Q$id', speciesId: 1, speciesName: species,
       speciesCategory: 'R', speciesSubcategory: sub, name: name, gender: gender,
-      latestWeightG: w, isOwner: owner,
+      latestWeightG: w, isOwner: owner, deceasedAt: deceasedAt,
       hatchingDate: DateTime(2025, 3 + id, 10),
       morphs: [for (final (i, m) in morphs.indexed) Morph(id: id * 10 + i, speciesId: 1, nameKo: m)],
     );
@@ -22,7 +22,7 @@ final _pets = [
   _pet(3, '보리', '볼 파이톤', 'SNAKE', 'MALE', w: 1240, owner: false, morphs: ['파스텔']),
   _pet(4, '콩이', '레오파드 게코', 'GECKO', 'UNKNOWN', w: 21.7),
   _pet(5, '꼬북', '러시안 육지거북', 'TURTLE', 'FEMALE', w: 410, owner: false),
-  _pet(6, '라떼', '비어디드 드래곤', 'LIZARD', 'MALE', w: 355),
+  _pet(6, '라떼', '비어디드 드래곤', 'LIZARD', 'MALE', w: 355, deceasedAt: DateTime(2026, 10, 1)),
 ];
 
 void main() {
@@ -33,7 +33,7 @@ void main() {
     ]);
   });
 
-  testWidgets('개체 목록 — 선택 모드 (공유받은 개체 잠김)', (t) async {
+  testWidgets('개체 목록 — 선택 모드 (공유받은·이별한 개체 잠김)', (t) async {
     await shot(t, 'pet_list_selecting', const PetListScreen(), overrides: [
       ...loggedIn(),
       petRepositoryProvider.overrideWithValue(FakePetRepo(_pets)),
