@@ -104,14 +104,14 @@ class ChildrenScreen extends ConsumerWidget {
             padding: const EdgeInsets.only(top: AppSpacing.sm, bottom: 40),
             children: [
               intro,
-              MenuCard(dividerIndent: AppSpacing.lg, children: [
-                for (final c in children) ...[
+              // 자녀마다 카드 한 장 — 한 카드에 이어 붙이면 어느 스위치가 누구 것인지 흐려진다
+              for (final c in children)
+                MenuCard(dividerIndent: AppSpacing.lg, children: [
                   _ChildRow(child: c, onDelete: () => _delete(context, ref, c)),
                   // 만 14세가 지난 계정엔 스위치가 의미 없다 (서버가 성인으로 본다)
                   if (c.isChild) _CommunityToggle(child: c),
                   _ShareAllPetsRow(child: c),
-                ],
-              ]),
+                ]),
               Padding(
                 padding:
                     const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
