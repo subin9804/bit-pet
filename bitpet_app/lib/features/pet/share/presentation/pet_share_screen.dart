@@ -115,7 +115,8 @@ class _InviteBoxState extends ConsumerState<_InviteBox> {
       final ok = await ConfirmModal.show(
         context,
         title: '입분양 확인',
-        message: '입분양하면 소유권이 상대방에게 넘어가고, 나는 사육자로 남습니다. 계속할까요?',
+        message: '상대방이 수락하면 소유권이 넘어가고, 나와 함께 키우던 사람 모두 이 개체와 기록을 더 볼 수 없어요. '
+            '지켜보고 싶다면 먼저 함께 키우기로 공유해 보세요. 계속할까요?',
         confirmLabel: '입분양',
         isDangerous: true,
       );

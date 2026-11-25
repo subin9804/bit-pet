@@ -77,7 +77,7 @@ class _BulkShareSheetState extends ConsumerState<_BulkShareSheet> {
     return AppSheet(
       title: title,
       subtitle: _isTransfer
-          ? '선택한 $_count마리의 소유권이 상대방에게 넘어갑니다. 나는 사육자로 남아 기록은 계속 볼 수 있어요.'
+          ? '선택한 $_count마리의 소유권이 상대방에게 넘어가요. 수락되면 나와 함께 키우던 사람은 기록을 더 볼 수 없어요.'
           : '선택한 $_count마리를 상대방과 함께 관리합니다. 상대방이 사육자로 추가돼요.',
       busy: _busy,
       isDangerous: _isTransfer,

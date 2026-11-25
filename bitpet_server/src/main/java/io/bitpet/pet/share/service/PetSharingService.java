@@ -35,7 +35,7 @@ import java.util.UUID;
 /**
  * 개체 공유(SHARE)·입분양(TRANSFER) 초대 처리.
  * - SHARE   : 대상이 KEEPER로 추가됨 (소유자 유지)
- * - TRANSFER: 대상이 OWNER로 승격, 기존 소유자는 KEEPER로 강등 (기록 접근 유지)
+ * - TRANSFER: 대상이 OWNER로 승격, 기존 소유자·기존 KEEPER 는 모두 빠짐 (2026-11-25 — 깨끗한 인계)
  * 수락·입분양은 단일 @Transactional로 처리한다.
  */
 @Service
@@ -286,7 +286,7 @@ public class PetSharingService {
     private void applyAccept(PetShareInvitation inv) {
         Long inviteeUserId = inv.getInviteeUserId();
         if (inv.getInviteType() == ShareInviteType.TRANSFER) {
-            transferOwnership(inv.getPetId(), inv.getInviterUserId(), inviteeUserId);
+            transferOwnership(inv.getPetId(), inv.getInviterUserId(), inviteeUserId, inv.getId());
         } else {
             // SHARE — 이미 사육자가 아니면 KEEPER 추가
             if (!keeperRepository.existsByIdPetIdAndIdUserId(inv.getPetId(), inviteeUserId)) {
@@ -372,16 +372,27 @@ public class PetSharingService {
     // 소유권 이전 (입분양) — TRANSFER 수락 시 단일 트랜잭션
     // -------------------------------------------------------------------------
 
-    private void transferOwnership(Long petId, Long oldOwnerUserId, Long newOwnerUserId) {
+    /**
+     * 분양은 <b>깨끗한 인계</b>다 (2026-11-25 결정). 새 소유자 한 명만 남기고 기존 소유자와
+     * 기존 소유자가 붙여 둔 KEEPER 를 전부 뺀다 — 새 주인의 기록이 모르는 사람에게 보이면 안 된다.
+     * 분양 전에 지켜보고 싶으면 먼저 '함께 키우기'로 공유했다가 분양하면 된다.
+     * 이 개체에 걸린 다른 대기 초대도 닫는다 — 보낸 사람이 더는 소유자가 아니다.
+     */
+    private void transferOwnership(Long petId, Long oldOwnerUserId, Long newOwnerUserId, Long acceptedInvitationId) {
         PetMst pet = petRepository.findById(petId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PET_NOT_FOUND));
 
-        // 기존 소유자 → KEEPER 강등 (기록 접근 유지). 목록 순서는 그 사람이 정한 자리 그대로.
-        int oldOwnerOrder = keeperRepository.findByIdPetIdAndIdUserId(petId, oldOwnerUserId)
-                .map(old -> { keeperRepository.delete(old); return old.getSortOrder(); })
-                .orElseGet(() -> petKeeper.topSortOrder(oldOwnerUserId));
-        keeperRepository.save(PetKeeperRls.of(petId, oldOwnerUserId,
-                io.bitpet.pet.domain.PetKeeperRole.KEEPER, oldOwnerOrder));
+        for (PetKeeperRls k : keeperRepository.findAllByIdPetId(petId)) {
+            Long uid = k.getUserId();
+            if (uid.equals(newOwnerUserId)) continue;
+            keeperRepository.delete(k);
+            // 내 루틴에서 이 개체 연결 제거 + 활성 재계산 (공유 해제와 같은 처리)
+            routineMaintenance.onKeeperAccessLost(uid, petId);
+        }
+        invitationRepository.findAllByPetIdAndStatusOrderByCreatedAtDesc(petId, ShareInviteStatus.PENDING)
+                .stream()
+                .filter(other -> !other.getId().equals(acceptedInvitationId))
+                .forEach(PetShareInvitation::cancel);
 
         // 새 소유자 → OWNER (기존 KEEPER 행이 있으면 교체 — 자리 유지, 처음 받는 개체면 맨 위)
         int newOwnerOrder = keeperRepository.findByIdPetIdAndIdUserId(petId, newOwnerUserId)
