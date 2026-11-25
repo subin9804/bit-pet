@@ -112,7 +112,11 @@ flutter:
   assets:
     - assets/images/
     - assets/icons/
-    - assets/branding/
+    # branding 은 폴더째 넣지 않는다 — 스토어 배너(feature_graphic 2.5MB)·런처 아이콘 원본·
+    # favicon·logo.svg 는 앱 실행 중에 안 쓰는데 폴더째 넣으면 APK 에 그대로 실린다
+    # (2026-11-26 용량 정리). 화면에서 새 파일을 쓰려면 여기 한 줄 추가할 것.
+    - assets/branding/login_main.png
+    - assets/branding/inapp_logo.png
 
   # 본문 글꼴 — Pretendard (SIL OFL 1.1, assets/fonts/LICENSE.txt)
   #
