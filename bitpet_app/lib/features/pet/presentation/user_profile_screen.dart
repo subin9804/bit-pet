@@ -48,6 +48,17 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
       appBar: AppBar(
         backgroundColor: AppColors.canvas,
         titleSpacing: 0,
+        // NFC 이름표(셸 밖 /t/…)에서 push 되면 셸 안 Navigator 엔 이 화면 하나뿐이라
+        // 기본 뒤로가기가 안 생기고 제목이 왼쪽 끝에 붙는다 (2026-11-26 사용자 지적).
+        // 그때는 직접 그려서 이름표 화면으로 돌아가게 한다.
+        leading: Navigator.of(context).canPop()
+            ? null
+            : IconButton(
+                tooltip: '뒤로',
+                icon: const BackButtonIcon(),
+                onPressed: () =>
+                    context.canPop() ? context.pop() : context.go('/home'),
+              ),
         title: const Text('프로필'),
       ),
       body: async.when(
