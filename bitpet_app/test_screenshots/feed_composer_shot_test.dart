@@ -30,4 +30,10 @@ void main() {
       count: 5,
     )));
   });
+
+  testWidgets('급여 입력 — 슈퍼푸드', (t) async {
+    await shot(t, 'feed_composer_superfood', _composer(const FeedFormData(
+      foodType: FoodType.superfood,
+    )));
+  });
 }

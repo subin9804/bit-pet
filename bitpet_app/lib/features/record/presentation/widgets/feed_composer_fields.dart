@@ -365,12 +365,16 @@ class _MlOrVolumeInput extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // 사료·야채의 용량 칸과 같은 라벨·같은 토글 순서 — 슈퍼푸드만 라벨이 없어서
+        // 고르면 '용량' 글자가 사라진 것처럼 보였다 (2026-11-26 사용자 지적).
+        FeedFieldLabel('용량', optional: true),
+        const SizedBox(height: 8),
         Row(children: [
-          _ModeToggle(label: 'ml 직접입력', active: form.useMl,
-              onTap: () => onChanged(form.copyWith(useMl: true, sizeLabel: null, mlAmount: null))),
-          const SizedBox(width: 8),
           _ModeToggle(label: '용량 선택', active: !form.useMl,
               onTap: () => onChanged(form.copyWith(useMl: false, mlAmount: null, sizeLabel: null))),
+          const SizedBox(width: 8),
+          _ModeToggle(label: 'ml 직접입력', active: form.useMl,
+              onTap: () => onChanged(form.copyWith(useMl: true, sizeLabel: null, mlAmount: null))),
         ]),
         const SizedBox(height: 8),
         if (form.useMl)
