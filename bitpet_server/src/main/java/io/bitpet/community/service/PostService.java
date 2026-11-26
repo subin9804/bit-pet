@@ -32,6 +32,7 @@ import io.bitpet.community.repository.PostMstRepository;
 import io.bitpet.community.repository.PostPhotoDtlRepository;
 import io.bitpet.notification.service.NotificationService;
 import io.bitpet.storage.S3Service;
+import io.bitpet.storage.UploadKeys;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -46,7 +47,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 import java.util.stream.Collectors;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
 
@@ -333,9 +333,9 @@ public class PostService {
             throw new BusinessException(ErrorCode.POST_PHOTO_LIMIT_EXCEEDED);
         }
 
-        String ext = extractExtension(filename);
-        String s3Key = "posts/" + postId + "/" + UUID.randomUUID() + (ext.isEmpty() ? "" : "." + ext);
-        PresignedPutObjectRequest presigned = s3Service.presignPut(s3Key, resolveContentType(ext));
+        String ext = UploadKeys.extension(filename);
+        String s3Key = UploadKeys.newKey(photoKeyPrefix(postId), ext);
+        PresignedPutObjectRequest presigned = s3Service.presignPut(s3Key, UploadKeys.contentType(ext));
         return new PostPhotoPresignResponse(presigned.url().toString(), s3Key, presigned.expiration());
     }
 
@@ -347,6 +347,10 @@ public class PostService {
 
         if (photoRepository.countByPostId(postId) >= MAX_PHOTOS_PER_POST) {
             throw new BusinessException(ErrorCode.POST_PHOTO_LIMIT_EXCEEDED);
+        }
+
+        if (!UploadKeys.isIssued(req.s3Key(), photoKeyPrefix(postId))) {
+            throw new BusinessException(ErrorCode.PHOTO_KEY_INVALID);
         }
 
         PostPhotoDtl saved = photoRepository.save(PostPhotoDtl.builder()
@@ -600,18 +604,7 @@ public class PostService {
                 .toList();
     }
 
-    private static String extractExtension(String filename) {
-        if (filename == null || !filename.contains(".")) return "";
-        return filename.substring(filename.lastIndexOf('.') + 1).toLowerCase();
-    }
-
-    private static String resolveContentType(String ext) {
-        return switch (ext) {
-            case "jpg", "jpeg" -> "image/jpeg";
-            case "png"         -> "image/png";
-            case "webp"        -> "image/webp";
-            case "heic"        -> "image/heic";
-            default            -> "application/octet-stream";
-        };
+    private static String photoKeyPrefix(Long postId) {
+        return "posts/" + postId + "/";
     }
 }

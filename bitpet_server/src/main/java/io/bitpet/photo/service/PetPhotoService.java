@@ -11,13 +11,13 @@ import io.bitpet.photo.dto.PhotoUploadCompleteRequest;
 import io.bitpet.photo.dto.PresignedUploadResponse;
 import io.bitpet.photo.repository.PhotoDtlRepository;
 import io.bitpet.storage.S3Service;
+import io.bitpet.storage.UploadKeys;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
 
 import java.util.List;
-import java.util.UUID;
 
 /**
  * 기존 /api/v1/pets/{petId}/photos/** 하위 호환 서비스
@@ -36,9 +36,9 @@ public class PetPhotoService {
     public PresignedUploadResponse generatePresignedUrl(Long userId, Long petId, String filename) {
         verifyPetOwnership(userId, petId);
 
-        String ext = extractExtension(filename);
-        String s3Key = "pets/" + petId + "/" + UUID.randomUUID() + (ext.isEmpty() ? "" : "." + ext);
-        String contentType = resolveContentType(ext);
+        String ext = UploadKeys.extension(filename);
+        String s3Key = UploadKeys.newKey(keyPrefix(petId), ext);
+        String contentType = UploadKeys.contentType(ext);
 
         PresignedPutObjectRequest presigned = s3Service.presignPut(s3Key, contentType);
         // 썸네일 자리는 비워 내린다. 이 경로는 하위 호환용이고 register 짝
@@ -57,6 +57,9 @@ public class PetPhotoService {
     @Transactional
     public PetPhotoResponse registerPhoto(Long userId, Long petId, PhotoUploadCompleteRequest req) {
         verifyPetOwnership(userId, petId);
+        if (!UploadKeys.isIssued(req.s3Key(), keyPrefix(petId))) {
+            throw new BusinessException(ErrorCode.PHOTO_KEY_INVALID);
+        }
 
         PhotoDtl saved = photoRepository.save(PhotoDtl.builder()
                 .entityType(EntityType.PET)
@@ -130,18 +133,8 @@ public class PetPhotoService {
         return photo;
     }
 
-    private static String extractExtension(String filename) {
-        if (filename == null || !filename.contains(".")) return "";
-        return filename.substring(filename.lastIndexOf('.') + 1).toLowerCase();
-    }
-
-    private static String resolveContentType(String ext) {
-        return switch (ext) {
-            case "jpg", "jpeg" -> "image/jpeg";
-            case "png"         -> "image/png";
-            case "webp"        -> "image/webp";
-            case "heic"        -> "image/heic";
-            default            -> "application/octet-stream";
-        };
+    /** {@link PhotoService} 의 PET 키와 같은 자리다 — 두 경로로 올린 사진이 한 폴더에 모인다 */
+    private static String keyPrefix(Long petId) {
+        return "pets/" + petId + "/";
     }
 }

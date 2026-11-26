@@ -38,6 +38,8 @@ public class MatingService {
         PetMst femalePet = resolvePet(req.petIdFemale());
 
         validateOwnership(userId, petId, req.petIdMale(), req.petIdFemale());
+        validatePartner(userId, req.petIdMale(), malePet);
+        validatePartner(userId, req.petIdFemale(), femalePet);
         validateGenders(malePet, femalePet);
         validateNotOrphaned(malePet, femalePet);
 
@@ -94,11 +96,15 @@ public class MatingService {
 
         PetMst malePet   = resolvePet(req.petIdMale());
         PetMst femalePet = resolvePet(req.petIdFemale());
+        boolean maleChanged   = !java.util.Objects.equals(mating.getMalePetId(),   req.petIdMale());
+        boolean femaleChanged = !java.util.Objects.equals(mating.getFemalePetId(), req.petIdFemale());
+        // 생성과 같은 규칙 — 수정으로 내 개체를 빼거나 남의 비공개 개체를 끼워 넣는 우회로를 막는다
+        validateOwnership(userId, null, req.petIdMale(), req.petIdFemale());
+        if (maleChanged)   validatePartner(userId, req.petIdMale(), malePet);
+        if (femaleChanged) validatePartner(userId, req.petIdFemale(), femalePet);
         validateGenders(malePet, femalePet);
         // 이미 걸려 있던 고아는 그대로 둔다 — 차단하는 건 '신규' 참조뿐이다
-        validateNotOrphaned(
-                java.util.Objects.equals(mating.getMalePetId(),   req.petIdMale())   ? null : malePet,
-                java.util.Objects.equals(mating.getFemalePetId(), req.petIdFemale()) ? null : femalePet);
+        validateNotOrphaned(maleChanged ? malePet : null, femaleChanged ? femalePet : null);
 
         String seasonLabel = resolveSeasonLabel(req.seasonLabel(), req.triedAt().getYear());
 
@@ -161,6 +167,19 @@ public class MatingService {
             if (!matchesMale && !matchesFemale) {
                 throw new BusinessException(ErrorCode.MATING_OWNER_REQUIRED);
             }
+        }
+    }
+
+    /**
+     * 내가 키우지 않는 상대 개체는 <b>공개 개체만</b> 걸 수 있다 — 앱이 상대를 찾는 길
+     * ({@code GET /pets/by-serial})과 같은 기준이다. id 만으로 남의 비공개 개체를 걸면
+     * 응답의 개체 요약으로 그 개체가 드러나고, 그 사람 개체에 내 기록이 붙는다.
+     * 없는 개체·비공개 개체는 같은 404 로 답한다 (존재 여부가 새지 않게).
+     */
+    private void validatePartner(Long userId, Long petId, PetMst pet) {
+        if (petId == null || isOwnedBy(userId, petId)) return;
+        if (pet == null || !"N".equals(pet.getPrivateYn())) {
+            throw new BusinessException(ErrorCode.PET_NOT_FOUND);
         }
     }
 

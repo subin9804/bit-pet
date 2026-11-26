@@ -261,6 +261,13 @@ public class LayingService {
             throw new BusinessException(ErrorCode.HATCH_INVALID_STATUS_TRANSITION);
         }
 
+        // 새로 거는 개체는 내가 키우는 개체여야 한다 — 가계도 부모 등록과 같은 '자식 쪽' 기준.
+        // 안 그러면 남의 개체를 내 클러치의 자식으로 걸어 그 개체 계보에 부모가 끼어든다
+        if (req.hatchedPetId() != null
+                && !req.hatchedPetId().equals(hatch.getHatchedPetId())) {
+            petKeeper.assertKeeper(userId, req.hatchedPetId());
+        }
+
         hatch.update(req.status(), hatchedAt, req.hatchedPetId(), req.memo());
 
         // hatchedPetId 설정 시 자동 lineage 생성

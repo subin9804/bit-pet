@@ -311,7 +311,7 @@ class _ChildCreateScreenState extends ConsumerState<ChildCreateScreen> {
                       ],
                     ),
                     const _HintLine(
-                      '자녀 메일로 받은 6자리 코드를 입력해 주세요 (10분 안에). 안 보이면 스팸함도 확인해 주세요',
+                      '자녀 메일로 받은 6자리 코드를 입력해 주세요 (5분 안에). 안 보이면 스팸함도 확인해 주세요',
                     ),
                   ] else if (_emailValid)
                     const _HintLine('인증요청을 눌러 자녀 메일로 코드를 받아 주세요'),

@@ -4,6 +4,7 @@ import io.bitpet.auth.LoginAttemptStore;
 import io.bitpet.auth.PasswordResetStore;
 import io.bitpet.auth.domain.UserMst;
 import io.bitpet.auth.jwt.RefreshTokenStore;
+import io.bitpet.auth.mail.MailProperties;
 import io.bitpet.auth.mail.MailSender;
 import io.bitpet.auth.repository.UserMstRepository;
 import io.bitpet.common.exception.BusinessException;
@@ -14,6 +15,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.UUID;
 
@@ -28,6 +31,7 @@ public class PasswordResetService {
     private final MailSender mailSender;
     private final PasswordEncoder passwordEncoder;
     private final LoginAttemptStore loginAttemptStore;
+    private final MailProperties mailProperties;
 
     private final SecureRandom random = new SecureRandom();
 
@@ -38,6 +42,10 @@ public class PasswordResetService {
     public void requestReset(String email) {
         // 코드 저장소 키 — 요청과 검증에서 대소문자를 다르게 쳐도 같은 키여야 한다
         email = EmailPolicy.normalize(email);
+        // 메일 폭탄 방지. 가입 여부를 보기 전에 걸어야 429 로 가입 여부가 새지 않는다
+        if (!passwordResetStore.tryStartCooldown(email)) {
+            throw new BusinessException(ErrorCode.PASSWORD_RESET_CODE_COOLDOWN);
+        }
         if (!userRepository.existsByEmailIgnoreCase(email)) {
             log.info("Password reset requested for unknown email: {}", email);
             return;
@@ -58,7 +66,13 @@ public class PasswordResetService {
         if (savedCode == null) {
             throw new BusinessException(ErrorCode.PASSWORD_RESET_CODE_NOT_FOUND);
         }
-        if (!savedCode.equals(code)) {
+        if (code == null || !MessageDigest.isEqual(
+                savedCode.getBytes(StandardCharsets.UTF_8), code.getBytes(StandardCharsets.UTF_8))) {
+            // 6자리는 100만 가지 — 횟수 제한이 없으면 유효 시간 안에 다 찍어 볼 수 있다 (계정 탈취)
+            if (passwordResetStore.recordFailure(email) >= mailProperties.resetMaxAttempts()) {
+                passwordResetStore.deleteCode(email);
+                throw new BusinessException(ErrorCode.PASSWORD_RESET_CODE_TOO_MANY_ATTEMPTS);
+            }
             throw new BusinessException(ErrorCode.PASSWORD_RESET_CODE_INVALID);
         }
 

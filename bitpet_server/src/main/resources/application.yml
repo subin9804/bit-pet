@@ -133,8 +133,11 @@ bitpet:
   token-enc-key: ${BITPET_TOKEN_ENC_KEY:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}
   mail:
     from: ${MAIL_FROM:noreply@tailog.me}
+    # 이메일 인증 코드는 가입·재설정 모두 5분 (signup.code-ttl-minutes 와 맞춘다)
     reset-code-ttl-minutes: 5
     reset-token-ttl-minutes: 10
+    reset-max-attempts: 5
+    reset-resend-cooldown-seconds: 60
   # 이메일 가입 규칙 (auth/signup/SignupProperties). 소셜 로그인·자녀 계정에는 걸리지 않는다
   signup:
     # 일회용·오타 주소를 막으려고 자주 쓰는 메일만 받는다. 추가 요청이 오면 여기에 더한다
@@ -152,7 +155,7 @@ bitpet:
       - outlook.kr
       - yahoo.com
     email-verification-required: true
-    code-ttl-minutes: 10
+    code-ttl-minutes: 5
     verified-ttl-minutes: 30
     resend-cooldown-seconds: 60
     max-attempts: 5

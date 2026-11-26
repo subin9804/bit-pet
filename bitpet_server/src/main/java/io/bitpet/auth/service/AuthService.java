@@ -32,6 +32,7 @@ import io.bitpet.inquiry.repository.InquiryDtlRepository;
 import io.bitpet.notification.repository.DeviceTokenRlsRepository;
 import io.bitpet.pet.service.PetWithdrawalService;
 import io.bitpet.storage.S3Service;
+import io.bitpet.storage.UploadKeys;
 import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -47,7 +48,6 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -240,10 +240,9 @@ public class AuthService {
 
     /** 프로필 이미지 업로드용 presigned PUT URL 발급 */
     public PresignResponse presignProfileImage(Long userId, String filename) {
-        String ext = extractExtension(filename);
-        String s3Key = "profiles/user/" + userId + "/" + UUID.randomUUID()
-                + (ext.isEmpty() ? "" : "." + ext);
-        String url = s3Service.presignPut(s3Key, resolveContentType(ext)).url().toString();
+        String ext = UploadKeys.extension(filename);
+        String s3Key = UploadKeys.newKey(profileKeyPrefix(userId), ext);
+        String url = s3Service.presignPut(s3Key, UploadKeys.contentType(ext)).url().toString();
         return new PresignResponse(url, s3Key);
     }
 
@@ -258,7 +257,7 @@ public class AuthService {
             user.changeName(requireAvailableNickname(req.nickname(), userId));
         }
         if (req.profileImageKey() != null) {
-            user.changeProfileImageUrl(req.profileImageKey().isBlank() ? null : req.profileImageKey());
+            user.changeProfileImageUrl(acceptProfileImage(user, req.profileImageKey()));
         }
         user.changeProfileColor(req.profileColor());   // 빈 값은 엔티티가 무시한다
         if (req.showNicknameInPedigree() != null) {
@@ -295,19 +294,21 @@ public class AuthService {
         return nickname;
     }
 
-    private static String extractExtension(String filename) {
-        if (filename == null || !filename.contains(".")) return "";
-        return filename.substring(filename.lastIndexOf('.') + 1).toLowerCase();
+    private static String profileKeyPrefix(Long userId) {
+        return "profiles/user/" + userId + "/";
     }
 
-    private static String resolveContentType(String ext) {
-        return switch (ext) {
-            case "jpg", "jpeg" -> "image/jpeg";
-            case "png"         -> "image/png";
-            case "webp"        -> "image/webp";
-            case "heic"        -> "image/heic";
-            default            -> "application/octet-stream";
-        };
+    /**
+     * 프로필 이미지로 받을 수 있는 값 — 빈 값(지우기), 지금 값 그대로, 또는 이 사람에게 발급한 업로드 키.
+     *
+     * <p>지금 값을 허용하는 건 소셜 가입 때 제공자가 준 사진 URL 이 들어 있을 수 있어서다.
+     * 그 외의 외부 URL·남의 키는 거절한다 — 받아 주면 다른 사람 화면에 임의 주소를 띄우게 된다.
+     */
+    private static String acceptProfileImage(UserMst user, String raw) {
+        if (raw.isBlank()) return null;
+        if (raw.equals(user.getProfileImageUrl())) return raw;
+        if (UploadKeys.isIssued(raw, profileKeyPrefix(user.getId()))) return raw;
+        throw new BusinessException(ErrorCode.PHOTO_KEY_INVALID);
     }
 
     public void logout(Long userId) {

@@ -6,5 +6,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record MailProperties(
         String from,
         int resetCodeTtlMinutes,
-        int resetTokenTtlMinutes
+        int resetTokenTtlMinutes,
+        int resetMaxAttempts,
+        int resetResendCooldownSeconds
 ) {}

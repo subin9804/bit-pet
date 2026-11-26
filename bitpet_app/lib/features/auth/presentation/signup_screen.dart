@@ -704,7 +704,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       ),
                       const SizedBox(height: 8),
                       const Text(
-                        '메일로 받은 6자리 코드를 입력해 주세요 (10분 안에). 안 보이면 스팸함도 확인해 주세요',
+                        '메일로 받은 6자리 코드를 입력해 주세요 (5분 안에). 안 보이면 스팸함도 확인해 주세요',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,

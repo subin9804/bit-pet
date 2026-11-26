@@ -120,6 +120,8 @@ class PasswordResetNotifier extends StateNotifier<PasswordResetState> {
     return switch (code) {
       'PASSWORD_RESET_CODE_NOT_FOUND' => '인증 코드가 만료되었어요. 코드를 다시 요청해 주세요.',
       'PASSWORD_RESET_CODE_INVALID' => '인증 코드가 올바르지 않아요. 다시 확인해 주세요.',
+      'PASSWORD_RESET_CODE_TOO_MANY_ATTEMPTS' => '인증 코드를 여러 번 틀렸어요. 코드를 다시 받아 주세요.',
+      'PASSWORD_RESET_CODE_COOLDOWN' => '잠시 후 다시 요청해 주세요.',
       'PASSWORD_RESET_TOKEN_INVALID' => '재설정 유효 시간이 지났어요. 처음부터 다시 시도해 주세요.',
       _ => serverMessage ?? fallback,
     };

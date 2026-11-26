@@ -51,6 +51,8 @@ public enum ErrorCode {
     // --- Password Reset ---
     PASSWORD_RESET_CODE_NOT_FOUND(HttpStatus.BAD_REQUEST, "인증 코드가 존재하지 않거나 만료되었습니다."),
     PASSWORD_RESET_CODE_INVALID(HttpStatus.BAD_REQUEST, "인증 코드가 올바르지 않습니다."),
+    PASSWORD_RESET_CODE_TOO_MANY_ATTEMPTS(HttpStatus.BAD_REQUEST, "인증 코드를 여러 번 틀렸어요. 코드를 다시 받아 주세요."),
+    PASSWORD_RESET_CODE_COOLDOWN(HttpStatus.TOO_MANY_REQUESTS, "잠시 후 다시 요청해 주세요."),
     PASSWORD_RESET_TOKEN_INVALID(HttpStatus.BAD_REQUEST, "재설정 토큰이 유효하지 않거나 만료되었습니다."),
 
     // --- Pet ---
@@ -123,6 +125,8 @@ public enum ErrorCode {
     // --- Photo ---
     PHOTO_NOT_FOUND(HttpStatus.NOT_FOUND, "Photo not found"),
     PHOTO_ENTITY_TYPE_INVALID(HttpStatus.BAD_REQUEST, "Invalid entityType"),
+    /** 등록하려는 키가 이 대상에 서버가 발급한 업로드 키가 아니다 (storage.UploadKeys.isIssued) */
+    PHOTO_KEY_INVALID(HttpStatus.BAD_REQUEST, "업로드 정보가 올바르지 않아요. 사진을 다시 올려 주세요."),
 
     // --- Pet Share / Transfer ---
     SHARE_CODE_INVALID(HttpStatus.BAD_REQUEST, "존재하지 않는 공유 코드입니다."),

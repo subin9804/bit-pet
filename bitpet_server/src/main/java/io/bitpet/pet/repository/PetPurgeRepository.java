@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -28,9 +29,7 @@ public interface PetPurgeRepository extends Repository<PetMst, Long> {
     String PHOTO_SCOPE = """
             WHERE ((entity_type = 'PET'    AND entity_id = :petId)
                 OR (entity_type = 'MEMO'   AND entity_id IN (SELECT id FROM memo_dtl   WHERE pet_id = :petId))
-                OR (entity_type = 'LAYING' AND entity_id IN (SELECT id FROM laying_dtl WHERE pet_id = :petId))
-                OR (entity_type = 'MATING' AND entity_id IN (SELECT id FROM mating_dtl
-                        WHERE male_pet_id = :petId OR female_pet_id = :petId)))
+                OR (entity_type = 'LAYING' AND entity_id IN (SELECT id FROM laying_dtl WHERE pet_id = :petId)))
               AND (CAST(:keepPhotoId AS BIGINT) IS NULL OR id <> CAST(:keepPhotoId AS BIGINT))
             """;
 
@@ -51,6 +50,28 @@ public interface PetPurgeRepository extends Repository<PetMst, Long> {
     @Query(value = "DELETE FROM photo_dtl " + PHOTO_SCOPE, nativeQuery = true)
     int deletePhotosOfPet(@Param("petId") Long petId,
                           @Param("keepPhotoId") Long keepPhotoId);
+
+    // ⛔ 메이팅 사진은 위 개체 범위에 넣지 않는다. 메이팅 행은 개체가 지워져도
+    // 남고(FK ON DELETE SET NULL), 상대 개체 쪽 사용자의 기록이기도 하다 — 개체를 지울 때
+    // 같이 걷으면 남의 메이팅 사진이 사라진다. 실제로 지워지는 메이팅
+    // ({@code MatingDtlRepository.deleteOwnedByUser} 와 같은 조건)의 사진만 아래로 걷는다.
+
+    String OWNED_MATING_PHOTO_SCOPE = """
+            WHERE entity_type = 'MATING' AND entity_id IN (SELECT id FROM mating_dtl
+                    WHERE created_by_user_id = :userId
+                       OR (male_pet_id IN (:petIds) AND female_pet_id IN (:petIds)))
+            """;
+
+    @Query(value = "SELECT s3_key FROM photo_dtl " + OWNED_MATING_PHOTO_SCOPE
+            + " UNION ALL SELECT thumb_s3_key FROM photo_dtl " + OWNED_MATING_PHOTO_SCOPE
+            + " AND thumb_s3_key IS NOT NULL", nativeQuery = true)
+    List<String> findOwnedMatingPhotoKeys(@Param("userId") Long userId,
+                                          @Param("petIds") Collection<Long> petIds);
+
+    @Modifying
+    @Query(value = "DELETE FROM photo_dtl " + OWNED_MATING_PHOTO_SCOPE, nativeQuery = true)
+    int deleteOwnedMatingPhotos(@Param("userId") Long userId,
+                                @Param("petIds") Collection<Long> petIds);
 
     /** 익명화 시 남길 대표 사진 — 지정된 게 없으면 표시 순서상 첫 장 */
     @Query(value = """

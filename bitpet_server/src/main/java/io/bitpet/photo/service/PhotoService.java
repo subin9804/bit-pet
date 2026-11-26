@@ -11,14 +11,18 @@ import io.bitpet.photo.dto.PhotoRegisterRequest;
 import io.bitpet.photo.dto.PhotoResponse;
 import io.bitpet.photo.dto.PresignedUploadResponse;
 import io.bitpet.photo.repository.PhotoDtlRepository;
+import io.bitpet.record.laying.repository.LayingDtlRepository;
+import io.bitpet.record.mating.domain.MatingDtl;
+import io.bitpet.record.mating.repository.MatingDtlRepository;
+import io.bitpet.record.memo.repository.MemoDtlRepository;
 import io.bitpet.storage.S3Service;
+import io.bitpet.storage.UploadKeys;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
 
 import java.util.List;
-import java.util.UUID;
 
 /**
  * 폴리모픽 사진 서비스 — photo_dtl 기반 (V20 마이그레이션 이후)
@@ -39,16 +43,20 @@ public class PhotoService {
     private final PhotoDtlRepository photoRepo;
     private final PetMstRepository petRepo;
     private final io.bitpet.pet.service.PetKeeperService petKeeper;
+    private final MemoDtlRepository memoRepo;
+    private final MatingDtlRepository matingRepo;
+    private final LayingDtlRepository layingRepo;
     private final S3Service s3Service;
 
     @Transactional
     public PresignedUploadResponse presignUpload(Long userId, PhotoPresignRequest req) {
         validateEntityAccess(userId, req.entityType(), req.entityId());
 
-        String ext = extractExtension(req.fileName());
-        String s3Key = buildS3Key(req.entityType(), req.entityId(), ext);
-        String contentType = req.contentType() != null
-                ? req.contentType() : resolveContentType(ext);
+        // content-type 은 앱이 보낸 값이 아니라 확장자로 서버가 정한다 (UploadKeys 참고).
+        // 앱도 같은 규칙으로 PUT 헤더를 만들어서 서명과 어긋나지 않는다.
+        String ext = UploadKeys.extension(req.fileName());
+        String s3Key = UploadKeys.newKey(keyPrefix(req.entityType(), req.entityId()), ext);
+        String contentType = UploadKeys.contentType(ext);
 
         PresignedPutObjectRequest presigned = s3Service.presignPut(s3Key, contentType);
 
@@ -69,6 +77,9 @@ public class PhotoService {
     @Transactional
     public PhotoResponse registerPhoto(Long userId, PhotoRegisterRequest req) {
         validateEntityAccess(userId, req.entityType(), req.entityId());
+        if (!UploadKeys.isIssued(req.s3Key(), keyPrefix(req.entityType(), req.entityId()))) {
+            throw new BusinessException(ErrorCode.PHOTO_KEY_INVALID);
+        }
 
         PhotoDtl saved = photoRepo.save(PhotoDtl.builder()
                 .entityType(req.entityType())
@@ -165,14 +176,28 @@ public class PhotoService {
         return base + THUMB_SUFFIX;
     }
 
+    /**
+     * 사진이 붙는 대상의 사육자인지 — 각 도메인 서비스의 조회 권한과 같은 기준이다.
+     * 메모·산란은 그 개체의 사육자, 메이팅은 암수 중 한쪽의 사육자.
+     *
+     * <p>⛔ 여기서 PET 만 보고 나머지를 통과시키면 안 된다. 이 API 는 entityId 를 그대로 받아서,
+     * 남의 메모 id 만 알면 그 메모의 사진을 보고·올리고·지울 수 있게 된다.
+     */
     private void validateEntityAccess(Long userId, EntityType entityType, Long entityId) {
-        // 현재는 PET만 직접 소유권 검증. MEMO/MATING/LAYING은 해당 도메인 서비스에서 검증됨.
-        // 여기서는 PET 계층에서만 userId 검증
-        if (entityType == EntityType.PET) {
-            loadOwnedPet(userId, entityId);
+        switch (entityType) {
+            case PET -> loadOwnedPet(userId, entityId);
+            case MEMO -> loadOwnedPet(userId, memoRepo.findById(entityId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.MEMO_NOT_FOUND)).getPetId());
+            case LAYING -> loadOwnedPet(userId, layingRepo.findById(entityId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.LAYING_NOT_FOUND)).getPetId());
+            case MATING -> {
+                MatingDtl mating = matingRepo.findById(entityId)
+                        .orElseThrow(() -> new BusinessException(ErrorCode.MATING_NOT_FOUND));
+                boolean kept = (mating.getMalePetId() != null && petKeeper.isKeeper(userId, mating.getMalePetId()))
+                        || (mating.getFemalePetId() != null && petKeeper.isKeeper(userId, mating.getFemalePetId()));
+                if (!kept) throw new BusinessException(ErrorCode.RECORD_ACCESS_DENIED);
+            }
         }
-        // MEMO/MATING/LAYING은 사진 등록 시 해당 도메인 서비스에서 petId를 통해 이미 검증
-        // 여기서는 추가 검증 없이 통과 (보안 레이어는 JWT 인증으로 충분)
     }
 
     private PetMst loadOwnedPet(Long userId, Long petId) {
@@ -180,29 +205,13 @@ public class PhotoService {
         return petKeeper.assertKeeper(userId, petId);
     }
 
-    private String buildS3Key(EntityType entityType, Long entityId, String ext) {
+    private static String keyPrefix(EntityType entityType, Long entityId) {
         String prefix = switch (entityType) {
             case PET    -> "pets/";
             case MEMO   -> "memos/";
             case MATING -> "matings/";
             case LAYING -> "layings/";
         };
-        return prefix + entityId + "/" + UUID.randomUUID()
-                + (ext.isEmpty() ? "" : "." + ext);
-    }
-
-    private static String extractExtension(String filename) {
-        if (filename == null || !filename.contains(".")) return "";
-        return filename.substring(filename.lastIndexOf('.') + 1).toLowerCase();
-    }
-
-    private static String resolveContentType(String ext) {
-        return switch (ext) {
-            case "jpg", "jpeg" -> "image/jpeg";
-            case "png"         -> "image/png";
-            case "webp"        -> "image/webp";
-            case "heic"        -> "image/heic";
-            default            -> "application/octet-stream";
-        };
+        return prefix + entityId + "/";
     }
 }

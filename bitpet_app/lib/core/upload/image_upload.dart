@@ -159,7 +159,8 @@ class ImageUploadService {
     );
   }
 
-  /// 파일명 확장자로 content-type 추론 (백엔드 resolveContentType과 일치해야 함).
+  /// 파일명 확장자로 content-type 추론 — 서버 `UploadKeys` 와 같은 표여야 한다.
+  /// 서버가 이 값으로 PUT 을 서명하므로 어긋나면 S3 가 업로드를 거부한다.
   static String contentTypeFor(String filename) {
     final dot = filename.lastIndexOf('.');
     final ext = dot >= 0 ? filename.substring(dot + 1).toLowerCase() : '';
@@ -168,6 +169,7 @@ class ImageUploadService {
       'png' => 'image/png',
       'webp' => 'image/webp',
       'heic' => 'image/heic',
+      'heif' => 'image/heif',
       _ => 'application/octet-stream',
     };
   }

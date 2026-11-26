@@ -32,7 +32,7 @@ public class SmtpMailSender implements MailSender {
 
             인증 코드: %s
 
-            이 코드는 10분 후 만료됩니다.
+            이 코드는 5분 후 만료됩니다.
             본인이 요청하지 않은 경우 이 메일을 무시해 주세요.""";
 
     private final JavaMailSender javaMailSender;

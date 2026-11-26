@@ -1132,7 +1132,8 @@ OAuth 토큰 AES-256-GCM 암호화 (`BITPET_TOKEN_ENC_KEY` 환경변수).
 `POST /auth/signup/email-code` (코드 발송) → `POST /auth/signup/email-code/verify` (토큰) → `POST /auth/signup` 에 `emailVerificationToken`.
 - 코드는 `auth/signup/` 패키지 (`SignupEmailVerificationService`·`SignupEmailStore`(Redis)·`SignupProperties`). 비밀번호 재설정과 키를 나눈다
 - **허용 도메인**: `bitpet.signup.allowed-email-domains` (naver·kakao·daum·hanmail·nate·gmail·icloud·me·outlook·hotmail·outlook.kr·yahoo). 추가 요청은 yml 에 더하면 끝
-- 코드 10분 · 인증 후 30분 안에 가입 · 재발송 60초 대기(429) · 오답 5회면 코드 폐기
+- 코드 **5분** (가입·자녀·비밀번호 재설정 공통, 2026-11-27) · 인증 후 30분 안에 가입 · 재발송 60초 대기(429) · 오답 5회면 코드 폐기
+- 업로드 키는 서버가 발급한 모양만 등록된다 (`storage/UploadKeys`) — content-type 도 확장자로 서버가 정한다. 앱 `contentTypeFor` 와 같은 표여야 한다
 - 토큰은 **같은 주소**로 발급된 것만 통과하고, 가입 후 지운다 (재사용·주소 바꿔치기 차단)
 - `check-email` 응답에 `domainAllowed` 추가 — false 면 '이미 가입됨'이 아니라 받지 않는 메일
 - **소셜 로그인에는 안 걸린다.** **자녀 계정은 2026-11-25 부터 같은 인증을 거친다** (`ChildCreateRequest.emailVerificationToken`) —

@@ -8,6 +8,7 @@ import io.bitpet.pet.repository.PetPurgeRepository;
 import io.bitpet.pet.repository.PetRelationRlsRepository;
 import io.bitpet.record.mating.repository.MatingDtlRepository;
 import io.bitpet.routine.service.RoutineMaintenanceService;
+import io.bitpet.storage.service.S3DeleteQueueService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -46,6 +47,7 @@ public class PetWithdrawalService {
     private final PetPurgeRepository purgeRepository;
     private final RoutineMaintenanceService routineMaintenance;
     private final PetPurgeService petPurge;
+    private final S3DeleteQueueService s3DeleteQueue;
 
     /** 탈퇴 처리 결과 — 로그·운영 확인용 */
     public record Result(int purged, int anonymized, int handedOver, int keeperReleased) {}
@@ -92,6 +94,9 @@ public class PetWithdrawalService {
         // ① 자기 개체끼리의 상호 참조 제거 (빈 IN 절은 JPQL 에서 문법 오류라 더미 id 를 넣는다)
         Collection<Long> scope = ownedPetIds.isEmpty() ? List.of(-1L) : ownedPetIds;
         relationRepository.deleteIntraAccountRelations(scope);
+        // 지워질 메이팅의 사진을 먼저 걷는다 — 사진은 폴리모픽이라 FK 로 따라 지워지지 않는다
+        s3DeleteQueue.enqueue(purgeRepository.findOwnedMatingPhotoKeys(userId, scope));
+        purgeRepository.deleteOwnedMatingPhotos(userId, scope);
         matingRepository.deleteOwnedByUser(userId, scope);
 
         int purged = 0, anonymized = 0, handedOver = 0;
