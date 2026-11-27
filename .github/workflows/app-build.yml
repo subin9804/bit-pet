@@ -1,29 +1,41 @@
-# 앱 APK 자동 빌드 — 실기기 검증용
+# 앱 빌드 — 실기기 검증용 APK + (손으로 고를 때만) Play 업로드용 AAB
 #
-# `bitpet_app/**` 가 푸시되면 릴리즈 APK 를 만들어 GitHub 아티팩트로 올린다.
-# 폰에서 받아 바로 설치하면 된다.
+# ── APK: `bitpet_app/**` 가 푸시되면 자동 ─────────────────────────────────────
+# 릴리즈 APK 를 만들어 GitHub 아티팩트로 올린다. 폰에서 받아 바로 설치하면 된다.
+# **디버그 키**로 서명되어 Play 는 거부한다 (`android/app/build.gradle.kts` 의 폴백).
+# 검증용이라 그걸로 충분하고, 그래서 이 경로에는 릴리즈 키가 아예 안 들어온다.
 #
-# ⚠️ **스토어와는 아무 상관이 없다.** 여기서 나온 APK 는 디버그 키로 서명되어
-# 있어 Play 가 거부한다 (`android/app/build.gradle.kts` 의 폴백). 그건 결함이
-# 아니라 의도다 — 키스토어를 CI 에 올리지 않기 위한 것이고, 잃어버리면 앱
-# 업데이트를 영구히 못 올리는 물건이라 러너에 둘 이유가 없다.
+# ── AAB: Actions 탭 > app-build > Run workflow 에서 `build` 를 aab/both 로 ──────
+# 업로드 키로 서명된 AAB 를 아티팩트로 올린다. **푸시로는 절대 돌지 않는다** —
+# 키가 러너에 풀리는 순간을 사람이 고른 실행으로만 줄이려는 것이다.
+# 주소는 고른 값과 상관없이 운영(`tailog.me`)으로 고정한다. 스토어에 로컬 주소가
+# 박힌 앱이 올라가는 사고를 막는다.
+#
+# 키를 CI 에 둬도 되는 이유: Play 앱 서명을 쓰므로 진짜 서명 키는 Google 이 갖고,
+# 여기 두는 건 **업로드 키**다. 유출·분실돼도 Play 콘솔에서 재설정할 수 있다.
 #
 # 서버(`deploy.yml`)와 달리 **자동 배포가 아니다.** 앱은 한 번 나가면 되돌릴 수
 # 없고 (이미 설치된 폰을 되돌리지 못한다) 중간에 Play 심사가 끼므로, 스토어
-# 업로드는 사람이 확인한 뒤 손으로 한다.
+# 업로드는 사람이 AAB 를 받아 손으로 한다.
 #
-# ── 준비: GitHub Secrets 2개 ───────────────────────────────────────────────
-# 둘 다 gitignore 된 파일이라 레포에 없다. 없으면 빌드가 실패한다.
+# ── 준비: GitHub Secrets ────────────────────────────────────────────────────
+# 전부 gitignore 된 파일·값이라 레포에 없다. 없으면 빌드가 실패한다.
 #
-#   GOOGLE_SERVICES_JSON   ← bitpet_app/android/app/google-services.json
-#   FIREBASE_OPTIONS_DART  ← bitpet_app/lib/firebase_options.dart
+#   GOOGLE_SERVICES_JSON   ← bitpet_app/android/app/google-services.json   (APK·AAB)
+#   FIREBASE_OPTIONS_DART  ← bitpet_app/lib/firebase_options.dart          (APK·AAB)
+#   ANDROID_KEYSTORE_BASE64   ← 업로드 키 .jks 파일의 base64               (AAB 만)
+#   ANDROID_KEYSTORE_PASSWORD ← key.properties 의 storePassword             (AAB 만)
+#   ANDROID_KEY_ALIAS         ← key.properties 의 keyAlias                  (AAB 만)
+#   ANDROID_KEY_PASSWORD      ← key.properties 의 keyPassword               (AAB 만)
 #
-# 파일 내용을 그대로 붙여넣어도 되고, base64 로 넣어도 된다 — 워크플로가 둘 다 받는다.
+# Firebase 2개는 파일 내용을 그대로 붙여넣어도 되고, base64 로 넣어도 된다 — 워크플로가 둘 다 받는다.
+# .jks 는 바이너리라 반드시 base64. 나머지 셋은 값만 그대로.
 #   레포 > Settings > Secrets and variables > Actions > New repository secret
 #
 # base64 로 넣고 싶다면 PowerShell 에서:
 #   [Convert]::ToBase64String([IO.File]::ReadAllBytes("bitpet_app\android\app\google-services.json")) | Set-Clipboard
 #   [Convert]::ToBase64String([IO.File]::ReadAllBytes("bitpet_app\lib\firebase_options.dart"))        | Set-Clipboard
+#   [Convert]::ToBase64String([IO.File]::ReadAllBytes("<key.properties 의 storeFile 경로>")) | Set-Clipboard
 
 name: app-build
 
@@ -32,11 +44,25 @@ on:
     paths:
       - 'bitpet_app/**'
       - '.github/workflows/app-build.yml'
-  # 코드 변경 없이 서버 주소만 바꿔 다시 뽑고 싶을 때
+  # 코드 변경 없이 서버 주소만 바꿔 다시 뽑고 싶을 때, 그리고 AAB 를 뽑을 때
   workflow_dispatch:
     inputs:
+      build:
+        description: '무엇을 빌드할지 (aab 는 업로드 키로 서명, 주소는 운영 고정)'
+        required: true
+        default: 'apk'
+        type: choice
+        options:
+          - 'apk'    # 실기기 검증용 (디버그 키)
+          - 'aab'    # Play 업로드용
+          - 'both'
+      build_number:
+        description: 'AAB 빌드 번호(versionCode). 비우면 pubspec 값. Play 에 올린 적 있는 번호보다 커야 함'
+        required: false
+        default: ''
+        type: string
       api_base_url:
-        description: 'API 서버 주소'
+        description: 'API 서버 주소 (APK 만 해당)'
         required: true
         default: 'https://tailog.me/api/v1'
         type: choice
@@ -45,13 +71,17 @@ on:
           - 'http://localhost:8080/api/v1'   # 로컬. adb reverse tcp:8080 tcp:8080 필요
 
 # 같은 브랜치에 연속으로 푸시하면 앞의 빌드는 볼 일이 없다.
+# 손으로 돌린 실행(AAB)은 따로 묶는다 — 그 사이 푸시가 들어와도 취소되지 않게.
 concurrency:
-  group: app-build-${{ github.ref }}
+  group: app-build-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 
 jobs:
-  apk:
+  build:
     runs-on: ubuntu-latest
+    env:
+      # 푸시로 돌 때는 inputs 가 비어 있다 → apk
+      BUILD: ${{ inputs.build || 'apk' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -140,6 +170,7 @@ jobs:
       # `default:` 를 **둘 다** 고쳐야 한다. 한쪽만 고치면 손으로 돌릴 때와
       # 푸시로 돌 때가 서로 다른 주소로 나온다.
       - name: APK 빌드
+        if: env.BUILD != 'aab'
         working-directory: bitpet_app
         run: |
           flutter build apk --release \
@@ -149,6 +180,7 @@ jobs:
       # 커밋만으로는 부족하다. 같은 커밋에서 주소만 다른 APK 가 나오는데 이름이
       # 같으면 받아놓고 어느 쪽인지 알 수 없다 (실제로 한 번 헷갈렸다).
       - name: 이름 붙이기
+        if: env.BUILD != 'aab'
         id: name
         env:
           URL: ${{ inputs.api_base_url || 'https://tailog.me/api/v1' }}
@@ -161,8 +193,90 @@ jobs:
           echo "이 APK 가 보는 서버: $URL"
 
       - uses: actions/upload-artifact@v4
+        if: env.BUILD != 'aab'
         with:
           name: tailog-${{ steps.name.outputs.env }}-${{ steps.name.outputs.short }}
           path: bitpet_app/build/app/outputs/flutter-apk/app-release.apk
           # 검증용이라 오래 둘 이유가 없다. 기본 90일은 저장소만 먹는다.
           retention-days: 14
+
+      # ── 여기부터 AAB (손으로 aab/both 를 골랐을 때만) ─────────────────────────
+
+      # 업로드 키를 복원한다. 값은 어디에도 찍지 않는다 — 파일로만 쓰고 끝나면 지운다.
+      # storeFile 은 `file(it)` 이라 android/app 기준 상대 경로다.
+      - name: 업로드 키 복원
+        if: env.BUILD != 'apk'
+        env:
+          KS: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          SP: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KA: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KP: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          missing=""
+          if [ -z "$KS" ]; then missing="$missing ANDROID_KEYSTORE_BASE64"; fi
+          if [ -z "$SP" ]; then missing="$missing ANDROID_KEYSTORE_PASSWORD"; fi
+          if [ -z "$KA" ]; then missing="$missing ANDROID_KEY_ALIAS"; fi
+          if [ -z "$KP" ]; then missing="$missing ANDROID_KEY_PASSWORD"; fi
+          if [ -n "$missing" ]; then
+            echo "::error::등록되지 않은 시크릿:$missing — 이 워크플로 파일 맨 위 주석에 넣는 방법이 있다."
+            exit 1
+          fi
+          if ! printf '%s' "$KS" | tr -d '[:space:]' | base64 -d > bitpet_app/android/app/upload-keystore.jks 2>/dev/null; then
+            echo "::error::ANDROID_KEYSTORE_BASE64 가 base64 가 아니다. .jks 파일을 base64 로 바꿔 넣어야 한다."
+            exit 1
+          fi
+          # .properties 는 역슬래시를 이스케이프 문자로 읽는다
+          esc() { printf '%s' "$1" | sed 's/\\/\\\\/g'; }
+          {
+            echo "storeFile=upload-keystore.jks"
+            echo "storePassword=$(esc "$SP")"
+            echo "keyAlias=$(esc "$KA")"
+            echo "keyPassword=$(esc "$KP")"
+          } > bitpet_app/android/key.properties
+
+      - name: AAB 빌드
+        if: env.BUILD != 'apk'
+        working-directory: bitpet_app
+        env:
+          BUILD_NUMBER: ${{ inputs.build_number }}
+        run: |
+          extra=""
+          if [ -n "$BUILD_NUMBER" ] && ! [[ "$BUILD_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "::error::빌드 번호는 숫자만: $BUILD_NUMBER"; exit 1
+          fi
+          if [ -n "$BUILD_NUMBER" ]; then extra="--build-number=$BUILD_NUMBER"; fi
+          flutter build appbundle --release $extra \
+            --dart-define=API_BASE_URL='https://tailog.me/api/v1'
+
+      # key.properties 가 깨져 있으면 Gradle 은 디버그 키로 폴백하고 **경고만** 낸다.
+      # 그 AAB 는 Play 에서야 거부되므로 여기서 서명자를 보고 끊는다.
+      - name: 서명 확인 + 이름 붙이기
+        if: env.BUILD != 'apk'
+        id: aab
+        working-directory: bitpet_app
+        env:
+          BUILD_NUMBER: ${{ inputs.build_number }}
+        run: |
+          owner=$(keytool -printcert -jarfile build/app/outputs/bundle/release/app-release.aab | grep -m1 'Owner:' || true)
+          echo "서명자: $owner"
+          if [ -z "$owner" ] || echo "$owner" | grep -q 'Android Debug'; then
+            echo "::error::AAB 가 업로드 키로 서명되지 않았다 (디버그 키 또는 서명 없음). 시크릿 값을 확인할 것."
+            exit 1
+          fi
+          version=$(grep -m1 '^version:' pubspec.yaml | sed 's/version: *//; s/+.*//')
+          code="$BUILD_NUMBER"
+          if [ -z "$code" ]; then code=$(grep -m1 '^version:' pubspec.yaml | sed 's/.*+//'); fi
+          echo "label=$version-$code-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          echo "버전: $version ($code)"
+
+      - uses: actions/upload-artifact@v4
+        if: env.BUILD != 'apk'
+        with:
+          name: tailog-aab-${{ steps.aab.outputs.label }}
+          path: bitpet_app/build/app/outputs/bundle/release/app-release.aab
+          retention-days: 14
+
+      # 러너는 매번 버려지지만, 키 파일은 쓸 일이 끝나면 바로 지운다.
+      - name: 업로드 키 지우기
+        if: always()
+        run: rm -f bitpet_app/android/app/upload-keystore.jks bitpet_app/android/key.properties
